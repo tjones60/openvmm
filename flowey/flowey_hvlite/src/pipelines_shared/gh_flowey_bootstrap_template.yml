@@ -45,8 +45,17 @@
     curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
     ./rustup-init.exe -y
     echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
-  if: runner.os == 'Windows'
-  name: rustup (Windows)
+  if: runner.os == 'Windows' && runner.arch == 'X64'
+  name: rustup (Windows X64)
+  shell: bash
+
+- run: |
+    set -x
+    curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
+    ./rustup-init.exe -y
+    echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+  if: runner.os == 'Windows' && runner.arch == 'ARM64'
+  name: rustup (Windows ARM64)
   shell: bash
 
 - uses: actions/checkout@v4
