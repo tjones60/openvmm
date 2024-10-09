@@ -2325,8 +2325,6 @@ jobs:
         cat <<'EOF' | flowey.exe v 13 'param0' --update-from-stdin
         ${{ inputs.param0 != '' && inputs.param0 || 'false' }}
         EOF
-        mkdir -p "$AgentTempDirNormal/publish_artifacts/unit-tests-junit-x64-windows"
-        echo "${{ runner.temp }}\\publish_artifacts\\unit-tests-junit-x64-windows" | flowey.exe v 13 'artifact_publish_from_unit-tests-junit-x64-windows' --update-from-stdin --is-raw-string
       shell: bash
     - name: 🌼🔎 Self-check YAML
       run: |-
@@ -2589,9 +2587,28 @@ jobs:
     - name: 🌼 write_into Var
       run: flowey.exe e 13 flowey_lib_hvlite::_jobs::build_and_run_nextest_unit_tests 0
       shell: bash
-    - name: copy JUnit test results to artifact dir
+    - name: 🌼 write_into Var
       run: flowey.exe e 13 flowey_lib_common::junit_publish_test_results 0
       shell: bash
+    - name: 🌼 write_into Var
+      run: flowey.exe e 13 flowey_lib_common::junit_publish_test_results 1
+      shell: bash
+    - run: |
+        flowey.exe v 13 'flowey_lib_common::junit_publish_test_results:0:flowey_lib_common/src/junit_publish_test_results.rs:90:46' --write-to-gh-env FLOWEY_CONDITION
+      shell: bash
+      name: 🌼❓ Write to 'FLOWEY_CONDITION'
+    - run: |
+        flowey.exe v 13 'flowey_lib_common::junit_publish_test_results:2:flowey_lib_common/src/junit_publish_test_results.rs:91:42' --write-to-gh-env floweyvar11 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar11'
+      if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
+    - id: flowey_lib_common__junit_publish_test_results__2
+      uses: actions/upload-artifact@v4
+      with:
+        name: x64-windows-unit-tests
+        path: ${{ env.floweyvar11 }}
+      name: 'publish JUnit test results: x64-windows-unit-tests'
+      if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - name: report test results to overall pipeline status
       run: flowey.exe e 13 flowey_lib_hvlite::_jobs::build_and_run_nextest_unit_tests 1
       shell: bash
@@ -2604,11 +2621,6 @@ jobs:
     - name: 'validate cache entry: gh-release-download'
       run: flowey.exe e 13 flowey_lib_common::cache 11
       shell: bash
-    - name: 🌼📦 Publish unit-tests-junit-x64-windows
-      uses: actions/upload-artifact@v4
-      with:
-        name: unit-tests-junit-x64-windows
-        path: ${{ runner.temp }}/publish_artifacts/unit-tests-junit-x64-windows/
   job14:
     name: clippy [linux, macos], unit tests [x64-linux]
     runs-on:
@@ -2707,8 +2719,6 @@ jobs:
         cat <<'EOF' | flowey v 14 'param0' --update-from-stdin
         ${{ inputs.param0 != '' && inputs.param0 || 'false' }}
         EOF
-        mkdir -p "$AgentTempDirNormal/publish_artifacts/unit-tests-junit-x64-linux"
-        echo "$AgentTempDirNormal/publish_artifacts/unit-tests-junit-x64-linux" | flowey v 14 'artifact_publish_from_unit-tests-junit-x64-linux' --update-from-stdin --is-raw-string
       shell: bash
     - name: 🌼🔎 Self-check YAML
       run: |-
@@ -3016,9 +3026,28 @@ jobs:
     - name: 🌼 write_into Var
       run: flowey e 14 flowey_lib_hvlite::_jobs::build_and_run_nextest_unit_tests 0
       shell: bash
-    - name: copy JUnit test results to artifact dir
+    - name: 🌼 write_into Var
       run: flowey e 14 flowey_lib_common::junit_publish_test_results 0
       shell: bash
+    - name: 🌼 write_into Var
+      run: flowey e 14 flowey_lib_common::junit_publish_test_results 1
+      shell: bash
+    - run: |
+        flowey v 14 'flowey_lib_common::junit_publish_test_results:0:flowey_lib_common/src/junit_publish_test_results.rs:90:46' --write-to-gh-env FLOWEY_CONDITION
+      shell: bash
+      name: 🌼❓ Write to 'FLOWEY_CONDITION'
+    - run: |
+        flowey v 14 'flowey_lib_common::junit_publish_test_results:2:flowey_lib_common/src/junit_publish_test_results.rs:91:42' --write-to-gh-env floweyvar11 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar11'
+      if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
+    - id: flowey_lib_common__junit_publish_test_results__2
+      uses: actions/upload-artifact@v4
+      with:
+        name: x64-linux-unit-tests
+        path: ${{ env.floweyvar11 }}
+      name: 'publish JUnit test results: x64-linux-unit-tests'
+      if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - name: report test results to overall pipeline status
       run: flowey e 14 flowey_lib_hvlite::_jobs::build_and_run_nextest_unit_tests 1
       shell: bash
@@ -3031,11 +3060,6 @@ jobs:
     - name: 'validate cache entry: gh-release-download'
       run: flowey e 14 flowey_lib_common::cache 11
       shell: bash
-    - name: 🌼📦 Publish unit-tests-junit-x64-linux
-      uses: actions/upload-artifact@v4
-      with:
-        name: unit-tests-junit-x64-linux
-        path: ${{ runner.temp }}/publish_artifacts/unit-tests-junit-x64-linux/
   job15:
     name: clippy [linux-musl, misc nostd], unit tests [x64-linux-musl]
     runs-on:
@@ -3134,8 +3158,6 @@ jobs:
         cat <<'EOF' | flowey v 15 'param0' --update-from-stdin
         ${{ inputs.param0 != '' && inputs.param0 || 'false' }}
         EOF
-        mkdir -p "$AgentTempDirNormal/publish_artifacts/unit-tests-junit-x64-linux-musl"
-        echo "$AgentTempDirNormal/publish_artifacts/unit-tests-junit-x64-linux-musl" | flowey v 15 'artifact_publish_from_unit-tests-junit-x64-linux-musl' --update-from-stdin --is-raw-string
       shell: bash
     - name: 🌼🔎 Self-check YAML
       run: |-
@@ -3443,9 +3465,28 @@ jobs:
     - name: 🌼 write_into Var
       run: flowey e 15 flowey_lib_hvlite::_jobs::build_and_run_nextest_unit_tests 0
       shell: bash
-    - name: copy JUnit test results to artifact dir
+    - name: 🌼 write_into Var
       run: flowey e 15 flowey_lib_common::junit_publish_test_results 0
       shell: bash
+    - name: 🌼 write_into Var
+      run: flowey e 15 flowey_lib_common::junit_publish_test_results 1
+      shell: bash
+    - run: |
+        flowey v 15 'flowey_lib_common::junit_publish_test_results:0:flowey_lib_common/src/junit_publish_test_results.rs:90:46' --write-to-gh-env FLOWEY_CONDITION
+      shell: bash
+      name: 🌼❓ Write to 'FLOWEY_CONDITION'
+    - run: |
+        flowey v 15 'flowey_lib_common::junit_publish_test_results:2:flowey_lib_common/src/junit_publish_test_results.rs:91:42' --write-to-gh-env floweyvar11 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar11'
+      if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
+    - id: flowey_lib_common__junit_publish_test_results__2
+      uses: actions/upload-artifact@v4
+      with:
+        name: x64-linux-musl-unit-tests
+        path: ${{ env.floweyvar11 }}
+      name: 'publish JUnit test results: x64-linux-musl-unit-tests'
+      if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - name: report test results to overall pipeline status
       run: flowey e 15 flowey_lib_hvlite::_jobs::build_and_run_nextest_unit_tests 1
       shell: bash
@@ -3458,11 +3499,6 @@ jobs:
     - name: 'validate cache entry: gh-release-download'
       run: flowey e 15 flowey_lib_common::cache 11
       shell: bash
-    - name: 🌼📦 Publish unit-tests-junit-x64-linux-musl
-      uses: actions/upload-artifact@v4
-      with:
-        name: unit-tests-junit-x64-linux-musl
-        path: ${{ runner.temp }}/publish_artifacts/unit-tests-junit-x64-linux-musl/
   job16:
     name: unit tests [aarch64-windows]
     runs-on:
@@ -3562,8 +3598,6 @@ jobs:
         cat <<'EOF' | flowey.exe v 16 'param0' --update-from-stdin
         ${{ inputs.param0 != '' && inputs.param0 || 'false' }}
         EOF
-        mkdir -p "$AgentTempDirNormal/publish_artifacts/unit-tests-junit-aarch64-windows"
-        echo "${{ runner.temp }}\\publish_artifacts\\unit-tests-junit-aarch64-windows" | flowey.exe v 16 'artifact_publish_from_unit-tests-junit-aarch64-windows' --update-from-stdin --is-raw-string
       shell: bash
     - name: 🌼🔎 Self-check YAML
       run: |-
@@ -3793,9 +3827,28 @@ jobs:
     - name: 🌼 write_into Var
       run: flowey.exe e 16 flowey_lib_hvlite::_jobs::build_and_run_nextest_unit_tests 0
       shell: bash
-    - name: copy JUnit test results to artifact dir
+    - name: 🌼 write_into Var
       run: flowey.exe e 16 flowey_lib_common::junit_publish_test_results 0
       shell: bash
+    - name: 🌼 write_into Var
+      run: flowey.exe e 16 flowey_lib_common::junit_publish_test_results 1
+      shell: bash
+    - run: |
+        flowey.exe v 16 'flowey_lib_common::junit_publish_test_results:0:flowey_lib_common/src/junit_publish_test_results.rs:90:46' --write-to-gh-env FLOWEY_CONDITION
+      shell: bash
+      name: 🌼❓ Write to 'FLOWEY_CONDITION'
+    - run: |
+        flowey.exe v 16 'flowey_lib_common::junit_publish_test_results:2:flowey_lib_common/src/junit_publish_test_results.rs:91:42' --write-to-gh-env floweyvar11 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar11'
+      if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
+    - id: flowey_lib_common__junit_publish_test_results__2
+      uses: actions/upload-artifact@v4
+      with:
+        name: aarch64-windows-unit-tests
+        path: ${{ env.floweyvar11 }}
+      name: 'publish JUnit test results: aarch64-windows-unit-tests'
+      if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - name: report test results to overall pipeline status
       run: flowey.exe e 16 flowey_lib_hvlite::_jobs::build_and_run_nextest_unit_tests 1
       shell: bash
@@ -3808,11 +3861,6 @@ jobs:
     - name: 'validate cache entry: gh-release-download'
       run: flowey.exe e 16 flowey_lib_common::cache 11
       shell: bash
-    - name: 🌼📦 Publish unit-tests-junit-aarch64-windows
-      uses: actions/upload-artifact@v4
-      with:
-        name: unit-tests-junit-aarch64-windows
-        path: ${{ runner.temp }}/publish_artifacts/unit-tests-junit-aarch64-windows/
   job17:
     name: run vmm-tests [x64-windows-intel]
     runs-on:
@@ -3882,8 +3930,6 @@ jobs:
         cat <<'EOF' | flowey.exe v 17 'param0' --update-from-stdin
         ${{ inputs.param0 != '' && inputs.param0 || 'false' }}
         EOF
-        mkdir -p "$AgentTempDirNormal/publish_artifacts/vmm-tests-junit-x64-windows-intel"
-        echo "${{ runner.temp }}\\publish_artifacts\\vmm-tests-junit-x64-windows-intel" | flowey.exe v 17 'artifact_publish_from_vmm-tests-junit-x64-windows-intel' --update-from-stdin --is-raw-string
         echo "${{ runner.temp }}\\used_artifacts\\x64-guest_test_uefi" | flowey.exe v 17 'artifact_use_from_x64-guest_test_uefi' --update-from-stdin --is-raw-string
         echo "${{ runner.temp }}\\used_artifacts\\x64-linux-musl-pipette" | flowey.exe v 17 'artifact_use_from_x64-linux-musl-pipette' --update-from-stdin --is-raw-string
         echo "${{ runner.temp }}\\used_artifacts\\x64-openhcl-igvm" | flowey.exe v 17 'artifact_use_from_x64-openhcl-igvm' --update-from-stdin --is-raw-string
@@ -3898,18 +3944,18 @@ jobs:
       run: flowey.exe e 17 flowey_lib_common::cache 4
       shell: bash
     - run: |
-        flowey.exe v 17 'flowey_lib_common::cache:10:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar7 --is-raw-string
-      shell: bash
-      name: 🌼 Write to 'floweyvar7'
-    - run: |
-        flowey.exe v 17 'flowey_lib_common::cache:9:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar8 --is-raw-string
+        flowey.exe v 17 'flowey_lib_common::cache:10:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar8 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar8'
+    - run: |
+        flowey.exe v 17 'flowey_lib_common::cache:9:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar9 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar9'
     - id: flowey_lib_common__cache__5
       uses: actions/cache@v4
       with:
-        key: ${{ env.floweyvar7 }}
-        path: ${{ env.floweyvar8 }}
+        key: ${{ env.floweyvar8 }}
+        path: ${{ env.floweyvar9 }}
       name: 'Restore cache: cargo-nextest'
     - run: ${{ steps.flowey_lib_common__cache__5.outputs.cache-hit }}
       shell: flowey.exe v 17 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:509:46' --update-from-file {0} --is-raw-string
@@ -3927,18 +3973,18 @@ jobs:
       run: flowey.exe e 17 flowey_lib_common::cache 12
       shell: bash
     - run: |
-        flowey.exe v 17 'flowey_lib_common::cache:26:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar11 --is-raw-string
-      shell: bash
-      name: 🌼 Write to 'floweyvar11'
-    - run: |
-        flowey.exe v 17 'flowey_lib_common::cache:25:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar12 --is-raw-string
+        flowey.exe v 17 'flowey_lib_common::cache:26:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar12 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar12'
+    - run: |
+        flowey.exe v 17 'flowey_lib_common::cache:25:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar13 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar13'
     - id: flowey_lib_common__cache__13
       uses: actions/cache@v4
       with:
-        key: ${{ env.floweyvar11 }}
-        path: ${{ env.floweyvar12 }}
+        key: ${{ env.floweyvar12 }}
+        path: ${{ env.floweyvar13 }}
       name: 'Restore cache: gh-release-download'
     - run: ${{ steps.flowey_lib_common__cache__13.outputs.cache-hit }}
       shell: flowey.exe v 17 'flowey_lib_common::cache:28:flowey_lib_common/src/cache.rs:509:46' --update-from-file {0} --is-raw-string
@@ -3953,18 +3999,18 @@ jobs:
       run: flowey.exe e 17 flowey_lib_common::cache 8
       shell: bash
     - run: |
-        flowey.exe v 17 'flowey_lib_common::cache:18:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar9 --is-raw-string
-      shell: bash
-      name: 🌼 Write to 'floweyvar9'
-    - run: |
-        flowey.exe v 17 'flowey_lib_common::cache:17:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar10 --is-raw-string
+        flowey.exe v 17 'flowey_lib_common::cache:18:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar10 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar10'
+    - run: |
+        flowey.exe v 17 'flowey_lib_common::cache:17:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar11 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar11'
     - id: flowey_lib_common__cache__9
       uses: actions/cache@v4
       with:
-        key: ${{ env.floweyvar9 }}
-        path: ${{ env.floweyvar10 }}
+        key: ${{ env.floweyvar10 }}
+        path: ${{ env.floweyvar11 }}
       name: 'Restore cache: gh-cli'
     - run: ${{ steps.flowey_lib_common__cache__9.outputs.cache-hit }}
       shell: flowey.exe v 17 'flowey_lib_common::cache:20:flowey_lib_common/src/cache.rs:509:46' --update-from-file {0} --is-raw-string
@@ -3991,23 +4037,23 @@ jobs:
       run: flowey.exe e 17 flowey_lib_common::gh_task_azure_login 0
       shell: bash
     - run: |
-        flowey.exe v 17 'flowey_lib_common::gh_task_azure_login:0:flowey_lib_common/src/gh_task_azure_login.rs:53:48' --is-secret --write-to-gh-env floweyvar2 --is-raw-string
-      shell: bash
-      name: 🌼 Write to 'floweyvar2'
-    - run: |
-        flowey.exe v 17 'flowey_lib_common::gh_task_azure_login:2:flowey_lib_common/src/gh_task_azure_login.rs:55:60' --is-secret --write-to-gh-env floweyvar3 --is-raw-string
+        flowey.exe v 17 'flowey_lib_common::gh_task_azure_login:0:flowey_lib_common/src/gh_task_azure_login.rs:53:48' --is-secret --write-to-gh-env floweyvar3 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar3'
     - run: |
-        flowey.exe v 17 'flowey_lib_common::gh_task_azure_login:1:flowey_lib_common/src/gh_task_azure_login.rs:54:48' --is-secret --write-to-gh-env floweyvar4 --is-raw-string
+        flowey.exe v 17 'flowey_lib_common::gh_task_azure_login:2:flowey_lib_common/src/gh_task_azure_login.rs:55:60' --is-secret --write-to-gh-env floweyvar4 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar4'
+    - run: |
+        flowey.exe v 17 'flowey_lib_common::gh_task_azure_login:1:flowey_lib_common/src/gh_task_azure_login.rs:54:48' --is-secret --write-to-gh-env floweyvar5 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar5'
     - id: flowey_lib_common__gh_task_azure_login__1
       uses: Azure/login@v2
       with:
-        client-id: ${{ env.floweyvar2 }}
-        subscription-id: ${{ env.floweyvar3 }}
-        tenant-id: ${{ env.floweyvar4 }}
+        client-id: ${{ env.floweyvar3 }}
+        subscription-id: ${{ env.floweyvar4 }}
+        tenant-id: ${{ env.floweyvar5 }}
       name: Azure Login
     - name: installing azure-cli
       run: flowey.exe e 17 flowey_lib_common::install_azure_cli 0
@@ -4032,16 +4078,16 @@ jobs:
       shell: bash
       name: 🌼❓ Write to 'FLOWEY_CONDITION'
     - run: |
-        flowey.exe v 17 'flowey_lib_common::git_checkout:0:flowey_lib_common/src/git_checkout.rs:468:80' --write-to-gh-env floweyvar1 --is-raw-string
+        flowey.exe v 17 'flowey_lib_common::git_checkout:0:flowey_lib_common/src/git_checkout.rs:468:80' --write-to-gh-env floweyvar2 --is-raw-string
       shell: bash
-      name: 🌼 Write to 'floweyvar1'
+      name: 🌼 Write to 'floweyvar2'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - id: flowey_lib_common__git_checkout__1
       uses: actions/checkout@v4
       with:
         fetch-depth: '1'
         path: repo0
-        persist-credentials: ${{ env.floweyvar1 }}
+        persist-credentials: ${{ env.floweyvar2 }}
       name: checkout repo hvlite
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - run: ${{ github.workspace }}
@@ -4087,18 +4133,18 @@ jobs:
       run: flowey.exe e 17 flowey_lib_common::cache 0
       shell: bash
     - run: |
-        flowey.exe v 17 'flowey_lib_common::cache:2:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar5 --is-raw-string
-      shell: bash
-      name: 🌼 Write to 'floweyvar5'
-    - run: |
-        flowey.exe v 17 'flowey_lib_common::cache:1:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar6 --is-raw-string
+        flowey.exe v 17 'flowey_lib_common::cache:2:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar6 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar6'
+    - run: |
+        flowey.exe v 17 'flowey_lib_common::cache:1:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar7 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar7'
     - id: flowey_lib_common__cache__1
       uses: actions/cache@v4
       with:
-        key: ${{ env.floweyvar5 }}
-        path: ${{ env.floweyvar6 }}
+        key: ${{ env.floweyvar6 }}
+        path: ${{ env.floweyvar7 }}
       name: 'Restore cache: azcopy'
     - run: ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
       shell: flowey.exe v 17 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:509:46' --update-from-file {0} --is-raw-string
@@ -4145,11 +4191,33 @@ jobs:
     - name: 🌼 write_into Var
       run: flowey.exe e 17 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 1
       shell: bash
-    - name: copy JUnit test results to artifact dir
+    - name: 🌼 write_into Var
       run: flowey.exe e 17 flowey_lib_common::junit_publish_test_results 0
       shell: bash
+    - name: 🌼 write_into Var
+      run: flowey.exe e 17 flowey_lib_common::junit_publish_test_results 1
+      shell: bash
+    - run: |
+        flowey.exe v 17 'flowey_lib_common::junit_publish_test_results:0:flowey_lib_common/src/junit_publish_test_results.rs:90:46' --write-to-gh-env FLOWEY_CONDITION
+      shell: bash
+      name: 🌼❓ Write to 'FLOWEY_CONDITION'
+    - run: |
+        flowey.exe v 17 'flowey_lib_common::junit_publish_test_results:2:flowey_lib_common/src/junit_publish_test_results.rs:91:42' --write-to-gh-env floweyvar1 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar1'
+      if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
+    - id: flowey_lib_common__junit_publish_test_results__2
+      uses: actions/upload-artifact@v4
+      with:
+        name: x64-windows-intel-vmm-tests
+        path: ${{ env.floweyvar1 }}
+      name: 'publish JUnit test results: x64-windows-intel-vmm-tests'
+      if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - name: report test results to overall pipeline status
       run: flowey.exe e 17 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 2
+      shell: bash
+    - name: 'validate cache entry: gh-release-download'
+      run: flowey.exe e 17 flowey_lib_common::cache 15
       shell: bash
     - name: 'validate cache entry: azcopy'
       run: flowey.exe e 17 flowey_lib_common::cache 3
@@ -4160,14 +4228,6 @@ jobs:
     - name: 'validate cache entry: gh-cli'
       run: flowey.exe e 17 flowey_lib_common::cache 11
       shell: bash
-    - name: 'validate cache entry: gh-release-download'
-      run: flowey.exe e 17 flowey_lib_common::cache 15
-      shell: bash
-    - name: 🌼📦 Publish vmm-tests-junit-x64-windows-intel
-      uses: actions/upload-artifact@v4
-      with:
-        name: vmm-tests-junit-x64-windows-intel
-        path: ${{ runner.temp }}/publish_artifacts/vmm-tests-junit-x64-windows-intel/
   job18:
     name: run vmm-tests [x64-windows-amd]
     runs-on:
@@ -4237,8 +4297,6 @@ jobs:
         cat <<'EOF' | flowey.exe v 18 'param0' --update-from-stdin
         ${{ inputs.param0 != '' && inputs.param0 || 'false' }}
         EOF
-        mkdir -p "$AgentTempDirNormal/publish_artifacts/vmm-tests-junit-x64-windows-amd"
-        echo "${{ runner.temp }}\\publish_artifacts\\vmm-tests-junit-x64-windows-amd" | flowey.exe v 18 'artifact_publish_from_vmm-tests-junit-x64-windows-amd' --update-from-stdin --is-raw-string
         echo "${{ runner.temp }}\\used_artifacts\\x64-guest_test_uefi" | flowey.exe v 18 'artifact_use_from_x64-guest_test_uefi' --update-from-stdin --is-raw-string
         echo "${{ runner.temp }}\\used_artifacts\\x64-linux-musl-pipette" | flowey.exe v 18 'artifact_use_from_x64-linux-musl-pipette' --update-from-stdin --is-raw-string
         echo "${{ runner.temp }}\\used_artifacts\\x64-openhcl-igvm" | flowey.exe v 18 'artifact_use_from_x64-openhcl-igvm' --update-from-stdin --is-raw-string
@@ -4253,18 +4311,18 @@ jobs:
       run: flowey.exe e 18 flowey_lib_common::cache 4
       shell: bash
     - run: |
-        flowey.exe v 18 'flowey_lib_common::cache:10:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar7 --is-raw-string
-      shell: bash
-      name: 🌼 Write to 'floweyvar7'
-    - run: |
-        flowey.exe v 18 'flowey_lib_common::cache:9:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar8 --is-raw-string
+        flowey.exe v 18 'flowey_lib_common::cache:10:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar8 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar8'
+    - run: |
+        flowey.exe v 18 'flowey_lib_common::cache:9:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar9 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar9'
     - id: flowey_lib_common__cache__5
       uses: actions/cache@v4
       with:
-        key: ${{ env.floweyvar7 }}
-        path: ${{ env.floweyvar8 }}
+        key: ${{ env.floweyvar8 }}
+        path: ${{ env.floweyvar9 }}
       name: 'Restore cache: cargo-nextest'
     - run: ${{ steps.flowey_lib_common__cache__5.outputs.cache-hit }}
       shell: flowey.exe v 18 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:509:46' --update-from-file {0} --is-raw-string
@@ -4282,18 +4340,18 @@ jobs:
       run: flowey.exe e 18 flowey_lib_common::cache 12
       shell: bash
     - run: |
-        flowey.exe v 18 'flowey_lib_common::cache:26:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar11 --is-raw-string
-      shell: bash
-      name: 🌼 Write to 'floweyvar11'
-    - run: |
-        flowey.exe v 18 'flowey_lib_common::cache:25:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar12 --is-raw-string
+        flowey.exe v 18 'flowey_lib_common::cache:26:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar12 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar12'
+    - run: |
+        flowey.exe v 18 'flowey_lib_common::cache:25:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar13 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar13'
     - id: flowey_lib_common__cache__13
       uses: actions/cache@v4
       with:
-        key: ${{ env.floweyvar11 }}
-        path: ${{ env.floweyvar12 }}
+        key: ${{ env.floweyvar12 }}
+        path: ${{ env.floweyvar13 }}
       name: 'Restore cache: gh-release-download'
     - run: ${{ steps.flowey_lib_common__cache__13.outputs.cache-hit }}
       shell: flowey.exe v 18 'flowey_lib_common::cache:28:flowey_lib_common/src/cache.rs:509:46' --update-from-file {0} --is-raw-string
@@ -4308,18 +4366,18 @@ jobs:
       run: flowey.exe e 18 flowey_lib_common::cache 8
       shell: bash
     - run: |
-        flowey.exe v 18 'flowey_lib_common::cache:18:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar9 --is-raw-string
-      shell: bash
-      name: 🌼 Write to 'floweyvar9'
-    - run: |
-        flowey.exe v 18 'flowey_lib_common::cache:17:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar10 --is-raw-string
+        flowey.exe v 18 'flowey_lib_common::cache:18:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar10 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar10'
+    - run: |
+        flowey.exe v 18 'flowey_lib_common::cache:17:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar11 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar11'
     - id: flowey_lib_common__cache__9
       uses: actions/cache@v4
       with:
-        key: ${{ env.floweyvar9 }}
-        path: ${{ env.floweyvar10 }}
+        key: ${{ env.floweyvar10 }}
+        path: ${{ env.floweyvar11 }}
       name: 'Restore cache: gh-cli'
     - run: ${{ steps.flowey_lib_common__cache__9.outputs.cache-hit }}
       shell: flowey.exe v 18 'flowey_lib_common::cache:20:flowey_lib_common/src/cache.rs:509:46' --update-from-file {0} --is-raw-string
@@ -4346,23 +4404,23 @@ jobs:
       run: flowey.exe e 18 flowey_lib_common::gh_task_azure_login 0
       shell: bash
     - run: |
-        flowey.exe v 18 'flowey_lib_common::gh_task_azure_login:0:flowey_lib_common/src/gh_task_azure_login.rs:53:48' --is-secret --write-to-gh-env floweyvar2 --is-raw-string
-      shell: bash
-      name: 🌼 Write to 'floweyvar2'
-    - run: |
-        flowey.exe v 18 'flowey_lib_common::gh_task_azure_login:2:flowey_lib_common/src/gh_task_azure_login.rs:55:60' --is-secret --write-to-gh-env floweyvar3 --is-raw-string
+        flowey.exe v 18 'flowey_lib_common::gh_task_azure_login:0:flowey_lib_common/src/gh_task_azure_login.rs:53:48' --is-secret --write-to-gh-env floweyvar3 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar3'
     - run: |
-        flowey.exe v 18 'flowey_lib_common::gh_task_azure_login:1:flowey_lib_common/src/gh_task_azure_login.rs:54:48' --is-secret --write-to-gh-env floweyvar4 --is-raw-string
+        flowey.exe v 18 'flowey_lib_common::gh_task_azure_login:2:flowey_lib_common/src/gh_task_azure_login.rs:55:60' --is-secret --write-to-gh-env floweyvar4 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar4'
+    - run: |
+        flowey.exe v 18 'flowey_lib_common::gh_task_azure_login:1:flowey_lib_common/src/gh_task_azure_login.rs:54:48' --is-secret --write-to-gh-env floweyvar5 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar5'
     - id: flowey_lib_common__gh_task_azure_login__1
       uses: Azure/login@v2
       with:
-        client-id: ${{ env.floweyvar2 }}
-        subscription-id: ${{ env.floweyvar3 }}
-        tenant-id: ${{ env.floweyvar4 }}
+        client-id: ${{ env.floweyvar3 }}
+        subscription-id: ${{ env.floweyvar4 }}
+        tenant-id: ${{ env.floweyvar5 }}
       name: Azure Login
     - name: installing azure-cli
       run: flowey.exe e 18 flowey_lib_common::install_azure_cli 0
@@ -4387,16 +4445,16 @@ jobs:
       shell: bash
       name: 🌼❓ Write to 'FLOWEY_CONDITION'
     - run: |
-        flowey.exe v 18 'flowey_lib_common::git_checkout:0:flowey_lib_common/src/git_checkout.rs:468:80' --write-to-gh-env floweyvar1 --is-raw-string
+        flowey.exe v 18 'flowey_lib_common::git_checkout:0:flowey_lib_common/src/git_checkout.rs:468:80' --write-to-gh-env floweyvar2 --is-raw-string
       shell: bash
-      name: 🌼 Write to 'floweyvar1'
+      name: 🌼 Write to 'floweyvar2'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - id: flowey_lib_common__git_checkout__1
       uses: actions/checkout@v4
       with:
         fetch-depth: '1'
         path: repo0
-        persist-credentials: ${{ env.floweyvar1 }}
+        persist-credentials: ${{ env.floweyvar2 }}
       name: checkout repo hvlite
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - run: ${{ github.workspace }}
@@ -4442,18 +4500,18 @@ jobs:
       run: flowey.exe e 18 flowey_lib_common::cache 0
       shell: bash
     - run: |
-        flowey.exe v 18 'flowey_lib_common::cache:2:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar5 --is-raw-string
-      shell: bash
-      name: 🌼 Write to 'floweyvar5'
-    - run: |
-        flowey.exe v 18 'flowey_lib_common::cache:1:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar6 --is-raw-string
+        flowey.exe v 18 'flowey_lib_common::cache:2:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar6 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar6'
+    - run: |
+        flowey.exe v 18 'flowey_lib_common::cache:1:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar7 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar7'
     - id: flowey_lib_common__cache__1
       uses: actions/cache@v4
       with:
-        key: ${{ env.floweyvar5 }}
-        path: ${{ env.floweyvar6 }}
+        key: ${{ env.floweyvar6 }}
+        path: ${{ env.floweyvar7 }}
       name: 'Restore cache: azcopy'
     - run: ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
       shell: flowey.exe v 18 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:509:46' --update-from-file {0} --is-raw-string
@@ -4500,11 +4558,33 @@ jobs:
     - name: 🌼 write_into Var
       run: flowey.exe e 18 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 1
       shell: bash
-    - name: copy JUnit test results to artifact dir
+    - name: 🌼 write_into Var
       run: flowey.exe e 18 flowey_lib_common::junit_publish_test_results 0
       shell: bash
+    - name: 🌼 write_into Var
+      run: flowey.exe e 18 flowey_lib_common::junit_publish_test_results 1
+      shell: bash
+    - run: |
+        flowey.exe v 18 'flowey_lib_common::junit_publish_test_results:0:flowey_lib_common/src/junit_publish_test_results.rs:90:46' --write-to-gh-env FLOWEY_CONDITION
+      shell: bash
+      name: 🌼❓ Write to 'FLOWEY_CONDITION'
+    - run: |
+        flowey.exe v 18 'flowey_lib_common::junit_publish_test_results:2:flowey_lib_common/src/junit_publish_test_results.rs:91:42' --write-to-gh-env floweyvar1 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar1'
+      if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
+    - id: flowey_lib_common__junit_publish_test_results__2
+      uses: actions/upload-artifact@v4
+      with:
+        name: x64-windows-amd-vmm-tests
+        path: ${{ env.floweyvar1 }}
+      name: 'publish JUnit test results: x64-windows-amd-vmm-tests'
+      if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - name: report test results to overall pipeline status
       run: flowey.exe e 18 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 2
+      shell: bash
+    - name: 'validate cache entry: gh-release-download'
+      run: flowey.exe e 18 flowey_lib_common::cache 15
       shell: bash
     - name: 'validate cache entry: azcopy'
       run: flowey.exe e 18 flowey_lib_common::cache 3
@@ -4515,14 +4595,6 @@ jobs:
     - name: 'validate cache entry: gh-cli'
       run: flowey.exe e 18 flowey_lib_common::cache 11
       shell: bash
-    - name: 'validate cache entry: gh-release-download'
-      run: flowey.exe e 18 flowey_lib_common::cache 15
-      shell: bash
-    - name: 🌼📦 Publish vmm-tests-junit-x64-windows-amd
-      uses: actions/upload-artifact@v4
-      with:
-        name: vmm-tests-junit-x64-windows-amd
-        path: ${{ runner.temp }}/publish_artifacts/vmm-tests-junit-x64-windows-amd/
   job19:
     name: run vmm-tests [x64-linux]
     runs-on:
@@ -4585,8 +4657,6 @@ jobs:
         cat <<'EOF' | flowey v 19 'param0' --update-from-stdin
         ${{ inputs.param0 != '' && inputs.param0 || 'false' }}
         EOF
-        mkdir -p "$AgentTempDirNormal/publish_artifacts/vmm-tests-junit-x64-linux"
-        echo "$AgentTempDirNormal/publish_artifacts/vmm-tests-junit-x64-linux" | flowey v 19 'artifact_publish_from_vmm-tests-junit-x64-linux' --update-from-stdin --is-raw-string
         echo "$AgentTempDirNormal/used_artifacts/x64-guest_test_uefi" | flowey v 19 'artifact_use_from_x64-guest_test_uefi' --update-from-stdin --is-raw-string
         echo "$AgentTempDirNormal/used_artifacts/x64-linux-musl-pipette" | flowey v 19 'artifact_use_from_x64-linux-musl-pipette' --update-from-stdin --is-raw-string
         echo "$AgentTempDirNormal/used_artifacts/x64-linux-openvmm" | flowey v 19 'artifact_use_from_x64-linux-openvmm' --update-from-stdin --is-raw-string
@@ -4603,18 +4673,18 @@ jobs:
       run: flowey e 19 flowey_lib_common::cache 4
       shell: bash
     - run: |
-        flowey v 19 'flowey_lib_common::cache:10:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar7 --is-raw-string
-      shell: bash
-      name: 🌼 Write to 'floweyvar7'
-    - run: |
-        flowey v 19 'flowey_lib_common::cache:9:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar8 --is-raw-string
+        flowey v 19 'flowey_lib_common::cache:10:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar8 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar8'
+    - run: |
+        flowey v 19 'flowey_lib_common::cache:9:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar9 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar9'
     - id: flowey_lib_common__cache__5
       uses: actions/cache@v4
       with:
-        key: ${{ env.floweyvar7 }}
-        path: ${{ env.floweyvar8 }}
+        key: ${{ env.floweyvar8 }}
+        path: ${{ env.floweyvar9 }}
       name: 'Restore cache: cargo-nextest'
     - run: ${{ steps.flowey_lib_common__cache__5.outputs.cache-hit }}
       shell: flowey v 19 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:509:46' --update-from-file {0} --is-raw-string
@@ -4638,18 +4708,18 @@ jobs:
       run: flowey e 19 flowey_lib_common::cache 12
       shell: bash
     - run: |
-        flowey v 19 'flowey_lib_common::cache:26:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar11 --is-raw-string
-      shell: bash
-      name: 🌼 Write to 'floweyvar11'
-    - run: |
-        flowey v 19 'flowey_lib_common::cache:25:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar12 --is-raw-string
+        flowey v 19 'flowey_lib_common::cache:26:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar12 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar12'
+    - run: |
+        flowey v 19 'flowey_lib_common::cache:25:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar13 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar13'
     - id: flowey_lib_common__cache__13
       uses: actions/cache@v4
       with:
-        key: ${{ env.floweyvar11 }}
-        path: ${{ env.floweyvar12 }}
+        key: ${{ env.floweyvar12 }}
+        path: ${{ env.floweyvar13 }}
       name: 'Restore cache: gh-release-download'
     - run: ${{ steps.flowey_lib_common__cache__13.outputs.cache-hit }}
       shell: flowey v 19 'flowey_lib_common::cache:28:flowey_lib_common/src/cache.rs:509:46' --update-from-file {0} --is-raw-string
@@ -4664,18 +4734,18 @@ jobs:
       run: flowey e 19 flowey_lib_common::cache 8
       shell: bash
     - run: |
-        flowey v 19 'flowey_lib_common::cache:18:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar9 --is-raw-string
-      shell: bash
-      name: 🌼 Write to 'floweyvar9'
-    - run: |
-        flowey v 19 'flowey_lib_common::cache:17:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar10 --is-raw-string
+        flowey v 19 'flowey_lib_common::cache:18:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar10 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar10'
+    - run: |
+        flowey v 19 'flowey_lib_common::cache:17:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar11 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar11'
     - id: flowey_lib_common__cache__9
       uses: actions/cache@v4
       with:
-        key: ${{ env.floweyvar9 }}
-        path: ${{ env.floweyvar10 }}
+        key: ${{ env.floweyvar10 }}
+        path: ${{ env.floweyvar11 }}
       name: 'Restore cache: gh-cli'
     - run: ${{ steps.flowey_lib_common__cache__9.outputs.cache-hit }}
       shell: flowey v 19 'flowey_lib_common::cache:20:flowey_lib_common/src/cache.rs:509:46' --update-from-file {0} --is-raw-string
@@ -4702,23 +4772,23 @@ jobs:
       run: flowey e 19 flowey_lib_common::gh_task_azure_login 0
       shell: bash
     - run: |
-        flowey v 19 'flowey_lib_common::gh_task_azure_login:0:flowey_lib_common/src/gh_task_azure_login.rs:53:48' --is-secret --write-to-gh-env floweyvar2 --is-raw-string
-      shell: bash
-      name: 🌼 Write to 'floweyvar2'
-    - run: |
-        flowey v 19 'flowey_lib_common::gh_task_azure_login:2:flowey_lib_common/src/gh_task_azure_login.rs:55:60' --is-secret --write-to-gh-env floweyvar3 --is-raw-string
+        flowey v 19 'flowey_lib_common::gh_task_azure_login:0:flowey_lib_common/src/gh_task_azure_login.rs:53:48' --is-secret --write-to-gh-env floweyvar3 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar3'
     - run: |
-        flowey v 19 'flowey_lib_common::gh_task_azure_login:1:flowey_lib_common/src/gh_task_azure_login.rs:54:48' --is-secret --write-to-gh-env floweyvar4 --is-raw-string
+        flowey v 19 'flowey_lib_common::gh_task_azure_login:2:flowey_lib_common/src/gh_task_azure_login.rs:55:60' --is-secret --write-to-gh-env floweyvar4 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar4'
+    - run: |
+        flowey v 19 'flowey_lib_common::gh_task_azure_login:1:flowey_lib_common/src/gh_task_azure_login.rs:54:48' --is-secret --write-to-gh-env floweyvar5 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar5'
     - id: flowey_lib_common__gh_task_azure_login__1
       uses: Azure/login@v2
       with:
-        client-id: ${{ env.floweyvar2 }}
-        subscription-id: ${{ env.floweyvar3 }}
-        tenant-id: ${{ env.floweyvar4 }}
+        client-id: ${{ env.floweyvar3 }}
+        subscription-id: ${{ env.floweyvar4 }}
+        tenant-id: ${{ env.floweyvar5 }}
       name: Azure Login
     - name: installing azure-cli
       run: flowey e 19 flowey_lib_common::install_azure_cli 0
@@ -4743,16 +4813,16 @@ jobs:
       shell: bash
       name: 🌼❓ Write to 'FLOWEY_CONDITION'
     - run: |
-        flowey v 19 'flowey_lib_common::git_checkout:0:flowey_lib_common/src/git_checkout.rs:468:80' --write-to-gh-env floweyvar1 --is-raw-string
+        flowey v 19 'flowey_lib_common::git_checkout:0:flowey_lib_common/src/git_checkout.rs:468:80' --write-to-gh-env floweyvar2 --is-raw-string
       shell: bash
-      name: 🌼 Write to 'floweyvar1'
+      name: 🌼 Write to 'floweyvar2'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - id: flowey_lib_common__git_checkout__1
       uses: actions/checkout@v4
       with:
         fetch-depth: '1'
         path: repo0
-        persist-credentials: ${{ env.floweyvar1 }}
+        persist-credentials: ${{ env.floweyvar2 }}
       name: checkout repo hvlite
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - run: ${{ github.workspace }}
@@ -4795,18 +4865,18 @@ jobs:
       run: flowey e 19 flowey_lib_common::cache 0
       shell: bash
     - run: |
-        flowey v 19 'flowey_lib_common::cache:2:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar5 --is-raw-string
-      shell: bash
-      name: 🌼 Write to 'floweyvar5'
-    - run: |
-        flowey v 19 'flowey_lib_common::cache:1:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar6 --is-raw-string
+        flowey v 19 'flowey_lib_common::cache:2:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar6 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar6'
+    - run: |
+        flowey v 19 'flowey_lib_common::cache:1:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar7 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar7'
     - id: flowey_lib_common__cache__1
       uses: actions/cache@v4
       with:
-        key: ${{ env.floweyvar5 }}
-        path: ${{ env.floweyvar6 }}
+        key: ${{ env.floweyvar6 }}
+        path: ${{ env.floweyvar7 }}
       name: 'Restore cache: azcopy'
     - run: ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
       shell: flowey v 19 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:509:46' --update-from-file {0} --is-raw-string
@@ -4853,11 +4923,33 @@ jobs:
     - name: 🌼 write_into Var
       run: flowey e 19 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 1
       shell: bash
-    - name: copy JUnit test results to artifact dir
+    - name: 🌼 write_into Var
       run: flowey e 19 flowey_lib_common::junit_publish_test_results 0
       shell: bash
+    - name: 🌼 write_into Var
+      run: flowey e 19 flowey_lib_common::junit_publish_test_results 1
+      shell: bash
+    - run: |
+        flowey v 19 'flowey_lib_common::junit_publish_test_results:0:flowey_lib_common/src/junit_publish_test_results.rs:90:46' --write-to-gh-env FLOWEY_CONDITION
+      shell: bash
+      name: 🌼❓ Write to 'FLOWEY_CONDITION'
+    - run: |
+        flowey v 19 'flowey_lib_common::junit_publish_test_results:2:flowey_lib_common/src/junit_publish_test_results.rs:91:42' --write-to-gh-env floweyvar1 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar1'
+      if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
+    - id: flowey_lib_common__junit_publish_test_results__2
+      uses: actions/upload-artifact@v4
+      with:
+        name: x64-linux-vmm-tests
+        path: ${{ env.floweyvar1 }}
+      name: 'publish JUnit test results: x64-linux-vmm-tests'
+      if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - name: report test results to overall pipeline status
       run: flowey e 19 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 2
+      shell: bash
+    - name: 'validate cache entry: gh-release-download'
+      run: flowey e 19 flowey_lib_common::cache 15
       shell: bash
     - name: 'validate cache entry: azcopy'
       run: flowey e 19 flowey_lib_common::cache 3
@@ -4868,14 +4960,6 @@ jobs:
     - name: 'validate cache entry: gh-cli'
       run: flowey e 19 flowey_lib_common::cache 11
       shell: bash
-    - name: 'validate cache entry: gh-release-download'
-      run: flowey e 19 flowey_lib_common::cache 15
-      shell: bash
-    - name: 🌼📦 Publish vmm-tests-junit-x64-linux
-      uses: actions/upload-artifact@v4
-      with:
-        name: vmm-tests-junit-x64-linux
-        path: ${{ runner.temp }}/publish_artifacts/vmm-tests-junit-x64-linux/
   job2:
     name: build and check docs [x64-linux]
     runs-on:
@@ -5244,8 +5328,6 @@ jobs:
         cat <<'EOF' | flowey.exe v 20 'param0' --update-from-stdin
         ${{ inputs.param0 != '' && inputs.param0 || 'false' }}
         EOF
-        mkdir -p "$AgentTempDirNormal/publish_artifacts/vmm-tests-junit-aarch64-windows"
-        echo "${{ runner.temp }}\\publish_artifacts\\vmm-tests-junit-aarch64-windows" | flowey.exe v 20 'artifact_publish_from_vmm-tests-junit-aarch64-windows' --update-from-stdin --is-raw-string
         echo "${{ runner.temp }}\\used_artifacts\\aarch64-guest_test_uefi" | flowey.exe v 20 'artifact_use_from_aarch64-guest_test_uefi' --update-from-stdin --is-raw-string
         echo "${{ runner.temp }}\\used_artifacts\\aarch64-linux-musl-pipette" | flowey.exe v 20 'artifact_use_from_aarch64-linux-musl-pipette' --update-from-stdin --is-raw-string
         echo "${{ runner.temp }}\\used_artifacts\\aarch64-openhcl-igvm" | flowey.exe v 20 'artifact_use_from_aarch64-openhcl-igvm' --update-from-stdin --is-raw-string
@@ -5260,18 +5342,18 @@ jobs:
       run: flowey.exe e 20 flowey_lib_common::cache 4
       shell: bash
     - run: |
-        flowey.exe v 20 'flowey_lib_common::cache:10:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar7 --is-raw-string
-      shell: bash
-      name: 🌼 Write to 'floweyvar7'
-    - run: |
-        flowey.exe v 20 'flowey_lib_common::cache:9:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar8 --is-raw-string
+        flowey.exe v 20 'flowey_lib_common::cache:10:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar8 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar8'
+    - run: |
+        flowey.exe v 20 'flowey_lib_common::cache:9:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar9 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar9'
     - id: flowey_lib_common__cache__5
       uses: actions/cache@v4
       with:
-        key: ${{ env.floweyvar7 }}
-        path: ${{ env.floweyvar8 }}
+        key: ${{ env.floweyvar8 }}
+        path: ${{ env.floweyvar9 }}
       name: 'Restore cache: cargo-nextest'
     - run: ${{ steps.flowey_lib_common__cache__5.outputs.cache-hit }}
       shell: flowey.exe v 20 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:509:46' --update-from-file {0} --is-raw-string
@@ -5289,18 +5371,18 @@ jobs:
       run: flowey.exe e 20 flowey_lib_common::cache 12
       shell: bash
     - run: |
-        flowey.exe v 20 'flowey_lib_common::cache:26:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar11 --is-raw-string
-      shell: bash
-      name: 🌼 Write to 'floweyvar11'
-    - run: |
-        flowey.exe v 20 'flowey_lib_common::cache:25:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar12 --is-raw-string
+        flowey.exe v 20 'flowey_lib_common::cache:26:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar12 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar12'
+    - run: |
+        flowey.exe v 20 'flowey_lib_common::cache:25:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar13 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar13'
     - id: flowey_lib_common__cache__13
       uses: actions/cache@v4
       with:
-        key: ${{ env.floweyvar11 }}
-        path: ${{ env.floweyvar12 }}
+        key: ${{ env.floweyvar12 }}
+        path: ${{ env.floweyvar13 }}
       name: 'Restore cache: gh-release-download'
     - run: ${{ steps.flowey_lib_common__cache__13.outputs.cache-hit }}
       shell: flowey.exe v 20 'flowey_lib_common::cache:28:flowey_lib_common/src/cache.rs:509:46' --update-from-file {0} --is-raw-string
@@ -5315,18 +5397,18 @@ jobs:
       run: flowey.exe e 20 flowey_lib_common::cache 8
       shell: bash
     - run: |
-        flowey.exe v 20 'flowey_lib_common::cache:18:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar9 --is-raw-string
-      shell: bash
-      name: 🌼 Write to 'floweyvar9'
-    - run: |
-        flowey.exe v 20 'flowey_lib_common::cache:17:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar10 --is-raw-string
+        flowey.exe v 20 'flowey_lib_common::cache:18:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar10 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar10'
+    - run: |
+        flowey.exe v 20 'flowey_lib_common::cache:17:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar11 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar11'
     - id: flowey_lib_common__cache__9
       uses: actions/cache@v4
       with:
-        key: ${{ env.floweyvar9 }}
-        path: ${{ env.floweyvar10 }}
+        key: ${{ env.floweyvar10 }}
+        path: ${{ env.floweyvar11 }}
       name: 'Restore cache: gh-cli'
     - run: ${{ steps.flowey_lib_common__cache__9.outputs.cache-hit }}
       shell: flowey.exe v 20 'flowey_lib_common::cache:20:flowey_lib_common/src/cache.rs:509:46' --update-from-file {0} --is-raw-string
@@ -5353,23 +5435,23 @@ jobs:
       run: flowey.exe e 20 flowey_lib_common::gh_task_azure_login 0
       shell: bash
     - run: |
-        flowey.exe v 20 'flowey_lib_common::gh_task_azure_login:0:flowey_lib_common/src/gh_task_azure_login.rs:53:48' --is-secret --write-to-gh-env floweyvar2 --is-raw-string
-      shell: bash
-      name: 🌼 Write to 'floweyvar2'
-    - run: |
-        flowey.exe v 20 'flowey_lib_common::gh_task_azure_login:2:flowey_lib_common/src/gh_task_azure_login.rs:55:60' --is-secret --write-to-gh-env floweyvar3 --is-raw-string
+        flowey.exe v 20 'flowey_lib_common::gh_task_azure_login:0:flowey_lib_common/src/gh_task_azure_login.rs:53:48' --is-secret --write-to-gh-env floweyvar3 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar3'
     - run: |
-        flowey.exe v 20 'flowey_lib_common::gh_task_azure_login:1:flowey_lib_common/src/gh_task_azure_login.rs:54:48' --is-secret --write-to-gh-env floweyvar4 --is-raw-string
+        flowey.exe v 20 'flowey_lib_common::gh_task_azure_login:2:flowey_lib_common/src/gh_task_azure_login.rs:55:60' --is-secret --write-to-gh-env floweyvar4 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar4'
+    - run: |
+        flowey.exe v 20 'flowey_lib_common::gh_task_azure_login:1:flowey_lib_common/src/gh_task_azure_login.rs:54:48' --is-secret --write-to-gh-env floweyvar5 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar5'
     - id: flowey_lib_common__gh_task_azure_login__1
       uses: Azure/login@v2
       with:
-        client-id: ${{ env.floweyvar2 }}
-        subscription-id: ${{ env.floweyvar3 }}
-        tenant-id: ${{ env.floweyvar4 }}
+        client-id: ${{ env.floweyvar3 }}
+        subscription-id: ${{ env.floweyvar4 }}
+        tenant-id: ${{ env.floweyvar5 }}
       name: Azure Login
     - name: installing azure-cli
       run: flowey.exe e 20 flowey_lib_common::install_azure_cli 0
@@ -5394,16 +5476,16 @@ jobs:
       shell: bash
       name: 🌼❓ Write to 'FLOWEY_CONDITION'
     - run: |
-        flowey.exe v 20 'flowey_lib_common::git_checkout:0:flowey_lib_common/src/git_checkout.rs:468:80' --write-to-gh-env floweyvar1 --is-raw-string
+        flowey.exe v 20 'flowey_lib_common::git_checkout:0:flowey_lib_common/src/git_checkout.rs:468:80' --write-to-gh-env floweyvar2 --is-raw-string
       shell: bash
-      name: 🌼 Write to 'floweyvar1'
+      name: 🌼 Write to 'floweyvar2'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - id: flowey_lib_common__git_checkout__1
       uses: actions/checkout@v4
       with:
         fetch-depth: '1'
         path: repo0
-        persist-credentials: ${{ env.floweyvar1 }}
+        persist-credentials: ${{ env.floweyvar2 }}
       name: checkout repo hvlite
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - run: ${{ github.workspace }}
@@ -5449,18 +5531,18 @@ jobs:
       run: flowey.exe e 20 flowey_lib_common::cache 0
       shell: bash
     - run: |
-        flowey.exe v 20 'flowey_lib_common::cache:2:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar5 --is-raw-string
-      shell: bash
-      name: 🌼 Write to 'floweyvar5'
-    - run: |
-        flowey.exe v 20 'flowey_lib_common::cache:1:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar6 --is-raw-string
+        flowey.exe v 20 'flowey_lib_common::cache:2:flowey_lib_common/src/cache.rs:457:72' --write-to-gh-env floweyvar6 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar6'
+    - run: |
+        flowey.exe v 20 'flowey_lib_common::cache:1:flowey_lib_common/src/cache.rs:456:72' --write-to-gh-env floweyvar7 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar7'
     - id: flowey_lib_common__cache__1
       uses: actions/cache@v4
       with:
-        key: ${{ env.floweyvar5 }}
-        path: ${{ env.floweyvar6 }}
+        key: ${{ env.floweyvar6 }}
+        path: ${{ env.floweyvar7 }}
       name: 'Restore cache: azcopy'
     - run: ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
       shell: flowey.exe v 20 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:509:46' --update-from-file {0} --is-raw-string
@@ -5507,11 +5589,33 @@ jobs:
     - name: 🌼 write_into Var
       run: flowey.exe e 20 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 1
       shell: bash
-    - name: copy JUnit test results to artifact dir
+    - name: 🌼 write_into Var
       run: flowey.exe e 20 flowey_lib_common::junit_publish_test_results 0
       shell: bash
+    - name: 🌼 write_into Var
+      run: flowey.exe e 20 flowey_lib_common::junit_publish_test_results 1
+      shell: bash
+    - run: |
+        flowey.exe v 20 'flowey_lib_common::junit_publish_test_results:0:flowey_lib_common/src/junit_publish_test_results.rs:90:46' --write-to-gh-env FLOWEY_CONDITION
+      shell: bash
+      name: 🌼❓ Write to 'FLOWEY_CONDITION'
+    - run: |
+        flowey.exe v 20 'flowey_lib_common::junit_publish_test_results:2:flowey_lib_common/src/junit_publish_test_results.rs:91:42' --write-to-gh-env floweyvar1 --is-raw-string
+      shell: bash
+      name: 🌼 Write to 'floweyvar1'
+      if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
+    - id: flowey_lib_common__junit_publish_test_results__2
+      uses: actions/upload-artifact@v4
+      with:
+        name: aarch64-windows-vmm-tests
+        path: ${{ env.floweyvar1 }}
+      name: 'publish JUnit test results: aarch64-windows-vmm-tests'
+      if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - name: report test results to overall pipeline status
       run: flowey.exe e 20 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 2
+      shell: bash
+    - name: 'validate cache entry: gh-release-download'
+      run: flowey.exe e 20 flowey_lib_common::cache 15
       shell: bash
     - name: 'validate cache entry: azcopy'
       run: flowey.exe e 20 flowey_lib_common::cache 3
@@ -5522,14 +5626,6 @@ jobs:
     - name: 'validate cache entry: gh-cli'
       run: flowey.exe e 20 flowey_lib_common::cache 11
       shell: bash
-    - name: 'validate cache entry: gh-release-download'
-      run: flowey.exe e 20 flowey_lib_common::cache 15
-      shell: bash
-    - name: 🌼📦 Publish vmm-tests-junit-aarch64-windows
-      uses: actions/upload-artifact@v4
-      with:
-        name: vmm-tests-junit-aarch64-windows
-        path: ${{ runner.temp }}/publish_artifacts/vmm-tests-junit-aarch64-windows/
   job21:
     name: test flowey local backend
     runs-on:

@@ -755,10 +755,6 @@ impl IntoPipeline for CheckinGatesCli {
                 )),
             },
         ] {
-            let pub_unit_test_junit_xml = unit_test_target
-                .as_ref()
-                .map(|(label, _)| pipeline.new_artifact(format!("unit-tests-junit-{label}")).0);
-
             let mut job_name = Vec::new();
             if let Some((label, _)) = &clippy_targets {
                 job_name.push(format!("clippy [{label}]"));
@@ -788,14 +784,13 @@ impl IntoPipeline for CheckinGatesCli {
             if let Some((label, target)) = unit_test_target {
                 clippy_unit_test_job = clippy_unit_test_job.dep_on(|ctx| {
                     flowey_lib_hvlite::_jobs::build_and_run_nextest_unit_tests::Params {
-                        junit_test_label: format!("unit-tests-{label}"),
+                        junit_test_label: format!("{label}-unit-tests"),
                         nextest_profile:
                             flowey_lib_hvlite::run_cargo_nextest_run::NextestProfile::Ci,
                         fail_job_on_test_fail: true,
                         target,
                         profile: CommonProfile::from_release(release),
                         unstable_panic_abort_tests: None,
-                        artifact_dir: pub_unit_test_junit_xml.map(|x| ctx.publish_artifact(x)),
                         done: ctx.new_done_handle(),
                     }
                 });
@@ -830,7 +825,7 @@ impl IntoPipeline for CheckinGatesCli {
             platform: FlowPlatform,
             arch: FlowArch,
             gh_pool: GhRunner,
-            friendly_label: &'a str,
+            label: &'a str,
             target: CommonTriple,
             resolve_vmm_tests_artifacts: vmm_tests_artifact_builders::ResolveVmmTestsDepArtifacts,
         }
@@ -839,7 +834,7 @@ impl IntoPipeline for CheckinGatesCli {
             platform,
             arch,
             gh_pool,
-            friendly_label,
+            label,
             target,
             resolve_vmm_tests_artifacts,
         } in [
@@ -847,7 +842,7 @@ impl IntoPipeline for CheckinGatesCli {
                 platform: FlowPlatform::Windows,
                 arch: FlowArch::X86_64,
                 gh_pool: crate::pipelines_shared::gh_pools::windows_intel_self_hosted_largedisk(),
-                friendly_label: "x64-windows-intel",
+                label: "x64-windows-intel",
                 target: CommonTriple::X86_64_WINDOWS_MSVC,
                 resolve_vmm_tests_artifacts: vmm_tests_artifacts_windows_intel_x86,
             },
@@ -855,7 +850,7 @@ impl IntoPipeline for CheckinGatesCli {
                 platform: FlowPlatform::Windows,
                 arch: FlowArch::X86_64,
                 gh_pool: crate::pipelines_shared::gh_pools::windows_amd_self_hosted_largedisk(),
-                friendly_label: "x64-windows-amd",
+                label: "x64-windows-amd",
                 target: CommonTriple::X86_64_WINDOWS_MSVC,
                 resolve_vmm_tests_artifacts: vmm_tests_artifacts_windows_amd_x86,
             },
@@ -863,7 +858,7 @@ impl IntoPipeline for CheckinGatesCli {
                 platform: FlowPlatform::Linux,
                 arch: FlowArch::X86_64,
                 gh_pool: crate::pipelines_shared::gh_pools::linux_self_hosted(),
-                friendly_label: "x64-linux",
+                label: "x64-linux",
                 target: CommonTriple::X86_64_LINUX_GNU,
                 resolve_vmm_tests_artifacts: vmm_tests_artifacts_linux_x86,
             },
@@ -871,17 +866,11 @@ impl IntoPipeline for CheckinGatesCli {
                 platform: FlowPlatform::Windows,
                 arch: FlowArch::Aarch64,
                 gh_pool: crate::pipelines_shared::gh_pools::windows_arm_self_hosted(),
-                friendly_label: "aarch64-windows",
+                label: "aarch64-windows",
                 target: CommonTriple::AARCH64_WINDOWS_MSVC,
                 resolve_vmm_tests_artifacts: vmm_tests_artifacts_windows_aarch64,
             },
         ] {
-            let pub_vmm_tests_junit_xml = Some(
-                pipeline
-                    .new_artifact(format!("vmm-tests-junit-{friendly_label}"))
-                    .0,
-            );
-
             let nextest_filter_expr = {
                 // start with `all()` to allow easy `and`-based refinements
                 let mut expr = "all()".to_string();
@@ -906,11 +895,11 @@ impl IntoPipeline for CheckinGatesCli {
             };
 
             let mut vmm_tests_run_job = pipeline
-                .new_job(platform, arch, format!("run vmm-tests [{friendly_label}]"))
+                .new_job(platform, arch, format!("run vmm-tests [{label}]"))
                 .gh_set_pool(gh_pool)
                 .dep_on(|ctx| {
                     flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive::Params {
-                        junit_test_label: format!("vmm-tests-{friendly_label}"),
+                        junit_test_label: format!("{label}-vmm-tests"),
                         vmm_tests_artifact_dir: ctx.use_artifact(use_vmm_tests_archive),
                         target: target.as_triple(),
                         nextest_profile:
@@ -921,15 +910,6 @@ impl IntoPipeline for CheckinGatesCli {
                         done: ctx.new_done_handle(),
                     }
                 });
-
-            if let Some(pub_vmm_tests_junit_xml) = pub_vmm_tests_junit_xml {
-                vmm_tests_run_job = vmm_tests_run_job.dep_on(|ctx| {
-                    flowey_lib_common::junit_publish_test_results::Request::PublishToArtifact(
-                        ctx.publish_artifact(pub_vmm_tests_junit_xml),
-                        ctx.new_done_handle(),
-                    )
-                });
-            }
 
             if let Some(vmm_tests_disk_cache_dir) = vmm_tests_disk_cache_dir.clone() {
                 vmm_tests_run_job = vmm_tests_run_job.dep_on(|_| {
