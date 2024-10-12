@@ -36,18 +36,6 @@ jobs:
         client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
         tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
         subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Installing Azure CLI (Windows)
-      run: |
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri https://aka.ms/installazurecliwindowsx64 -OutFile .\AzureCLI.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'
-        Remove-Item .\AzureCLI.msi
-      if: runner.os == 'Windows'
-      shell: pwsh
-    - name: Installing Azure CLI (Linux)
-      run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      if: runner.os == 'Linux'
-      shell: bash
     - name: Pull Azure Key Vault secrets
       run: |
         VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
@@ -314,18 +302,6 @@ jobs:
         client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
         tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
         subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Installing Azure CLI (Windows)
-      run: |
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri https://aka.ms/installazurecliwindowsx64 -OutFile .\AzureCLI.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'
-        Remove-Item .\AzureCLI.msi
-      if: runner.os == 'Windows'
-      shell: pwsh
-    - name: Installing Azure CLI (Linux)
-      run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      if: runner.os == 'Linux'
-      shell: bash
     - name: Pull Azure Key Vault secrets
       run: |
         VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
@@ -619,18 +595,6 @@ jobs:
         client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
         tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
         subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Installing Azure CLI (Windows)
-      run: |
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri https://aka.ms/installazurecliwindowsx64 -OutFile .\AzureCLI.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'
-        Remove-Item .\AzureCLI.msi
-      if: runner.os == 'Windows'
-      shell: pwsh
-    - name: Installing Azure CLI (Linux)
-      run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      if: runner.os == 'Linux'
-      shell: bash
     - name: Pull Azure Key Vault secrets
       run: |
         VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
@@ -1124,18 +1088,6 @@ jobs:
         client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
         tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
         subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Installing Azure CLI (Windows)
-      run: |
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri https://aka.ms/installazurecliwindowsx64 -OutFile .\AzureCLI.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'
-        Remove-Item .\AzureCLI.msi
-      if: runner.os == 'Windows'
-      shell: pwsh
-    - name: Installing Azure CLI (Linux)
-      run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      if: runner.os == 'Linux'
-      shell: bash
     - name: Pull Azure Key Vault secrets
       run: |
         VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
@@ -1629,18 +1581,6 @@ jobs:
         client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
         tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
         subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Installing Azure CLI (Windows)
-      run: |
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri https://aka.ms/installazurecliwindowsx64 -OutFile .\AzureCLI.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'
-        Remove-Item .\AzureCLI.msi
-      if: runner.os == 'Windows'
-      shell: pwsh
-    - name: Installing Azure CLI (Linux)
-      run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      if: runner.os == 'Linux'
-      shell: bash
     - name: Pull Azure Key Vault secrets
       run: |
         VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
@@ -2304,18 +2244,6 @@ jobs:
         client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
         tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
         subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Installing Azure CLI (Windows)
-      run: |
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri https://aka.ms/installazurecliwindowsx64 -OutFile .\AzureCLI.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'
-        Remove-Item .\AzureCLI.msi
-      if: runner.os == 'Windows'
-      shell: pwsh
-    - name: Installing Azure CLI (Linux)
-      run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      if: runner.os == 'Linux'
-      shell: bash
     - name: Pull Azure Key Vault secrets
       run: |
         VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
@@ -2698,18 +2626,6 @@ jobs:
         client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
         tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
         subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Installing Azure CLI (Windows)
-      run: |
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri https://aka.ms/installazurecliwindowsx64 -OutFile .\AzureCLI.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'
-        Remove-Item .\AzureCLI.msi
-      if: runner.os == 'Windows'
-      shell: pwsh
-    - name: Installing Azure CLI (Linux)
-      run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      if: runner.os == 'Linux'
-      shell: bash
     - name: Pull Azure Key Vault secrets
       run: |
         VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
@@ -3137,18 +3053,6 @@ jobs:
         client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
         tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
         subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Installing Azure CLI (Windows)
-      run: |
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri https://aka.ms/installazurecliwindowsx64 -OutFile .\AzureCLI.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'
-        Remove-Item .\AzureCLI.msi
-      if: runner.os == 'Windows'
-      shell: pwsh
-    - name: Installing Azure CLI (Linux)
-      run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      if: runner.os == 'Linux'
-      shell: bash
     - name: Pull Azure Key Vault secrets
       run: |
         VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
@@ -3577,18 +3481,6 @@ jobs:
         client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
         tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
         subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Installing Azure CLI (Windows)
-      run: |
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri https://aka.ms/installazurecliwindowsx64 -OutFile .\AzureCLI.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'
-        Remove-Item .\AzureCLI.msi
-      if: runner.os == 'Windows'
-      shell: pwsh
-    - name: Installing Azure CLI (Linux)
-      run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      if: runner.os == 'Linux'
-      shell: bash
     - name: Pull Azure Key Vault secrets
       run: |
         VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
@@ -5001,18 +4893,6 @@ jobs:
         client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
         tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
         subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Installing Azure CLI (Windows)
-      run: |
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri https://aka.ms/installazurecliwindowsx64 -OutFile .\AzureCLI.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'
-        Remove-Item .\AzureCLI.msi
-      if: runner.os == 'Windows'
-      shell: pwsh
-    - name: Installing Azure CLI (Linux)
-      run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      if: runner.os == 'Linux'
-      shell: bash
     - name: Pull Azure Key Vault secrets
       run: |
         VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
@@ -5667,18 +5547,6 @@ jobs:
         client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
         tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
         subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Installing Azure CLI (Windows)
-      run: |
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri https://aka.ms/installazurecliwindowsx64 -OutFile .\AzureCLI.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'
-        Remove-Item .\AzureCLI.msi
-      if: runner.os == 'Windows'
-      shell: pwsh
-    - name: Installing Azure CLI (Linux)
-      run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      if: runner.os == 'Linux'
-      shell: bash
     - name: Pull Azure Key Vault secrets
       run: |
         VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
@@ -5917,18 +5785,6 @@ jobs:
         client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
         tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
         subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Installing Azure CLI (Windows)
-      run: |
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri https://aka.ms/installazurecliwindowsx64 -OutFile .\AzureCLI.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'
-        Remove-Item .\AzureCLI.msi
-      if: runner.os == 'Windows'
-      shell: pwsh
-    - name: Installing Azure CLI (Linux)
-      run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      if: runner.os == 'Linux'
-      shell: bash
     - name: Pull Azure Key Vault secrets
       run: |
         VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
@@ -6206,18 +6062,6 @@ jobs:
         client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
         tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
         subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Installing Azure CLI (Windows)
-      run: |
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri https://aka.ms/installazurecliwindowsx64 -OutFile .\AzureCLI.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'
-        Remove-Item .\AzureCLI.msi
-      if: runner.os == 'Windows'
-      shell: pwsh
-    - name: Installing Azure CLI (Linux)
-      run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      if: runner.os == 'Linux'
-      shell: bash
     - name: Pull Azure Key Vault secrets
       run: |
         VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
@@ -6507,18 +6351,6 @@ jobs:
         client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
         tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
         subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Installing Azure CLI (Windows)
-      run: |
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri https://aka.ms/installazurecliwindowsx64 -OutFile .\AzureCLI.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'
-        Remove-Item .\AzureCLI.msi
-      if: runner.os == 'Windows'
-      shell: pwsh
-    - name: Installing Azure CLI (Linux)
-      run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      if: runner.os == 'Linux'
-      shell: bash
     - name: Pull Azure Key Vault secrets
       run: |
         VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
@@ -6873,18 +6705,6 @@ jobs:
         client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
         tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
         subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Installing Azure CLI (Windows)
-      run: |
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri https://aka.ms/installazurecliwindowsx64 -OutFile .\AzureCLI.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'
-        Remove-Item .\AzureCLI.msi
-      if: runner.os == 'Windows'
-      shell: pwsh
-    - name: Installing Azure CLI (Linux)
-      run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      if: runner.os == 'Linux'
-      shell: bash
     - name: Pull Azure Key Vault secrets
       run: |
         VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
@@ -7262,18 +7082,6 @@ jobs:
         client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
         tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
         subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Installing Azure CLI (Windows)
-      run: |
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri https://aka.ms/installazurecliwindowsx64 -OutFile .\AzureCLI.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'
-        Remove-Item .\AzureCLI.msi
-      if: runner.os == 'Windows'
-      shell: pwsh
-    - name: Installing Azure CLI (Linux)
-      run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      if: runner.os == 'Linux'
-      shell: bash
     - name: Pull Azure Key Vault secrets
       run: |
         VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
@@ -7631,18 +7439,6 @@ jobs:
         client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
         tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
         subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Installing Azure CLI (Windows)
-      run: |
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri https://aka.ms/installazurecliwindowsx64 -OutFile .\AzureCLI.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'
-        Remove-Item .\AzureCLI.msi
-      if: runner.os == 'Windows'
-      shell: pwsh
-    - name: Installing Azure CLI (Linux)
-      run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      if: runner.os == 'Linux'
-      shell: bash
     - name: Pull Azure Key Vault secrets
       run: |
         VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
@@ -8020,18 +7816,6 @@ jobs:
         client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
         tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
         subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Installing Azure CLI (Windows)
-      run: |
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri https://aka.ms/installazurecliwindowsx64 -OutFile .\AzureCLI.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'
-        Remove-Item .\AzureCLI.msi
-      if: runner.os == 'Windows'
-      shell: pwsh
-    - name: Installing Azure CLI (Linux)
-      run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      if: runner.os == 'Linux'
-      shell: bash
     - name: Pull Azure Key Vault secrets
       run: |
         VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
