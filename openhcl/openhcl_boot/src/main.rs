@@ -784,7 +784,7 @@ mod test {
     fn fdt_cpu_scaling() {
         const MAX_CPUS: usize = 2048;
 
-        let mut buf = [0; 0x100000];
+        let mut buf = [0; 0x40000];
         write_dt(
             &mut buf,
             &new_partition_info(MAX_CPUS),

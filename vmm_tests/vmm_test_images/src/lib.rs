@@ -24,10 +24,10 @@ use petri_artifacts_vmm_test::tags::IsHostedOnHvliteAzureBlobStore;
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[allow(missing_docs)] // Self-describing names
 pub enum KnownVhd {
-    X64Gen1WindowsDataCenterCore2022,
-    X64Gen2WindowsDataCenterCore2022,
-    X64FreeBsd13_2,
-    X64Ubuntu2204Server,
+    Gen1WindowsDataCenterCore2022,
+    Gen2WindowsDataCenterCore2022,
+    FreeBsd13_2,
+    Ubuntu2204Server,
 }
 
 struct KnownVhdMeta {
@@ -49,22 +49,22 @@ impl KnownVhdMeta {
 // linear scan to find entries is OK, given how few entries there are
 const KNOWN_VHD_METADATA: &[KnownVhdMeta] = &[
     KnownVhdMeta::new(
-        KnownVhd::X64Gen1WindowsDataCenterCore2022,
+        KnownVhd::Gen1WindowsDataCenterCore2022,
         petri_artifacts_vmm_test::artifacts::test_vhd::GEN1_WINDOWS_DATA_CENTER_CORE2022_X64::FILENAME,
         petri_artifacts_vmm_test::artifacts::test_vhd::GEN1_WINDOWS_DATA_CENTER_CORE2022_X64::SIZE,
     ),
     KnownVhdMeta::new(
-        KnownVhd::X64Gen2WindowsDataCenterCore2022,
+        KnownVhd::Gen2WindowsDataCenterCore2022,
         petri_artifacts_vmm_test::artifacts::test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64::FILENAME,
         petri_artifacts_vmm_test::artifacts::test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64::SIZE,
     ),
     KnownVhdMeta::new(
-        KnownVhd::X64FreeBsd13_2,
+        KnownVhd::FreeBsd13_2,
         petri_artifacts_vmm_test::artifacts::test_vhd::FREE_BSD_13_2_X64::FILENAME,
         petri_artifacts_vmm_test::artifacts::test_vhd::FREE_BSD_13_2_X64::SIZE,
     ),
     KnownVhdMeta::new(
-        KnownVhd::X64Ubuntu2204Server,
+        KnownVhd::Ubuntu2204Server,
         petri_artifacts_vmm_test::artifacts::test_vhd::UBUNTU_2204_SERVER_X64::FILENAME,
         petri_artifacts_vmm_test::artifacts::test_vhd::UBUNTU_2204_SERVER_X64::SIZE,
     ),
@@ -112,7 +112,7 @@ impl KnownVhd {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[allow(missing_docs)] // Self-describing names
 pub enum KnownIso {
-    X64FreeBsd13_2,
+    FreeBsd13_2,
 }
 
 struct KnownIsoMeta {
@@ -133,7 +133,7 @@ impl KnownIsoMeta {
 
 // linear scan to find entries is OK, given how few entries there are
 const KNOWN_ISO_METADATA: &[KnownIsoMeta] = &[KnownIsoMeta::new(
-    KnownIso::X64FreeBsd13_2,
+    KnownIso::FreeBsd13_2,
     petri_artifacts_vmm_test::artifacts::test_iso::FREE_BSD_13_2_X64::FILENAME,
     petri_artifacts_vmm_test::artifacts::test_iso::FREE_BSD_13_2_X64::SIZE,
 )];

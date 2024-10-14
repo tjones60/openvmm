@@ -168,16 +168,16 @@ impl SimpleFlowNode for Node {
             CommonArch::X86_64 => {
                 ctx.requests::<crate::download_openvmm_vmm_tests_vhds::Node>([
                     crate::download_openvmm_vmm_tests_vhds::Request::DownloadVhds(vec![
-                        vmm_test_images::KnownVhd::X64FreeBsd13_2,
-                        vmm_test_images::KnownVhd::X64Gen1WindowsDataCenterCore2022,
-                        vmm_test_images::KnownVhd::X64Gen2WindowsDataCenterCore2022,
-                        vmm_test_images::KnownVhd::X64Ubuntu2204Server,
+                        vmm_test_images::KnownVhd::FreeBsd13_2,
+                        vmm_test_images::KnownVhd::Gen1WindowsDataCenterCore2022,
+                        vmm_test_images::KnownVhd::Gen2WindowsDataCenterCore2022,
+                        vmm_test_images::KnownVhd::Ubuntu2204Server,
                     ]),
                 ]);
 
                 ctx.requests::<crate::download_openvmm_vmm_tests_vhds::Node>([
                     crate::download_openvmm_vmm_tests_vhds::Request::DownloadIsos(vec![
-                        vmm_test_images::KnownIso::X64FreeBsd13_2,
+                        vmm_test_images::KnownIso::FreeBsd13_2,
                     ]),
                 ]);
             }

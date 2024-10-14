@@ -755,6 +755,11 @@ impl IntoPipeline for CheckinGatesCli {
                 )),
             },
         ] {
+            // No ARM test runners yet
+            if matches!(arch, FlowArch::Aarch64) {
+                continue;
+            }
+
             let mut job_name = Vec::new();
             if let Some((label, _)) = &clippy_targets {
                 job_name.push(format!("clippy [{label}]"));
@@ -871,6 +876,11 @@ impl IntoPipeline for CheckinGatesCli {
                 resolve_vmm_tests_artifacts: vmm_tests_artifacts_windows_aarch64,
             },
         ] {
+            // No ARM test runners yet
+            if matches!(arch, FlowArch::Aarch64) {
+                continue;
+            }
+
             let nextest_filter_expr = {
                 // start with `all()` to allow easy `and`-based refinements
                 let mut expr = "all()".to_string();
