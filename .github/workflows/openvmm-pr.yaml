@@ -2225,7 +2225,7 @@ jobs:
     - name: 🌼🥾 Publish bootstrapped flowey
       uses: actions/upload-artifact@v4
       with:
-        name: _internal-flowey-bootstrap-linux-uid-6
+        name: _internal-flowey-bootstrap-x86_64-linux-uid-6
         path: ${{ runner.temp }}/bootstrapped-flowey
   job13:
     name: clippy [windows], unit tests [x64-windows]
@@ -3833,7 +3833,7 @@ jobs:
     - name: 🌼🥾 Download bootstrapped flowey
       uses: actions/download-artifact@v4
       with:
-        name: _internal-flowey-bootstrap-windows-uid-10
+        name: _internal-flowey-bootstrap-x86_64-windows-uid-10
         path: ${{ runner.temp }}/bootstrapped-flowey
     - name: 🌼📦 Download x64-guest_test_uefi
       uses: actions/download-artifact@v4
@@ -4188,7 +4188,7 @@ jobs:
     - name: 🌼🥾 Download bootstrapped flowey
       uses: actions/download-artifact@v4
       with:
-        name: _internal-flowey-bootstrap-windows-uid-10
+        name: _internal-flowey-bootstrap-x86_64-windows-uid-10
         path: ${{ runner.temp }}/bootstrapped-flowey
     - name: 🌼📦 Download x64-guest_test_uefi
       uses: actions/download-artifact@v4
@@ -4541,7 +4541,7 @@ jobs:
     - name: 🌼🥾 Download bootstrapped flowey
       uses: actions/download-artifact@v4
       with:
-        name: _internal-flowey-bootstrap-linux-uid-6
+        name: _internal-flowey-bootstrap-x86_64-linux-uid-6
         path: ${{ runner.temp }}/bootstrapped-flowey
     - name: 🌼📦 Download x64-guest_test_uefi
       uses: actions/download-artifact@v4
@@ -5195,7 +5195,7 @@ jobs:
     - name: 🌼🥾 Download bootstrapped flowey
       uses: actions/download-artifact@v4
       with:
-        name: _internal-flowey-bootstrap-windows-uid-12
+        name: _internal-flowey-bootstrap-x86_64-windows-uid-12
         path: ${{ runner.temp }}/bootstrapped-flowey
     - name: 🌼📦 Download aarch64-guest_test_uefi
       uses: actions/download-artifact@v4
@@ -5748,7 +5748,7 @@ jobs:
     - name: 🌼🥾 Download bootstrapped flowey
       uses: actions/download-artifact@v4
       with:
-        name: _internal-flowey-bootstrap-windows-uid-12
+        name: _internal-flowey-bootstrap-x86_64-windows-uid-12
         path: ${{ runner.temp }}/bootstrapped-flowey
     - run: echo "${{ runner.temp }}/bootstrapped-flowey" >> $GITHUB_PATH
       shell: bash
@@ -7063,7 +7063,7 @@ jobs:
     - name: 🌼🥾 Publish bootstrapped flowey
       uses: actions/upload-artifact@v4
       with:
-        name: _internal-flowey-bootstrap-windows-uid-12
+        name: _internal-flowey-bootstrap-x86_64-windows-uid-12
         path: ${{ runner.temp }}/bootstrapped-flowey
   job7:
     name: build artifacts (not for VMM tests) [x64-windows]
@@ -7797,7 +7797,7 @@ jobs:
     - name: 🌼🥾 Publish bootstrapped flowey
       uses: actions/upload-artifact@v4
       with:
-        name: _internal-flowey-bootstrap-windows-uid-10
+        name: _internal-flowey-bootstrap-x86_64-windows-uid-10
         path: ${{ runner.temp }}/bootstrapped-flowey
   job9:
     name: build artifacts [aarch64-linux]
