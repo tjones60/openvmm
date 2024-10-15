@@ -744,21 +744,14 @@ impl IntoPipeline for CheckinGatesCli {
                 )),
                 unit_test_target: Some(("x64-linux-musl", openhcl_musl_target(CommonArch::X86_64))),
             },
-            ClippyUnitTestJobParams {
-                platform: FlowPlatform::Windows,
-                arch: FlowArch::Aarch64,
-                gh_pool: crate::pipelines_shared::gh_pools::windows_arm_self_hosted(),
-                clippy_targets: None,
-                unit_test_target: Some((
-                    "aarch64-windows",
-                    target_lexicon::triple!("aarch64-pc-windows-msvc"),
-                )),
-            },
         ] {
-            // No ARM test runners yet
-            if matches!(arch, FlowArch::Aarch64) {
-                continue;
-            }
+            let pub_unit_test_junit_xml = if matches!(backend_hint, PipelineBackendHint::Local) {
+                unit_test_target
+                    .as_ref()
+                    .map(|(label, _)| pipeline.new_artifact(format!("{label}-unit-tests")).0)
+            } else {
+                None
+            };
 
             let mut job_name = Vec::new();
             if let Some((label, _)) = &clippy_targets {
@@ -796,6 +789,7 @@ impl IntoPipeline for CheckinGatesCli {
                         target,
                         profile: CommonProfile::from_release(release),
                         unstable_panic_abort_tests: None,
+                        artifact_dir: pub_unit_test_junit_xml.map(|x| ctx.publish_artifact(x)),
                         done: ctx.new_done_handle(),
                     }
                 });
@@ -819,7 +813,7 @@ impl IntoPipeline for CheckinGatesCli {
             vmm_tests_artifacts_linux_x86.finish().map_err(|missing| {
                 anyhow::anyhow!("missing required linux vmm_tests artifact: {missing}")
             })?;
-        let vmm_tests_artifacts_windows_aarch64 = vmm_tests_artifacts_windows_aarch64
+        let _vmm_tests_artifacts_windows_aarch64 = vmm_tests_artifacts_windows_aarch64
             .finish()
             .map_err(|missing| {
                 anyhow::anyhow!("missing required windows-aarch64 vmm_tests artifact: {missing}")
@@ -867,19 +861,12 @@ impl IntoPipeline for CheckinGatesCli {
                 target: CommonTriple::X86_64_LINUX_GNU,
                 resolve_vmm_tests_artifacts: vmm_tests_artifacts_linux_x86,
             },
-            VmmTestJobParams {
-                platform: FlowPlatform::Windows,
-                arch: FlowArch::Aarch64,
-                gh_pool: crate::pipelines_shared::gh_pools::windows_arm_self_hosted(),
-                label: "aarch64-windows",
-                target: CommonTriple::AARCH64_WINDOWS_MSVC,
-                resolve_vmm_tests_artifacts: vmm_tests_artifacts_windows_aarch64,
-            },
         ] {
-            // No ARM test runners yet
-            if matches!(arch, FlowArch::Aarch64) {
-                continue;
-            }
+            let pub_vmm_tests_junit_xml = if matches!(backend_hint, PipelineBackendHint::Local) {
+                Some(pipeline.new_artifact(format!("{label}-vmm-tests")).0)
+            } else {
+                None
+            };
 
             let nextest_filter_expr = {
                 // start with `all()` to allow easy `and`-based refinements
@@ -920,6 +907,15 @@ impl IntoPipeline for CheckinGatesCli {
                         done: ctx.new_done_handle(),
                     }
                 });
+
+            if let Some(pub_vmm_tests_junit_xml) = pub_vmm_tests_junit_xml {
+                vmm_tests_run_job = vmm_tests_run_job.dep_on(|ctx| {
+                    flowey_lib_common::junit_publish_test_results::Request::PublishToArtifact(
+                        ctx.publish_artifact(pub_vmm_tests_junit_xml),
+                        ctx.new_done_handle(),
+                    )
+                });
+            }
 
             if let Some(vmm_tests_disk_cache_dir) = vmm_tests_disk_cache_dir.clone() {
                 vmm_tests_run_job = vmm_tests_run_job.dep_on(|_| {

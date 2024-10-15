@@ -16,6 +16,8 @@ flowey_request! {
 
         /// Whether the job should fail if any test has failed
         pub fail_job_on_test_fail: bool,
+        /// (optionally) Also publish raw junit.xml test results as an artifact.
+        pub results_artifact_dir: Option<ReadVar<PathBuf>>,
         pub done: WriteVar<SideEffect>,
     }
 }
@@ -37,6 +39,7 @@ impl SimpleFlowNode for Node {
             unit_test_artifact_dir,
             nextest_profile,
             fail_job_on_test_fail,
+            results_artifact_dir,
             done,
         } = request;
 
@@ -55,6 +58,17 @@ impl SimpleFlowNode for Node {
         });
 
         let mut side_effects = Vec::new();
+
+        if let Some(artifact_dir) = results_artifact_dir {
+            let published_artifact = ctx.reqv(|v| {
+                flowey_lib_common::junit_publish_test_results::Request::PublishToArtifact(
+                    artifact_dir,
+                    v,
+                )
+            });
+
+            side_effects.push(published_artifact)
+        }
 
         let junit_xml = results.map(ctx, |r| r.junit_xml);
         let reported_results =
