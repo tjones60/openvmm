@@ -383,10 +383,10 @@ Otherwise, press `ctrl-c` to cancel the run.
             });
             did_download
         } else if matches!(ctx.backend(), FlowBackend::Github) {
-            let azure_login =
-                ctx.reqv(flowey_lib_common::gh_task_azure_login::Request::EnsureLogIn);
+            // let azure_login =
+            //     ctx.reqv(flowey_lib_common::gh_task_azure_login::Request::EnsureLogIn);
             ctx.emit_rust_step("downloading VMM test disk images", |ctx| {
-                azure_login.claim(ctx);
+                // azure_login.claim(ctx);
                 let azcopy_bin = azcopy_bin.claim(ctx);
                 let files_to_download = files_to_download.claim(ctx);
                 let output_folder = output_folder.clone().claim(ctx);

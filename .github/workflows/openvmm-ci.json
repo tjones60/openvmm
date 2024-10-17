@@ -4,7 +4,6 @@
   "job_reqs": {
     "0": {
       "flowey_lib_common::cache": [
-        "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_cli:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_cli:1:flowey_lib_common/src/download_gh_cli.rs:64:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-cli-2.52.0\"},\"is_secret\":false},\"label\":\"gh-cli\",\"restore_keys\":null}",
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_release:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_release:1:flowey_lib_common/src/download_gh_release.rs:150:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-release-download-4cf4fb0324648d93\"},\"is_secret\":false},\"label\":\"gh-release-download\",\"restore_keys\":null}"
       ],
       "flowey_lib_common::cfg_cargo_common_flags": [
@@ -24,7 +23,6 @@
         "{\"Version\":\"0.9.74\"}"
       ],
       "flowey_lib_common::download_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::use_gh_cli:0:flowey_lib_common/src/use_gh_cli.rs:92:31\",\"is_secret\":false}}",
         "{\"Version\":\"2.52.0\"}"
       ],
       "flowey_lib_common::download_gh_release": [
@@ -37,13 +35,6 @@
       "flowey_lib_common::download_protoc": [
         "{\"Version\":\"27.1\"}"
       ],
-      "flowey_lib_common::gh_download_azure_key_vault_secret": [
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}"
-      ],
-      "flowey_lib_common::gh_task_azure_login": [
-        "{\"Credentials\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_gh_azure_login:3:flowey_lib_hvlite/src/_jobs/cfg_gh_azure_login.rs:39:60\"},\"is_secret\":true}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:0:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:47:33\",\"is_secret\":false}}"
-      ],
       "flowey_lib_common::git_checkout": [
         "{\"CheckoutRepo\":{\"persist_credentials\":false,\"repo_id\":{\"backing_var\":{\"Inline\":\"hvlite\"},\"is_secret\":false},\"repo_path\":{\"backing_var\":\"flowey_lib_hvlite::git_checkout_openvmm_repo:0:flowey_lib_hvlite/src/git_checkout_openvmm_repo.rs:47:24\",\"is_secret\":false}}}",
         "{\"RegisterRepo\":{\"allow_persist_credentials\":false,\"depth\":1,\"pre_run_deps\":[],\"repo_id\":\"hvlite\",\"repo_src\":\"GithubSelf\"}}"
@@ -53,7 +44,6 @@
       ],
       "flowey_lib_common::install_azure_cli": [
         "{\"AutoInstall\":true}",
-        "{\"GetAzureCli\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:1:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:48:30\",\"is_secret\":false}}",
         "{\"Version\":\"2.56.0\"}"
       ],
       "flowey_lib_common::install_nodejs": [
@@ -64,18 +54,11 @@
         "{\"IgnoreVersion\":false}",
         "{\"Version\":\"1.81.0\"}"
       ],
-      "flowey_lib_common::use_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::download_gh_release:2:flowey_lib_common/src/download_gh_release.rs:160:26\",\"is_secret\":false}}",
-        "{\"WithAuth\":{\"AuthToken\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\"},\"is_secret\":true}}}"
-      ],
       "flowey_lib_hvlite::_jobs::build_and_publish_guide": [
         "{\"artifact_dir\":{\"backing_var\":{\"RuntimeVar\":\"artifact_publish_from_guide\"},\"is_secret\":false},\"deploy_github_pages\":true,\"done\":{\"backing_var\":\"start1\",\"is_secret\":false}}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_common": [
         "{\"deny_warnings\":true,\"local_only\":null,\"locked\":true,\"verbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_gh_azure_login": [
-        "{\"client_id\":{\"gh_var\":\"secrets.OPENVMM_CLIENT_ID\",\"is_secret\":true},\"subscription_id\":{\"gh_var\":\"secrets.OPENVMM_SUBSCRIPTION_ID\",\"is_secret\":true},\"tenant_id\":{\"gh_var\":\"secrets.OPENVMM_TENANT_ID\",\"is_secret\":true}}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_hvlite_reposource": [
         "{\"hvlite_repo_source\":\"GithubSelf\"}"
@@ -114,7 +97,6 @@
     },
     "1": {
       "flowey_lib_common::cache": [
-        "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_cli:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_cli:1:flowey_lib_common/src/download_gh_cli.rs:64:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-cli-2.52.0\"},\"is_secret\":false},\"label\":\"gh-cli\",\"restore_keys\":null}",
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_release:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_release:1:flowey_lib_common/src/download_gh_release.rs:150:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-release-download-967eeac5d4f6b742\"},\"is_secret\":false},\"label\":\"gh-release-download\",\"restore_keys\":null}"
       ],
       "flowey_lib_common::cfg_cargo_common_flags": [
@@ -135,7 +117,6 @@
         "{\"Version\":\"0.9.74\"}"
       ],
       "flowey_lib_common::download_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::use_gh_cli:0:flowey_lib_common/src/use_gh_cli.rs:92:31\",\"is_secret\":false}}",
         "{\"Version\":\"2.52.0\"}"
       ],
       "flowey_lib_common::download_gh_release": [
@@ -149,13 +130,6 @@
         "{\"Get\":{\"backing_var\":\"flowey_lib_hvlite::init_openvmm_magicpath_protoc:0:flowey_lib_hvlite/src/init_openvmm_magicpath_protoc.rs:23:30\",\"is_secret\":false}}",
         "{\"Version\":\"27.1\"}"
       ],
-      "flowey_lib_common::gh_download_azure_key_vault_secret": [
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}"
-      ],
-      "flowey_lib_common::gh_task_azure_login": [
-        "{\"Credentials\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_gh_azure_login:3:flowey_lib_hvlite/src/_jobs/cfg_gh_azure_login.rs:39:60\"},\"is_secret\":true}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:0:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:47:33\",\"is_secret\":false}}"
-      ],
       "flowey_lib_common::git_checkout": [
         "{\"CheckoutRepo\":{\"persist_credentials\":false,\"repo_id\":{\"backing_var\":{\"Inline\":\"hvlite\"},\"is_secret\":false},\"repo_path\":{\"backing_var\":\"flowey_lib_hvlite::git_checkout_openvmm_repo:0:flowey_lib_hvlite/src/git_checkout_openvmm_repo.rs:47:24\",\"is_secret\":false}}}",
         "{\"RegisterRepo\":{\"allow_persist_credentials\":false,\"depth\":1,\"pre_run_deps\":[],\"repo_id\":\"hvlite\",\"repo_src\":\"GithubSelf\"}}"
@@ -166,7 +140,6 @@
       ],
       "flowey_lib_common::install_azure_cli": [
         "{\"AutoInstall\":true}",
-        "{\"GetAzureCli\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:1:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:48:30\",\"is_secret\":false}}",
         "{\"Version\":\"2.56.0\"}"
       ],
       "flowey_lib_common::install_nodejs": [
@@ -183,18 +156,11 @@
       "flowey_lib_common::run_cargo_doc": [
         "{\"cargo_cmd\":{\"backing_var\":\"flowey_lib_hvlite::build_rustdoc:3:flowey_lib_hvlite/src/build_rustdoc.rs:83:33\",\"is_secret\":false},\"in_folder\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::build_rustdoc:1:flowey_lib_hvlite/src/build_rustdoc.rs:61:37\"},\"is_secret\":false},\"packages\":[{\"document_private_items\":false,\"kind\":{\"Workspace\":{\"exclude\":[\"vmfirmwareigvm_dll\"]}},\"no_deps\":true},{\"document_private_items\":false,\"kind\":{\"NoStdCrate\":\"guest_test_uefi\"},\"no_deps\":true}],\"target_triple\":\"x86_64-pc-windows-msvc\"}"
       ],
-      "flowey_lib_common::use_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::download_gh_release:2:flowey_lib_common/src/download_gh_release.rs:160:26\",\"is_secret\":false}}",
-        "{\"WithAuth\":{\"AuthToken\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\"},\"is_secret\":true}}}"
-      ],
       "flowey_lib_hvlite::_jobs::build_and_publish_rustdoc": [
         "{\"artifact_dir\":{\"backing_var\":{\"RuntimeVar\":\"artifact_publish_from_x64-windows-rustdoc\"},\"is_secret\":false},\"done\":{\"backing_var\":\"start2\",\"is_secret\":false},\"target_triple\":\"x86_64-pc-windows-msvc\"}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_common": [
         "{\"deny_warnings\":true,\"local_only\":null,\"locked\":true,\"verbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_gh_azure_login": [
-        "{\"client_id\":{\"gh_var\":\"secrets.OPENVMM_CLIENT_ID\",\"is_secret\":true},\"subscription_id\":{\"gh_var\":\"secrets.OPENVMM_SUBSCRIPTION_ID\",\"is_secret\":true},\"tenant_id\":{\"gh_var\":\"secrets.OPENVMM_TENANT_ID\",\"is_secret\":true}}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_hvlite_reposource": [
         "{\"hvlite_repo_source\":\"GithubSelf\"}"
@@ -251,7 +217,6 @@
     },
     "2": {
       "flowey_lib_common::cache": [
-        "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_cli:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_cli:1:flowey_lib_common/src/download_gh_cli.rs:64:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-cli-2.52.0\"},\"is_secret\":false},\"label\":\"gh-cli\",\"restore_keys\":null}",
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_release:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_release:1:flowey_lib_common/src/download_gh_release.rs:150:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-release-download-dcd8f50d7eb46973\"},\"is_secret\":false},\"label\":\"gh-release-download\",\"restore_keys\":null}"
       ],
       "flowey_lib_common::cfg_cargo_common_flags": [
@@ -272,7 +237,6 @@
         "{\"Version\":\"0.9.74\"}"
       ],
       "flowey_lib_common::download_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::use_gh_cli:0:flowey_lib_common/src/use_gh_cli.rs:92:31\",\"is_secret\":false}}",
         "{\"Version\":\"2.52.0\"}"
       ],
       "flowey_lib_common::download_gh_release": [
@@ -286,13 +250,6 @@
         "{\"Get\":{\"backing_var\":\"flowey_lib_hvlite::init_openvmm_magicpath_protoc:0:flowey_lib_hvlite/src/init_openvmm_magicpath_protoc.rs:23:30\",\"is_secret\":false}}",
         "{\"Version\":\"27.1\"}"
       ],
-      "flowey_lib_common::gh_download_azure_key_vault_secret": [
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}"
-      ],
-      "flowey_lib_common::gh_task_azure_login": [
-        "{\"Credentials\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_gh_azure_login:3:flowey_lib_hvlite/src/_jobs/cfg_gh_azure_login.rs:39:60\"},\"is_secret\":true}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:0:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:47:33\",\"is_secret\":false}}"
-      ],
       "flowey_lib_common::git_checkout": [
         "{\"CheckoutRepo\":{\"persist_credentials\":false,\"repo_id\":{\"backing_var\":{\"Inline\":\"hvlite\"},\"is_secret\":false},\"repo_path\":{\"backing_var\":\"flowey_lib_hvlite::git_checkout_openvmm_repo:0:flowey_lib_hvlite/src/git_checkout_openvmm_repo.rs:47:24\",\"is_secret\":false}}}",
         "{\"RegisterRepo\":{\"allow_persist_credentials\":false,\"depth\":1,\"pre_run_deps\":[],\"repo_id\":\"hvlite\",\"repo_src\":\"GithubSelf\"}}"
@@ -303,7 +260,6 @@
       ],
       "flowey_lib_common::install_azure_cli": [
         "{\"AutoInstall\":true}",
-        "{\"GetAzureCli\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:1:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:48:30\",\"is_secret\":false}}",
         "{\"Version\":\"2.56.0\"}"
       ],
       "flowey_lib_common::install_nodejs": [
@@ -320,18 +276,11 @@
       "flowey_lib_common::run_cargo_doc": [
         "{\"cargo_cmd\":{\"backing_var\":\"flowey_lib_hvlite::build_rustdoc:3:flowey_lib_hvlite/src/build_rustdoc.rs:83:33\",\"is_secret\":false},\"in_folder\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::build_rustdoc:1:flowey_lib_hvlite/src/build_rustdoc.rs:61:37\"},\"is_secret\":false},\"packages\":[{\"document_private_items\":false,\"kind\":{\"Workspace\":{\"exclude\":[\"vmfirmwareigvm_dll\"]}},\"no_deps\":true},{\"document_private_items\":false,\"kind\":{\"NoStdCrate\":\"guest_test_uefi\"},\"no_deps\":true}],\"target_triple\":\"x86_64-unknown-linux-gnu\"}"
       ],
-      "flowey_lib_common::use_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::download_gh_release:2:flowey_lib_common/src/download_gh_release.rs:160:26\",\"is_secret\":false}}",
-        "{\"WithAuth\":{\"AuthToken\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\"},\"is_secret\":true}}}"
-      ],
       "flowey_lib_hvlite::_jobs::build_and_publish_rustdoc": [
         "{\"artifact_dir\":{\"backing_var\":{\"RuntimeVar\":\"artifact_publish_from_x64-linux-rustdoc\"},\"is_secret\":false},\"done\":{\"backing_var\":\"start3\",\"is_secret\":false},\"target_triple\":\"x86_64-unknown-linux-gnu\"}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_common": [
         "{\"deny_warnings\":true,\"local_only\":null,\"locked\":true,\"verbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_gh_azure_login": [
-        "{\"client_id\":{\"gh_var\":\"secrets.OPENVMM_CLIENT_ID\",\"is_secret\":true},\"subscription_id\":{\"gh_var\":\"secrets.OPENVMM_SUBSCRIPTION_ID\",\"is_secret\":true},\"tenant_id\":{\"gh_var\":\"secrets.OPENVMM_TENANT_ID\",\"is_secret\":true}}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_hvlite_reposource": [
         "{\"hvlite_repo_source\":\"GithubSelf\"}"
@@ -388,7 +337,6 @@
     },
     "3": {
       "flowey_lib_common::cache": [
-        "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_cli:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_cli:1:flowey_lib_common/src/download_gh_cli.rs:64:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-cli-2.52.0\"},\"is_secret\":false},\"label\":\"gh-cli\",\"restore_keys\":null}",
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_release:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_release:1:flowey_lib_common/src/download_gh_release.rs:150:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-release-download-fa1a19ce1953e79c\"},\"is_secret\":false},\"label\":\"gh-release-download\",\"restore_keys\":null}"
       ],
       "flowey_lib_common::cfg_cargo_common_flags": [
@@ -406,7 +354,6 @@
         "{\"Version\":\"0.9.74\"}"
       ],
       "flowey_lib_common::download_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::use_gh_cli:0:flowey_lib_common/src/use_gh_cli.rs:92:31\",\"is_secret\":false}}",
         "{\"Version\":\"2.52.0\"}"
       ],
       "flowey_lib_common::download_gh_release": [
@@ -419,13 +366,6 @@
         "{\"Get\":{\"backing_var\":\"flowey_lib_hvlite::init_openvmm_magicpath_protoc:0:flowey_lib_hvlite/src/init_openvmm_magicpath_protoc.rs:23:30\",\"is_secret\":false}}",
         "{\"Version\":\"27.1\"}"
       ],
-      "flowey_lib_common::gh_download_azure_key_vault_secret": [
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}"
-      ],
-      "flowey_lib_common::gh_task_azure_login": [
-        "{\"Credentials\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_gh_azure_login:3:flowey_lib_hvlite/src/_jobs/cfg_gh_azure_login.rs:39:60\"},\"is_secret\":true}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:0:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:47:33\",\"is_secret\":false}}"
-      ],
       "flowey_lib_common::git_checkout": [
         "{\"CheckoutRepo\":{\"persist_credentials\":false,\"repo_id\":{\"backing_var\":{\"Inline\":\"hvlite\"},\"is_secret\":false},\"repo_path\":{\"backing_var\":\"flowey_lib_hvlite::git_checkout_openvmm_repo:0:flowey_lib_hvlite/src/git_checkout_openvmm_repo.rs:47:24\",\"is_secret\":false}}}",
         "{\"RegisterRepo\":{\"allow_persist_credentials\":false,\"depth\":1,\"pre_run_deps\":[],\"repo_id\":\"hvlite\",\"repo_src\":\"GithubSelf\"}}"
@@ -435,7 +375,6 @@
       ],
       "flowey_lib_common::install_azure_cli": [
         "{\"AutoInstall\":true}",
-        "{\"GetAzureCli\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:1:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:48:30\",\"is_secret\":false}}",
         "{\"Version\":\"2.56.0\"}"
       ],
       "flowey_lib_common::install_nodejs": [
@@ -452,15 +391,8 @@
       "flowey_lib_common::run_cargo_build": [
         "{\"crate_name\":\"xtask\",\"extra_env\":{\"backing_var\":{\"Inline\":{}},\"is_secret\":false},\"features\":[],\"in_folder\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:1:flowey_lib_hvlite/src/run_cargo_build.rs:310:37\"},\"is_secret\":false},\"out_name\":\"xtask\",\"output\":{\"backing_var\":\"flowey_lib_hvlite::run_cargo_build:2:flowey_lib_hvlite/src/run_cargo_build.rs:404:35\",\"is_secret\":false},\"output_kind\":\"Bin\",\"pre_build_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:0:flowey_lib_hvlite/src/run_cargo_build.rs:308:18\"},\"is_secret\":false}],\"profile\":{\"Custom\":\"xtask\"},\"target\":\"x86_64-pc-windows-msvc\"}"
       ],
-      "flowey_lib_common::use_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::download_gh_release:2:flowey_lib_common/src/download_gh_release.rs:160:26\",\"is_secret\":false}}",
-        "{\"WithAuth\":{\"AuthToken\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\"},\"is_secret\":true}}}"
-      ],
       "flowey_lib_hvlite::_jobs::cfg_common": [
         "{\"deny_warnings\":true,\"local_only\":null,\"locked\":true,\"verbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_gh_azure_login": [
-        "{\"client_id\":{\"gh_var\":\"secrets.OPENVMM_CLIENT_ID\",\"is_secret\":true},\"subscription_id\":{\"gh_var\":\"secrets.OPENVMM_SUBSCRIPTION_ID\",\"is_secret\":true},\"tenant_id\":{\"gh_var\":\"secrets.OPENVMM_TENANT_ID\",\"is_secret\":true}}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_hvlite_reposource": [
         "{\"hvlite_repo_source\":\"GithubSelf\"}"
@@ -515,7 +447,6 @@
     },
     "4": {
       "flowey_lib_common::cache": [
-        "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_cli:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_cli:1:flowey_lib_common/src/download_gh_cli.rs:64:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-cli-2.52.0\"},\"is_secret\":false},\"label\":\"gh-cli\",\"restore_keys\":null}",
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_release:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_release:1:flowey_lib_common/src/download_gh_release.rs:150:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-release-download-69b635be5debe9b9\"},\"is_secret\":false},\"label\":\"gh-release-download\",\"restore_keys\":null}"
       ],
       "flowey_lib_common::cfg_cargo_common_flags": [
@@ -533,7 +464,6 @@
         "{\"Version\":\"0.9.74\"}"
       ],
       "flowey_lib_common::download_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::use_gh_cli:0:flowey_lib_common/src/use_gh_cli.rs:92:31\",\"is_secret\":false}}",
         "{\"Version\":\"2.52.0\"}"
       ],
       "flowey_lib_common::download_gh_release": [
@@ -546,13 +476,6 @@
         "{\"Get\":{\"backing_var\":\"flowey_lib_hvlite::init_openvmm_magicpath_protoc:0:flowey_lib_hvlite/src/init_openvmm_magicpath_protoc.rs:23:30\",\"is_secret\":false}}",
         "{\"Version\":\"27.1\"}"
       ],
-      "flowey_lib_common::gh_download_azure_key_vault_secret": [
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}"
-      ],
-      "flowey_lib_common::gh_task_azure_login": [
-        "{\"Credentials\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_gh_azure_login:3:flowey_lib_hvlite/src/_jobs/cfg_gh_azure_login.rs:39:60\"},\"is_secret\":true}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:0:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:47:33\",\"is_secret\":false}}"
-      ],
       "flowey_lib_common::git_checkout": [
         "{\"CheckoutRepo\":{\"persist_credentials\":false,\"repo_id\":{\"backing_var\":{\"Inline\":\"hvlite\"},\"is_secret\":false},\"repo_path\":{\"backing_var\":\"flowey_lib_hvlite::git_checkout_openvmm_repo:0:flowey_lib_hvlite/src/git_checkout_openvmm_repo.rs:47:24\",\"is_secret\":false}}}",
         "{\"RegisterRepo\":{\"allow_persist_credentials\":false,\"depth\":1,\"pre_run_deps\":[],\"repo_id\":\"hvlite\",\"repo_src\":\"GithubSelf\"}}"
@@ -563,7 +486,6 @@
       ],
       "flowey_lib_common::install_azure_cli": [
         "{\"AutoInstall\":true}",
-        "{\"GetAzureCli\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:1:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:48:30\",\"is_secret\":false}}",
         "{\"Version\":\"2.56.0\"}"
       ],
       "flowey_lib_common::install_nodejs": [
@@ -580,15 +502,8 @@
       "flowey_lib_common::run_cargo_build": [
         "{\"crate_name\":\"xtask\",\"extra_env\":{\"backing_var\":{\"Inline\":{}},\"is_secret\":false},\"features\":[],\"in_folder\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:1:flowey_lib_hvlite/src/run_cargo_build.rs:310:37\"},\"is_secret\":false},\"out_name\":\"xtask\",\"output\":{\"backing_var\":\"flowey_lib_hvlite::run_cargo_build:2:flowey_lib_hvlite/src/run_cargo_build.rs:404:35\",\"is_secret\":false},\"output_kind\":\"Bin\",\"pre_build_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:0:flowey_lib_hvlite/src/run_cargo_build.rs:308:18\"},\"is_secret\":false}],\"profile\":{\"Custom\":\"xtask\"},\"target\":\"x86_64-unknown-linux-gnu\"}"
       ],
-      "flowey_lib_common::use_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::download_gh_release:2:flowey_lib_common/src/download_gh_release.rs:160:26\",\"is_secret\":false}}",
-        "{\"WithAuth\":{\"AuthToken\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\"},\"is_secret\":true}}}"
-      ],
       "flowey_lib_hvlite::_jobs::cfg_common": [
         "{\"deny_warnings\":true,\"local_only\":null,\"locked\":true,\"verbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_gh_azure_login": [
-        "{\"client_id\":{\"gh_var\":\"secrets.OPENVMM_CLIENT_ID\",\"is_secret\":true},\"subscription_id\":{\"gh_var\":\"secrets.OPENVMM_SUBSCRIPTION_ID\",\"is_secret\":true},\"tenant_id\":{\"gh_var\":\"secrets.OPENVMM_TENANT_ID\",\"is_secret\":true}}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_hvlite_reposource": [
         "{\"hvlite_repo_source\":\"GithubSelf\"}"
@@ -646,7 +561,6 @@
     },
     "5": {
       "flowey_lib_common::cache": [
-        "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_cli:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_cli:1:flowey_lib_common/src/download_gh_cli.rs:64:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-cli-2.52.0\"},\"is_secret\":false},\"label\":\"gh-cli\",\"restore_keys\":null}",
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_release:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_release:1:flowey_lib_common/src/download_gh_release.rs:150:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-release-download-fa1a19ce1953e79c\"},\"is_secret\":false},\"label\":\"gh-release-download\",\"restore_keys\":null}"
       ],
       "flowey_lib_common::cfg_cargo_common_flags": [
@@ -670,7 +584,6 @@
         "{\"Version\":\"0.9.74\"}"
       ],
       "flowey_lib_common::download_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::use_gh_cli:0:flowey_lib_common/src/use_gh_cli.rs:92:31\",\"is_secret\":false}}",
         "{\"Version\":\"2.52.0\"}"
       ],
       "flowey_lib_common::download_gh_release": [
@@ -683,13 +596,6 @@
         "{\"Get\":{\"backing_var\":\"flowey_lib_hvlite::init_openvmm_magicpath_protoc:0:flowey_lib_hvlite/src/init_openvmm_magicpath_protoc.rs:23:30\",\"is_secret\":false}}",
         "{\"Version\":\"27.1\"}"
       ],
-      "flowey_lib_common::gh_download_azure_key_vault_secret": [
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}"
-      ],
-      "flowey_lib_common::gh_task_azure_login": [
-        "{\"Credentials\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_gh_azure_login:3:flowey_lib_hvlite/src/_jobs/cfg_gh_azure_login.rs:39:60\"},\"is_secret\":true}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:0:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:47:33\",\"is_secret\":false}}"
-      ],
       "flowey_lib_common::git_checkout": [
         "{\"CheckoutRepo\":{\"persist_credentials\":false,\"repo_id\":{\"backing_var\":{\"Inline\":\"hvlite\"},\"is_secret\":false},\"repo_path\":{\"backing_var\":\"flowey_lib_hvlite::git_checkout_openvmm_repo:0:flowey_lib_hvlite/src/git_checkout_openvmm_repo.rs:47:24\",\"is_secret\":false}}}",
         "{\"RegisterRepo\":{\"allow_persist_credentials\":false,\"depth\":1,\"pre_run_deps\":[],\"repo_id\":\"hvlite\",\"repo_src\":\"GithubSelf\"}}"
@@ -701,7 +607,6 @@
       ],
       "flowey_lib_common::install_azure_cli": [
         "{\"AutoInstall\":true}",
-        "{\"GetAzureCli\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:1:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:48:30\",\"is_secret\":false}}",
         "{\"Version\":\"2.56.0\"}"
       ],
       "flowey_lib_common::install_nodejs": [
@@ -724,10 +629,6 @@
         "{\"crate_name\":\"vmgs_lib\",\"extra_env\":{\"backing_var\":{\"Inline\":{}},\"is_secret\":false},\"features\":[],\"in_folder\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:1:flowey_lib_hvlite/src/run_cargo_build.rs:310:37\"},\"is_secret\":false},\"out_name\":\"vmgs_lib\",\"output\":{\"backing_var\":\"flowey_lib_hvlite::run_cargo_build:6:flowey_lib_hvlite/src/run_cargo_build.rs:404:35\",\"is_secret\":false},\"output_kind\":\"DynamicLib\",\"pre_build_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:0:flowey_lib_hvlite/src/run_cargo_build.rs:308:18\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::build_and_test_vmgs_lib:0:flowey_lib_hvlite/src/build_and_test_vmgs_lib.rs:52:17\"},\"is_secret\":false}],\"profile\":\"Release\",\"target\":\"aarch64-pc-windows-msvc\"}",
         "{\"crate_name\":\"vmgstool\",\"extra_env\":{\"backing_var\":{\"Inline\":{}},\"is_secret\":false},\"features\":[\"encryption_win\"],\"in_folder\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:1:flowey_lib_hvlite/src/run_cargo_build.rs:310:37\"},\"is_secret\":false},\"out_name\":\"vmgstool\",\"output\":{\"backing_var\":\"flowey_lib_hvlite::run_cargo_build:8:flowey_lib_hvlite/src/run_cargo_build.rs:404:35\",\"is_secret\":false},\"output_kind\":\"Bin\",\"pre_build_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:0:flowey_lib_hvlite/src/run_cargo_build.rs:308:18\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::build_vmgstool:0:flowey_lib_hvlite/src/build_vmgstool.rs:46:37\"},\"is_secret\":false}],\"profile\":\"Release\",\"target\":\"aarch64-pc-windows-msvc\"}"
       ],
-      "flowey_lib_common::use_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::download_gh_release:2:flowey_lib_common/src/download_gh_release.rs:160:26\",\"is_secret\":false}}",
-        "{\"WithAuth\":{\"AuthToken\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\"},\"is_secret\":true}}}"
-      ],
       "flowey_lib_hvlite::_jobs::build_and_publish_igvmfilegen": [
         "{\"artifact_dir\":{\"backing_var\":{\"RuntimeVar\":\"artifact_publish_from_aarch64-windows-igvmfilegen\"},\"is_secret\":false},\"done\":{\"backing_var\":\"start8\",\"is_secret\":false},\"profile\":\"Release\",\"target\":{\"Common\":{\"arch\":\"Aarch64\",\"platform\":\"WindowsMsvc\"}}}"
       ],
@@ -742,9 +643,6 @@
       ],
       "flowey_lib_hvlite::_jobs::cfg_common": [
         "{\"deny_warnings\":true,\"local_only\":null,\"locked\":true,\"verbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_gh_azure_login": [
-        "{\"client_id\":{\"gh_var\":\"secrets.OPENVMM_CLIENT_ID\",\"is_secret\":true},\"subscription_id\":{\"gh_var\":\"secrets.OPENVMM_SUBSCRIPTION_ID\",\"is_secret\":true},\"tenant_id\":{\"gh_var\":\"secrets.OPENVMM_TENANT_ID\",\"is_secret\":true}}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_hvlite_reposource": [
         "{\"hvlite_repo_source\":\"GithubSelf\"}"
@@ -820,7 +718,6 @@
     "6": {
       "flowey_lib_common::cache": [
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_cargo_nextest:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_cargo_nextest:1:flowey_lib_common/src/download_cargo_nextest.rs:65:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"cargo-nextest-0.9.74\"},\"is_secret\":false},\"label\":\"cargo-nextest\",\"restore_keys\":null}",
-        "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_cli:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_cli:1:flowey_lib_common/src/download_gh_cli.rs:64:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-cli-2.52.0\"},\"is_secret\":false},\"label\":\"gh-cli\",\"restore_keys\":null}",
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_release:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_release:1:flowey_lib_common/src/download_gh_release.rs:150:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-release-download-6fd9989180c5ad5c\"},\"is_secret\":false},\"label\":\"gh-release-download\",\"restore_keys\":null}"
       ],
       "flowey_lib_common::cfg_cargo_common_flags": [
@@ -847,7 +744,6 @@
         "{\"Version\":\"0.9.74\"}"
       ],
       "flowey_lib_common::download_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::use_gh_cli:0:flowey_lib_common/src/use_gh_cli.rs:92:31\",\"is_secret\":false}}",
         "{\"Version\":\"2.52.0\"}"
       ],
       "flowey_lib_common::download_gh_release": [
@@ -861,13 +757,6 @@
         "{\"Get\":{\"backing_var\":\"flowey_lib_hvlite::init_openvmm_magicpath_protoc:0:flowey_lib_hvlite/src/init_openvmm_magicpath_protoc.rs:23:30\",\"is_secret\":false}}",
         "{\"Version\":\"27.1\"}"
       ],
-      "flowey_lib_common::gh_download_azure_key_vault_secret": [
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}"
-      ],
-      "flowey_lib_common::gh_task_azure_login": [
-        "{\"Credentials\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_gh_azure_login:3:flowey_lib_hvlite/src/_jobs/cfg_gh_azure_login.rs:39:60\"},\"is_secret\":true}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:0:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:47:33\",\"is_secret\":false}}"
-      ],
       "flowey_lib_common::git_checkout": [
         "{\"CheckoutRepo\":{\"persist_credentials\":false,\"repo_id\":{\"backing_var\":{\"Inline\":\"hvlite\"},\"is_secret\":false},\"repo_path\":{\"backing_var\":\"flowey_lib_hvlite::git_checkout_openvmm_repo:0:flowey_lib_hvlite/src/git_checkout_openvmm_repo.rs:47:24\",\"is_secret\":false}}}",
         "{\"RegisterRepo\":{\"allow_persist_credentials\":false,\"depth\":1,\"pre_run_deps\":[],\"repo_id\":\"hvlite\",\"repo_src\":\"GithubSelf\"}}"
@@ -879,7 +768,6 @@
       ],
       "flowey_lib_common::install_azure_cli": [
         "{\"AutoInstall\":true}",
-        "{\"GetAzureCli\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:1:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:48:30\",\"is_secret\":false}}",
         "{\"Version\":\"2.56.0\"}"
       ],
       "flowey_lib_common::install_nodejs": [
@@ -905,10 +793,6 @@
       "flowey_lib_common::run_cargo_nextest_archive": [
         "{\"archive_file\":{\"backing_var\":\"flowey_lib_hvlite::build_nextest_vmm_tests:2:flowey_lib_hvlite/src/build_nextest_vmm_tests.rs:140:29\",\"is_secret\":false},\"build_params\":{\"features\":{\"Specific\":[]},\"no_default_features\":false,\"packages\":{\"backing_var\":{\"Inline\":{\"Crates\":{\"crates\":[\"vmm_tests\"]}}},\"is_secret\":false},\"profile\":\"Release\",\"target\":\"aarch64-pc-windows-msvc\",\"unstable_panic_abort_tests\":null},\"friendly_label\":\"vmm_tests\",\"pre_run_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::build_nextest_vmm_tests:0:flowey_lib_hvlite/src/build_nextest_vmm_tests.rs:72:37\"},\"is_secret\":false}],\"working_dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::build_nextest_vmm_tests:1:flowey_lib_hvlite/src/build_nextest_vmm_tests.rs:137:29\"},\"is_secret\":false}}"
       ],
-      "flowey_lib_common::use_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::download_gh_release:2:flowey_lib_common/src/download_gh_release.rs:160:26\",\"is_secret\":false}}",
-        "{\"WithAuth\":{\"AuthToken\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\"},\"is_secret\":true}}}"
-      ],
       "flowey_lib_hvlite::_jobs::build_and_publish_nextest_vmm_tests_archive": [
         "{\"artifact_dir\":{\"backing_var\":{\"RuntimeVar\":\"artifact_publish_from_aarch64-windows-vmm-tests-archive\"},\"is_secret\":false},\"done\":{\"backing_var\":\"start12\",\"is_secret\":false},\"profile\":\"Release\",\"target\":\"aarch64-pc-windows-msvc\"}"
       ],
@@ -920,9 +804,6 @@
       ],
       "flowey_lib_hvlite::_jobs::cfg_common": [
         "{\"deny_warnings\":true,\"local_only\":null,\"locked\":true,\"verbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_gh_azure_login": [
-        "{\"client_id\":{\"gh_var\":\"secrets.OPENVMM_CLIENT_ID\",\"is_secret\":true},\"subscription_id\":{\"gh_var\":\"secrets.OPENVMM_SUBSCRIPTION_ID\",\"is_secret\":true},\"tenant_id\":{\"gh_var\":\"secrets.OPENVMM_TENANT_ID\",\"is_secret\":true}}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_hvlite_reposource": [
         "{\"hvlite_repo_source\":\"GithubSelf\"}"
@@ -996,7 +877,6 @@
     },
     "7": {
       "flowey_lib_common::cache": [
-        "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_cli:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_cli:1:flowey_lib_common/src/download_gh_cli.rs:64:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-cli-2.52.0\"},\"is_secret\":false},\"label\":\"gh-cli\",\"restore_keys\":null}",
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_release:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_release:1:flowey_lib_common/src/download_gh_release.rs:150:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-release-download-fa1a19ce1953e79c\"},\"is_secret\":false},\"label\":\"gh-release-download\",\"restore_keys\":null}"
       ],
       "flowey_lib_common::cfg_cargo_common_flags": [
@@ -1020,7 +900,6 @@
         "{\"Version\":\"0.9.74\"}"
       ],
       "flowey_lib_common::download_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::use_gh_cli:0:flowey_lib_common/src/use_gh_cli.rs:92:31\",\"is_secret\":false}}",
         "{\"Version\":\"2.52.0\"}"
       ],
       "flowey_lib_common::download_gh_release": [
@@ -1032,13 +911,6 @@
       "flowey_lib_common::download_protoc": [
         "{\"Get\":{\"backing_var\":\"flowey_lib_hvlite::init_openvmm_magicpath_protoc:0:flowey_lib_hvlite/src/init_openvmm_magicpath_protoc.rs:23:30\",\"is_secret\":false}}",
         "{\"Version\":\"27.1\"}"
-      ],
-      "flowey_lib_common::gh_download_azure_key_vault_secret": [
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}"
-      ],
-      "flowey_lib_common::gh_task_azure_login": [
-        "{\"Credentials\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_gh_azure_login:3:flowey_lib_hvlite/src/_jobs/cfg_gh_azure_login.rs:39:60\"},\"is_secret\":true}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:0:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:47:33\",\"is_secret\":false}}"
       ],
       "flowey_lib_common::git_checkout": [
         "{\"CheckoutRepo\":{\"persist_credentials\":false,\"repo_id\":{\"backing_var\":{\"Inline\":\"hvlite\"},\"is_secret\":false},\"repo_path\":{\"backing_var\":\"flowey_lib_hvlite::git_checkout_openvmm_repo:0:flowey_lib_hvlite/src/git_checkout_openvmm_repo.rs:47:24\",\"is_secret\":false}}}",
@@ -1052,7 +924,6 @@
       ],
       "flowey_lib_common::install_azure_cli": [
         "{\"AutoInstall\":true}",
-        "{\"GetAzureCli\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:1:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:48:30\",\"is_secret\":false}}",
         "{\"Version\":\"2.56.0\"}"
       ],
       "flowey_lib_common::install_nodejs": [
@@ -1075,10 +946,6 @@
         "{\"crate_name\":\"vmgs_lib\",\"extra_env\":{\"backing_var\":{\"Inline\":{}},\"is_secret\":false},\"features\":[],\"in_folder\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:1:flowey_lib_hvlite/src/run_cargo_build.rs:310:37\"},\"is_secret\":false},\"out_name\":\"vmgs_lib\",\"output\":{\"backing_var\":\"flowey_lib_hvlite::run_cargo_build:6:flowey_lib_hvlite/src/run_cargo_build.rs:404:35\",\"is_secret\":false},\"output_kind\":\"DynamicLib\",\"pre_build_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:0:flowey_lib_hvlite/src/run_cargo_build.rs:308:18\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::build_and_test_vmgs_lib:0:flowey_lib_hvlite/src/build_and_test_vmgs_lib.rs:52:17\"},\"is_secret\":false}],\"profile\":\"Release\",\"target\":\"x86_64-pc-windows-msvc\"}",
         "{\"crate_name\":\"vmgstool\",\"extra_env\":{\"backing_var\":{\"Inline\":{}},\"is_secret\":false},\"features\":[\"encryption_win\"],\"in_folder\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:1:flowey_lib_hvlite/src/run_cargo_build.rs:310:37\"},\"is_secret\":false},\"out_name\":\"vmgstool\",\"output\":{\"backing_var\":\"flowey_lib_hvlite::run_cargo_build:8:flowey_lib_hvlite/src/run_cargo_build.rs:404:35\",\"is_secret\":false},\"output_kind\":\"Bin\",\"pre_build_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:0:flowey_lib_hvlite/src/run_cargo_build.rs:308:18\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::build_vmgstool:0:flowey_lib_hvlite/src/build_vmgstool.rs:46:37\"},\"is_secret\":false}],\"profile\":\"Release\",\"target\":\"x86_64-pc-windows-msvc\"}"
       ],
-      "flowey_lib_common::use_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::download_gh_release:2:flowey_lib_common/src/download_gh_release.rs:160:26\",\"is_secret\":false}}",
-        "{\"WithAuth\":{\"AuthToken\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\"},\"is_secret\":true}}}"
-      ],
       "flowey_lib_hvlite::_jobs::build_and_publish_igvmfilegen": [
         "{\"artifact_dir\":{\"backing_var\":{\"RuntimeVar\":\"artifact_publish_from_x64-windows-igvmfilegen\"},\"is_secret\":false},\"done\":{\"backing_var\":\"start15\",\"is_secret\":false},\"profile\":\"Release\",\"target\":{\"Common\":{\"arch\":\"X86_64\",\"platform\":\"WindowsMsvc\"}}}"
       ],
@@ -1093,9 +960,6 @@
       ],
       "flowey_lib_hvlite::_jobs::cfg_common": [
         "{\"deny_warnings\":true,\"local_only\":null,\"locked\":true,\"verbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_gh_azure_login": [
-        "{\"client_id\":{\"gh_var\":\"secrets.OPENVMM_CLIENT_ID\",\"is_secret\":true},\"subscription_id\":{\"gh_var\":\"secrets.OPENVMM_SUBSCRIPTION_ID\",\"is_secret\":true},\"tenant_id\":{\"gh_var\":\"secrets.OPENVMM_TENANT_ID\",\"is_secret\":true}}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_hvlite_reposource": [
         "{\"hvlite_repo_source\":\"GithubSelf\"}"
@@ -1172,7 +1036,6 @@
     "8": {
       "flowey_lib_common::cache": [
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_cargo_nextest:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_cargo_nextest:1:flowey_lib_common/src/download_cargo_nextest.rs:65:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"cargo-nextest-0.9.74\"},\"is_secret\":false},\"label\":\"cargo-nextest\",\"restore_keys\":null}",
-        "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_cli:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_cli:1:flowey_lib_common/src/download_gh_cli.rs:64:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-cli-2.52.0\"},\"is_secret\":false},\"label\":\"gh-cli\",\"restore_keys\":null}",
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_release:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_release:1:flowey_lib_common/src/download_gh_release.rs:150:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-release-download-967eeac5d4f6b742\"},\"is_secret\":false},\"label\":\"gh-release-download\",\"restore_keys\":null}"
       ],
       "flowey_lib_common::cfg_cargo_common_flags": [
@@ -1199,7 +1062,6 @@
         "{\"Version\":\"0.9.74\"}"
       ],
       "flowey_lib_common::download_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::use_gh_cli:0:flowey_lib_common/src/use_gh_cli.rs:92:31\",\"is_secret\":false}}",
         "{\"Version\":\"2.52.0\"}"
       ],
       "flowey_lib_common::download_gh_release": [
@@ -1213,13 +1075,6 @@
         "{\"Get\":{\"backing_var\":\"flowey_lib_hvlite::init_openvmm_magicpath_protoc:0:flowey_lib_hvlite/src/init_openvmm_magicpath_protoc.rs:23:30\",\"is_secret\":false}}",
         "{\"Version\":\"27.1\"}"
       ],
-      "flowey_lib_common::gh_download_azure_key_vault_secret": [
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}"
-      ],
-      "flowey_lib_common::gh_task_azure_login": [
-        "{\"Credentials\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_gh_azure_login:3:flowey_lib_hvlite/src/_jobs/cfg_gh_azure_login.rs:39:60\"},\"is_secret\":true}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:0:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:47:33\",\"is_secret\":false}}"
-      ],
       "flowey_lib_common::git_checkout": [
         "{\"CheckoutRepo\":{\"persist_credentials\":false,\"repo_id\":{\"backing_var\":{\"Inline\":\"hvlite\"},\"is_secret\":false},\"repo_path\":{\"backing_var\":\"flowey_lib_hvlite::git_checkout_openvmm_repo:0:flowey_lib_hvlite/src/git_checkout_openvmm_repo.rs:47:24\",\"is_secret\":false}}}",
         "{\"RegisterRepo\":{\"allow_persist_credentials\":false,\"depth\":1,\"pre_run_deps\":[],\"repo_id\":\"hvlite\",\"repo_src\":\"GithubSelf\"}}"
@@ -1231,7 +1086,6 @@
       ],
       "flowey_lib_common::install_azure_cli": [
         "{\"AutoInstall\":true}",
-        "{\"GetAzureCli\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:1:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:48:30\",\"is_secret\":false}}",
         "{\"Version\":\"2.56.0\"}"
       ],
       "flowey_lib_common::install_nodejs": [
@@ -1257,10 +1111,6 @@
       "flowey_lib_common::run_cargo_nextest_archive": [
         "{\"archive_file\":{\"backing_var\":\"flowey_lib_hvlite::build_nextest_vmm_tests:2:flowey_lib_hvlite/src/build_nextest_vmm_tests.rs:140:29\",\"is_secret\":false},\"build_params\":{\"features\":{\"Specific\":[]},\"no_default_features\":false,\"packages\":{\"backing_var\":{\"Inline\":{\"Crates\":{\"crates\":[\"vmm_tests\"]}}},\"is_secret\":false},\"profile\":\"Release\",\"target\":\"x86_64-pc-windows-msvc\",\"unstable_panic_abort_tests\":null},\"friendly_label\":\"vmm_tests\",\"pre_run_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::build_nextest_vmm_tests:0:flowey_lib_hvlite/src/build_nextest_vmm_tests.rs:72:37\"},\"is_secret\":false}],\"working_dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::build_nextest_vmm_tests:1:flowey_lib_hvlite/src/build_nextest_vmm_tests.rs:137:29\"},\"is_secret\":false}}"
       ],
-      "flowey_lib_common::use_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::download_gh_release:2:flowey_lib_common/src/download_gh_release.rs:160:26\",\"is_secret\":false}}",
-        "{\"WithAuth\":{\"AuthToken\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\"},\"is_secret\":true}}}"
-      ],
       "flowey_lib_hvlite::_jobs::build_and_publish_nextest_vmm_tests_archive": [
         "{\"artifact_dir\":{\"backing_var\":{\"RuntimeVar\":\"artifact_publish_from_x64-windows-vmm-tests-archive\"},\"is_secret\":false},\"done\":{\"backing_var\":\"start19\",\"is_secret\":false},\"profile\":\"Release\",\"target\":\"x86_64-pc-windows-msvc\"}"
       ],
@@ -1272,9 +1122,6 @@
       ],
       "flowey_lib_hvlite::_jobs::cfg_common": [
         "{\"deny_warnings\":true,\"local_only\":null,\"locked\":true,\"verbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_gh_azure_login": [
-        "{\"client_id\":{\"gh_var\":\"secrets.OPENVMM_CLIENT_ID\",\"is_secret\":true},\"subscription_id\":{\"gh_var\":\"secrets.OPENVMM_SUBSCRIPTION_ID\",\"is_secret\":true},\"tenant_id\":{\"gh_var\":\"secrets.OPENVMM_TENANT_ID\",\"is_secret\":true}}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_hvlite_reposource": [
         "{\"hvlite_repo_source\":\"GithubSelf\"}"
@@ -1348,7 +1195,6 @@
     },
     "9": {
       "flowey_lib_common::cache": [
-        "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_cli:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_cli:1:flowey_lib_common/src/download_gh_cli.rs:64:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-cli-2.52.0\"},\"is_secret\":false},\"label\":\"gh-cli\",\"restore_keys\":null}",
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_release:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_release:1:flowey_lib_common/src/download_gh_release.rs:150:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-release-download-75aeb90777cf62f\"},\"is_secret\":false},\"label\":\"gh-release-download\",\"restore_keys\":null}"
       ],
       "flowey_lib_common::cfg_cargo_common_flags": [
@@ -1373,7 +1219,6 @@
         "{\"Version\":\"0.9.74\"}"
       ],
       "flowey_lib_common::download_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::use_gh_cli:0:flowey_lib_common/src/use_gh_cli.rs:92:31\",\"is_secret\":false}}",
         "{\"Version\":\"2.52.0\"}"
       ],
       "flowey_lib_common::download_gh_release": [
@@ -1386,13 +1231,6 @@
       "flowey_lib_common::download_protoc": [
         "{\"Get\":{\"backing_var\":\"flowey_lib_hvlite::init_openvmm_magicpath_protoc:0:flowey_lib_hvlite/src/init_openvmm_magicpath_protoc.rs:23:30\",\"is_secret\":false}}",
         "{\"Version\":\"27.1\"}"
-      ],
-      "flowey_lib_common::gh_download_azure_key_vault_secret": [
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}"
-      ],
-      "flowey_lib_common::gh_task_azure_login": [
-        "{\"Credentials\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_gh_azure_login:3:flowey_lib_hvlite/src/_jobs/cfg_gh_azure_login.rs:39:60\"},\"is_secret\":true}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:0:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:47:33\",\"is_secret\":false}}"
       ],
       "flowey_lib_common::git_checkout": [
         "{\"CheckoutRepo\":{\"persist_credentials\":false,\"repo_id\":{\"backing_var\":{\"Inline\":\"hvlite\"},\"is_secret\":false},\"repo_path\":{\"backing_var\":\"flowey_lib_hvlite::git_checkout_openvmm_repo:0:flowey_lib_hvlite/src/git_checkout_openvmm_repo.rs:47:24\",\"is_secret\":false}}}",
@@ -1417,7 +1255,6 @@
       ],
       "flowey_lib_common::install_azure_cli": [
         "{\"AutoInstall\":true}",
-        "{\"GetAzureCli\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:1:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:48:30\",\"is_secret\":false}}",
         "{\"Version\":\"2.56.0\"}"
       ],
       "flowey_lib_common::install_nodejs": [
@@ -1444,10 +1281,6 @@
         "{\"crate_name\":\"vmgs_lib\",\"extra_env\":{\"backing_var\":{\"Inline\":{\"CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER\":\"aarch64-linux-gnu-gcc\"}},\"is_secret\":false},\"features\":[],\"in_folder\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:1:flowey_lib_hvlite/src/run_cargo_build.rs:310:37\"},\"is_secret\":false},\"out_name\":\"vmgs_lib\",\"output\":{\"backing_var\":\"flowey_lib_hvlite::run_cargo_build:26:flowey_lib_hvlite/src/run_cargo_build.rs:404:35\",\"is_secret\":false},\"output_kind\":\"DynamicLib\",\"pre_build_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:0:flowey_lib_hvlite/src/run_cargo_build.rs:308:18\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::build_and_test_vmgs_lib:0:flowey_lib_hvlite/src/build_and_test_vmgs_lib.rs:52:17\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:25:flowey_lib_hvlite/src/run_cargo_build.rs:354:41\"},\"is_secret\":false}],\"profile\":\"Release\",\"target\":\"aarch64-unknown-linux-gnu\"}",
         "{\"crate_name\":\"vmgstool\",\"extra_env\":{\"backing_var\":{\"Inline\":{\"CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER\":\"aarch64-linux-gnu-gcc\"}},\"is_secret\":false},\"features\":[\"encryption_ossl\"],\"in_folder\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:1:flowey_lib_hvlite/src/run_cargo_build.rs:310:37\"},\"is_secret\":false},\"out_name\":\"vmgstool\",\"output\":{\"backing_var\":\"flowey_lib_hvlite::run_cargo_build:29:flowey_lib_hvlite/src/run_cargo_build.rs:404:35\",\"is_secret\":false},\"output_kind\":\"Bin\",\"pre_build_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:0:flowey_lib_hvlite/src/run_cargo_build.rs:308:18\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::build_vmgstool:0:flowey_lib_hvlite/src/build_vmgstool.rs:46:37\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:28:flowey_lib_hvlite/src/run_cargo_build.rs:354:41\"},\"is_secret\":false}],\"profile\":\"Release\",\"target\":\"aarch64-unknown-linux-gnu\"}"
       ],
-      "flowey_lib_common::use_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::download_gh_release:2:flowey_lib_common/src/download_gh_release.rs:160:26\",\"is_secret\":false}}",
-        "{\"WithAuth\":{\"AuthToken\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\"},\"is_secret\":true}}}"
-      ],
       "flowey_lib_hvlite::_jobs::build_and_publish_guest_test_uefi": [
         "{\"arch\":\"Aarch64\",\"artifact_dir\":{\"backing_var\":{\"RuntimeVar\":\"artifact_publish_from_aarch64-guest_test_uefi\"},\"is_secret\":false},\"done\":{\"backing_var\":\"start25\",\"is_secret\":false},\"profile\":\"Release\"}"
       ],
@@ -1468,9 +1301,6 @@
       ],
       "flowey_lib_hvlite::_jobs::cfg_common": [
         "{\"deny_warnings\":true,\"local_only\":null,\"locked\":true,\"verbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_gh_azure_login": [
-        "{\"client_id\":{\"gh_var\":\"secrets.OPENVMM_CLIENT_ID\",\"is_secret\":true},\"subscription_id\":{\"gh_var\":\"secrets.OPENVMM_SUBSCRIPTION_ID\",\"is_secret\":true},\"tenant_id\":{\"gh_var\":\"secrets.OPENVMM_TENANT_ID\",\"is_secret\":true}}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_hvlite_reposource": [
         "{\"hvlite_repo_source\":\"GithubSelf\"}"
@@ -1572,7 +1402,6 @@
     "10": {
       "flowey_lib_common::cache": [
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_cargo_nextest:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_cargo_nextest:1:flowey_lib_common/src/download_cargo_nextest.rs:65:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"cargo-nextest-0.9.74\"},\"is_secret\":false},\"label\":\"cargo-nextest\",\"restore_keys\":null}",
-        "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_cli:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_cli:1:flowey_lib_common/src/download_gh_cli.rs:64:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-cli-2.52.0\"},\"is_secret\":false},\"label\":\"gh-cli\",\"restore_keys\":null}",
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_release:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_release:1:flowey_lib_common/src/download_gh_release.rs:150:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-release-download-dcd8f50d7eb46973\"},\"is_secret\":false},\"label\":\"gh-release-download\",\"restore_keys\":null}"
       ],
       "flowey_lib_common::cfg_cargo_common_flags": [
@@ -1603,7 +1432,6 @@
         "{\"Version\":\"0.9.74\"}"
       ],
       "flowey_lib_common::download_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::use_gh_cli:0:flowey_lib_common/src/use_gh_cli.rs:92:31\",\"is_secret\":false}}",
         "{\"Version\":\"2.52.0\"}"
       ],
       "flowey_lib_common::download_gh_release": [
@@ -1616,13 +1444,6 @@
       "flowey_lib_common::download_protoc": [
         "{\"Get\":{\"backing_var\":\"flowey_lib_hvlite::init_openvmm_magicpath_protoc:0:flowey_lib_hvlite/src/init_openvmm_magicpath_protoc.rs:23:30\",\"is_secret\":false}}",
         "{\"Version\":\"27.1\"}"
-      ],
-      "flowey_lib_common::gh_download_azure_key_vault_secret": [
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}"
-      ],
-      "flowey_lib_common::gh_task_azure_login": [
-        "{\"Credentials\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_gh_azure_login:3:flowey_lib_hvlite/src/_jobs/cfg_gh_azure_login.rs:39:60\"},\"is_secret\":true}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:0:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:47:33\",\"is_secret\":false}}"
       ],
       "flowey_lib_common::git_checkout": [
         "{\"CheckoutRepo\":{\"persist_credentials\":false,\"repo_id\":{\"backing_var\":{\"Inline\":\"hvlite\"},\"is_secret\":false},\"repo_path\":{\"backing_var\":\"flowey_lib_hvlite::git_checkout_openvmm_repo:0:flowey_lib_hvlite/src/git_checkout_openvmm_repo.rs:47:24\",\"is_secret\":false}}}",
@@ -1643,7 +1464,6 @@
       ],
       "flowey_lib_common::install_azure_cli": [
         "{\"AutoInstall\":true}",
-        "{\"GetAzureCli\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:1:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:48:30\",\"is_secret\":false}}",
         "{\"Version\":\"2.56.0\"}"
       ],
       "flowey_lib_common::install_nodejs": [
@@ -1677,10 +1497,6 @@
       "flowey_lib_common::run_cargo_nextest_archive": [
         "{\"archive_file\":{\"backing_var\":\"flowey_lib_hvlite::build_nextest_vmm_tests:2:flowey_lib_hvlite/src/build_nextest_vmm_tests.rs:140:29\",\"is_secret\":false},\"build_params\":{\"features\":{\"Specific\":[]},\"no_default_features\":false,\"packages\":{\"backing_var\":{\"Inline\":{\"Crates\":{\"crates\":[\"vmm_tests\"]}}},\"is_secret\":false},\"profile\":\"Release\",\"target\":\"x86_64-unknown-linux-gnu\",\"unstable_panic_abort_tests\":null},\"friendly_label\":\"vmm_tests\",\"pre_run_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::build_nextest_vmm_tests:0:flowey_lib_hvlite/src/build_nextest_vmm_tests.rs:72:37\"},\"is_secret\":false}],\"working_dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::build_nextest_vmm_tests:1:flowey_lib_hvlite/src/build_nextest_vmm_tests.rs:137:29\"},\"is_secret\":false}}"
       ],
-      "flowey_lib_common::use_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::download_gh_release:2:flowey_lib_common/src/download_gh_release.rs:160:26\",\"is_secret\":false}}",
-        "{\"WithAuth\":{\"AuthToken\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\"},\"is_secret\":true}}}"
-      ],
       "flowey_lib_hvlite::_jobs::build_and_publish_guest_test_uefi": [
         "{\"arch\":\"X86_64\",\"artifact_dir\":{\"backing_var\":{\"RuntimeVar\":\"artifact_publish_from_x64-guest_test_uefi\"},\"is_secret\":false},\"done\":{\"backing_var\":\"start31\",\"is_secret\":false},\"profile\":\"Release\"}"
       ],
@@ -1704,9 +1520,6 @@
       ],
       "flowey_lib_hvlite::_jobs::cfg_common": [
         "{\"deny_warnings\":true,\"local_only\":null,\"locked\":true,\"verbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_gh_azure_login": [
-        "{\"client_id\":{\"gh_var\":\"secrets.OPENVMM_CLIENT_ID\",\"is_secret\":true},\"subscription_id\":{\"gh_var\":\"secrets.OPENVMM_SUBSCRIPTION_ID\",\"is_secret\":true},\"tenant_id\":{\"gh_var\":\"secrets.OPENVMM_TENANT_ID\",\"is_secret\":true}}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_hvlite_reposource": [
         "{\"hvlite_repo_source\":\"GithubSelf\"}"
@@ -1816,7 +1629,6 @@
     },
     "11": {
       "flowey_lib_common::cache": [
-        "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_cli:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_cli:1:flowey_lib_common/src/download_gh_cli.rs:64:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-cli-2.52.0\"},\"is_secret\":false},\"label\":\"gh-cli\",\"restore_keys\":null}",
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_release:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_release:1:flowey_lib_common/src/download_gh_release.rs:150:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-release-download-8e7c4ec49ae68d90\"},\"is_secret\":false},\"label\":\"gh-release-download\",\"restore_keys\":null}"
       ],
       "flowey_lib_common::cfg_cargo_common_flags": [
@@ -1839,7 +1651,6 @@
         "{\"Version\":\"0.9.74\"}"
       ],
       "flowey_lib_common::download_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::use_gh_cli:0:flowey_lib_common/src/use_gh_cli.rs:92:31\",\"is_secret\":false}}",
         "{\"Version\":\"2.52.0\"}"
       ],
       "flowey_lib_common::download_gh_release": [
@@ -1856,13 +1667,6 @@
       "flowey_lib_common::download_protoc": [
         "{\"Get\":{\"backing_var\":\"flowey_lib_hvlite::init_openvmm_magicpath_protoc:0:flowey_lib_hvlite/src/init_openvmm_magicpath_protoc.rs:23:30\",\"is_secret\":false}}",
         "{\"Version\":\"27.1\"}"
-      ],
-      "flowey_lib_common::gh_download_azure_key_vault_secret": [
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}"
-      ],
-      "flowey_lib_common::gh_task_azure_login": [
-        "{\"Credentials\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_gh_azure_login:3:flowey_lib_hvlite/src/_jobs/cfg_gh_azure_login.rs:39:60\"},\"is_secret\":true}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:0:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:47:33\",\"is_secret\":false}}"
       ],
       "flowey_lib_common::git_checkout": [
         "{\"CheckoutRepo\":{\"persist_credentials\":false,\"repo_id\":{\"backing_var\":{\"Inline\":\"hvlite\"},\"is_secret\":false},\"repo_path\":{\"backing_var\":\"flowey_lib_hvlite::git_checkout_openvmm_repo:0:flowey_lib_hvlite/src/git_checkout_openvmm_repo.rs:47:24\",\"is_secret\":false}}}",
@@ -1886,7 +1690,6 @@
       ],
       "flowey_lib_common::install_azure_cli": [
         "{\"AutoInstall\":true}",
-        "{\"GetAzureCli\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:1:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:48:30\",\"is_secret\":false}}",
         "{\"Version\":\"2.56.0\"}"
       ],
       "flowey_lib_common::install_nodejs": [
@@ -1909,10 +1712,6 @@
         "{\"crate_name\":\"openvmm_hcl\",\"extra_env\":{\"backing_var\":{\"Inline\":{}},\"is_secret\":false},\"features\":[\"tpm\"],\"in_folder\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:1:flowey_lib_hvlite/src/run_cargo_build.rs:310:37\"},\"is_secret\":false},\"out_name\":\"openvmm_hcl\",\"output\":{\"backing_var\":\"flowey_lib_hvlite::run_cargo_build:21:flowey_lib_hvlite/src/run_cargo_build.rs:404:35\",\"is_secret\":false},\"output_kind\":\"Bin\",\"pre_build_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:0:flowey_lib_hvlite/src/run_cargo_build.rs:308:18\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::build_openvmm_hcl:0:flowey_lib_hvlite/src/build_openvmm_hcl.rs:91:21\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:19:flowey_lib_hvlite/src/run_cargo_build.rs:354:41\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:20:flowey_lib_hvlite/src/run_cargo_build.rs:386:25\"},\"is_secret\":false}],\"profile\":{\"Custom\":\"underhill-ship\"},\"target\":\"aarch64-unknown-linux-musl\"}",
         "{\"crate_name\":\"pipette\",\"extra_env\":{\"backing_var\":{\"Inline\":{}},\"is_secret\":false},\"features\":[],\"in_folder\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:1:flowey_lib_hvlite/src/run_cargo_build.rs:310:37\"},\"is_secret\":false},\"out_name\":\"pipette\",\"output\":{\"backing_var\":\"flowey_lib_hvlite::run_cargo_build:25:flowey_lib_hvlite/src/run_cargo_build.rs:404:35\",\"is_secret\":false},\"output_kind\":\"Bin\",\"pre_build_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:0:flowey_lib_hvlite/src/run_cargo_build.rs:308:18\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:23:flowey_lib_hvlite/src/run_cargo_build.rs:354:41\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:24:flowey_lib_hvlite/src/run_cargo_build.rs:386:25\"},\"is_secret\":false}],\"profile\":\"Release\",\"target\":\"aarch64-unknown-linux-musl\"}"
       ],
-      "flowey_lib_common::use_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::download_gh_release:2:flowey_lib_common/src/download_gh_release.rs:160:26\",\"is_secret\":false}}",
-        "{\"WithAuth\":{\"AuthToken\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\"},\"is_secret\":true}}}"
-      ],
       "flowey_lib_hvlite::_jobs::build_and_publish_openhcl_igvm_from_recipe": [
         "{\"artifact_dir_openhcl_igvm\":{\"backing_var\":{\"RuntimeVar\":\"artifact_publish_from_aarch64-openhcl-igvm\"},\"is_secret\":false},\"artifact_dir_openhcl_igvm_extras\":{\"backing_var\":{\"RuntimeVar\":\"artifact_publish_from_aarch64-openhcl-igvm-extras\"},\"is_secret\":false},\"done\":{\"backing_var\":\"start33\",\"is_secret\":false},\"igvm_files\":[{\"custom_target\":{\"Custom\":\"aarch64-unknown-linux-musl\"},\"profile\":\"OpenvmmHclShip\",\"recipe\":\"Aarch64\"},{\"custom_target\":{\"Custom\":\"aarch64-unknown-linux-musl\"},\"profile\":\"OpenvmmHclShip\",\"recipe\":\"Aarch64Devkern\"}]}"
       ],
@@ -1921,9 +1720,6 @@
       ],
       "flowey_lib_hvlite::_jobs::cfg_common": [
         "{\"deny_warnings\":true,\"local_only\":null,\"locked\":true,\"verbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_gh_azure_login": [
-        "{\"client_id\":{\"gh_var\":\"secrets.OPENVMM_CLIENT_ID\",\"is_secret\":true},\"subscription_id\":{\"gh_var\":\"secrets.OPENVMM_SUBSCRIPTION_ID\",\"is_secret\":true},\"tenant_id\":{\"gh_var\":\"secrets.OPENVMM_TENANT_ID\",\"is_secret\":true}}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_hvlite_reposource": [
         "{\"hvlite_repo_source\":\"GithubSelf\"}"
@@ -2035,7 +1831,6 @@
     },
     "12": {
       "flowey_lib_common::cache": [
-        "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_cli:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_cli:1:flowey_lib_common/src/download_gh_cli.rs:64:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-cli-2.52.0\"},\"is_secret\":false},\"label\":\"gh-cli\",\"restore_keys\":null}",
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_release:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_release:1:flowey_lib_common/src/download_gh_release.rs:150:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-release-download-2be1003dfd972f03\"},\"is_secret\":false},\"label\":\"gh-release-download\",\"restore_keys\":null}"
       ],
       "flowey_lib_common::cfg_cargo_common_flags": [
@@ -2058,7 +1853,6 @@
         "{\"Version\":\"0.9.74\"}"
       ],
       "flowey_lib_common::download_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::use_gh_cli:0:flowey_lib_common/src/use_gh_cli.rs:92:31\",\"is_secret\":false}}",
         "{\"Version\":\"2.52.0\"}"
       ],
       "flowey_lib_common::download_gh_release": [
@@ -2075,13 +1869,6 @@
       "flowey_lib_common::download_protoc": [
         "{\"Get\":{\"backing_var\":\"flowey_lib_hvlite::init_openvmm_magicpath_protoc:0:flowey_lib_hvlite/src/init_openvmm_magicpath_protoc.rs:23:30\",\"is_secret\":false}}",
         "{\"Version\":\"27.1\"}"
-      ],
-      "flowey_lib_common::gh_download_azure_key_vault_secret": [
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}"
-      ],
-      "flowey_lib_common::gh_task_azure_login": [
-        "{\"Credentials\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_gh_azure_login:3:flowey_lib_hvlite/src/_jobs/cfg_gh_azure_login.rs:39:60\"},\"is_secret\":true}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:0:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:47:33\",\"is_secret\":false}}"
       ],
       "flowey_lib_common::git_checkout": [
         "{\"CheckoutRepo\":{\"persist_credentials\":false,\"repo_id\":{\"backing_var\":{\"Inline\":\"hvlite\"},\"is_secret\":false},\"repo_path\":{\"backing_var\":\"flowey_lib_hvlite::git_checkout_openvmm_repo:0:flowey_lib_hvlite/src/git_checkout_openvmm_repo.rs:47:24\",\"is_secret\":false}}}",
@@ -2105,7 +1892,6 @@
       ],
       "flowey_lib_common::install_azure_cli": [
         "{\"AutoInstall\":true}",
-        "{\"GetAzureCli\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:1:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:48:30\",\"is_secret\":false}}",
         "{\"Version\":\"2.56.0\"}"
       ],
       "flowey_lib_common::install_nodejs": [
@@ -2128,10 +1914,6 @@
         "{\"crate_name\":\"openvmm_hcl\",\"extra_env\":{\"backing_var\":{\"Inline\":{}},\"is_secret\":false},\"features\":[\"tpm\"],\"in_folder\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:1:flowey_lib_hvlite/src/run_cargo_build.rs:310:37\"},\"is_secret\":false},\"out_name\":\"openvmm_hcl\",\"output\":{\"backing_var\":\"flowey_lib_hvlite::run_cargo_build:18:flowey_lib_hvlite/src/run_cargo_build.rs:404:35\",\"is_secret\":false},\"output_kind\":\"Bin\",\"pre_build_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:0:flowey_lib_hvlite/src/run_cargo_build.rs:308:18\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::build_openvmm_hcl:0:flowey_lib_hvlite/src/build_openvmm_hcl.rs:91:21\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:17:flowey_lib_hvlite/src/run_cargo_build.rs:386:25\"},\"is_secret\":false}],\"profile\":{\"Custom\":\"underhill-ship\"},\"target\":\"x86_64-unknown-linux-musl\"}",
         "{\"crate_name\":\"pipette\",\"extra_env\":{\"backing_var\":{\"Inline\":{}},\"is_secret\":false},\"features\":[],\"in_folder\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:1:flowey_lib_hvlite/src/run_cargo_build.rs:310:37\"},\"is_secret\":false},\"out_name\":\"pipette\",\"output\":{\"backing_var\":\"flowey_lib_hvlite::run_cargo_build:21:flowey_lib_hvlite/src/run_cargo_build.rs:404:35\",\"is_secret\":false},\"output_kind\":\"Bin\",\"pre_build_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:0:flowey_lib_hvlite/src/run_cargo_build.rs:308:18\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_build:20:flowey_lib_hvlite/src/run_cargo_build.rs:386:25\"},\"is_secret\":false}],\"profile\":\"Release\",\"target\":\"x86_64-unknown-linux-musl\"}"
       ],
-      "flowey_lib_common::use_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::download_gh_release:2:flowey_lib_common/src/download_gh_release.rs:160:26\",\"is_secret\":false}}",
-        "{\"WithAuth\":{\"AuthToken\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\"},\"is_secret\":true}}}"
-      ],
       "flowey_lib_hvlite::_jobs::build_and_publish_openhcl_igvm_from_recipe": [
         "{\"artifact_dir_openhcl_igvm\":{\"backing_var\":{\"RuntimeVar\":\"artifact_publish_from_x64-openhcl-igvm\"},\"is_secret\":false},\"artifact_dir_openhcl_igvm_extras\":{\"backing_var\":{\"RuntimeVar\":\"artifact_publish_from_x64-openhcl-igvm-extras\"},\"is_secret\":false},\"done\":{\"backing_var\":\"start35\",\"is_secret\":false},\"igvm_files\":[{\"custom_target\":{\"Custom\":\"x86_64-unknown-linux-musl\"},\"profile\":\"OpenvmmHclShip\",\"recipe\":\"X64\"},{\"custom_target\":{\"Custom\":\"x86_64-unknown-linux-musl\"},\"profile\":\"OpenvmmHclShip\",\"recipe\":\"X64Devkern\"},{\"custom_target\":{\"Custom\":\"x86_64-unknown-linux-musl\"},\"profile\":\"OpenvmmHclShip\",\"recipe\":\"X64TestLinuxDirect\"},{\"custom_target\":{\"Custom\":\"x86_64-unknown-linux-musl\"},\"profile\":\"OpenvmmHclShip\",\"recipe\":\"X64TestLinuxDirectDevkern\"},{\"custom_target\":{\"Custom\":\"x86_64-unknown-linux-musl\"},\"profile\":\"OpenvmmHclShip\",\"recipe\":\"X64Cvm\"}]}"
       ],
@@ -2140,9 +1922,6 @@
       ],
       "flowey_lib_hvlite::_jobs::cfg_common": [
         "{\"deny_warnings\":true,\"local_only\":null,\"locked\":true,\"verbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_gh_azure_login": [
-        "{\"client_id\":{\"gh_var\":\"secrets.OPENVMM_CLIENT_ID\",\"is_secret\":true},\"subscription_id\":{\"gh_var\":\"secrets.OPENVMM_SUBSCRIPTION_ID\",\"is_secret\":true},\"tenant_id\":{\"gh_var\":\"secrets.OPENVMM_TENANT_ID\",\"is_secret\":true}}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_hvlite_reposource": [
         "{\"hvlite_repo_source\":\"GithubSelf\"}"
@@ -2287,7 +2066,6 @@
     },
     "13": {
       "flowey_lib_common::cache": [
-        "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_cli:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_cli:1:flowey_lib_common/src/download_gh_cli.rs:64:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-cli-2.52.0\"},\"is_secret\":false},\"label\":\"gh-cli\",\"restore_keys\":null}",
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_release:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_release:1:flowey_lib_common/src/download_gh_release.rs:150:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-release-download-38b54383c2832bcf\"},\"is_secret\":false},\"label\":\"gh-release-download\",\"restore_keys\":null}"
       ],
       "flowey_lib_common::cfg_cargo_common_flags": [
@@ -2306,7 +2084,6 @@
         "{\"Version\":\"0.9.74\"}"
       ],
       "flowey_lib_common::download_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::use_gh_cli:0:flowey_lib_common/src/use_gh_cli.rs:92:31\",\"is_secret\":false}}",
         "{\"Version\":\"2.52.0\"}"
       ],
       "flowey_lib_common::download_gh_release": [
@@ -2321,13 +2098,6 @@
         "{\"Get\":{\"backing_var\":\"flowey_lib_hvlite::init_openvmm_magicpath_protoc:0:flowey_lib_hvlite/src/init_openvmm_magicpath_protoc.rs:23:30\",\"is_secret\":false}}",
         "{\"Version\":\"27.1\"}"
       ],
-      "flowey_lib_common::gh_download_azure_key_vault_secret": [
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}"
-      ],
-      "flowey_lib_common::gh_task_azure_login": [
-        "{\"Credentials\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_gh_azure_login:3:flowey_lib_hvlite/src/_jobs/cfg_gh_azure_login.rs:39:60\"},\"is_secret\":true}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:0:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:47:33\",\"is_secret\":false}}"
-      ],
       "flowey_lib_common::git_checkout": [
         "{\"CheckoutRepo\":{\"persist_credentials\":false,\"repo_id\":{\"backing_var\":{\"Inline\":\"hvlite\"},\"is_secret\":false},\"repo_path\":{\"backing_var\":\"flowey_lib_hvlite::git_checkout_openvmm_repo:0:flowey_lib_hvlite/src/git_checkout_openvmm_repo.rs:47:24\",\"is_secret\":false}}}",
         "{\"RegisterRepo\":{\"allow_persist_credentials\":false,\"depth\":1,\"pre_run_deps\":[],\"repo_id\":\"hvlite\",\"repo_src\":\"GithubSelf\"}}"
@@ -2338,7 +2108,6 @@
       ],
       "flowey_lib_common::install_azure_cli": [
         "{\"AutoInstall\":true}",
-        "{\"GetAzureCli\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:1:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:48:30\",\"is_secret\":false}}",
         "{\"Version\":\"2.56.0\"}"
       ],
       "flowey_lib_common::install_nodejs": [
@@ -2366,15 +2135,8 @@
         "{\"all_targets\":true,\"done\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::check_clippy:5:flowey_lib_hvlite/src/_jobs/check_clippy.rs:208:33\",\"is_secret\":false},\"exclude\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:4:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"extra_env\":null,\"features\":[\"ci\"],\"in_folder\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:3:flowey_lib_hvlite/src/_jobs/check_clippy.rs:143:37\"},\"is_secret\":false},\"keep_going\":true,\"package\":\"Workspace\",\"pre_build_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:0:flowey_lib_hvlite/src/_jobs/check_clippy.rs:84:33\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:1:flowey_lib_hvlite/src/_jobs/check_clippy.rs:117:33\"},\"is_secret\":false}],\"profile\":\"Release\",\"target\":\"aarch64-pc-windows-msvc\",\"tests\":true}",
         "{\"all_targets\":true,\"done\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::check_clippy:11:flowey_lib_hvlite/src/_jobs/check_clippy.rs:208:33\",\"is_secret\":false},\"exclude\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:10:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"extra_env\":null,\"features\":[\"ci\"],\"in_folder\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:9:flowey_lib_hvlite/src/_jobs/check_clippy.rs:143:37\"},\"is_secret\":false},\"keep_going\":true,\"package\":\"Workspace\",\"pre_build_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:6:flowey_lib_hvlite/src/_jobs/check_clippy.rs:84:33\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:7:flowey_lib_hvlite/src/_jobs/check_clippy.rs:117:33\"},\"is_secret\":false}],\"profile\":\"Release\",\"target\":\"x86_64-pc-windows-msvc\",\"tests\":true}"
       ],
-      "flowey_lib_common::use_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::download_gh_release:2:flowey_lib_common/src/download_gh_release.rs:160:26\",\"is_secret\":false}}",
-        "{\"WithAuth\":{\"AuthToken\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\"},\"is_secret\":true}}}"
-      ],
       "flowey_lib_hvlite::_jobs::cfg_common": [
         "{\"deny_warnings\":true,\"local_only\":null,\"locked\":true,\"verbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_gh_azure_login": [
-        "{\"client_id\":{\"gh_var\":\"secrets.OPENVMM_CLIENT_ID\",\"is_secret\":true},\"subscription_id\":{\"gh_var\":\"secrets.OPENVMM_SUBSCRIPTION_ID\",\"is_secret\":true},\"tenant_id\":{\"gh_var\":\"secrets.OPENVMM_TENANT_ID\",\"is_secret\":true}}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_hvlite_reposource": [
         "{\"hvlite_repo_source\":\"GithubSelf\"}"
@@ -2442,7 +2204,6 @@
     },
     "14": {
       "flowey_lib_common::cache": [
-        "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_cli:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_cli:1:flowey_lib_common/src/download_gh_cli.rs:64:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-cli-2.52.0\"},\"is_secret\":false},\"label\":\"gh-cli\",\"restore_keys\":null}",
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_release:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_release:1:flowey_lib_common/src/download_gh_release.rs:150:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-release-download-80ccdbcaa41168a5\"},\"is_secret\":false},\"label\":\"gh-release-download\",\"restore_keys\":null}"
       ],
       "flowey_lib_common::cfg_cargo_common_flags": [
@@ -2461,7 +2222,6 @@
         "{\"Version\":\"0.9.74\"}"
       ],
       "flowey_lib_common::download_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::use_gh_cli:0:flowey_lib_common/src/use_gh_cli.rs:92:31\",\"is_secret\":false}}",
         "{\"Version\":\"2.52.0\"}"
       ],
       "flowey_lib_common::download_gh_release": [
@@ -2475,13 +2235,6 @@
       "flowey_lib_common::download_protoc": [
         "{\"Get\":{\"backing_var\":\"flowey_lib_hvlite::init_openvmm_magicpath_protoc:0:flowey_lib_hvlite/src/init_openvmm_magicpath_protoc.rs:23:30\",\"is_secret\":false}}",
         "{\"Version\":\"27.1\"}"
-      ],
-      "flowey_lib_common::gh_download_azure_key_vault_secret": [
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}"
-      ],
-      "flowey_lib_common::gh_task_azure_login": [
-        "{\"Credentials\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_gh_azure_login:3:flowey_lib_hvlite/src/_jobs/cfg_gh_azure_login.rs:39:60\"},\"is_secret\":true}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:0:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:47:33\",\"is_secret\":false}}"
       ],
       "flowey_lib_common::git_checkout": [
         "{\"CheckoutRepo\":{\"persist_credentials\":false,\"repo_id\":{\"backing_var\":{\"Inline\":\"hvlite\"},\"is_secret\":false},\"repo_path\":{\"backing_var\":\"flowey_lib_hvlite::git_checkout_openvmm_repo:0:flowey_lib_hvlite/src/git_checkout_openvmm_repo.rs:47:24\",\"is_secret\":false}}}",
@@ -2501,7 +2254,6 @@
       ],
       "flowey_lib_common::install_azure_cli": [
         "{\"AutoInstall\":true}",
-        "{\"GetAzureCli\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:1:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:48:30\",\"is_secret\":false}}",
         "{\"Version\":\"2.56.0\"}"
       ],
       "flowey_lib_common::install_nodejs": [
@@ -2534,15 +2286,8 @@
         "{\"all_targets\":true,\"done\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::check_clippy:19:flowey_lib_hvlite/src/_jobs/check_clippy.rs:208:33\",\"is_secret\":false},\"exclude\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:18:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"extra_env\":null,\"features\":[\"ci\"],\"in_folder\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:17:flowey_lib_hvlite/src/_jobs/check_clippy.rs:143:37\"},\"is_secret\":false},\"keep_going\":true,\"package\":\"Workspace\",\"pre_build_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:14:flowey_lib_hvlite/src/_jobs/check_clippy.rs:84:33\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:15:flowey_lib_hvlite/src/_jobs/check_clippy.rs:117:33\"},\"is_secret\":false}],\"profile\":\"Release\",\"target\":\"x86_64-unknown-linux-gnu\",\"tests\":true}",
         "{\"all_targets\":true,\"done\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::check_clippy:6:flowey_lib_hvlite/src/_jobs/check_clippy.rs:208:33\",\"is_secret\":false},\"exclude\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:5:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"extra_env\":[[\"SPARSE_MMAP_NO_BUILD\",\"1\"]],\"features\":[\"ci\"],\"in_folder\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:4:flowey_lib_hvlite/src/_jobs/check_clippy.rs:143:37\"},\"is_secret\":false},\"keep_going\":true,\"package\":\"Workspace\",\"pre_build_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:0:flowey_lib_hvlite/src/_jobs/check_clippy.rs:84:33\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:1:flowey_lib_hvlite/src/_jobs/check_clippy.rs:109:37\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:2:flowey_lib_hvlite/src/_jobs/check_clippy.rs:117:33\"},\"is_secret\":false}],\"profile\":\"Release\",\"target\":\"aarch64-apple-darwin\",\"tests\":true}"
       ],
-      "flowey_lib_common::use_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::download_gh_release:2:flowey_lib_common/src/download_gh_release.rs:160:26\",\"is_secret\":false}}",
-        "{\"WithAuth\":{\"AuthToken\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\"},\"is_secret\":true}}}"
-      ],
       "flowey_lib_hvlite::_jobs::cfg_common": [
         "{\"deny_warnings\":true,\"local_only\":null,\"locked\":true,\"verbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_gh_azure_login": [
-        "{\"client_id\":{\"gh_var\":\"secrets.OPENVMM_CLIENT_ID\",\"is_secret\":true},\"subscription_id\":{\"gh_var\":\"secrets.OPENVMM_SUBSCRIPTION_ID\",\"is_secret\":true},\"tenant_id\":{\"gh_var\":\"secrets.OPENVMM_TENANT_ID\",\"is_secret\":true}}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_hvlite_reposource": [
         "{\"hvlite_repo_source\":\"GithubSelf\"}"
@@ -2621,7 +2366,6 @@
     },
     "15": {
       "flowey_lib_common::cache": [
-        "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_cli:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_cli:1:flowey_lib_common/src/download_gh_cli.rs:64:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-cli-2.52.0\"},\"is_secret\":false},\"label\":\"gh-cli\",\"restore_keys\":null}",
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_release:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_release:1:flowey_lib_common/src/download_gh_release.rs:150:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-release-download-72ff5d59ea0d02a2\"},\"is_secret\":false},\"label\":\"gh-release-download\",\"restore_keys\":null}"
       ],
       "flowey_lib_common::cfg_cargo_common_flags": [
@@ -2640,7 +2384,6 @@
         "{\"Version\":\"0.9.74\"}"
       ],
       "flowey_lib_common::download_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::use_gh_cli:0:flowey_lib_common/src/use_gh_cli.rs:92:31\",\"is_secret\":false}}",
         "{\"Version\":\"2.52.0\"}"
       ],
       "flowey_lib_common::download_gh_release": [
@@ -2656,13 +2399,6 @@
       "flowey_lib_common::download_protoc": [
         "{\"Get\":{\"backing_var\":\"flowey_lib_hvlite::init_openvmm_magicpath_protoc:0:flowey_lib_hvlite/src/init_openvmm_magicpath_protoc.rs:23:30\",\"is_secret\":false}}",
         "{\"Version\":\"27.1\"}"
-      ],
-      "flowey_lib_common::gh_download_azure_key_vault_secret": [
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}"
-      ],
-      "flowey_lib_common::gh_task_azure_login": [
-        "{\"Credentials\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_gh_azure_login:3:flowey_lib_hvlite/src/_jobs/cfg_gh_azure_login.rs:39:60\"},\"is_secret\":true}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:0:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:47:33\",\"is_secret\":false}}"
       ],
       "flowey_lib_common::git_checkout": [
         "{\"CheckoutRepo\":{\"persist_credentials\":false,\"repo_id\":{\"backing_var\":{\"Inline\":\"hvlite\"},\"is_secret\":false},\"repo_path\":{\"backing_var\":\"flowey_lib_hvlite::git_checkout_openvmm_repo:0:flowey_lib_hvlite/src/git_checkout_openvmm_repo.rs:47:24\",\"is_secret\":false}}}",
@@ -2680,7 +2416,6 @@
       ],
       "flowey_lib_common::install_azure_cli": [
         "{\"AutoInstall\":true}",
-        "{\"GetAzureCli\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:1:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:48:30\",\"is_secret\":false}}",
         "{\"Version\":\"2.56.0\"}"
       ],
       "flowey_lib_common::install_nodejs": [
@@ -2720,15 +2455,8 @@
         "{\"all_targets\":false,\"done\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::check_clippy:9:flowey_lib_hvlite/src/_jobs/check_clippy.rs:240:27\",\"is_secret\":false},\"exclude\":{\"backing_var\":{\"Inline\":null},\"is_secret\":false},\"extra_env\":null,\"features\":null,\"in_folder\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:5:flowey_lib_hvlite/src/_jobs/check_clippy.rs:143:37\"},\"is_secret\":false},\"keep_going\":true,\"package\":{\"Crate\":\"guest_test_uefi\"},\"pre_build_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:0:flowey_lib_hvlite/src/_jobs/check_clippy.rs:75:21\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:1:flowey_lib_hvlite/src/_jobs/check_clippy.rs:84:33\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:2:flowey_lib_hvlite/src/_jobs/check_clippy.rs:109:37\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:3:flowey_lib_hvlite/src/_jobs/check_clippy.rs:117:33\"},\"is_secret\":false}],\"profile\":\"Release\",\"target\":\"aarch64-unknown-uefi\",\"tests\":false}",
         "{\"all_targets\":false,\"done\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::check_clippy:8:flowey_lib_hvlite/src/_jobs/check_clippy.rs:224:27\",\"is_secret\":false},\"exclude\":{\"backing_var\":{\"Inline\":null},\"is_secret\":false},\"extra_env\":[[\"MINIMAL_RT_BUILD\",\"1\"]],\"features\":null,\"in_folder\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:5:flowey_lib_hvlite/src/_jobs/check_clippy.rs:143:37\"},\"is_secret\":false},\"keep_going\":true,\"package\":{\"Crate\":\"openhcl_boot\"},\"pre_build_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:0:flowey_lib_hvlite/src/_jobs/check_clippy.rs:75:21\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:1:flowey_lib_hvlite/src/_jobs/check_clippy.rs:84:33\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:2:flowey_lib_hvlite/src/_jobs/check_clippy.rs:109:37\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::check_clippy:3:flowey_lib_hvlite/src/_jobs/check_clippy.rs:117:33\"},\"is_secret\":false}],\"profile\":\"Release\",\"target\":\"aarch64-unknown-linux-musl\",\"tests\":false}"
       ],
-      "flowey_lib_common::use_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::download_gh_release:2:flowey_lib_common/src/download_gh_release.rs:160:26\",\"is_secret\":false}}",
-        "{\"WithAuth\":{\"AuthToken\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\"},\"is_secret\":true}}}"
-      ],
       "flowey_lib_hvlite::_jobs::cfg_common": [
         "{\"deny_warnings\":true,\"local_only\":null,\"locked\":true,\"verbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_gh_azure_login": [
-        "{\"client_id\":{\"gh_var\":\"secrets.OPENVMM_CLIENT_ID\",\"is_secret\":true},\"subscription_id\":{\"gh_var\":\"secrets.OPENVMM_SUBSCRIPTION_ID\",\"is_secret\":true},\"tenant_id\":{\"gh_var\":\"secrets.OPENVMM_TENANT_ID\",\"is_secret\":true}}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_hvlite_reposource": [
         "{\"hvlite_repo_source\":\"GithubSelf\"}"
@@ -2808,7 +2536,6 @@
     "16": {
       "flowey_lib_common::cache": [
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_cargo_nextest:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_cargo_nextest:1:flowey_lib_common/src/download_cargo_nextest.rs:65:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"cargo-nextest-0.9.74\"},\"is_secret\":false},\"label\":\"cargo-nextest\",\"restore_keys\":null}",
-        "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_cli:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_cli:1:flowey_lib_common/src/download_gh_cli.rs:64:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-cli-2.52.0\"},\"is_secret\":false},\"label\":\"gh-cli\",\"restore_keys\":null}",
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_release:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_release:1:flowey_lib_common/src/download_gh_release.rs:150:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-release-download-6fd9989180c5ad5c\"},\"is_secret\":false},\"label\":\"gh-release-download\",\"restore_keys\":null}"
       ],
       "flowey_lib_common::cfg_cargo_common_flags": [
@@ -2831,7 +2558,6 @@
         "{\"Version\":\"0.9.74\"}"
       ],
       "flowey_lib_common::download_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::use_gh_cli:0:flowey_lib_common/src/use_gh_cli.rs:92:31\",\"is_secret\":false}}",
         "{\"Version\":\"2.52.0\"}"
       ],
       "flowey_lib_common::download_gh_release": [
@@ -2845,13 +2571,6 @@
         "{\"Get\":{\"backing_var\":\"flowey_lib_hvlite::init_openvmm_magicpath_protoc:0:flowey_lib_hvlite/src/init_openvmm_magicpath_protoc.rs:23:30\",\"is_secret\":false}}",
         "{\"Version\":\"27.1\"}"
       ],
-      "flowey_lib_common::gh_download_azure_key_vault_secret": [
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}"
-      ],
-      "flowey_lib_common::gh_task_azure_login": [
-        "{\"Credentials\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_gh_azure_login:3:flowey_lib_hvlite/src/_jobs/cfg_gh_azure_login.rs:39:60\"},\"is_secret\":true}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:0:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:47:33\",\"is_secret\":false}}"
-      ],
       "flowey_lib_common::git_checkout": [
         "{\"CheckoutRepo\":{\"persist_credentials\":false,\"repo_id\":{\"backing_var\":{\"Inline\":\"hvlite\"},\"is_secret\":false},\"repo_path\":{\"backing_var\":\"flowey_lib_hvlite::git_checkout_openvmm_repo:0:flowey_lib_hvlite/src/git_checkout_openvmm_repo.rs:47:24\",\"is_secret\":false}}}",
         "{\"RegisterRepo\":{\"allow_persist_credentials\":false,\"depth\":1,\"pre_run_deps\":[],\"repo_id\":\"hvlite\",\"repo_src\":\"GithubSelf\"}}"
@@ -2862,7 +2581,6 @@
       ],
       "flowey_lib_common::install_azure_cli": [
         "{\"AutoInstall\":true}",
-        "{\"GetAzureCli\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:1:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:48:30\",\"is_secret\":false}}",
         "{\"Version\":\"2.56.0\"}"
       ],
       "flowey_lib_common::install_nodejs": [
@@ -2889,18 +2607,11 @@
       "flowey_lib_common::run_cargo_nextest_run": [
         "{\"Run\":{\"config_file\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_nextest_run:1:flowey_lib_hvlite/src/run_cargo_nextest_run.rs:57:31\"},\"is_secret\":false},\"extra_env\":{\"backing_var\":{\"Inline\":{\"OPENVMM_LOG\":\"debug,mesh_node=info\",\"RUST_LOG\":\"trace,mesh_node=info\"}},\"is_secret\":false},\"friendly_name\":\"unit-tests\",\"nextest_filter_expr\":null,\"nextest_profile\":\"ci\",\"pre_run_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::build_nextest_unit_tests:2:flowey_lib_hvlite/src/build_nextest_unit_tests.rs:96:37\"},\"is_secret\":false},{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::build_nextest_unit_tests:4:flowey_lib_hvlite/src/build_nextest_unit_tests.rs:175:35\"},\"is_secret\":false}],\"results\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::build_and_run_nextest_unit_tests:0:flowey_lib_hvlite/src/_jobs/build_and_run_nextest_unit_tests.rs:54:27\",\"is_secret\":false},\"run_ignored\":false,\"run_kind\":{\"BuildAndRun\":{\"features\":{\"Specific\":[\"ci\"]},\"no_default_features\":false,\"packages\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::build_nextest_unit_tests:3:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"profile\":\"Release\",\"target\":\"aarch64-pc-windows-msvc\",\"unstable_panic_abort_tests\":null}},\"tool_config_files\":[],\"with_rlimit_unlimited_core_size\":true,\"working_dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_nextest_run:0:flowey_lib_hvlite/src/run_cargo_nextest_run.rs:54:37\"},\"is_secret\":false}}}"
       ],
-      "flowey_lib_common::use_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::download_gh_release:2:flowey_lib_common/src/download_gh_release.rs:160:26\",\"is_secret\":false}}",
-        "{\"WithAuth\":{\"AuthToken\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\"},\"is_secret\":true}}}"
-      ],
       "flowey_lib_hvlite::_jobs::build_and_run_nextest_unit_tests": [
         "{\"artifact_dir\":null,\"done\":{\"backing_var\":\"start44\",\"is_secret\":false},\"fail_job_on_test_fail\":true,\"junit_test_label\":\"aarch64-windows-unit-tests\",\"nextest_profile\":\"Ci\",\"profile\":\"Release\",\"target\":\"aarch64-pc-windows-msvc\",\"unstable_panic_abort_tests\":null}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_common": [
         "{\"deny_warnings\":true,\"local_only\":null,\"locked\":true,\"verbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_gh_azure_login": [
-        "{\"client_id\":{\"gh_var\":\"secrets.OPENVMM_CLIENT_ID\",\"is_secret\":true},\"subscription_id\":{\"gh_var\":\"secrets.OPENVMM_SUBSCRIPTION_ID\",\"is_secret\":true},\"tenant_id\":{\"gh_var\":\"secrets.OPENVMM_TENANT_ID\",\"is_secret\":true}}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_hvlite_reposource": [
         "{\"hvlite_repo_source\":\"GithubSelf\"}"
@@ -2967,7 +2678,6 @@
       "flowey_lib_common::cache": [
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_azcopy:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_azcopy:1:flowey_lib_common/src/download_azcopy.rs:57:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"azcopy-10.26.0-20240731\"},\"is_secret\":false},\"label\":\"azcopy\",\"restore_keys\":null}",
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_cargo_nextest:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_cargo_nextest:1:flowey_lib_common/src/download_cargo_nextest.rs:65:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"cargo-nextest-0.9.74\"},\"is_secret\":false},\"label\":\"cargo-nextest\",\"restore_keys\":null}",
-        "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_cli:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_cli:1:flowey_lib_common/src/download_gh_cli.rs:64:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-cli-2.52.0\"},\"is_secret\":false},\"label\":\"gh-cli\",\"restore_keys\":null}",
         "{\"dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_common::download_gh_release:0:flowey_core/src/node.rs:883:34\"},\"is_secret\":false},\"hitvar\":{\"HitVar\":{\"backing_var\":\"flowey_lib_common::download_gh_release:1:flowey_lib_common/src/download_gh_release.rs:150:26\",\"is_secret\":false}},\"key\":{\"backing_var\":{\"Inline\":\"gh-release-download-277be08936e8365e\"},\"is_secret\":false},\"label\":\"gh-release-download\",\"restore_keys\":null}"
       ],
       "flowey_lib_common::cfg_cargo_common_flags": [
@@ -2986,7 +2696,6 @@
         "{\"Version\":\"0.9.74\"}"
       ],
       "flowey_lib_common::download_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::use_gh_cli:0:flowey_lib_common/src/use_gh_cli.rs:92:31\",\"is_secret\":false}}",
         "{\"Version\":\"2.52.0\"}"
       ],
       "flowey_lib_common::download_gh_release": [
@@ -2999,14 +2708,6 @@
       "flowey_lib_common::download_protoc": [
         "{\"Version\":\"27.1\"}"
       ],
-      "flowey_lib_common::gh_download_azure_key_vault_secret": [
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}"
-      ],
-      "flowey_lib_common::gh_task_azure_login": [
-        "{\"Credentials\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_gh_azure_login:3:flowey_lib_hvlite/src/_jobs/cfg_gh_azure_login.rs:39:60\"},\"is_secret\":true}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:0:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:47:33\",\"is_secret\":false}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_hvlite::download_openvmm_vmm_tests_vhds:4:flowey_lib_hvlite/src/download_openvmm_vmm_tests_vhds.rs:387:21\",\"is_secret\":false}}"
-      ],
       "flowey_lib_common::git_checkout": [
         "{\"CheckoutRepo\":{\"persist_credentials\":false,\"repo_id\":{\"backing_var\":{\"Inline\":\"hvlite\"},\"is_secret\":false},\"repo_path\":{\"backing_var\":\"flowey_lib_hvlite::git_checkout_openvmm_repo:0:flowey_lib_hvlite/src/git_checkout_openvmm_repo.rs:47:24\",\"is_secret\":false}}}",
         "{\"RegisterRepo\":{\"allow_persist_credentials\":false,\"depth\":1,\"pre_run_deps\":[],\"repo_id\":\"hvlite\",\"repo_src\":\"GithubSelf\"}}"
@@ -3018,7 +2719,6 @@
       ],
       "flowey_lib_common::install_azure_cli": [
         "{\"AutoInstall\":true}",
-        "{\"GetAzureCli\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:1:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:48:30\",\"is_secret\":false}}",
         "{\"Version\":\"2.56.0\"}"
       ],
       "flowey_lib_common::install_nodejs": [
@@ -3035,15 +2735,8 @@
       "flowey_lib_common::run_cargo_nextest_run": [
         "{\"Run\":{\"config_file\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_nextest_run:1:flowey_lib_hvlite/src/run_cargo_nextest_run.rs:57:31\"},\"is_secret\":false},\"extra_env\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_nextest_run:3:flowey_lib_hvlite/src/run_cargo_nextest_run.rs:82:26\"},\"is_secret\":false},\"friendly_name\":\"vmm_tests\",\"nextest_filter_expr\":\"all()\",\"nextest_profile\":\"ci\",\"pre_run_deps\":[{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive:8:flowey_lib_hvlite/src/_jobs/consume_and_test_nextest_vmm_tests_archive.rs:166:21\"},\"is_secret\":false}],\"results\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive:10:flowey_lib_hvlite/src/_jobs/consume_and_test_nextest_vmm_tests_archive.rs:186:27\",\"is_secret\":false},\"run_ignored\":false,\"run_kind\":{\"RunFromArchive\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::test_nextest_vmm_tests_archive:0:flowey_lib_hvlite/src/test_nextest_vmm_tests_archive.rs:67:52\"},\"is_secret\":false}},\"tool_config_files\":[],\"with_rlimit_unlimited_core_size\":true,\"working_dir\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::run_cargo_nextest_run:0:flowey_lib_hvlite/src/run_cargo_nextest_run.rs:54:37\"},\"is_secret\":false}}}"
       ],
-      "flowey_lib_common::use_gh_cli": [
-        "{\"Get\":{\"backing_var\":\"flowey_lib_common::download_gh_release:2:flowey_lib_common/src/download_gh_release.rs:160:26\",\"is_secret\":false}}",
-        "{\"WithAuth\":{\"AuthToken\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\"},\"is_secret\":true}}}"
-      ],
       "flowey_lib_hvlite::_jobs::cfg_common": [
         "{\"deny_warnings\":true,\"local_only\":null,\"locked\":true,\"verbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_gh_azure_login": [
-        "{\"client_id\":{\"gh_var\":\"secrets.OPENVMM_CLIENT_ID\",\"is_secret\":true},\"subscription_id\":{\"gh_var\":\"secrets.OPENVMM_SUBSCRIPTION_ID\",\"is_secret\":true},\"tenant_id\":{\"gh_var\":\"secrets.OPENVMM_TENANT_ID\",\"is_secret\":true}}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_hvlite_reposource": [
         "{\"hvlite_repo_source\":\"GithubSelf\"}"
@@ -3139,109 +2832,11 @@
       "flowey_lib_common::download_protoc": [
         "{\"Version\":\"27.1\"}"
       ],
-      "flowey_lib_common::gh_download_azure_key_vault_secret": [
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}",
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::test_local_flowey_build_igvm:2:flowey_lib_hvlite/src/_jobs/test_local_flowey_build_igvm.rs:32:46\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}"
-      ],
-      "flowey_lib_common::gh_task_azure_login": [
-        "{\"Credentials\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_gh_azure_login:3:flowey_lib_hvlite/src/_jobs/cfg_gh_azure_login.rs:39:60\"},\"is_secret\":true}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:0:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:47:33\",\"is_secret\":false}}"
-      ],
-      "flowey_lib_common::git_checkout": [
-        "{\"CheckoutRepo\":{\"persist_credentials\":false,\"repo_id\":{\"backing_var\":{\"Inline\":\"hvlite\"},\"is_secret\":false},\"repo_path\":{\"backing_var\":\"flowey_lib_hvlite::git_checkout_openvmm_repo:0:flowey_lib_hvlite/src/git_checkout_openvmm_repo.rs:47:24\",\"is_secret\":false}}}",
-        "{\"RegisterRepo\":{\"allow_persist_credentials\":false,\"depth\":1,\"pre_run_deps\":[],\"repo_id\":\"hvlite\",\"repo_src\":\"GithubSelf\"}}"
-      ],
-      "flowey_lib_common::install_azure_cli": [
-        "{\"AutoInstall\":true}",
-        "{\"GetAzureCli\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:1:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:48:30\",\"is_secret\":false}}",
-        "{\"Version\":\"2.56.0\"}"
-      ],
-      "flowey_lib_common::install_nodejs": [
-        "{\"Version\":\"18.x\"}"
-      ],
-      "flowey_lib_common::install_rust": [
-        "{\"AutoInstall\":true}",
-        "{\"EnsureInstalled\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::test_local_flowey_build_igvm:1:flowey_lib_hvlite/src/_jobs/test_local_flowey_build_igvm.rs:31:32\",\"is_secret\":false}}",
-        "{\"IgnoreVersion\":false}",
-        "{\"Version\":\"1.81.0\"}"
-      ],
-      "flowey_lib_common::use_gh_cli": [
-        "{\"WithAuth\":{\"AuthToken\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\"},\"is_secret\":true}}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_common": [
-        "{\"deny_warnings\":true,\"local_only\":null,\"locked\":true,\"verbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_gh_azure_login": [
-        "{\"client_id\":{\"gh_var\":\"secrets.OPENVMM_CLIENT_ID\",\"is_secret\":true},\"subscription_id\":{\"gh_var\":\"secrets.OPENVMM_SUBSCRIPTION_ID\",\"is_secret\":true},\"tenant_id\":{\"gh_var\":\"secrets.OPENVMM_TENANT_ID\",\"is_secret\":true}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_hvlite_reposource": [
-        "{\"hvlite_repo_source\":\"GithubSelf\"}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_versions": [
-        "{}"
-      ],
-      "flowey_lib_hvlite::_jobs::test_local_flowey_build_igvm": [
-        "{\"base_recipe\":\"X64\",\"done\":{\"backing_var\":\"start46\",\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::download_lxutil": [
-        "{\"Version\":\"10.0.26100.1-240331-1435.ge-release\"}"
-      ],
-      "flowey_lib_hvlite::download_openhcl_kernel_package": [
-        "{\"Version\":[\"Cvm\",\"6.6.51.2\"]}",
-        "{\"Version\":[\"CvmDev\",\"6.6.51.5\"]}",
-        "{\"Version\":[\"Dev\",\"6.6.51.5\"]}",
-        "{\"Version\":[\"Main\",\"6.6.51.2\"]}"
-      ],
-      "flowey_lib_hvlite::download_openvmm_deps": [
-        "{\"Version\":\"0.1.0-20241014.2\"}"
-      ],
-      "flowey_lib_hvlite::download_uefi_mu_msvm": [
-        "{\"Version\":\"0.1.0\"}"
-      ],
-      "flowey_lib_hvlite::git_checkout_openvmm_repo": [
-        "{\"GetRepoDir\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::test_local_flowey_build_igvm:0:flowey_lib_hvlite/src/_jobs/test_local_flowey_build_igvm.rs:30:31\",\"is_secret\":false}}",
-        "{\"SetRepoId\":{\"backing_var\":{\"Inline\":\"hvlite\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::init_openvmm_cargo_config_deny_warnings": [
-        "{\"DenyWarnings\":true}"
-      ]
-    },
-    "19": {
-      "flowey_lib_common::cfg_cargo_common_flags": [
-        "{\"SetLocked\":true}",
-        "{\"SetVerbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_common::download_azcopy": [
-        "{\"Version\":\"10.26.0-20240731\"}"
-      ],
-      "flowey_lib_common::download_cargo_fuzz": [
-        "{\"Version\":\"0.12.0\"}"
-      ],
-      "flowey_lib_common::download_cargo_nextest": [
-        "{\"Version\":\"0.9.74\"}"
-      ],
-      "flowey_lib_common::download_gh_cli": [
-        "{\"Version\":\"2.52.0\"}"
-      ],
-      "flowey_lib_common::download_mdbook": [
-        "{\"Version\":\"0.4.6\"}"
-      ],
-      "flowey_lib_common::download_protoc": [
-        "{\"Version\":\"27.1\"}"
-      ],
-      "flowey_lib_common::gh_download_azure_key_vault_secret": [
-        "{\"key_vault_name\":\"HvLite-PATs\",\"resolved_secret\":{\"backing_var\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\",\"is_secret\":true},\"secret\":\"GitHub-CLI-PAT\"}"
-      ],
-      "flowey_lib_common::gh_task_azure_login": [
-        "{\"Credentials\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_gh_azure_login:3:flowey_lib_hvlite/src/_jobs/cfg_gh_azure_login.rs:39:60\"},\"is_secret\":true}}",
-        "{\"EnsureLogIn\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:0:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:47:33\",\"is_secret\":false}}"
-      ],
       "flowey_lib_common::git_checkout": [
         "{\"RegisterRepo\":{\"allow_persist_credentials\":false,\"depth\":1,\"pre_run_deps\":[],\"repo_id\":\"hvlite\",\"repo_src\":\"GithubSelf\"}}"
       ],
       "flowey_lib_common::install_azure_cli": [
         "{\"AutoInstall\":true}",
-        "{\"GetAzureCli\":{\"backing_var\":\"flowey_lib_common::gh_download_azure_key_vault_secret:1:flowey_lib_common/src/gh_download_azure_key_vault_secret.rs:48:30\",\"is_secret\":false}}",
         "{\"Version\":\"2.56.0\"}"
       ],
       "flowey_lib_common::install_nodejs": [
@@ -3252,14 +2847,8 @@
         "{\"IgnoreVersion\":false}",
         "{\"Version\":\"1.81.0\"}"
       ],
-      "flowey_lib_common::use_gh_cli": [
-        "{\"WithAuth\":{\"AuthToken\":{\"backing_var\":{\"RuntimeVar\":\"flowey_lib_hvlite::_jobs::cfg_common:0:flowey_lib_hvlite/src/_jobs/cfg_common.rs:94:54\"},\"is_secret\":true}}}"
-      ],
       "flowey_lib_hvlite::_jobs::cfg_common": [
         "{\"deny_warnings\":true,\"local_only\":null,\"locked\":true,\"verbose\":{\"backing_var\":{\"RuntimeVar\":\"param0\"},\"is_secret\":false}}"
-      ],
-      "flowey_lib_hvlite::_jobs::cfg_gh_azure_login": [
-        "{\"client_id\":{\"gh_var\":\"secrets.OPENVMM_CLIENT_ID\",\"is_secret\":true},\"subscription_id\":{\"gh_var\":\"secrets.OPENVMM_SUBSCRIPTION_ID\",\"is_secret\":true},\"tenant_id\":{\"gh_var\":\"secrets.OPENVMM_TENANT_ID\",\"is_secret\":true}}"
       ],
       "flowey_lib_hvlite::_jobs::cfg_hvlite_reposource": [
         "{\"hvlite_repo_source\":\"GithubSelf\"}"

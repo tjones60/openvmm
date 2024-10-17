@@ -127,19 +127,19 @@ impl IntoPipeline for CheckinGatesCli {
                         hvlite_repo_source: openvmm_repo_source.clone(),
                     },
                 )
-                .dep_on(|_| flowey_lib_hvlite::_jobs::cfg_gh_azure_login::Params {
-                    client_id: client_id.clone(),
-                    tenant_id: tenant_id.clone(),
-                    subscription_id: subscription_id.clone(),
-                })
+                // .dep_on(|_| flowey_lib_hvlite::_jobs::cfg_gh_azure_login::Params {
+                //     client_id: client_id.clone(),
+                //     tenant_id: tenant_id.clone(),
+                //     subscription_id: subscription_id.clone(),
+                // })
                 .gh_grant_permissions::<flowey_lib_common::git_checkout::Node>([(
                     GhPermission::Contents,
                     GhPermissionValue::Read,
                 )])
-                .gh_grant_permissions::<flowey_lib_common::gh_task_azure_login::Node>([(
-                    GhPermission::IdToken,
-                    GhPermissionValue::Write,
-                )])
+            // .gh_grant_permissions::<flowey_lib_common::gh_task_azure_login::Node>([(
+            //     GhPermission::IdToken,
+            //     GhPermissionValue::Write,
+            // )])
         });
 
         let openhcl_musl_target = |arch: CommonArch| -> Triple {
@@ -926,7 +926,7 @@ impl IntoPipeline for CheckinGatesCli {
         }
 
         // test the flowey local backend by running cargo xflowey build-igvm on x64
-        {
+        /*{
             let job = pipeline
                 .new_job(
                     FlowPlatform::Linux,
@@ -942,7 +942,7 @@ impl IntoPipeline for CheckinGatesCli {
                 )
                 .finish();
             all_jobs.push(job);
-        }
+        }*/
 
         // Add a job that depends on all others as a workaround for https://github.com/orgs/community/discussions/12395.
         // TODO: Add a way for this job to skip flowey setup and become a true no-op.

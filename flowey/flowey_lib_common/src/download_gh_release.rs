@@ -64,15 +64,15 @@ impl Node {
         persistent_dir: ReadVar<PathBuf>,
         download_reqs: BTreeMap<(String, String, String), BTreeMap<String, Vec<WriteVar<PathBuf>>>>,
     ) {
-        let gh_cli = ctx.reqv(crate::use_gh_cli::Request::Get);
+        // let gh_cli = ctx.reqv(crate::use_gh_cli::Request::Get);
 
         ctx.emit_rust_step("download artifacts from github releases", |ctx| {
-            let gh_cli = gh_cli.claim(ctx);
+            // let gh_cli = gh_cli.claim(ctx);
             let persistent_dir = persistent_dir.claim(ctx);
             let download_reqs = download_reqs.claim(ctx);
             move |rt| {
                 let persistent_dir = rt.read(persistent_dir);
-                let gh_cli = rt.read(gh_cli);
+                // let gh_cli = rt.read(gh_cli);
 
                 // first - check what reqs are already present in the local cache
                 let mut remaining_download_reqs: BTreeMap<
@@ -103,7 +103,7 @@ impl Node {
                     return Ok(());
                 }
 
-                download_all_reqs(&remaining_download_reqs, &persistent_dir, &gh_cli)?;
+                download_all_reqs(&remaining_download_reqs, &persistent_dir)?;
 
                 for ((repo_owner, repo_name, tag), files) in remaining_download_reqs {
                     for (file, vars) in files {
@@ -157,20 +157,20 @@ impl Node {
             }
         });
 
-        let gh_cli = ctx.reqv(crate::use_gh_cli::Request::Get);
+        // let gh_cli = ctx.reqv(crate::use_gh_cli::Request::Get);
 
         ctx.emit_rust_step("download artifacts from github releases", |ctx| {
             let cache_dir = cache_dir.claim(ctx);
             let hitvar = hitvar.claim(ctx);
-            let gh_cli = gh_cli.claim(ctx);
+            // let gh_cli = gh_cli.claim(ctx);
             let download_reqs = download_reqs.claim(ctx);
             move |rt| {
                 let cache_dir = rt.read(cache_dir);
                 let hitvar = rt.read(hitvar);
-                let gh_cli = rt.read(gh_cli);
+                // let gh_cli = rt.read(gh_cli);
 
                 if !matches!(hitvar, crate::cache::CacheHit::Hit) {
-                    download_all_reqs(&download_reqs, &cache_dir, &gh_cli)?;
+                    download_all_reqs(&download_reqs, &cache_dir)?;
                 }
 
                 for ((repo_owner, repo_name, tag), files) in download_reqs {
@@ -195,7 +195,7 @@ fn download_all_reqs(
         BTreeMap<String, Vec<WriteVar<PathBuf, VarClaimed>>>,
     >,
     cache_dir: &Path,
-    gh_cli: &Path,
+    // gh_cli: &Path,
 ) -> anyhow::Result<()> {
     let sh = xshell::Shell::new()?;
 
@@ -204,17 +204,24 @@ fn download_all_reqs(
     // multiple processes to saturate the network connection in cases where
     // multiple (repo, tag) pairs are being pulled at the same time.
     for ((repo_owner, repo_name, tag), files) in download_reqs {
-        let repo = format!("{repo_owner}/{repo_name}");
-        let patterns = files.keys().flat_map(|k| ["--pattern".into(), k.clone()]);
+        // let repo = format!("{repo_owner}/{repo_name}");
+        // let patterns = files.keys().flat_map(|k| ["--pattern".into(), k.clone()]);
 
         let out_dir = cache_dir.join(format!("{repo_owner}/{repo_name}/{tag}"));
         fs_err::create_dir_all(&out_dir)?;
         sh.change_dir(&out_dir);
-        xshell::cmd!(
-            sh,
-            "{gh_cli} release download -R {repo} {tag} {patterns...} --skip-existing"
-        )
-        .run()?;
+        // xshell::cmd!(
+        //     sh,
+        //     "{gh_cli} release download -R {repo} {tag} {patterns...} --skip-existing"
+        // )
+        // .run()?;
+
+        for file_name in files.keys() {
+            let url = format!(
+                "https://github.com/{repo_owner}/{repo_name}/releases/download/{tag}/{file_name}"
+            );
+            xshell::cmd!(sh, "curl -L {url} -o {file_name}").run()?;
+        }
     }
 
     Ok(())
