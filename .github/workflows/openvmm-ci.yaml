@@ -30,6 +30,13 @@ jobs:
       shell: bash
     - run: |
         set -x
+        sudo apt update
+        sudo apt install gcc gcc-x86-64-linux-gnu gcc
+      if: runner.os == 'Linux'
+      name: Install GCC (Linux)
+      shell: bash
+    - run: |
+        set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
         . "$HOME/.cargo/env"
         echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
@@ -221,6 +228,13 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
+      shell: bash
+    - run: |
+        set -x
+        sudo apt update
+        sudo apt install gcc gcc-x86-64-linux-gnu gcc
+      if: runner.os == 'Linux'
+      name: Install GCC (Linux)
       shell: bash
     - run: |
         set -x
@@ -427,6 +441,13 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
+      shell: bash
+    - run: |
+        set -x
+        sudo apt update
+        sudo apt install gcc gcc-x86-64-linux-gnu gcc
+      if: runner.os == 'Linux'
+      name: Install GCC (Linux)
       shell: bash
     - run: |
         set -x
@@ -836,6 +857,13 @@ jobs:
       shell: bash
     - run: |
         set -x
+        sudo apt update
+        sudo apt install gcc gcc-x86-64-linux-gnu gcc
+      if: runner.os == 'Linux'
+      name: Install GCC (Linux)
+      shell: bash
+    - run: |
+        set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
         . "$HOME/.cargo/env"
         echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
@@ -1239,6 +1267,13 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
+      shell: bash
+    - run: |
+        set -x
+        sudo apt update
+        sudo apt install gcc gcc-x86-64-linux-gnu gcc
+      if: runner.os == 'Linux'
+      name: Install GCC (Linux)
       shell: bash
     - run: |
         set -x
@@ -1810,6 +1845,13 @@ jobs:
       shell: bash
     - run: |
         set -x
+        sudo apt update
+        sudo apt install gcc gcc-x86-64-linux-gnu gcc
+      if: runner.os == 'Linux'
+      name: Install GCC (Linux)
+      shell: bash
+    - run: |
+        set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
         . "$HOME/.cargo/env"
         echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
@@ -2024,6 +2066,13 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
+      shell: bash
+    - run: |
+        set -x
+        sudo apt update
+        sudo apt install gcc gcc-x86-64-linux-gnu gcc
+      if: runner.os == 'Linux'
+      name: Install GCC (Linux)
       shell: bash
     - run: |
         set -x
@@ -2283,6 +2332,13 @@ jobs:
       shell: bash
     - run: |
         set -x
+        sudo apt update
+        sudo apt install gcc gcc-x86-64-linux-gnu gcc
+      if: runner.os == 'Linux'
+      name: Install GCC (Linux)
+      shell: bash
+    - run: |
+        set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
         . "$HOME/.cargo/env"
         echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
@@ -2536,6 +2592,13 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
+      shell: bash
+    - run: |
+        set -x
+        sudo apt update
+        sudo apt install gcc gcc-x86-64-linux-gnu gcc
+      if: runner.os == 'Linux'
+      name: Install GCC (Linux)
       shell: bash
     - run: |
         set -x
@@ -3155,6 +3218,13 @@ jobs:
       shell: bash
     - run: |
         set -x
+        sudo apt update
+        sudo apt install gcc gcc-x86-64-linux-gnu gcc
+      if: runner.os == 'Linux'
+      name: Install GCC (Linux)
+      shell: bash
+    - run: |
+        set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
         . "$HOME/.cargo/env"
         echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
@@ -3369,6 +3439,13 @@ jobs:
       shell: bash
     - run: |
         set -x
+        sudo apt update
+        sudo apt install gcc gcc-x86-64-linux-gnu gcc
+      if: runner.os == 'Linux'
+      name: Install GCC (Linux)
+      shell: bash
+    - run: |
+        set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
         . "$HOME/.cargo/env"
         echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
@@ -3556,6 +3633,13 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
+      shell: bash
+    - run: |
+        set -x
+        sudo apt update
+        sudo apt install gcc gcc-x86-64-linux-gnu gcc
+      if: runner.os == 'Linux'
+      name: Install GCC (Linux)
       shell: bash
     - run: |
         set -x
@@ -3758,6 +3842,13 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
+      shell: bash
+    - run: |
+        set -x
+        sudo apt update
+        sudo apt install gcc gcc-x86-64-linux-gnu gcc
+      if: runner.os == 'Linux'
+      name: Install GCC (Linux)
       shell: bash
     - run: |
         set -x
@@ -4027,6 +4118,13 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
+      shell: bash
+    - run: |
+        set -x
+        sudo apt update
+        sudo apt install gcc gcc-x86-64-linux-gnu gcc
+      if: runner.os == 'Linux'
+      name: Install GCC (Linux)
       shell: bash
     - run: |
         set -x
@@ -4320,6 +4418,13 @@ jobs:
       shell: bash
     - run: |
         set -x
+        sudo apt update
+        sudo apt install gcc gcc-x86-64-linux-gnu gcc
+      if: runner.os == 'Linux'
+      name: Install GCC (Linux)
+      shell: bash
+    - run: |
+        set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
         . "$HOME/.cargo/env"
         echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
@@ -4589,6 +4694,13 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
+      shell: bash
+    - run: |
+        set -x
+        sudo apt update
+        sudo apt install gcc gcc-x86-64-linux-gnu gcc
+      if: runner.os == 'Linux'
+      name: Install GCC (Linux)
       shell: bash
     - run: |
         set -x
@@ -4871,6 +4983,13 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
+      shell: bash
+    - run: |
+        set -x
+        sudo apt update
+        sudo apt install gcc gcc-x86-64-linux-gnu gcc
+      if: runner.os == 'Linux'
+      name: Install GCC (Linux)
       shell: bash
     - run: |
         set -x
