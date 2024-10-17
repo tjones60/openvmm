@@ -342,9 +342,13 @@ impl FlowNode for Node {
                     target_lexicon::OperatingSystem::Linux
                 )
             {
-                let gcc_pkg = match target.architecture {
-                    target_lexicon::Architecture::Aarch64(_) => "gcc-aarch64-linux-gnu",
-                    target_lexicon::Architecture::X86_64 => "gcc-x86-64-linux-gnu",
+                let (gcc_pkg, bin) = match target.architecture {
+                    target_lexicon::Architecture::Aarch64(_) => {
+                        ("gcc-aarch64-linux-gnu", "aarch64-linux-gnu-gcc")
+                    }
+                    target_lexicon::Architecture::X86_64 => {
+                        ("gcc-x86-64-linux-gnu", "x86_64-linux-gnu-gcc")
+                    }
                     arch => anyhow::bail!("unsupported arch {arch}"),
                 };
 
@@ -376,7 +380,7 @@ impl FlowNode for Node {
                             "CARGO_TARGET_{}_LINKER",
                             target.to_string().replace('-', "_").to_uppercase()
                         ),
-                        gcc_pkg.into(),
+                        bin.into(),
                     );
                 }
             }
@@ -387,11 +391,20 @@ impl FlowNode for Node {
             //
             // it's not super clear how to fix this in a clean way without breaking the
             // dev-ex of anyone using rust-analyzer though...
+            let sysroot_arch = match target.architecture {
+                target_lexicon::Architecture::Aarch64(_) => {
+                    crate::init_openvmm_magicpath_openhcl_sysroot::OpenvmmSysrootArch::Aarch64
+                }
+                target_lexicon::Architecture::X86_64 => {
+                    crate::init_openvmm_magicpath_openhcl_sysroot::OpenvmmSysrootArch::X64
+                }
+                arch => anyhow::bail!("unsupported arch {arch}"),
+            };
+
             if matches!(target.environment, target_lexicon::Environment::Musl) {
                 pre_build_deps.push(
                     ctx.reqv(|v| crate::init_openvmm_magicpath_openhcl_sysroot::Request {
-                        arch:
-                            crate::init_openvmm_magicpath_openhcl_sysroot::OpenvmmSysrootArch::X64,
+                        arch: sysroot_arch,
                         path: v,
                     })
                     .into_side_effect(),
