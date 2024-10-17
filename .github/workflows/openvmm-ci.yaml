@@ -29,20 +29,6 @@ jobs:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
       shell: bash
-    - uses: Azure/login@v2
-      with:
-        client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
-        tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
-        subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Pull Azure Key Vault secrets
-      run: |
-        VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$VPackAccessToken"
-        echo "VPackAccessToken=$VPackAccessToken" >> $GITHUB_ENV
-        MsAzurePull=$(az keyvault secret show --name "MsAzurePull" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$MsAzurePull"
-        echo "MsAzurePull=$MsAzurePull" >> $GITHUB_ENV
-      shell: bash
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -310,20 +296,6 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
-      shell: bash
-    - uses: Azure/login@v2
-      with:
-        client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
-        tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
-        subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Pull Azure Key Vault secrets
-      run: |
-        VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$VPackAccessToken"
-        echo "VPackAccessToken=$VPackAccessToken" >> $GITHUB_ENV
-        MsAzurePull=$(az keyvault secret show --name "MsAzurePull" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$MsAzurePull"
-        echo "MsAzurePull=$MsAzurePull" >> $GITHUB_ENV
       shell: bash
     - run: |
         set -x
@@ -604,20 +576,6 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
-      shell: bash
-    - uses: Azure/login@v2
-      with:
-        client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
-        tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
-        subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Pull Azure Key Vault secrets
-      run: |
-        VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$VPackAccessToken"
-        echo "VPackAccessToken=$VPackAccessToken" >> $GITHUB_ENV
-        MsAzurePull=$(az keyvault secret show --name "MsAzurePull" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$MsAzurePull"
-        echo "MsAzurePull=$MsAzurePull" >> $GITHUB_ENV
       shell: bash
     - run: |
         set -x
@@ -1099,20 +1057,6 @@ jobs:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
       shell: bash
-    - uses: Azure/login@v2
-      with:
-        client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
-        tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
-        subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Pull Azure Key Vault secrets
-      run: |
-        VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$VPackAccessToken"
-        echo "VPackAccessToken=$VPackAccessToken" >> $GITHUB_ENV
-        MsAzurePull=$(az keyvault secret show --name "MsAzurePull" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$MsAzurePull"
-        echo "MsAzurePull=$MsAzurePull" >> $GITHUB_ENV
-      shell: bash
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -1592,20 +1536,6 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
-      shell: bash
-    - uses: Azure/login@v2
-      with:
-        client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
-        tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
-        subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Pull Azure Key Vault secrets
-      run: |
-        VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$VPackAccessToken"
-        echo "VPackAccessToken=$VPackAccessToken" >> $GITHUB_ENV
-        MsAzurePull=$(az keyvault secret show --name "MsAzurePull" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$MsAzurePull"
-        echo "MsAzurePull=$MsAzurePull" >> $GITHUB_ENV
       shell: bash
     - run: |
         set -x
@@ -2249,20 +2179,6 @@ jobs:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
       shell: bash
-    - uses: Azure/login@v2
-      with:
-        client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
-        tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
-        subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Pull Azure Key Vault secrets
-      run: |
-        VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$VPackAccessToken"
-        echo "VPackAccessToken=$VPackAccessToken" >> $GITHUB_ENV
-        MsAzurePull=$(az keyvault secret show --name "MsAzurePull" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$MsAzurePull"
-        echo "MsAzurePull=$MsAzurePull" >> $GITHUB_ENV
-      shell: bash
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -2553,20 +2469,6 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
-      shell: bash
-    - uses: Azure/login@v2
-      with:
-        client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
-        tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
-        subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Pull Azure Key Vault secrets
-      run: |
-        VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$VPackAccessToken"
-        echo "VPackAccessToken=$VPackAccessToken" >> $GITHUB_ENV
-        MsAzurePull=$(az keyvault secret show --name "MsAzurePull" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$MsAzurePull"
-        echo "MsAzurePull=$MsAzurePull" >> $GITHUB_ENV
       shell: bash
     - run: |
         set -x
@@ -2898,20 +2800,6 @@ jobs:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
       shell: bash
-    - uses: Azure/login@v2
-      with:
-        client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
-        tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
-        subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Pull Azure Key Vault secrets
-      run: |
-        VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$VPackAccessToken"
-        echo "VPackAccessToken=$VPackAccessToken" >> $GITHUB_ENV
-        MsAzurePull=$(az keyvault secret show --name "MsAzurePull" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$MsAzurePull"
-        echo "MsAzurePull=$MsAzurePull" >> $GITHUB_ENV
-      shell: bash
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -3241,20 +3129,6 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
-      shell: bash
-    - uses: Azure/login@v2
-      with:
-        client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
-        tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
-        subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Pull Azure Key Vault secrets
-      run: |
-        VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$VPackAccessToken"
-        echo "VPackAccessToken=$VPackAccessToken" >> $GITHUB_ENV
-        MsAzurePull=$(az keyvault secret show --name "MsAzurePull" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$MsAzurePull"
-        echo "MsAzurePull=$MsAzurePull" >> $GITHUB_ENV
       shell: bash
     - run: |
         set -x
@@ -3971,20 +3845,6 @@ jobs:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
       shell: bash
-    - uses: Azure/login@v2
-      with:
-        client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
-        tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
-        subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Pull Azure Key Vault secrets
-      run: |
-        VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$VPackAccessToken"
-        echo "VPackAccessToken=$VPackAccessToken" >> $GITHUB_ENV
-        MsAzurePull=$(az keyvault secret show --name "MsAzurePull" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$MsAzurePull"
-        echo "MsAzurePull=$MsAzurePull" >> $GITHUB_ENV
-      shell: bash
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -4207,20 +4067,6 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
-      shell: bash
-    - uses: Azure/login@v2
-      with:
-        client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
-        tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
-        subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Pull Azure Key Vault secrets
-      run: |
-        VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$VPackAccessToken"
-        echo "VPackAccessToken=$VPackAccessToken" >> $GITHUB_ENV
-        MsAzurePull=$(az keyvault secret show --name "MsAzurePull" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$MsAzurePull"
-        echo "MsAzurePull=$MsAzurePull" >> $GITHUB_ENV
       shell: bash
     - run: |
         set -x
@@ -4510,20 +4356,6 @@ jobs:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
       shell: bash
-    - uses: Azure/login@v2
-      with:
-        client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
-        tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
-        subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Pull Azure Key Vault secrets
-      run: |
-        VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$VPackAccessToken"
-        echo "VPackAccessToken=$VPackAccessToken" >> $GITHUB_ENV
-        MsAzurePull=$(az keyvault secret show --name "MsAzurePull" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$MsAzurePull"
-        echo "MsAzurePull=$MsAzurePull" >> $GITHUB_ENV
-      shell: bash
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -4787,20 +4619,6 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
-      shell: bash
-    - uses: Azure/login@v2
-      with:
-        client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
-        tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
-        subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Pull Azure Key Vault secrets
-      run: |
-        VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$VPackAccessToken"
-        echo "VPackAccessToken=$VPackAccessToken" >> $GITHUB_ENV
-        MsAzurePull=$(az keyvault secret show --name "MsAzurePull" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$MsAzurePull"
-        echo "MsAzurePull=$MsAzurePull" >> $GITHUB_ENV
       shell: bash
     - run: |
         set -x
@@ -5077,20 +4895,6 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
-      shell: bash
-    - uses: Azure/login@v2
-      with:
-        client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
-        tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
-        subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Pull Azure Key Vault secrets
-      run: |
-        VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$VPackAccessToken"
-        echo "VPackAccessToken=$VPackAccessToken" >> $GITHUB_ENV
-        MsAzurePull=$(az keyvault secret show --name "MsAzurePull" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$MsAzurePull"
-        echo "MsAzurePull=$MsAzurePull" >> $GITHUB_ENV
       shell: bash
     - run: |
         set -x
@@ -5434,20 +5238,6 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
-      shell: bash
-    - uses: Azure/login@v2
-      with:
-        client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
-        tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
-        subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Pull Azure Key Vault secrets
-      run: |
-        VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$VPackAccessToken"
-        echo "VPackAccessToken=$VPackAccessToken" >> $GITHUB_ENV
-        MsAzurePull=$(az keyvault secret show --name "MsAzurePull" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$MsAzurePull"
-        echo "MsAzurePull=$MsAzurePull" >> $GITHUB_ENV
       shell: bash
     - run: |
         set -x
@@ -5813,20 +5603,6 @@ jobs:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
       shell: bash
-    - uses: Azure/login@v2
-      with:
-        client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
-        tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
-        subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Pull Azure Key Vault secrets
-      run: |
-        VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$VPackAccessToken"
-        echo "VPackAccessToken=$VPackAccessToken" >> $GITHUB_ENV
-        MsAzurePull=$(az keyvault secret show --name "MsAzurePull" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$MsAzurePull"
-        echo "MsAzurePull=$MsAzurePull" >> $GITHUB_ENV
-      shell: bash
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -6172,20 +5948,6 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
-      shell: bash
-    - uses: Azure/login@v2
-      with:
-        client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
-        tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
-        subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Pull Azure Key Vault secrets
-      run: |
-        VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$VPackAccessToken"
-        echo "VPackAccessToken=$VPackAccessToken" >> $GITHUB_ENV
-        MsAzurePull=$(az keyvault secret show --name "MsAzurePull" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$MsAzurePull"
-        echo "MsAzurePull=$MsAzurePull" >> $GITHUB_ENV
       shell: bash
     - run: |
         set -x
@@ -6542,20 +6304,6 @@ jobs:
     steps:
     - run: echo "injected!"
       name: 🌼🥾 Bootstrap flowey
-      shell: bash
-    - uses: Azure/login@v2
-      with:
-        client-id: ${{ secrets.OPENVMM_CLIENT_ID }}
-        tenant-id: ${{ secrets.OPENVMM_TENANT_ID }}
-        subscription-id: ${{ secrets.OPENVMM_SUBSCRIPTION_ID }}
-    - name: Pull Azure Key Vault secrets
-      run: |
-        VPackAccessToken=$(az keyvault secret show --name "VPackAccessToken" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$VPackAccessToken"
-        echo "VPackAccessToken=$VPackAccessToken" >> $GITHUB_ENV
-        MsAzurePull=$(az keyvault secret show --name "MsAzurePull" --vault-name "HvLite-PATs" --query value --output tsv)
-        echo "::add-mask::$MsAzurePull"
-        echo "MsAzurePull=$MsAzurePull" >> $GITHUB_ENV
       shell: bash
     - run: |
         set -x
