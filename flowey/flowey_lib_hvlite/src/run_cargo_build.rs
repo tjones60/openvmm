@@ -342,6 +342,12 @@ impl FlowNode for Node {
                     target_lexicon::OperatingSystem::Linux
                 )
             {
+                let gcc_pkg = match target.architecture {
+                    target_lexicon::Architecture::Aarch64(_) => "gcc-aarch64-linux-gnu",
+                    target_lexicon::Architecture::X86_64 => "gcc-x86-64-linux-gnu",
+                    arch => anyhow::bail!("unsupported arch {arch}"),
+                };
+
                 // We use `gcc`'s linker for cross-compiling due to:
                 //
                 // * The special baremetal options are the same. These options
@@ -353,7 +359,7 @@ impl FlowNode for Node {
                 //   `aarch64-unknown-linux-*`.
                 pre_build_deps.push(ctx.reqv(|v| {
                     flowey_lib_common::install_apt_pkg::Request::Install {
-                        package_names: vec!["gcc-aarch64-linux-gnu".into()],
+                        package_names: vec![gcc_pkg.into()],
                         done: v,
                     }
                 }));
@@ -370,7 +376,7 @@ impl FlowNode for Node {
                             "CARGO_TARGET_{}_LINKER",
                             target.to_string().replace('-', "_").to_uppercase()
                         ),
-                        "aarch64-linux-gnu-gcc".into(),
+                        gcc_pkg.into(),
                     );
                 }
             }

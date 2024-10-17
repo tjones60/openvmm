@@ -151,11 +151,12 @@ impl SimpleFlowNode for Node {
 
                 let mut exclude = vec!["guest_test_uefi".into()];
 
-                // packages containing libfuzzer-sys do not currently build for Aarch64
+                // packages containing libfuzzer-sys do not currently build for (or on) Aarch64
                 if matches!(
                     target.architecture,
                     target_lexicon::Architecture::Aarch64(_)
-                ) {
+                ) || matches!(flowey_arch, FlowArch::Aarch64)
+                {
                     let xtask_bin = match xtask {
                         crate::build_xtask::XtaskOutput::LinuxBin { bin, dbg: _ } => bin,
                         crate::build_xtask::XtaskOutput::WindowsBin { exe, pdb: _ } => exe,
