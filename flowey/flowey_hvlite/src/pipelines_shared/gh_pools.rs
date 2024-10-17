@@ -81,3 +81,11 @@ pub fn windows_arm_self_hosted() -> GhRunner {
         "ARM64".to_string(),
     ])
 }
+
+pub fn linux_arm_self_hosted() -> GhRunner {
+    GhRunner::SelfHosted(vec![
+        "self-hosted".to_string(),
+        "Linux".to_string(),
+        "ARM64".to_string(),
+    ])
+}
