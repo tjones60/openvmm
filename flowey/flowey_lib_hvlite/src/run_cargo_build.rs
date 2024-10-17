@@ -327,21 +327,9 @@ impl FlowNode for Node {
 
             pre_build_deps.extend(user_pre_build_deps);
 
-            // when cross compiling aarch64-linux from linux, explicitly set the
+            // when cross compiling on linux, explicitly set the
             // linker being used
-            //
-            // FUTURE: this will need tweaking flowey is being run on non-x86
-            // hosts
-            if matches!(ctx.platform(), FlowPlatform::Linux)
-                && matches!(
-                    target.architecture,
-                    target_lexicon::Architecture::Aarch64(_)
-                )
-                && matches!(
-                    target.operating_system,
-                    target_lexicon::OperatingSystem::Linux
-                )
-            {
+            if matches!(ctx.platform(), FlowPlatform::Linux) {
                 let (gcc_pkg, bin) = match target.architecture {
                     target_lexicon::Architecture::Aarch64(_) => {
                         ("gcc-aarch64-linux-gnu", "aarch64-linux-gnu-gcc")

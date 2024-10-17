@@ -94,7 +94,8 @@ impl SimpleFlowNode for Node {
         let did_test = if !matches!(
             &target.as_triple().architecture,
             target_lexicon::Architecture::Aarch64(_)
-        ) {
+        ) && !matches!(ctx.arch(), FlowArch::Aarch64)
+        {
             let clang_installed =
                 ctx.reqv(|v| flowey_lib_common::install_apt_pkg::Request::Install {
                     package_names: vec!["clang".into()],

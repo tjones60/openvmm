@@ -21,7 +21,7 @@
 - run: |
     set -x
     sudo apt update
-    sudo apt install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu -y
+    sudo apt install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
   if: runner.os == 'Linux'
   name: Install GCC (Linux)
   shell: bash
