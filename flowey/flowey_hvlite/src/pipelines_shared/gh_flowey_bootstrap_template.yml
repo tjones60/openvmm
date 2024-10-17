@@ -18,13 +18,13 @@
 #     echo "MsAzurePull=$MsAzurePull" >> $GITHUB_ENV
 #   shell: bash
 
-- run: |
-    set -x
-    sudo apt update
-    sudo apt install gcc gcc-x86-64-linux-gnu gcc
-  if: runner.os == 'Linux'
-  name: Install GCC (Linux)
-  shell: bash
+# - run: |
+#     set -x
+#     sudo apt update
+#     sudo apt install gcc gcc-x86-64-linux-gnu -y
+#   if: runner.os == 'Linux'
+#   name: Install GCC (Linux)
+#   shell: bash
 
 - run: |
     set -x
