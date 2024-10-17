@@ -185,7 +185,7 @@ impl IntoPipeline for CheckinGatesCli {
         let (pub_guide, _use_guide) = pipeline.new_artifact("guide");
         let job = pipeline
             .new_job(
-                FlowPlatform::Windows,
+                FlowPlatform::Linux,
                 FlowArch::Aarch64,
                 "build mdbook guide [x64-windows]",
             )
@@ -206,18 +206,22 @@ impl IntoPipeline for CheckinGatesCli {
         all_jobs.push(job);
 
         // emit rustdoc jobs
-        for (target, platform) in [
-            (CommonTriple::X86_64_WINDOWS_MSVC, FlowPlatform::Windows),
-            (CommonTriple::X86_64_LINUX_GNU, FlowPlatform::Linux),
+        for (target, platform, platform_name) in [
+            (
+                CommonTriple::X86_64_WINDOWS_MSVC,
+                FlowPlatform::Linux,
+                "windows",
+            ),
+            (CommonTriple::X86_64_LINUX_GNU, FlowPlatform::Linux, "linux"),
         ] {
             let deny_warnings = !matches!(backend_hint, PipelineBackendHint::Local);
             let (pub_rustdoc, _use_rustdoc) =
-                pipeline.new_artifact(format!("x64-{platform}-rustdoc"));
+                pipeline.new_artifact(format!("x64-{platform_name}-rustdoc"));
             let job = pipeline
                 .new_job(
                     platform,
                     FlowArch::Aarch64,
-                    format!("build and check docs [x64-{platform}]"),
+                    format!("build and check docs [x64-{platform_name}]"),
                 )
                 .gh_set_pool(crate::pipelines_shared::gh_pools::linux_arm_self_hosted())
                 .dep_on(|_ctx| {
@@ -239,7 +243,7 @@ impl IntoPipeline for CheckinGatesCli {
         {
             let windows_fmt_job = pipeline
                 .new_job(
-                    FlowPlatform::Windows,
+                    FlowPlatform::Linux,
                     FlowArch::Aarch64,
                     "xtask fmt (windows)",
                 )
@@ -316,7 +320,7 @@ impl IntoPipeline for CheckinGatesCli {
 
             let job = pipeline
                 .new_job(
-                    FlowPlatform::Windows,
+                    FlowPlatform::Linux,
                     FlowArch::Aarch64,
                     format!("build artifacts (not for VMM tests) [{arch_tag}-windows]"),
                 )
@@ -372,7 +376,7 @@ impl IntoPipeline for CheckinGatesCli {
             // emit a job for artifacts which _are_ in the VMM tests "hot path"
             let mut job = pipeline
                 .new_job(
-                    FlowPlatform::Windows,
+                    FlowPlatform::Linux,
                     FlowArch::Aarch64,
                     format!("build artifacts (for VMM tests) [{arch_tag}-windows]"),
                 )
@@ -683,7 +687,7 @@ impl IntoPipeline for CheckinGatesCli {
             unit_test_target,
         } in [
             ClippyUnitTestJobParams {
-                platform: FlowPlatform::Windows,
+                platform: FlowPlatform::Linux,
                 arch: FlowArch::Aarch64,
                 gh_pool: crate::pipelines_shared::gh_pools::linux_arm_self_hosted(),
                 clippy_targets: Some((
@@ -948,7 +952,7 @@ impl IntoPipeline for CheckinGatesCli {
         // TODO: Add a way for this job to skip flowey setup and become a true no-op.
         let all_good_job = pipeline
             .new_job(
-                FlowPlatform::Windows,
+                FlowPlatform::Linux,
                 FlowArch::Aarch64,
                 "openvmm checkin gates",
             )
