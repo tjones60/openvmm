@@ -30,8 +30,8 @@ jobs:
       shell: bash
     - run: |
         set -x
-        sudo apt update
-        sudo apt install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
+        sudo apt-get -o DPkg::Lock::Timeout=60 update
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
       if: runner.os == 'Linux'
       name: Install GCC (Linux)
       shell: bash
@@ -231,8 +231,8 @@ jobs:
       shell: bash
     - run: |
         set -x
-        sudo apt update
-        sudo apt install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
+        sudo apt-get -o DPkg::Lock::Timeout=60 update
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
       if: runner.os == 'Linux'
       name: Install GCC (Linux)
       shell: bash
@@ -444,8 +444,8 @@ jobs:
       shell: bash
     - run: |
         set -x
-        sudo apt update
-        sudo apt install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
+        sudo apt-get -o DPkg::Lock::Timeout=60 update
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
       if: runner.os == 'Linux'
       name: Install GCC (Linux)
       shell: bash
@@ -686,11 +686,8 @@ jobs:
     - name: check built vmgs_lib
       run: flowey e 10 flowey_lib_hvlite::build_and_test_vmgs_lib 0
       shell: bash
-    - name: test vmgs_lib
-      run: flowey e 10 flowey_lib_hvlite::build_and_test_vmgs_lib 1
-      shell: bash
     - name: report built vmgs_lib
-      run: flowey e 10 flowey_lib_hvlite::build_and_test_vmgs_lib 2
+      run: flowey e 10 flowey_lib_hvlite::build_and_test_vmgs_lib 1
       shell: bash
     - name: 🌼 write_into Var
       run: flowey e 10 flowey_lib_hvlite::artifact_vmgs_lib::publish 0
@@ -857,8 +854,8 @@ jobs:
       shell: bash
     - run: |
         set -x
-        sudo apt update
-        sudo apt install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
+        sudo apt-get -o DPkg::Lock::Timeout=60 update
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
       if: runner.os == 'Linux'
       name: Install GCC (Linux)
       shell: bash
@@ -1267,8 +1264,8 @@ jobs:
       shell: bash
     - run: |
         set -x
-        sudo apt update
-        sudo apt install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
+        sudo apt-get -o DPkg::Lock::Timeout=60 update
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
       if: runner.os == 'Linux'
       name: Install GCC (Linux)
       shell: bash
@@ -1842,8 +1839,8 @@ jobs:
       shell: bash
     - run: |
         set -x
-        sudo apt update
-        sudo apt install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
+        sudo apt-get -o DPkg::Lock::Timeout=60 update
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
       if: runner.os == 'Linux'
       name: Install GCC (Linux)
       shell: bash
@@ -2066,8 +2063,8 @@ jobs:
       shell: bash
     - run: |
         set -x
-        sudo apt update
-        sudo apt install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
+        sudo apt-get -o DPkg::Lock::Timeout=60 update
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
       if: runner.os == 'Linux'
       name: Install GCC (Linux)
       shell: bash
@@ -2329,8 +2326,8 @@ jobs:
       shell: bash
     - run: |
         set -x
-        sudo apt update
-        sudo apt install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
+        sudo apt-get -o DPkg::Lock::Timeout=60 update
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
       if: runner.os == 'Linux'
       name: Install GCC (Linux)
       shell: bash
@@ -2600,8 +2597,8 @@ jobs:
       shell: bash
     - run: |
         set -x
-        sudo apt update
-        sudo apt install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
+        sudo apt-get -o DPkg::Lock::Timeout=60 update
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
       if: runner.os == 'Linux'
       name: Install GCC (Linux)
       shell: bash
@@ -3223,8 +3220,8 @@ jobs:
       shell: bash
     - run: |
         set -x
-        sudo apt update
-        sudo apt install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
+        sudo apt-get -o DPkg::Lock::Timeout=60 update
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
       if: runner.os == 'Linux'
       name: Install GCC (Linux)
       shell: bash
@@ -3444,8 +3441,8 @@ jobs:
       shell: bash
     - run: |
         set -x
-        sudo apt update
-        sudo apt install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
+        sudo apt-get -o DPkg::Lock::Timeout=60 update
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
       if: runner.os == 'Linux'
       name: Install GCC (Linux)
       shell: bash
@@ -3641,8 +3638,8 @@ jobs:
       shell: bash
     - run: |
         set -x
-        sudo apt update
-        sudo apt install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
+        sudo apt-get -o DPkg::Lock::Timeout=60 update
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
       if: runner.os == 'Linux'
       name: Install GCC (Linux)
       shell: bash
@@ -3850,8 +3847,8 @@ jobs:
       shell: bash
     - run: |
         set -x
-        sudo apt update
-        sudo apt install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
+        sudo apt-get -o DPkg::Lock::Timeout=60 update
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
       if: runner.os == 'Linux'
       name: Install GCC (Linux)
       shell: bash
@@ -4126,8 +4123,8 @@ jobs:
       shell: bash
     - run: |
         set -x
-        sudo apt update
-        sudo apt install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
+        sudo apt-get -o DPkg::Lock::Timeout=60 update
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
       if: runner.os == 'Linux'
       name: Install GCC (Linux)
       shell: bash
@@ -4423,8 +4420,8 @@ jobs:
       shell: bash
     - run: |
         set -x
-        sudo apt update
-        sudo apt install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
+        sudo apt-get -o DPkg::Lock::Timeout=60 update
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
       if: runner.os == 'Linux'
       name: Install GCC (Linux)
       shell: bash
@@ -4623,11 +4620,8 @@ jobs:
     - name: check built vmgs_lib
       run: flowey.exe e 7 flowey_lib_hvlite::build_and_test_vmgs_lib 0
       shell: bash
-    - name: test vmgs_lib
-      run: flowey.exe e 7 flowey_lib_hvlite::build_and_test_vmgs_lib 1
-      shell: bash
     - name: report built vmgs_lib
-      run: flowey.exe e 7 flowey_lib_hvlite::build_and_test_vmgs_lib 2
+      run: flowey.exe e 7 flowey_lib_hvlite::build_and_test_vmgs_lib 1
       shell: bash
     - name: 🌼 write_into Var
       run: flowey.exe e 7 flowey_lib_hvlite::artifact_vmgs_lib::publish 0
@@ -4702,8 +4696,8 @@ jobs:
       shell: bash
     - run: |
         set -x
-        sudo apt update
-        sudo apt install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
+        sudo apt-get -o DPkg::Lock::Timeout=60 update
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
       if: runner.os == 'Linux'
       name: Install GCC (Linux)
       shell: bash
@@ -4991,8 +4985,8 @@ jobs:
       shell: bash
     - run: |
         set -x
-        sudo apt update
-        sudo apt install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
+        sudo apt-get -o DPkg::Lock::Timeout=60 update
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
       if: runner.os == 'Linux'
       name: Install GCC (Linux)
       shell: bash

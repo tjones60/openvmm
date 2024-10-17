@@ -138,10 +138,14 @@ impl FlowNode for Node {
                 let sh = xshell::Shell::new()?;
 
                 if !skip_update {
-                    xshell::cmd!(sh, "sudo apt-get update").run()?;
+                    xshell::cmd!(sh, "sudo apt-get -o DPkg::Lock::Timeout=60 update").run()?;
                 }
                 let auto_accept = (!interactive).then_some("-y");
-                xshell::cmd!(sh, "sudo apt-get install {auto_accept...} {packages...}").run()?;
+                xshell::cmd!(
+                    sh,
+                    "sudo apt-get -o DPkg::Lock::Timeout=60 install {auto_accept...} {packages...}"
+                )
+                .run()?;
 
                 Ok(())
             }

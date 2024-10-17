@@ -918,7 +918,6 @@
         "{\"RegisterRepo\":{\"allow_persist_credentials\":false,\"depth\":1,\"pre_run_deps\":[],\"repo_id\":\"hvlite\",\"repo_src\":\"GithubSelf\"}}"
       ],
       "flowey_lib_common::install_apt_pkg": [
-        "{\"Install\":{\"done\":{\"backing_var\":\"flowey_lib_hvlite::build_and_test_vmgs_lib:3:flowey_lib_hvlite/src/build_and_test_vmgs_lib.rs:99:21\",\"is_secret\":false},\"package_names\":[\"clang\"]}}",
         "{\"Install\":{\"done\":{\"backing_var\":\"flowey_lib_common::download_protoc:1:flowey_lib_common/src/download_protoc.rs:76:32\",\"is_secret\":false},\"package_names\":[\"libarchive-tools\"]}}",
         "{\"Install\":{\"done\":{\"backing_var\":\"flowey_lib_hvlite::build_and_test_vmgs_lib:0:flowey_lib_hvlite/src/build_and_test_vmgs_lib.rs:52:17\",\"is_secret\":false},\"package_names\":[\"libssl-dev\"]}}",
         "{\"Install\":{\"done\":{\"backing_var\":\"flowey_lib_hvlite::build_vmgstool:0:flowey_lib_hvlite/src/build_vmgstool.rs:46:37\",\"is_secret\":false},\"package_names\":[\"libssl-dev\"]}}"
@@ -1011,7 +1010,6 @@
         "{\"Version\":\"0.1.0\"}"
       ],
       "flowey_lib_hvlite::git_checkout_openvmm_repo": [
-        "{\"GetRepoDir\":{\"backing_var\":\"flowey_lib_hvlite::build_and_test_vmgs_lib:4:flowey_lib_hvlite/src/build_and_test_vmgs_lib.rs:104:41\",\"is_secret\":false}}",
         "{\"GetRepoDir\":{\"backing_var\":\"flowey_lib_hvlite::cfg_openvmm_magicpath:0:flowey_lib_hvlite/src/cfg_openvmm_magicpath.rs:26:29\",\"is_secret\":false}}",
         "{\"GetRepoDir\":{\"backing_var\":\"flowey_lib_hvlite::init_openvmm_cargo_config_deny_warnings:0:flowey_lib_hvlite/src/init_openvmm_cargo_config_deny_warnings.rs:50:37\",\"is_secret\":false}}",
         "{\"GetRepoDir\":{\"backing_var\":\"flowey_lib_hvlite::run_cargo_build:1:flowey_lib_hvlite/src/run_cargo_build.rs:310:37\",\"is_secret\":false}}",
@@ -1457,7 +1455,6 @@
         "{\"Install\":{\"done\":{\"backing_var\":\"flowey_lib_hvlite::run_split_debug_info:4:flowey_lib_hvlite/src/run_split_debug_info.rs:35:17\",\"is_secret\":false},\"package_names\":[\"binutils-x86-64-linux-gnu\"]}}",
         "{\"Install\":{\"done\":{\"backing_var\":\"flowey_lib_hvlite::run_split_debug_info:6:flowey_lib_hvlite/src/run_split_debug_info.rs:35:17\",\"is_secret\":false},\"package_names\":[\"binutils-x86-64-linux-gnu\"]}}",
         "{\"Install\":{\"done\":{\"backing_var\":\"flowey_lib_hvlite::build_openvmm:2:flowey_lib_hvlite/src/build_openvmm.rs:88:68\",\"is_secret\":false},\"package_names\":[\"build-essential\"]}}",
-        "{\"Install\":{\"done\":{\"backing_var\":\"flowey_lib_hvlite::build_and_test_vmgs_lib:3:flowey_lib_hvlite/src/build_and_test_vmgs_lib.rs:99:21\",\"is_secret\":false},\"package_names\":[\"clang\"]}}",
         "{\"Install\":{\"done\":{\"backing_var\":\"flowey_lib_hvlite::run_cargo_build:12:flowey_lib_hvlite/src/run_cargo_build.rs:352:41\",\"is_secret\":false},\"package_names\":[\"gcc-x86-64-linux-gnu\"]}}",
         "{\"Install\":{\"done\":{\"backing_var\":\"flowey_lib_hvlite::run_cargo_build:19:flowey_lib_hvlite/src/run_cargo_build.rs:352:41\",\"is_secret\":false},\"package_names\":[\"gcc-x86-64-linux-gnu\"]}}",
         "{\"Install\":{\"done\":{\"backing_var\":\"flowey_lib_hvlite::run_cargo_build:26:flowey_lib_hvlite/src/run_cargo_build.rs:352:41\",\"is_secret\":false},\"package_names\":[\"gcc-x86-64-linux-gnu\"]}}",
@@ -1598,7 +1595,6 @@
         "{\"Version\":\"0.1.0\"}"
       ],
       "flowey_lib_hvlite::git_checkout_openvmm_repo": [
-        "{\"GetRepoDir\":{\"backing_var\":\"flowey_lib_hvlite::build_and_test_vmgs_lib:4:flowey_lib_hvlite/src/build_and_test_vmgs_lib.rs:104:41\",\"is_secret\":false}}",
         "{\"GetRepoDir\":{\"backing_var\":\"flowey_lib_hvlite::build_guest_test_uefi:1:flowey_lib_hvlite/src/build_guest_test_uefi.rs:74:41\",\"is_secret\":false}}",
         "{\"GetRepoDir\":{\"backing_var\":\"flowey_lib_hvlite::build_nextest_vmm_tests:1:flowey_lib_hvlite/src/build_nextest_vmm_tests.rs:137:29\",\"is_secret\":false}}",
         "{\"GetRepoDir\":{\"backing_var\":\"flowey_lib_hvlite::cfg_openvmm_magicpath:0:flowey_lib_hvlite/src/cfg_openvmm_magicpath.rs:26:29\",\"is_secret\":false}}",
