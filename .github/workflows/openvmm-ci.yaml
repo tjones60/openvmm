@@ -52,8 +52,8 @@ jobs:
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$HOME/.cargo/env"
-        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -62,7 +62,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
@@ -70,7 +70,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -267,8 +267,8 @@ jobs:
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$HOME/.cargo/env"
-        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -277,7 +277,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
@@ -285,7 +285,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -494,8 +494,8 @@ jobs:
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$HOME/.cargo/env"
-        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -504,7 +504,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
@@ -512,7 +512,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -918,8 +918,8 @@ jobs:
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$HOME/.cargo/env"
-        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -928,7 +928,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
@@ -936,7 +936,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -1342,8 +1342,8 @@ jobs:
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$HOME/.cargo/env"
-        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -1352,7 +1352,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
@@ -1360,7 +1360,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -1931,8 +1931,8 @@ jobs:
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$HOME/.cargo/env"
-        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -1941,7 +1941,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
@@ -1949,7 +1949,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -2169,8 +2169,8 @@ jobs:
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$HOME/.cargo/env"
-        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -2179,7 +2179,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
@@ -2187,7 +2187,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -2446,8 +2446,8 @@ jobs:
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$HOME/.cargo/env"
-        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -2456,7 +2456,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
@@ -2464,7 +2464,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -2731,8 +2731,8 @@ jobs:
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$HOME/.cargo/env"
-        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -2741,7 +2741,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
@@ -2749,7 +2749,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -3368,8 +3368,8 @@ jobs:
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$HOME/.cargo/env"
-        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -3378,7 +3378,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
@@ -3386,7 +3386,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -3603,8 +3603,8 @@ jobs:
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$HOME/.cargo/env"
-        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -3613,7 +3613,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
@@ -3621,7 +3621,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -3814,8 +3814,8 @@ jobs:
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$HOME/.cargo/env"
-        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -3824,7 +3824,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
@@ -3832,7 +3832,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -4037,8 +4037,8 @@ jobs:
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$HOME/.cargo/env"
-        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -4047,7 +4047,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
@@ -4055,7 +4055,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -4327,8 +4327,8 @@ jobs:
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$HOME/.cargo/env"
-        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -4337,7 +4337,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
@@ -4345,7 +4345,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -4638,8 +4638,8 @@ jobs:
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$HOME/.cargo/env"
-        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -4648,7 +4648,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
@@ -4656,7 +4656,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -4928,8 +4928,8 @@ jobs:
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$HOME/.cargo/env"
-        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -4938,7 +4938,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
@@ -4946,7 +4946,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -5231,8 +5231,8 @@ jobs:
     - run: |
         set -x
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$HOME/.cargo/env"
-        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -5241,7 +5241,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
@@ -5249,7 +5249,7 @@ jobs:
         set -x
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "$USERPROFILE\\.cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
