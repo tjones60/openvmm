@@ -25,11 +25,11 @@
     set -x
     i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
     sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
-    echo "RUSTUP_HOME=${{ runner.tool_cache }}/rustup" >> "$GITHUB_ENV"
-    echo "CARGO_HOME=${{ runner.tool_cache }}/cargo" >> "$GITHUB_ENV"
+    echo "RUSTUP_HOME=${{ runner.temp }}/rustup" >> "$GITHUB_ENV"
+    echo "CARGO_HOME=${{ runner.temp }}/cargo" >> "$GITHUB_ENV"
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-    . "${{ runner.tool_cache }}/cargo/env"
-    echo "${{ runner.tool_cache }}/cargo/bin" >> "$GITHUB_PATH"
+    . "${{ runner.temp }}/cargo/env"
+    echo "${{ runner.temp }}/cargo/bin" >> "$GITHUB_PATH"
     rustup show
   if: runner.os == 'Linux'
   name: rustup (Linux)
@@ -39,22 +39,22 @@
 # but that currently needs to be preinstalled on the actions runner.
 - run: |
     set -x
-    echo "RUSTUP_HOME=${{ runner.tool_cache }}\\rustup" >> "$GITHUB_ENV"
-    echo "CARGO_HOME=${{ runner.tool_cache }}\\cargo" >> "$GITHUB_ENV"
+    echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
+    echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
     curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
     ./rustup-init.exe -y
-    echo "${{ runner.tool_cache }}\\cargo\\bin" >> $GITHUB_PATH
+    echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
   if: runner.os == 'Windows' && runner.arch == 'X64'
   name: rustup (Windows X64)
   shell: bash
 
 - run: |
     set -x
-    echo "RUSTUP_HOME=${{ runner.tool_cache }}\\rustup" >> "$GITHUB_ENV"
-    echo "CARGO_HOME=${{ runner.tool_cache }}\\cargo" >> "$GITHUB_ENV"
+    echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
+    echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
     curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
     ./rustup-init.exe -y
-    echo "${{ runner.tool_cache }}\\cargo\\bin" >> $GITHUB_PATH
+    echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
   if: runner.os == 'Windows' && runner.arch == 'ARM64'
   name: rustup (Windows ARM64)
   shell: bash
