@@ -20,16 +20,16 @@
 
 - run: |
     set -x
-    echo "RUSTUP_HOME=${{ runner.tool_chache }}/rustup" >> "$GITHUB_ENV"
-    echo "CARGO_HOME=${{ runner.tool_chache }}/cargo" >> "$GITHUB_ENV"
+    echo "RUSTUP_HOME=${{ runner.tool_cache }}/rustup" >> "$GITHUB_ENV"
+    echo "CARGO_HOME=${{ runner.tool_cache }}/cargo" >> "$GITHUB_ENV"
   if: runner.os == 'Linux'
   name: Setup Environment Variables (Linux)
   shell: bash
 
 - run: |
     set -x
-    echo "RUSTUP_HOME=${{ runner.tool_chache }}\\rustup" >> "$GITHUB_ENV"
-    echo "CARGO_HOME=${{ runner.tool_chache }}\\cargo" >> "$GITHUB_ENV"
+    echo "RUSTUP_HOME=${{ runner.tool_cache }}\\rustup" >> "$GITHUB_ENV"
+    echo "CARGO_HOME=${{ runner.tool_cache }}\\cargo" >> "$GITHUB_ENV"
   if: runner.os == 'Windows'
   name: Setup Environment Variables (Windows)
   shell: bash
