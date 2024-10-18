@@ -180,6 +180,10 @@ pub mod common {
             arch: CommonArch::Aarch64,
             platform: CommonPlatform::WindowsMsvc,
         };
+        pub const AARCH64_LINUX_GNU: Self = Self::Common {
+            arch: CommonArch::Aarch64,
+            platform: CommonPlatform::LinuxGnu,
+        };
         pub const AARCH64_LINUX_MUSL: Self = Self::Common {
             arch: CommonArch::Aarch64,
             platform: CommonPlatform::LinuxMusl,
@@ -362,7 +366,7 @@ impl FlowNode for Node {
                 // Not sure if I'm a fan of the current approach to begin with,
                 // since it means _any_ musl code (not just code running in
                 // VTL2) will use the openhcl-specific musl... but whatever
-                if !matches!(target.environment, target_lexicon::Environment::Musl) {
+                if matches!(target.environment, target_lexicon::Environment::Gnu) {
                     injected_env.insert(
                         format!(
                             "CARGO_TARGET_{}_LINKER",

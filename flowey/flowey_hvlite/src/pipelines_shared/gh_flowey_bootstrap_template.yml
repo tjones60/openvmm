@@ -20,6 +20,22 @@
 
 - run: |
     set -x
+    echo "RUSTUP_HOME=${{ runner.tool_chache }}/rustup" >> "$GITHUB_ENV"
+    echo "CARGO_HOME=${{ runner.tool_chache }}/cargo" >> "$GITHUB_ENV"
+  if: runner.os == 'Linux'
+  name: Setup Environment Variables (Linux)
+  shell: bash
+
+- run: |
+    set -x
+    echo "RUSTUP_HOME=${{ runner.tool_chache }}\\rustup" >> "$GITHUB_ENV"
+    echo "CARGO_HOME=${{ runner.tool_chache }}\\cargo" >> "$GITHUB_ENV"
+  if: runner.os == 'Windows'
+  name: Setup Environment Variables (Windows)
+  shell: bash
+
+- run: |
+    set -x
     sudo apt-get -o DPkg::Lock::Timeout=60 update
     sudo apt-get -o DPkg::Lock::Timeout=60 install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
   if: runner.os == 'Linux'

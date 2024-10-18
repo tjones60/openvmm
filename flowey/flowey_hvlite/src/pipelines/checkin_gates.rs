@@ -253,7 +253,7 @@ impl IntoPipeline for CheckinGatesCli {
                 )
                 .gh_set_pool(crate::pipelines_shared::gh_pools::windows_arm_self_hosted())
                 .dep_on(|ctx| flowey_lib_hvlite::_jobs::check_xtask_fmt::Request {
-                    target: CommonTriple::X86_64_WINDOWS_MSVC,
+                    target: CommonTriple::AARCH64_WINDOWS_MSVC,
                     done: ctx.new_done_handle(),
                 })
                 .finish();
@@ -262,7 +262,7 @@ impl IntoPipeline for CheckinGatesCli {
                 .new_job(FlowPlatform::Linux, FlowArch::Aarch64, "xtask fmt (linux)")
                 .gh_set_pool(crate::pipelines_shared::gh_pools::linux_arm_self_hosted())
                 .dep_on(|ctx| flowey_lib_hvlite::_jobs::check_xtask_fmt::Request {
-                    target: CommonTriple::X86_64_LINUX_GNU,
+                    target: CommonTriple::AARCH64_LINUX_GNU,
                     done: ctx.new_done_handle(),
                 })
                 .finish();
