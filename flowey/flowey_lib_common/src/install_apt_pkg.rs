@@ -138,7 +138,7 @@ impl FlowNode for Node {
                 let sh = xshell::Shell::new()?;
 
                 if !skip_update {
-                    xshell::cmd!(sh, "sudo apt-get -o DPkg::Lock::Timeout=60 update").run()?;
+                    xshell::cmd!(sh, "i=0; while [ $i -lt 60 ] && sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 ; do ((i++)); sleep 1; done; sudo apt-get update").run()?;
                 }
                 let auto_accept = (!interactive).then_some("-y");
                 xshell::cmd!(

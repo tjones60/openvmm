@@ -36,7 +36,7 @@
 
 - run: |
     set -x
-    sudo apt-get -o DPkg::Lock::Timeout=60 update
+    i=0; while [ $i -lt 60 ] && sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 ; do ((i++)); sleep 1; done; sudo apt-get update
     sudo apt-get -o DPkg::Lock::Timeout=60 install gcc gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu libssl-dev -y
   if: runner.os == 'Linux'
   name: Install GCC (Linux)

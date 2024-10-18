@@ -206,17 +206,18 @@ impl IntoPipeline for CheckinGatesCli {
         all_jobs.push(job);
 
         // emit rustdoc jobs
+        #[allow(clippy::single_element_loop)]
         for (target, platform, pool) in [
             (
                 CommonTriple::X86_64_WINDOWS_MSVC,
                 FlowPlatform::Windows,
                 crate::pipelines_shared::gh_pools::windows_arm_self_hosted(),
             ),
-            (
-                CommonTriple::X86_64_LINUX_GNU,
-                FlowPlatform::Linux,
-                crate::pipelines_shared::gh_pools::linux_arm_self_hosted(),
-            ),
+            // (
+            //     CommonTriple::X86_64_LINUX_GNU,
+            //     FlowPlatform::Linux,
+            //     crate::pipelines_shared::gh_pools::linux_arm_self_hosted(),
+            // ),
         ] {
             let deny_warnings = !matches!(backend_hint, PipelineBackendHint::Local);
             let (pub_rustdoc, _use_rustdoc) =

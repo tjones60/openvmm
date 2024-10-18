@@ -637,7 +637,6 @@ pub(crate) fn cargo_nextest_build_args_and_env(
         CargoBuildProfile::Release => "release",
         CargoBuildProfile::Custom(s) => s,
     };
-    let target = target.to_string();
 
     let packages: Vec<String> = {
         // exclude benches
@@ -700,13 +699,29 @@ pub(crate) fn cargo_nextest_build_args_and_env(
     args.push(cargo_profile.into());
     args.extend(z_panic_abort_tests.map(Into::into));
     args.push("--target".into());
-    args.push(target);
+    args.push(target.to_string());
     args.extend(packages);
     args.extend(features);
 
     let mut env = BTreeMap::new();
     if use_rustc_bootstrap {
         env.insert("RUSTC_BOOTSTRAP".into(), "1".into());
+    }
+
+    // HACK
+    if matches!(target.environment, target_lexicon::Environment::Gnu) {
+        let bin = match target.architecture {
+            target_lexicon::Architecture::Aarch64(_) => "aarch64-linux-gnu-gcc",
+            target_lexicon::Architecture::X86_64 => "x86_64-linux-gnu-gcc",
+            arch => panic!("unsupported arch {arch}"),
+        };
+        env.insert(
+            format!(
+                "CARGO_TARGET_{}_LINKER",
+                target.to_string().replace('-', "_").to_uppercase()
+            ),
+            bin.into(),
+        );
     }
 
     (args, env)
