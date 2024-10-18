@@ -30,34 +30,42 @@ jobs:
       shell: bash
     - run: |
         set -x
-        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
-        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         echo "RUSTUP_HOME=${{ runner.temp }}/rustup" >> "$GITHUB_ENV"
         echo "CARGO_HOME=${{ runner.temp }}/cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Linux'
+      name: Setup Environment Variables (Linux)
+      shell: bash
+    - run: |
+        set -x
+        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
+        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Windows'
+      name: Setup Environment Variables (Windows)
+      shell: bash
+    - run: |
+        set -x
+        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "${{ runner.temp }}/cargo/env"
-        echo "${{ runner.temp }}/cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -264,34 +272,42 @@ jobs:
       shell: bash
     - run: |
         set -x
-        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
-        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         echo "RUSTUP_HOME=${{ runner.temp }}/rustup" >> "$GITHUB_ENV"
         echo "CARGO_HOME=${{ runner.temp }}/cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Linux'
+      name: Setup Environment Variables (Linux)
+      shell: bash
+    - run: |
+        set -x
+        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
+        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Windows'
+      name: Setup Environment Variables (Windows)
+      shell: bash
+    - run: |
+        set -x
+        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "${{ runner.temp }}/cargo/env"
-        echo "${{ runner.temp }}/cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -510,34 +526,42 @@ jobs:
       shell: bash
     - run: |
         set -x
-        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
-        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         echo "RUSTUP_HOME=${{ runner.temp }}/rustup" >> "$GITHUB_ENV"
         echo "CARGO_HOME=${{ runner.temp }}/cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Linux'
+      name: Setup Environment Variables (Linux)
+      shell: bash
+    - run: |
+        set -x
+        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
+        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Windows'
+      name: Setup Environment Variables (Windows)
+      shell: bash
+    - run: |
+        set -x
+        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "${{ runner.temp }}/cargo/env"
-        echo "${{ runner.temp }}/cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -956,34 +980,42 @@ jobs:
       shell: bash
     - run: |
         set -x
-        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
-        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         echo "RUSTUP_HOME=${{ runner.temp }}/rustup" >> "$GITHUB_ENV"
         echo "CARGO_HOME=${{ runner.temp }}/cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Linux'
+      name: Setup Environment Variables (Linux)
+      shell: bash
+    - run: |
+        set -x
+        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
+        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Windows'
+      name: Setup Environment Variables (Windows)
+      shell: bash
+    - run: |
+        set -x
+        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "${{ runner.temp }}/cargo/env"
-        echo "${{ runner.temp }}/cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -1402,34 +1434,42 @@ jobs:
       shell: bash
     - run: |
         set -x
-        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
-        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         echo "RUSTUP_HOME=${{ runner.temp }}/rustup" >> "$GITHUB_ENV"
         echo "CARGO_HOME=${{ runner.temp }}/cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Linux'
+      name: Setup Environment Variables (Linux)
+      shell: bash
+    - run: |
+        set -x
+        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
+        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Windows'
+      name: Setup Environment Variables (Windows)
+      shell: bash
+    - run: |
+        set -x
+        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "${{ runner.temp }}/cargo/env"
-        echo "${{ runner.temp }}/cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -2018,34 +2058,42 @@ jobs:
       shell: bash
     - run: |
         set -x
-        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
-        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         echo "RUSTUP_HOME=${{ runner.temp }}/rustup" >> "$GITHUB_ENV"
         echo "CARGO_HOME=${{ runner.temp }}/cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Linux'
+      name: Setup Environment Variables (Linux)
+      shell: bash
+    - run: |
+        set -x
+        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
+        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Windows'
+      name: Setup Environment Variables (Windows)
+      shell: bash
+    - run: |
+        set -x
+        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "${{ runner.temp }}/cargo/env"
-        echo "${{ runner.temp }}/cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -2365,34 +2413,42 @@ jobs:
       shell: bash
     - run: |
         set -x
-        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
-        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         echo "RUSTUP_HOME=${{ runner.temp }}/rustup" >> "$GITHUB_ENV"
         echo "CARGO_HOME=${{ runner.temp }}/cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Linux'
+      name: Setup Environment Variables (Linux)
+      shell: bash
+    - run: |
+        set -x
+        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
+        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Windows'
+      name: Setup Environment Variables (Windows)
+      shell: bash
+    - run: |
+        set -x
+        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "${{ runner.temp }}/cargo/env"
-        echo "${{ runner.temp }}/cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -2757,34 +2813,42 @@ jobs:
       shell: bash
     - run: |
         set -x
-        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
-        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         echo "RUSTUP_HOME=${{ runner.temp }}/rustup" >> "$GITHUB_ENV"
         echo "CARGO_HOME=${{ runner.temp }}/cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Linux'
+      name: Setup Environment Variables (Linux)
+      shell: bash
+    - run: |
+        set -x
+        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
+        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Windows'
+      name: Setup Environment Variables (Windows)
+      shell: bash
+    - run: |
+        set -x
+        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "${{ runner.temp }}/cargo/env"
-        echo "${{ runner.temp }}/cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -4239,34 +4303,42 @@ jobs:
       shell: bash
     - run: |
         set -x
-        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
-        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         echo "RUSTUP_HOME=${{ runner.temp }}/rustup" >> "$GITHUB_ENV"
         echo "CARGO_HOME=${{ runner.temp }}/cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Linux'
+      name: Setup Environment Variables (Linux)
+      shell: bash
+    - run: |
+        set -x
+        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
+        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Windows'
+      name: Setup Environment Variables (Windows)
+      shell: bash
+    - run: |
+        set -x
+        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "${{ runner.temp }}/cargo/env"
-        echo "${{ runner.temp }}/cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -4375,34 +4447,42 @@ jobs:
       shell: bash
     - run: |
         set -x
-        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
-        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         echo "RUSTUP_HOME=${{ runner.temp }}/rustup" >> "$GITHUB_ENV"
         echo "CARGO_HOME=${{ runner.temp }}/cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Linux'
+      name: Setup Environment Variables (Linux)
+      shell: bash
+    - run: |
+        set -x
+        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
+        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Windows'
+      name: Setup Environment Variables (Windows)
+      shell: bash
+    - run: |
+        set -x
+        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "${{ runner.temp }}/cargo/env"
-        echo "${{ runner.temp }}/cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -4678,34 +4758,42 @@ jobs:
       shell: bash
     - run: |
         set -x
-        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
-        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         echo "RUSTUP_HOME=${{ runner.temp }}/rustup" >> "$GITHUB_ENV"
         echo "CARGO_HOME=${{ runner.temp }}/cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Linux'
+      name: Setup Environment Variables (Linux)
+      shell: bash
+    - run: |
+        set -x
+        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
+        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Windows'
+      name: Setup Environment Variables (Windows)
+      shell: bash
+    - run: |
+        set -x
+        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "${{ runner.temp }}/cargo/env"
-        echo "${{ runner.temp }}/cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -4908,34 +4996,42 @@ jobs:
       shell: bash
     - run: |
         set -x
-        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
-        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         echo "RUSTUP_HOME=${{ runner.temp }}/rustup" >> "$GITHUB_ENV"
         echo "CARGO_HOME=${{ runner.temp }}/cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Linux'
+      name: Setup Environment Variables (Linux)
+      shell: bash
+    - run: |
+        set -x
+        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
+        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Windows'
+      name: Setup Environment Variables (Windows)
+      shell: bash
+    - run: |
+        set -x
+        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "${{ runner.temp }}/cargo/env"
-        echo "${{ runner.temp }}/cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -5150,34 +5246,42 @@ jobs:
       shell: bash
     - run: |
         set -x
-        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
-        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         echo "RUSTUP_HOME=${{ runner.temp }}/rustup" >> "$GITHUB_ENV"
         echo "CARGO_HOME=${{ runner.temp }}/cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Linux'
+      name: Setup Environment Variables (Linux)
+      shell: bash
+    - run: |
+        set -x
+        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
+        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Windows'
+      name: Setup Environment Variables (Windows)
+      shell: bash
+    - run: |
+        set -x
+        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "${{ runner.temp }}/cargo/env"
-        echo "${{ runner.temp }}/cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -5457,34 +5561,42 @@ jobs:
       shell: bash
     - run: |
         set -x
-        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
-        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         echo "RUSTUP_HOME=${{ runner.temp }}/rustup" >> "$GITHUB_ENV"
         echo "CARGO_HOME=${{ runner.temp }}/cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Linux'
+      name: Setup Environment Variables (Linux)
+      shell: bash
+    - run: |
+        set -x
+        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
+        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Windows'
+      name: Setup Environment Variables (Windows)
+      shell: bash
+    - run: |
+        set -x
+        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "${{ runner.temp }}/cargo/env"
-        echo "${{ runner.temp }}/cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -5779,34 +5891,42 @@ jobs:
       shell: bash
     - run: |
         set -x
-        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
-        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         echo "RUSTUP_HOME=${{ runner.temp }}/rustup" >> "$GITHUB_ENV"
         echo "CARGO_HOME=${{ runner.temp }}/cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Linux'
+      name: Setup Environment Variables (Linux)
+      shell: bash
+    - run: |
+        set -x
+        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
+        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Windows'
+      name: Setup Environment Variables (Windows)
+      shell: bash
+    - run: |
+        set -x
+        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "${{ runner.temp }}/cargo/env"
-        echo "${{ runner.temp }}/cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -6089,34 +6209,42 @@ jobs:
       shell: bash
     - run: |
         set -x
-        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
-        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         echo "RUSTUP_HOME=${{ runner.temp }}/rustup" >> "$GITHUB_ENV"
         echo "CARGO_HOME=${{ runner.temp }}/cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Linux'
+      name: Setup Environment Variables (Linux)
+      shell: bash
+    - run: |
+        set -x
+        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
+        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Windows'
+      name: Setup Environment Variables (Windows)
+      shell: bash
+    - run: |
+        set -x
+        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "${{ runner.temp }}/cargo/env"
-        echo "${{ runner.temp }}/cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
@@ -6419,34 +6547,42 @@ jobs:
       shell: bash
     - run: |
         set -x
-        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
-        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         echo "RUSTUP_HOME=${{ runner.temp }}/rustup" >> "$GITHUB_ENV"
         echo "CARGO_HOME=${{ runner.temp }}/cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Linux'
+      name: Setup Environment Variables (Linux)
+      shell: bash
+    - run: |
+        set -x
+        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
+        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
+      if: runner.os == 'Windows'
+      name: Setup Environment Variables (Windows)
+      shell: bash
+    - run: |
+        set -x
+        i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
+        sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "${{ runner.temp }}/cargo/env"
-        echo "${{ runner.temp }}/cargo/bin" >> "$GITHUB_PATH"
+        . "$CARGO_HOME/env"
+        echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'X64'
       name: rustup (Windows X64)
       shell: bash
     - run: |
         set -x
-        echo "RUSTUP_HOME=${{ runner.temp }}\\rustup" >> "$GITHUB_ENV"
-        echo "CARGO_HOME=${{ runner.temp }}\\cargo" >> "$GITHUB_ENV"
         curl -sSfLo rustup-init.exe https://win.rustup.rs/aarch64 --output rustup-init
         ./rustup-init.exe -y
-        echo "${{ runner.temp }}\\cargo\\bin" >> $GITHUB_PATH
+        echo "$CARGO_HOME\\bin" >> $GITHUB_PATH
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
       name: rustup (Windows ARM64)
       shell: bash
