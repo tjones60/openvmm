@@ -171,22 +171,25 @@ impl FlowNode for Node {
                 let sh = xshell::Shell::new()?;
 
                 if !skip_update {
-                    // Retry on failure in case another process has a lock on /var/lib/apt/lists/lock
+                    // Retry on failure in CI
                     // DPkg::Lock::Timeout doesn't seem to work for apt-get update
                     let mut i = 0;
                     while let Err(e) = xshell::cmd!(sh, "sudo apt-get update").run() {
                         i += 1;
-                        if i == 5 {
+                        if i == 5 || interactive {
                             return Err(e.into());
                         }
                         std::thread::sleep(std::time::Duration::from_secs(1));
                     }
                 }
+
                 let auto_accept = (!interactive).then_some("-y");
-                // Wait for any other apt processes to finish
+                // Wait for any other apt processes to finish when running in CI
+                let timeout = (!interactive).then_some("-o DPkg::Lock::Timeout=60");
+
                 xshell::cmd!(
                     sh,
-                    "sudo apt-get -o DPkg::Lock::Timeout=60 install {auto_accept...} {packages...}"
+                    "sudo apt-get {timeout...} {auto_accept...} {packages...}"
                 )
                 .run()?;
 
