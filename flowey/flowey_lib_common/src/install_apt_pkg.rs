@@ -178,6 +178,7 @@ impl FlowNode for Node {
                         if i == 5 {
                             return Err(e.into());
                         }
+                        std::thread::sleep(std::time::Duration::from_secs(1));
                     }
                 }
                 let auto_accept = (!interactive).then_some("-y");
