@@ -186,15 +186,15 @@ impl FlowNode for Node {
                     }
                 }
 
-                let auto_accept = (!interactive).then_some("-y");
-                // Wait for dpkg locks to be released when running in CI
-                let timeout = (!interactive).then_some("-o DPkg::Lock::Timeout=60");
+                let mut options = Vec::new();
+                if !interactive {
+                    // auto accept
+                    options.push("-y");
+                    // Wait for dpkg locks to be released when running in CI
+                    options.extend(["-o", "DPkg::Lock::Timeout=60"]);
+                }
 
-                xshell::cmd!(
-                    sh,
-                    "sudo apt-get {timeout...} {auto_accept...} {packages...}"
-                )
-                .run()?;
+                xshell::cmd!(sh, "sudo apt-get install {options...} {packages...}").run()?;
 
                 Ok(())
             }
