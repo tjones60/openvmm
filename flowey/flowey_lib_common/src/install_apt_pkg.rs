@@ -172,7 +172,13 @@ impl FlowNode for Node {
                 if !skip_update {
                     // retry on failure in case another process has a lock on /var/lib/apt/lists/lock
                     // DPkg::Lock::Timeout doesn't seem to work for apt-get update
-                    xshell::cmd!(sh, "bash -c 'i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let \"i=i+1\"; sleep 1; done;'").run()?;
+                    let mut i = 0;
+                    while let Err(e) = xshell::cmd!(sh, "sudo apt-get update").run() {
+                        i += 1;
+                        if i == 5 {
+                            return Err(e.into());
+                        }
+                    }
                 }
                 let auto_accept = (!interactive).then_some("-y");
                 // Install after other processes have finished
