@@ -36,8 +36,8 @@ jobs:
         i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
         sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$USERPROFILE/.cargo/env"
-        echo "$USERPROFILE/.cargo/bin" >> "$GITHUB_PATH"
+        . "$HOME/.cargo/env"
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -249,8 +249,8 @@ jobs:
         i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
         sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$USERPROFILE/.cargo/env"
-        echo "$USERPROFILE/.cargo/bin" >> "$GITHUB_PATH"
+        . "$HOME/.cargo/env"
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -489,8 +489,8 @@ jobs:
         i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
         sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$USERPROFILE/.cargo/env"
-        echo "$USERPROFILE/.cargo/bin" >> "$GITHUB_PATH"
+        . "$HOME/.cargo/env"
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -929,8 +929,8 @@ jobs:
         i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
         sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$USERPROFILE/.cargo/env"
-        echo "$USERPROFILE/.cargo/bin" >> "$GITHUB_PATH"
+        . "$HOME/.cargo/env"
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -1369,8 +1369,8 @@ jobs:
         i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
         sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$USERPROFILE/.cargo/env"
-        echo "$USERPROFILE/.cargo/bin" >> "$GITHUB_PATH"
+        . "$HOME/.cargo/env"
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -1971,8 +1971,8 @@ jobs:
         i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
         sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$USERPROFILE/.cargo/env"
-        echo "$USERPROFILE/.cargo/bin" >> "$GITHUB_PATH"
+        . "$HOME/.cargo/env"
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -2320,8 +2320,8 @@ jobs:
         i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
         sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$USERPROFILE/.cargo/env"
-        echo "$USERPROFILE/.cargo/bin" >> "$GITHUB_PATH"
+        . "$HOME/.cargo/env"
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -2706,8 +2706,8 @@ jobs:
         i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
         sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$USERPROFILE/.cargo/env"
-        echo "$USERPROFILE/.cargo/bin" >> "$GITHUB_PATH"
+        . "$HOME/.cargo/env"
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -3092,8 +3092,8 @@ jobs:
         i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
         sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$USERPROFILE/.cargo/env"
-        echo "$USERPROFILE/.cargo/bin" >> "$GITHUB_PATH"
+        . "$HOME/.cargo/env"
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -3270,8 +3270,8 @@ jobs:
         i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
         sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$USERPROFILE/.cargo/env"
-        echo "$USERPROFILE/.cargo/bin" >> "$GITHUB_PATH"
+        . "$HOME/.cargo/env"
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -3516,8 +3516,8 @@ jobs:
         i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
         sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$USERPROFILE/.cargo/env"
-        echo "$USERPROFILE/.cargo/bin" >> "$GITHUB_PATH"
+        . "$HOME/.cargo/env"
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -3740,8 +3740,8 @@ jobs:
         i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
         sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$USERPROFILE/.cargo/env"
-        echo "$USERPROFILE/.cargo/bin" >> "$GITHUB_PATH"
+        . "$HOME/.cargo/env"
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -3976,8 +3976,8 @@ jobs:
         i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
         sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$USERPROFILE/.cargo/env"
-        echo "$USERPROFILE/.cargo/bin" >> "$GITHUB_PATH"
+        . "$HOME/.cargo/env"
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -4277,8 +4277,8 @@ jobs:
         i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
         sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$USERPROFILE/.cargo/env"
-        echo "$USERPROFILE/.cargo/bin" >> "$GITHUB_PATH"
+        . "$HOME/.cargo/env"
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -4593,8 +4593,8 @@ jobs:
         i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
         sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$USERPROFILE/.cargo/env"
-        echo "$USERPROFILE/.cargo/bin" >> "$GITHUB_PATH"
+        . "$HOME/.cargo/env"
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -4897,8 +4897,8 @@ jobs:
         i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
         sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$USERPROFILE/.cargo/env"
-        echo "$USERPROFILE/.cargo/bin" >> "$GITHUB_PATH"
+        . "$HOME/.cargo/env"
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)
@@ -5213,8 +5213,8 @@ jobs:
         i=0; while [ $i -lt 5 ] && ! sudo apt-get update; do let "i=i+1"; sleep 1; done;
         sudo apt-get -o DPkg::Lock::Timeout=60 install gcc -y
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        . "$USERPROFILE/.cargo/env"
-        echo "$USERPROFILE/.cargo/bin" >> "$GITHUB_PATH"
+        . "$HOME/.cargo/env"
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
         rustup show
       if: runner.os == 'Linux'
       name: rustup (Linux)

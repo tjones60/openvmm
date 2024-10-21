@@ -170,9 +170,12 @@ impl FlowNode for Node {
 
                 let sh = xshell::Shell::new()?;
 
+                // The apt-get retries below avoid failures in CI that can be
+                // intermittently caused by other processes temporarily holding
+                // the necessary dpkg or apt locks.
+
                 if !skip_update {
                     // Retry on failure in CI
-                    // DPkg::Lock::Timeout doesn't seem to work for apt-get update
                     let mut i = 0;
                     while let Err(e) = xshell::cmd!(sh, "sudo apt-get update").run() {
                         i += 1;
@@ -184,7 +187,7 @@ impl FlowNode for Node {
                 }
 
                 let auto_accept = (!interactive).then_some("-y");
-                // Wait for any other apt processes to finish when running in CI
+                // Wait for dpkg locks to be released when running in CI
                 let timeout = (!interactive).then_some("-o DPkg::Lock::Timeout=60");
 
                 xshell::cmd!(
