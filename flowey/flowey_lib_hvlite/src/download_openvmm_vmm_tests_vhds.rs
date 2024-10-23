@@ -315,7 +315,7 @@ Otherwise, press `ctrl-c` to cancel the run.
                         download_blobs_from_azure(
                             rt,
                             &azcopy_bin,
-                            AzCopyAuthMethod::Device,
+                            AzCopyAuthMethod::None,
                             files_to_download,
                             &output_folder,
                         )?;
@@ -371,7 +371,7 @@ Otherwise, press `ctrl-c` to cancel the run.
                             download_blobs_from_azure(
                                 rt,
                                 &azcopy_bin,
-                                AzCopyAuthMethod::AzureCli,
+                                AzCopyAuthMethod::None,
                                 files_to_download,
                                 &output_folder,
                             )?
@@ -397,7 +397,7 @@ Otherwise, press `ctrl-c` to cancel the run.
                     download_blobs_from_azure(
                         rt,
                         &azcopy_bin,
-                        AzCopyAuthMethod::AzureCli,
+                        AzCopyAuthMethod::None,
                         files_to_download,
                         &output_folder,
                     )
@@ -436,11 +436,15 @@ Otherwise, press `ctrl-c` to cancel the run.
         Ok(())
     }
 }
+
+#[allow(unused)]
 enum AzCopyAuthMethod {
     /// Pull credentials from the Azure CLI instance running the command.
     AzureCli,
     /// Print a link to stdout and require the user to click it to authenticate.
     Device,
+    /// Files do not need authentication
+    None,
 }
 
 fn download_blobs_from_azure(
@@ -467,11 +471,14 @@ fn download_blobs_from_azure(
 
     // Translate the authentication method we're using.
     let auth_method = match azcopy_auth_method {
-        AzCopyAuthMethod::AzureCli => "AZCLI",
-        AzCopyAuthMethod::Device => "DEVICE",
+        AzCopyAuthMethod::AzureCli => Some("AZCLI"),
+        AzCopyAuthMethod::Device => Some("DEVICE"),
+        AzCopyAuthMethod::None => None,
     };
 
-    sh.set_var("AZCOPY_AUTO_LOGIN_TYPE", auth_method);
+    if let Some(auth_method) = auth_method {
+        sh.set_var("AZCOPY_AUTO_LOGIN_TYPE", auth_method);
+    }
     // instead of using return codes to signal success/failure,
     // azcopy forces you to parse execution logs in order to find
     // specific strings to detect if/how a copy has failed
