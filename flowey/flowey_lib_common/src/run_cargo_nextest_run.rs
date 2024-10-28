@@ -582,7 +582,7 @@ impl FlowNode for Node {
                             format!(
                                 r#"
                                 - publish: $({path_var})
-                                  artifact: crash-dumps-{friendly_name}-$(Build.BuildNumber)-{i}"#,
+                                  artifact: {friendly_name}-crash-dumps-{i}"#,
                             )
                         }
                     },

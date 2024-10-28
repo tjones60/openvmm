@@ -8,7 +8,9 @@
 //! When running locally, this will optionally copy the XML files to the provided
 //! artifact directory.
 
+use crate::_util::copy_dir_all;
 use flowey::node::prelude::*;
+use std::collections::BTreeMap;
 
 flowey_request! {
     pub enum Request {
@@ -25,6 +27,8 @@ flowey_request! {
             junit_xml: ReadVar<Option<PathBuf>>,
             /// Brief string used when publishing the test.
             test_label: String,
+            /// Additional attachments for platforms without JUnit integration (not used on ADO)
+            attachments: Option<BTreeMap<String, ReadVar<PathBuf>>>,
             /// Side-effect confirming that the publish has succeeded
             done: WriteVar<SideEffect>,
         },
@@ -42,6 +46,13 @@ impl FlowNode for Node {
     fn imports(_ctx: &mut ImportCtx<'_>) {}
 
     fn emit(requests: Vec<Self::Request>, ctx: &mut NodeCtx<'_>) -> anyhow::Result<()> {
+        struct TestResult {
+            junit_xml: ReadVar<Option<PathBuf>>,
+            label: String,
+            attachments: Option<BTreeMap<String, ReadVar<PathBuf>>>,
+            done: WriteVar<SideEffect>,
+        }
+
         let mut xmls = Vec::new();
         let mut artifact_dir = None;
 
@@ -50,8 +61,14 @@ impl FlowNode for Node {
                 Request::Register {
                     junit_xml,
                     test_label,
+                    attachments,
                     done,
-                } => xmls.push((junit_xml, test_label, done)),
+                } => xmls.push(TestResult {
+                    junit_xml,
+                    label: test_label,
+                    attachments,
+                    done,
+                }),
                 Request::PublishToArtifact(a, b) => same_across_all_reqs_backing_var(
                     "PublishToArtifact",
                     &mut artifact_dir,
@@ -69,7 +86,13 @@ impl FlowNode for Node {
 
         match ctx.backend() {
             FlowBackend::Ado => {
-                for (junit_xml, label, done) in xmls {
+                for TestResult {
+                    junit_xml,
+                    label,
+                    attachments: _,
+                    done,
+                } in xmls
+                {
                     let has_path = junit_xml.map(ctx, |p| p.is_some());
                     let path = junit_xml.map(ctx, |p| {
                         p.map(|p| p.absolute().expect("TEMP").display().to_string())
@@ -100,24 +123,68 @@ impl FlowNode for Node {
             FlowBackend::Github => {
                 let mut use_side_effects = Vec::new();
                 let mut resolve_side_effects = Vec::new();
-                for (junit_xml, label, done) in xmls {
+                for (
+                    idx,
+                    TestResult {
+                        junit_xml,
+                        label,
+                        attachments,
+                        done,
+                    },
+                ) in xmls.into_iter().enumerate()
+                {
                     let has_path = junit_xml.map(ctx, |p| p.is_some());
                     let path = junit_xml.map(ctx, |p| {
-                        p.map(|p| p.absolute().expect("TEMP").display().to_string())
+                        p.map(|p| p.absolute().expect("invalid path").display().to_string())
                             .unwrap_or_default()
                     });
 
                     resolve_side_effects.push(done);
                     use_side_effects.push(
                         ctx.emit_gh_step(
-                            format!("publish JUnit test results: {label}"),
+                            format!("publish test results: {label} (JUnit XML)"),
                             "actions/upload-artifact@v4",
                         )
                         .condition(has_path)
-                        .with("name", label)
+                        .with(
+                            "name",
+                            format!("{}_{idx}_junit_xml", label.replace(' ', "_")),
+                        )
                         .with("path", path)
                         .finish(ctx),
                     );
+                    if let Some(attachments) = attachments {
+                        for (attachment_label, attachment_path) in attachments {
+                            let attachment_exists = attachment_path.map(ctx, |p| {
+                                p.exists()
+                                    && (p.is_file()
+                                        || p.read_dir()
+                                            .expect("failed to read attachment dir")
+                                            .next()
+                                            .is_some())
+                            });
+                            let attachment_path = attachment_path.map(ctx, |p| {
+                                p.absolute().expect("invalid path").display().to_string()
+                            });
+                            use_side_effects.push(
+                                ctx.emit_gh_step(
+                                    format!("publish test results: {label} ({attachment_label})"),
+                                    "actions/upload-artifact@v4",
+                                )
+                                .condition(attachment_exists)
+                                .with(
+                                    "name",
+                                    format!(
+                                        "{}_{idx}_{}",
+                                        label.replace(' ', "_"),
+                                        attachment_label.replace(' ', "_")
+                                    ),
+                                )
+                                .with("path", attachment_path)
+                                .finish(ctx),
+                            );
+                        }
+                    }
                 }
                 ctx.emit_side_effect_step(use_side_effects, resolve_side_effects);
             }
@@ -128,24 +195,52 @@ impl FlowNode for Node {
                         let artifact_dir = artifact_dir.claim(ctx);
                         let xmls = xmls
                             .iter()
-                            .map(|(junit_xml, label, _done)| {
-                                (junit_xml.clone().claim(ctx), label.clone())
-                            })
+                            .map(
+                                |TestResult {
+                                     junit_xml,
+                                     label,
+                                     attachments,
+                                     done: _,
+                                 }| {
+                                    (
+                                        junit_xml.clone().claim(ctx),
+                                        label.clone(),
+                                        attachments.as_ref().map(|x| {
+                                            x.iter()
+                                                .map(|(y, z)| (y.clone(), z.clone().claim(ctx)))
+                                                .collect::<BTreeMap<_, _>>()
+                                        }),
+                                    )
+                                },
+                            )
                             .collect::<Vec<_>>();
                         |rt| {
                             let artifact_dir = rt.read(artifact_dir);
 
-                            for (idx, (path, label)) in xmls.into_iter().enumerate() {
+                            for (idx, (path, label, attachments)) in xmls.into_iter().enumerate() {
                                 let Some(path) = rt.read(path) else {
                                     continue;
                                 };
                                 fs_err::copy(
                                     path,
                                     artifact_dir.join(format!(
-                                        "results_{idx}_{}.xml",
+                                        "{}_{idx}_results.xml",
                                         label.replace(' ', "_")
                                     )),
                                 )?;
+                                if let Some(attachments) = attachments {
+                                    for (attachment_label, attachment_path) in attachments {
+                                        let attachment_path = rt.read(attachment_path);
+                                        copy_dir_all(
+                                            attachment_path,
+                                            artifact_dir.join(format!(
+                                                "{}_{idx}_{}",
+                                                label.replace(' ', "_"),
+                                                attachment_label.replace(' ', "_")
+                                            )),
+                                        )?;
+                                    }
+                                }
                             }
 
                             Ok(())
@@ -156,7 +251,14 @@ impl FlowNode for Node {
                     None
                 };
 
-                let all_done = xmls.into_iter().map(|(_, _, done)| done);
+                let all_done = xmls.into_iter().map(
+                    |TestResult {
+                         junit_xml: _,
+                         label: _,
+                         attachments: _,
+                         done,
+                     }| done,
+                );
                 ctx.emit_side_effect_step(did_copy, all_done);
             }
         }

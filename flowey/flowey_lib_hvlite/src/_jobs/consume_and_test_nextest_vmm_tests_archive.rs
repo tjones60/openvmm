@@ -5,6 +5,7 @@
 
 use crate::run_cargo_nextest_run::NextestProfile;
 use flowey::node::prelude::*;
+use std::collections::BTreeMap;
 
 #[derive(Serialize, Deserialize)]
 pub struct VmmTestsDepArtifacts {
@@ -170,6 +171,9 @@ impl SimpleFlowNode for Node {
                 }),
             ];
 
+        let (test_log_path, get_test_log_path) = ctx.new_var();
+        let (openhcl_dump_path, get_openhcl_dump_path) = ctx.new_var();
+
         let extra_env = ctx.reqv(|v| crate::init_vmm_tests_env::Request {
             test_content_dir,
             vmm_tests_target: target.clone(),
@@ -179,8 +183,8 @@ impl SimpleFlowNode for Node {
             register_guest_test_uefi,
             disk_images_dir,
             register_openhcl_igvm_files,
-            get_test_log_path: None,
-            get_openhcl_dump_path: None,
+            get_test_log_path: Some(get_test_log_path),
+            get_openhcl_dump_path: Some(get_openhcl_dump_path),
             get_env: v,
         });
 
@@ -194,11 +198,15 @@ impl SimpleFlowNode for Node {
         });
 
         let junit_xml = results.map(ctx, |r| r.junit_xml);
+        let mut attachments = BTreeMap::new();
+        attachments.insert("logs".to_string(), test_log_path);
+        attachments.insert("openhcl-dumps".to_string(), openhcl_dump_path);
         let reported_results =
             ctx.reqv(
                 |v| flowey_lib_common::junit_publish_test_results::Request::Register {
                     junit_xml,
                     test_label: junit_test_label,
+                    attachments: Some(attachments),
                     done: v,
                 },
             );

@@ -81,6 +81,7 @@ impl SimpleFlowNode for Node {
                 |v| flowey_lib_common::junit_publish_test_results::Request::Register {
                     junit_xml,
                     test_label: junit_test_label,
+                    attachments: None,
                     done: v,
                 },
             );
