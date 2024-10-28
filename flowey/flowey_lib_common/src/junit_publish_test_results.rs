@@ -146,10 +146,7 @@ impl FlowNode for Node {
                             "actions/upload-artifact@v4",
                         )
                         .condition(has_path)
-                        .with(
-                            "name",
-                            format!("{}_{idx}_junit_xml", label.replace(' ', "_")),
-                        )
+                        .with("name", format!("{label}-{idx}-junit-xml"))
                         .with("path", path)
                         .finish(ctx),
                     );
@@ -172,14 +169,7 @@ impl FlowNode for Node {
                                     "actions/upload-artifact@v4",
                                 )
                                 .condition(attachment_exists)
-                                .with(
-                                    "name",
-                                    format!(
-                                        "{}_{idx}_{}",
-                                        label.replace(' ', "_"),
-                                        attachment_label.replace(' ', "_")
-                                    ),
-                                )
+                                .with("name", format!("{label}-{idx}-{attachment_label}"))
                                 .with("path", attachment_path)
                                 .finish(ctx),
                             );

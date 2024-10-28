@@ -2497,7 +2497,7 @@ jobs:
     - id: flowey_lib_common__junit_publish_test_results__2
       uses: actions/upload-artifact@v4
       with:
-        name: x64-windows-unit-tests_0_junit_xml
+        name: x64-windows-unit-tests-0-junit-xml
         path: ${{ env.floweyvar6 }}
       name: 'publish test results: x64-windows-unit-tests (JUnit XML)'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
@@ -2866,7 +2866,7 @@ jobs:
     - id: flowey_lib_common__junit_publish_test_results__2
       uses: actions/upload-artifact@v4
       with:
-        name: x64-linux-unit-tests_0_junit_xml
+        name: x64-linux-unit-tests-0-junit-xml
         path: ${{ env.floweyvar6 }}
       name: 'publish test results: x64-linux-unit-tests (JUnit XML)'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
@@ -3232,7 +3232,7 @@ jobs:
     - id: flowey_lib_common__junit_publish_test_results__2
       uses: actions/upload-artifact@v4
       with:
-        name: x64-linux-musl-unit-tests_0_junit_xml
+        name: x64-linux-musl-unit-tests-0-junit-xml
         path: ${{ env.floweyvar6 }}
       name: 'publish test results: x64-linux-musl-unit-tests (JUnit XML)'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
@@ -3507,18 +3507,18 @@ jobs:
       run: flowey.exe e 17 flowey_lib_common::junit_publish_test_results 7
       shell: bash
     - run: |
-        flowey.exe v 17 'flowey_lib_common::junit_publish_test_results:10:flowey_lib_common/src/junit_publish_test_results.rs:158:69' --write-to-gh-env FLOWEY_CONDITION
+        flowey.exe v 17 'flowey_lib_common::junit_publish_test_results:10:flowey_lib_common/src/junit_publish_test_results.rs:155:69' --write-to-gh-env FLOWEY_CONDITION
       shell: bash
       name: 🌼❓ Write to 'FLOWEY_CONDITION'
     - run: |
-        flowey.exe v 17 'flowey_lib_common::junit_publish_test_results:12:flowey_lib_common/src/junit_publish_test_results.rs:166:67' --write-to-gh-env floweyvar3 --is-raw-string
+        flowey.exe v 17 'flowey_lib_common::junit_publish_test_results:12:flowey_lib_common/src/junit_publish_test_results.rs:163:67' --write-to-gh-env floweyvar3 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar3'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - id: flowey_lib_common__junit_publish_test_results__8
       uses: actions/upload-artifact@v4
       with:
-        name: x64-windows-intel-vmm-tests_0_openhcl-dumps
+        name: x64-windows-intel-vmm-tests-0-openhcl-dumps
         path: ${{ env.floweyvar3 }}
       name: 'publish test results: x64-windows-intel-vmm-tests (openhcl-dumps)'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
@@ -3543,7 +3543,7 @@ jobs:
     - id: flowey_lib_common__junit_publish_test_results__2
       uses: actions/upload-artifact@v4
       with:
-        name: x64-windows-intel-vmm-tests_0_junit_xml
+        name: x64-windows-intel-vmm-tests-0-junit-xml
         path: ${{ env.floweyvar1 }}
       name: 'publish test results: x64-windows-intel-vmm-tests (JUnit XML)'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
@@ -3554,18 +3554,18 @@ jobs:
       run: flowey.exe e 17 flowey_lib_common::junit_publish_test_results 4
       shell: bash
     - run: |
-        flowey.exe v 17 'flowey_lib_common::junit_publish_test_results:5:flowey_lib_common/src/junit_publish_test_results.rs:158:69' --write-to-gh-env FLOWEY_CONDITION
+        flowey.exe v 17 'flowey_lib_common::junit_publish_test_results:5:flowey_lib_common/src/junit_publish_test_results.rs:155:69' --write-to-gh-env FLOWEY_CONDITION
       shell: bash
       name: 🌼❓ Write to 'FLOWEY_CONDITION'
     - run: |
-        flowey.exe v 17 'flowey_lib_common::junit_publish_test_results:7:flowey_lib_common/src/junit_publish_test_results.rs:166:67' --write-to-gh-env floweyvar2 --is-raw-string
+        flowey.exe v 17 'flowey_lib_common::junit_publish_test_results:7:flowey_lib_common/src/junit_publish_test_results.rs:163:67' --write-to-gh-env floweyvar2 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar2'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - id: flowey_lib_common__junit_publish_test_results__5
       uses: actions/upload-artifact@v4
       with:
-        name: x64-windows-intel-vmm-tests_0_logs
+        name: x64-windows-intel-vmm-tests-0-logs
         path: ${{ env.floweyvar2 }}
       name: 'publish test results: x64-windows-intel-vmm-tests (logs)'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
@@ -3843,18 +3843,18 @@ jobs:
       run: flowey.exe e 18 flowey_lib_common::junit_publish_test_results 7
       shell: bash
     - run: |
-        flowey.exe v 18 'flowey_lib_common::junit_publish_test_results:10:flowey_lib_common/src/junit_publish_test_results.rs:158:69' --write-to-gh-env FLOWEY_CONDITION
+        flowey.exe v 18 'flowey_lib_common::junit_publish_test_results:10:flowey_lib_common/src/junit_publish_test_results.rs:155:69' --write-to-gh-env FLOWEY_CONDITION
       shell: bash
       name: 🌼❓ Write to 'FLOWEY_CONDITION'
     - run: |
-        flowey.exe v 18 'flowey_lib_common::junit_publish_test_results:12:flowey_lib_common/src/junit_publish_test_results.rs:166:67' --write-to-gh-env floweyvar3 --is-raw-string
+        flowey.exe v 18 'flowey_lib_common::junit_publish_test_results:12:flowey_lib_common/src/junit_publish_test_results.rs:163:67' --write-to-gh-env floweyvar3 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar3'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - id: flowey_lib_common__junit_publish_test_results__8
       uses: actions/upload-artifact@v4
       with:
-        name: x64-windows-amd-vmm-tests_0_openhcl-dumps
+        name: x64-windows-amd-vmm-tests-0-openhcl-dumps
         path: ${{ env.floweyvar3 }}
       name: 'publish test results: x64-windows-amd-vmm-tests (openhcl-dumps)'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
@@ -3879,7 +3879,7 @@ jobs:
     - id: flowey_lib_common__junit_publish_test_results__2
       uses: actions/upload-artifact@v4
       with:
-        name: x64-windows-amd-vmm-tests_0_junit_xml
+        name: x64-windows-amd-vmm-tests-0-junit-xml
         path: ${{ env.floweyvar1 }}
       name: 'publish test results: x64-windows-amd-vmm-tests (JUnit XML)'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
@@ -3890,18 +3890,18 @@ jobs:
       run: flowey.exe e 18 flowey_lib_common::junit_publish_test_results 4
       shell: bash
     - run: |
-        flowey.exe v 18 'flowey_lib_common::junit_publish_test_results:5:flowey_lib_common/src/junit_publish_test_results.rs:158:69' --write-to-gh-env FLOWEY_CONDITION
+        flowey.exe v 18 'flowey_lib_common::junit_publish_test_results:5:flowey_lib_common/src/junit_publish_test_results.rs:155:69' --write-to-gh-env FLOWEY_CONDITION
       shell: bash
       name: 🌼❓ Write to 'FLOWEY_CONDITION'
     - run: |
-        flowey.exe v 18 'flowey_lib_common::junit_publish_test_results:7:flowey_lib_common/src/junit_publish_test_results.rs:166:67' --write-to-gh-env floweyvar2 --is-raw-string
+        flowey.exe v 18 'flowey_lib_common::junit_publish_test_results:7:flowey_lib_common/src/junit_publish_test_results.rs:163:67' --write-to-gh-env floweyvar2 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar2'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - id: flowey_lib_common__junit_publish_test_results__5
       uses: actions/upload-artifact@v4
       with:
-        name: x64-windows-amd-vmm-tests_0_logs
+        name: x64-windows-amd-vmm-tests-0-logs
         path: ${{ env.floweyvar2 }}
       name: 'publish test results: x64-windows-amd-vmm-tests (logs)'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
@@ -4178,18 +4178,18 @@ jobs:
       run: flowey e 19 flowey_lib_common::junit_publish_test_results 7
       shell: bash
     - run: |
-        flowey v 19 'flowey_lib_common::junit_publish_test_results:10:flowey_lib_common/src/junit_publish_test_results.rs:158:69' --write-to-gh-env FLOWEY_CONDITION
+        flowey v 19 'flowey_lib_common::junit_publish_test_results:10:flowey_lib_common/src/junit_publish_test_results.rs:155:69' --write-to-gh-env FLOWEY_CONDITION
       shell: bash
       name: 🌼❓ Write to 'FLOWEY_CONDITION'
     - run: |
-        flowey v 19 'flowey_lib_common::junit_publish_test_results:12:flowey_lib_common/src/junit_publish_test_results.rs:166:67' --write-to-gh-env floweyvar3 --is-raw-string
+        flowey v 19 'flowey_lib_common::junit_publish_test_results:12:flowey_lib_common/src/junit_publish_test_results.rs:163:67' --write-to-gh-env floweyvar3 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar3'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - id: flowey_lib_common__junit_publish_test_results__8
       uses: actions/upload-artifact@v4
       with:
-        name: x64-linux-vmm-tests_0_openhcl-dumps
+        name: x64-linux-vmm-tests-0-openhcl-dumps
         path: ${{ env.floweyvar3 }}
       name: 'publish test results: x64-linux-vmm-tests (openhcl-dumps)'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
@@ -4214,7 +4214,7 @@ jobs:
     - id: flowey_lib_common__junit_publish_test_results__2
       uses: actions/upload-artifact@v4
       with:
-        name: x64-linux-vmm-tests_0_junit_xml
+        name: x64-linux-vmm-tests-0-junit-xml
         path: ${{ env.floweyvar1 }}
       name: 'publish test results: x64-linux-vmm-tests (JUnit XML)'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
@@ -4225,18 +4225,18 @@ jobs:
       run: flowey e 19 flowey_lib_common::junit_publish_test_results 4
       shell: bash
     - run: |
-        flowey v 19 'flowey_lib_common::junit_publish_test_results:5:flowey_lib_common/src/junit_publish_test_results.rs:158:69' --write-to-gh-env FLOWEY_CONDITION
+        flowey v 19 'flowey_lib_common::junit_publish_test_results:5:flowey_lib_common/src/junit_publish_test_results.rs:155:69' --write-to-gh-env FLOWEY_CONDITION
       shell: bash
       name: 🌼❓ Write to 'FLOWEY_CONDITION'
     - run: |
-        flowey v 19 'flowey_lib_common::junit_publish_test_results:7:flowey_lib_common/src/junit_publish_test_results.rs:166:67' --write-to-gh-env floweyvar2 --is-raw-string
+        flowey v 19 'flowey_lib_common::junit_publish_test_results:7:flowey_lib_common/src/junit_publish_test_results.rs:163:67' --write-to-gh-env floweyvar2 --is-raw-string
       shell: bash
       name: 🌼 Write to 'floweyvar2'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
     - id: flowey_lib_common__junit_publish_test_results__5
       uses: actions/upload-artifact@v4
       with:
-        name: x64-linux-vmm-tests_0_logs
+        name: x64-linux-vmm-tests-0-logs
         path: ${{ env.floweyvar2 }}
       name: 'publish test results: x64-linux-vmm-tests (logs)'
       if: ${{ fromJSON(env.FLOWEY_CONDITION) }}
