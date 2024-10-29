@@ -49,7 +49,7 @@ impl SimpleFlowNode for Node {
         ctx.import::<crate::build_pipette::Node>();
         ctx.import::<crate::download_openvmm_vmm_tests_vhds::Node>();
         ctx.import::<crate::init_vmm_tests_env::Node>();
-        ctx.import::<flowey_lib_common::junit_publish_test_results::Node>();
+        ctx.import::<flowey_lib_common::publish_test_results::Node>();
     }
 
     fn process_request(request: Self::Request, ctx: &mut NodeCtx<'_>) -> anyhow::Result<()> {
@@ -227,30 +227,24 @@ impl SimpleFlowNode for Node {
 
         let mut side_effects = Vec::new();
 
-        if let Some(artifact_dir) = artifact_dir {
-            let published_artifact = ctx.reqv(|v| {
-                flowey_lib_common::junit_publish_test_results::Request::PublishToArtifact(
-                    artifact_dir,
-                    v,
-                )
-            });
-
-            side_effects.push(published_artifact)
-        }
+        // TODO: Get correct path on linux and more reliably on windows
+        let crash_dumps_path = ReadVar::from_static(PathBuf::from(match ctx.platform().kind() {
+            FlowPlatformKind::Windows => r#"C:\Users\cloudtest\AppData\Local\CrashDumps"#,
+            FlowPlatformKind::Unix => "/will/not/exist",
+        }));
 
         let junit_xml = results.map(ctx, |r| r.junit_xml);
-        let mut attachments = BTreeMap::new();
-        attachments.insert("logs".to_string(), test_log_path);
-        attachments.insert("openhcl-dumps".to_string(), openhcl_dump_path);
-        let reported_results =
-            ctx.reqv(
-                |v| flowey_lib_common::junit_publish_test_results::Request::Register {
-                    junit_xml,
-                    test_label: junit_test_label,
-                    attachments: Some(attachments),
-                    done: v,
-                },
-            );
+        let reported_results = ctx.reqv(|v| flowey_lib_common::publish_test_results::Request {
+            junit_xml,
+            test_label: junit_test_label,
+            attachments: BTreeMap::from([
+                ("logs".to_string(), (test_log_path, false)),
+                ("openhcl-dumps".to_string(), (openhcl_dump_path, false)),
+                ("crash-dumps".to_string(), (crash_dumps_path, true)),
+            ]),
+            output_dir: artifact_dir,
+            done: v,
+        });
 
         side_effects.push(reported_results);
 
