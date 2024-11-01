@@ -182,7 +182,7 @@ impl SimpleFlowNode for Node {
                     exclude.push("xtask_fuzz".into());
                 }
 
-                // sparse_mmap and packages requiring openssl-sys won't cross compile for macos
+                // packages requiring openssl-sys won't cross compile for macos
                 // there is no openvmm artifact for macos yet, so skip petri and vmm_tests
                 if matches!(
                     target.operating_system,

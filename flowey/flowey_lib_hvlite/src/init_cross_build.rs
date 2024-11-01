@@ -7,9 +7,9 @@ use flowey::node::prelude::*;
 use std::collections::BTreeMap;
 
 flowey_request! {
-    pub struct  Request{
-           pub target: target_lexicon::Triple,
-           pub injected_env: WriteVar<BTreeMap<String, String>>,
+    pub struct Request {
+        pub target: target_lexicon::Triple,
+        pub injected_env: WriteVar<BTreeMap<String, String>>,
     }
 }
 
