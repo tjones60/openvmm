@@ -2113,11 +2113,8 @@ jobs:
     - name: run 'unit-tests' nextest tests
       run: flowey.exe e 13 flowey_lib_common::run_cargo_nextest_run 0
       shell: bash
-    - name: checking for crash dumps
-      run: flowey.exe e 13 flowey_lib_common::run_cargo_nextest_run 1
-      shell: bash
     - name: write results
-      run: flowey.exe e 13 flowey_lib_common::run_cargo_nextest_run 2
+      run: flowey.exe e 13 flowey_lib_common::run_cargo_nextest_run 1
       shell: bash
     - name: 🌼 write_into Var
       run: flowey.exe e 13 flowey_lib_hvlite::_jobs::build_and_run_nextest_unit_tests 0
@@ -2485,11 +2482,8 @@ jobs:
     - name: run 'unit-tests' nextest tests
       run: flowey e 14 flowey_lib_common::run_cargo_nextest_run 0
       shell: bash
-    - name: checking for crash dumps
-      run: flowey e 14 flowey_lib_common::run_cargo_nextest_run 1
-      shell: bash
     - name: write results
-      run: flowey e 14 flowey_lib_common::run_cargo_nextest_run 2
+      run: flowey e 14 flowey_lib_common::run_cargo_nextest_run 1
       shell: bash
     - name: 🌼 write_into Var
       run: flowey e 14 flowey_lib_hvlite::_jobs::build_and_run_nextest_unit_tests 0
@@ -2854,11 +2848,8 @@ jobs:
     - name: run 'unit-tests' nextest tests
       run: flowey e 15 flowey_lib_common::run_cargo_nextest_run 0
       shell: bash
-    - name: checking for crash dumps
-      run: flowey e 15 flowey_lib_common::run_cargo_nextest_run 1
-      shell: bash
     - name: write results
-      run: flowey e 15 flowey_lib_common::run_cargo_nextest_run 2
+      run: flowey e 15 flowey_lib_common::run_cargo_nextest_run 1
       shell: bash
     - name: 🌼 write_into Var
       run: flowey e 15 flowey_lib_hvlite::_jobs::build_and_run_nextest_unit_tests 0
@@ -3146,11 +3137,8 @@ jobs:
     - name: run 'vmm_tests' nextest tests
       run: flowey.exe e 16 flowey_lib_common::run_cargo_nextest_run 0
       shell: bash
-    - name: checking for crash dumps
-      run: flowey.exe e 16 flowey_lib_common::run_cargo_nextest_run 1
-      shell: bash
     - name: write results
-      run: flowey.exe e 16 flowey_lib_common::run_cargo_nextest_run 2
+      run: flowey.exe e 16 flowey_lib_common::run_cargo_nextest_run 1
       shell: bash
     - name: 🌼 write_into Var
       run: flowey.exe e 16 flowey_lib_common::publish_test_results 4
@@ -3507,11 +3495,8 @@ jobs:
     - name: run 'vmm_tests' nextest tests
       run: flowey.exe e 17 flowey_lib_common::run_cargo_nextest_run 0
       shell: bash
-    - name: checking for crash dumps
-      run: flowey.exe e 17 flowey_lib_common::run_cargo_nextest_run 1
-      shell: bash
     - name: write results
-      run: flowey.exe e 17 flowey_lib_common::run_cargo_nextest_run 2
+      run: flowey.exe e 17 flowey_lib_common::run_cargo_nextest_run 1
       shell: bash
     - name: 🌼 write_into Var
       run: flowey.exe e 17 flowey_lib_common::publish_test_results 4
@@ -3867,11 +3852,8 @@ jobs:
     - name: run 'vmm_tests' nextest tests
       run: flowey e 18 flowey_lib_common::run_cargo_nextest_run 0
       shell: bash
-    - name: checking for crash dumps
-      run: flowey e 18 flowey_lib_common::run_cargo_nextest_run 1
-      shell: bash
     - name: write results
-      run: flowey e 18 flowey_lib_common::run_cargo_nextest_run 2
+      run: flowey e 18 flowey_lib_common::run_cargo_nextest_run 1
       shell: bash
     - name: 🌼 write_into Var
       run: flowey e 18 flowey_lib_common::publish_test_results 4
