@@ -889,7 +889,7 @@ impl IntoPipeline for CheckinGatesCli {
         ] {
             let test_label = format!("{label}-vmm-tests");
 
-            let pub_vmm_tests_junit_xml = if matches!(backend_hint, PipelineBackendHint::Local) {
+            let pub_vmm_tests_results = if matches!(backend_hint, PipelineBackendHint::Local) {
                 Some(pipeline.new_artifact(&test_label).0)
             } else {
                 None
@@ -931,7 +931,7 @@ impl IntoPipeline for CheckinGatesCli {
                         nextest_filter_expr: nextest_filter_expr.clone(),
                         dep_artifact_dirs: resolve_vmm_tests_artifacts(ctx),
                         fail_job_on_test_fail: true,
-                        artifact_dir: pub_vmm_tests_junit_xml.map(|x| ctx.publish_artifact(x)),
+                        artifact_dir: pub_vmm_tests_results.map(|x| ctx.publish_artifact(x)),
                         done: ctx.new_done_handle(),
                     }
                 });

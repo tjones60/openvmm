@@ -183,6 +183,9 @@ impl FlowNode for Node {
                                     }
                                 },
                             );
+                        } else {
+                            use_side_effects.push(attachment_exists.into_side_effect());
+                            use_side_effects.push(attachment_path_string.into_side_effect());
                         }
                     }
                     FlowBackend::Github => {
