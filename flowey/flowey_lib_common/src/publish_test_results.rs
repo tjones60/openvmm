@@ -25,6 +25,7 @@ flowey_request! {
         /// optional... but this ain't great.
         pub junit_xml: ReadVar<Option<PathBuf>>,
         /// Brief string used when publishing the test.
+        /// Must be unique to the pipeline.
         pub test_label: String,
         /// Additional files or directories to upload
         /// (not used on ADO unless the associated boolean is true).
@@ -54,23 +55,13 @@ impl FlowNode for Node {
         let mut use_side_effects = Vec::new();
         let mut resolve_side_effects = Vec::new();
 
-        let attempt = match ctx.backend() {
-            FlowBackend::Ado => "$(Build.BuildNumber)",
-            FlowBackend::Github => "${{ github.run_attempt }}",
-            // if there is no known way to differentiate between runs, assume 0
-            _ => "0",
-        };
-
-        for (
-            idx,
-            Request {
-                junit_xml,
-                test_label: label,
-                attachments,
-                output_dir,
-                done,
-            },
-        ) in requests.into_iter().enumerate()
+        for Request {
+            junit_xml,
+            test_label: label,
+            attachments,
+            output_dir,
+            done,
+        } in requests
         {
             resolve_side_effects.push(done);
 
@@ -81,7 +72,7 @@ impl FlowNode for Node {
             }
 
             let step_name = format!("publish test results: {label} (JUnit XML)");
-            let artifact_name = format!("{label}-{idx}-{attempt}-junit-xml");
+            let artifact_name = format!("{label}-junit-xml");
 
             let has_junit_xml = junit_xml.map(ctx, |p| p.is_some());
             let junit_xml = junit_xml.map(ctx, |p| p.unwrap_or_default());
@@ -145,7 +136,7 @@ impl FlowNode for Node {
 
             for (attachment_label, (attachment_path, publish_on_ado)) in attachments {
                 let step_name = format!("publish test results: {attachment_label} ({label})");
-                let artifact_name = format!("{label}-{idx}-{attempt}-{attachment_label}");
+                let artifact_name = format!("{label}-{attachment_label}");
 
                 let attachment_exists = attachment_path.map(ctx, |p| {
                     p.exists()
@@ -165,7 +156,10 @@ impl FlowNode for Node {
                             let (published_read, published_write) = ctx.new_var();
                             use_side_effects.push(published_read);
 
-                            // See above comment about manually publishing artifacts
+                            // Note: usually flowey's built-in artifact publishing API
+                            // should be used instead of this, but here we need to
+                            // manually upload the artifact now so that it is still
+                            // uploaded even if the pipeline fails.
                             ctx.emit_ado_step_with_condition(
                                 step_name.clone(),
                                 attachment_exists,
@@ -175,10 +169,14 @@ impl FlowNode for Node {
                                     move |rt| {
                                         let path_var =
                                             rt.get_var(attachment_path_string).as_raw_var_name();
+                                        // Artifact name includes the build number to
+                                        // differentiate between pipeline runs
                                         format!(
                                             r#"
-                                        - publish: $({path_var})
-                                          artifact: {artifact_name}"#,
+                                            - publish: $({path_var})
+                                              artifact: {artifact_name}-$({})
+                                            "#,
+                                            AdoRuntimeVar::BUILD__BUILD_NUMBER.as_raw_var_name()
                                         )
                                     }
                                 },
@@ -193,7 +191,7 @@ impl FlowNode for Node {
                         use_side_effects.push(
                             ctx.emit_gh_step(step_name.clone(), "actions/upload-artifact@v4")
                                 .condition(attachment_exists)
-                                .with("name", artifact_name.clone())
+                                .with("name", artifact_name)
                                 .with("path", attachment_path_string)
                                 .finish(ctx),
                         );
