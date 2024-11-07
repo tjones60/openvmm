@@ -27,12 +27,12 @@ flowey_request! {
         /// Brief string used when publishing the test.
         /// Must be unique to the pipeline.
         pub test_label: String,
-        /// Additional files or directories to upload
-        /// (not used on ADO unless the associated boolean is true).
+        /// Additional files or directories to upload.
         ///
-        /// This is a workaround for platforms that do not have JUnit integration.
-        /// Any attachments listed in the JUnit file (that would have been
-        /// automatically uploaded on ADO) should be listed here.
+        /// The boolean indicates whether the attachment is referenced in the
+        /// JUnit XML file. On backends with native JUnit attachment support,
+        /// these attachments will not be uploaded as distinct artifacts and
+        /// will instead be uploaded via the JUnit integration.
         pub attachments: BTreeMap<String, (ReadVar<PathBuf>, bool)>,
         /// Copy the xml file and attachments to the provided directory.
         /// Only supported on local backend.
@@ -169,14 +169,15 @@ impl FlowNode for Node {
                                     move |rt| {
                                         let path_var =
                                             rt.get_var(attachment_path_string).as_raw_var_name();
-                                        // Artifact name includes the build number to
-                                        // differentiate between pipeline runs
+                                        // Artifact name includes the JobAttempt to
+                                        // differentiate between artifacts that were
+                                        // generated when rerunning failed jobs.
                                         format!(
                                             r#"
                                             - publish: $({path_var})
                                               artifact: {artifact_name}-$({})
                                             "#,
-                                            AdoRuntimeVar::BUILD__BUILD_NUMBER.as_raw_var_name()
+                                            AdoRuntimeVar::SYSTEM__JOB_ATTEMPT.as_raw_var_name()
                                         )
                                     }
                                 },
