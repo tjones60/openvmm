@@ -65,6 +65,7 @@ pub fn linux_self_hosted() -> GhRunner {
     GhRunner::SelfHosted(vec![
         "self-hosted".to_string(),
         "1ES.Pool=OpenVMM-GitHub-Linux-Pool-WestUS3".to_string(),
+        "1ES.ImageOverride=MMSUbuntu22.04-256GB".to_string(),
     ])
 }
 
