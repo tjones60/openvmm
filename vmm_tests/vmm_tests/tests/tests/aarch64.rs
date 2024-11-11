@@ -15,3 +15,12 @@ async fn frontpage(config: PetriVmConfig) -> anyhow::Result<()> {
     assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
     Ok(())
 }
+
+/// Basic boot test.
+#[vmm_test(uefi_aarch64(vhd(ubuntu_2404_server_aarch64)))]
+async fn boot(config: PetriVmConfig) -> anyhow::Result<()> {
+    let (vm, agent) = config.run().await?;
+    agent.power_off().await?;
+    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    Ok(())
+}
