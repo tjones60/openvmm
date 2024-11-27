@@ -21,7 +21,6 @@ use framebuffer::FramebufferAccess;
 use fs_err::File;
 use get_resources::ged::FirmwareEvent;
 use guid::Guid;
-use hvlite_defs::config::Config;
 use hvlite_defs::config::IsolationType;
 use hyperv_ic_resources::shutdown::ShutdownRpc;
 use mesh::MpscReceiver;
@@ -56,18 +55,15 @@ pub(crate) const BOOT_NVME_NSID: u32 = 37;
 /// The LUN ID for the NVMe controller automatically added for boot media.
 pub(crate) const BOOT_NVME_LUN: u32 = 1;
 
-/// Configuration state for a test VM.
-pub struct PetriVmConfig {
+pub(crate) struct PetriVmConfigOpenVMM {
     // Direct configuration related information.
-    firmware: Firmware,
-    arch: MachineArch,
-    config: Config,
+    config: hvlite_defs::config::Config,
 
     // Runtime resources
-    resources: PetriVmResources,
+    resources: PetriVmResourcesOpenVMM,
 
     // Logging
-    hvlite_log_file: File,
+    vmm_log_file: File,
 
     // Resources that are only used during startup.
     ged: Option<get_resources::ged::GuestEmulationDeviceHandle>,
@@ -75,8 +71,20 @@ pub struct PetriVmConfig {
     framebuffer_access: Option<FramebufferAccess>,
 }
 
+pub(crate) enum PetriVmConfigVmmBackend {
+    OpenVMM(PetriVmConfigOpenVMM),
+    HyperV,
+}
+
+/// Configuration state for a test VM.
+pub struct PetriVmConfig {
+    firmware: Firmware,
+    arch: MachineArch,
+    backend: PetriVmConfigVmmBackend,
+}
+
 /// Various channels and resources used to interact with the VM while it is running.
-struct PetriVmResources {
+struct PetriVmResourcesOpenVMM {
     serial_tasks: Vec<Task<anyhow::Result<()>>>,
     firmware_event_recv: MpscReceiver<FirmwareEvent>,
     shutdown_ic_send: Sender<ShutdownRpc>,
@@ -325,4 +333,12 @@ impl PetriVmConfig {
     pub fn os_flavor(&self) -> OsFlavor {
         self.firmware.os_flavor()
     }
+}
+
+/// The VMM to test
+pub enum PetriVmmBackend {
+    /// OpenVMM
+    OpenVMM,
+    /// Hyper-V
+    HyperV,
 }

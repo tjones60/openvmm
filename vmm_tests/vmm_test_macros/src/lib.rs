@@ -684,6 +684,7 @@ fn make_vmm_test(args: Args, item: ItemFn) -> syn::Result<TokenStream> {
                 #arch,
                 resolver.clone(),
                 &driver,
+                ::petri::PetriVmmBackend::OpenVMM,
             )?;
             #original_name(#original_args).await
         }))

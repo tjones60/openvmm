@@ -7,7 +7,10 @@
 use crate::linux_direct_serial_agent::LinuxDirectSerialAgent;
 use crate::openhcl_diag::OpenHclDiagHandler;
 use crate::tracing::trace_attachment;
-use crate::vm::PetriVmResources;
+use crate::vm::PetriVmConfigOpenVMM;
+use crate::vm::PetriVmConfigVmmBackend;
+use crate::vm::PetriVmResourcesOpenVMM;
+use crate::vm::PetriVmmBackend;
 use crate::Firmware;
 use crate::PcatGuest;
 use crate::PetriVmConfig;
@@ -95,6 +98,7 @@ impl PetriVmConfig {
         arch: MachineArch,
         resolver: TestArtifacts,
         driver: &DefaultDriver,
+        backend: PetriVmmBackend,
     ) -> anyhow::Result<Self> {
         // Use the current thread name for the test name, both cargo-test and
         // cargo-nextest set this.
@@ -118,20 +122,31 @@ impl PetriVmConfig {
             driver,
         };
 
-        let TestLogFiles {
-            output_dir,
-            hvlite_file,
-            guest_file,
-            petri_file,
-            openhcl_file,
-        } = setup
+        let (petri_file, log_files) = setup
             .create_log_files()
             .context("failed to create test log files")?;
 
         crate::tracing::try_init_tracing(petri_file.into())?;
 
+        let backend = match backend {
+            PetriVmmBackend::OpenVMM => {
+                PetriVmConfigVmmBackend::OpenVMM(PetriVmConfigOpenVMM::new(setup, log_files)?)
+            }
+            PetriVmmBackend::HyperV => todo!(),
+        };
+
+        Ok(Self {
+            firmware,
+            arch,
+            backend,
+        })
+    }
+}
+
+impl<'a> PetriVmConfigOpenVMM {
+    fn new(setup: PetriVmConfigSetupCore<'a>, log_files: TestLogFiles) -> anyhow::Result<Self> {
         let mut chipset = VmManifestBuilder::new(
-            match firmware {
+            match setup.firmware {
                 Firmware::LinuxDirect {} => {
                     vm_manifest_builder::BaseChipsetType::HyperVGen2LinuxDirect
                 }
@@ -142,7 +157,7 @@ impl PetriVmConfig {
                 Firmware::Pcat { .. } => vm_manifest_builder::BaseChipsetType::HypervGen1,
                 Firmware::Uefi { .. } => vm_manifest_builder::BaseChipsetType::HypervGen2Uefi,
             },
-            match arch {
+            match setup.arch {
                 MachineArch::X86_64 => vm_manifest_builder::MachineArch::X86_64,
                 MachineArch::Aarch64 => vm_manifest_builder::MachineArch::Aarch64,
             },
@@ -154,7 +169,7 @@ impl PetriVmConfig {
             mut emulated_serial_config,
             serial_tasks,
             linux_direct_serial_agent,
-        } = setup.configure_serial(guest_file, openhcl_file)?;
+        } = setup.configure_serial(log_files.guest_file, log_files.openhcl_file)?;
 
         let (video_dev, framebuffer, framebuffer_access) = match setup.config_video()? {
             Some((v, fb, fba)) => {
@@ -169,7 +184,7 @@ impl PetriVmConfig {
         let (firmware_event_send, firmware_event_recv) = mesh::mpsc_channel();
 
         let (with_vtl2, vtl2_vmbus, openhcl_diag_handler, ged, ged_send, mut vtl2_settings) =
-            if firmware.is_openhcl() {
+            if setup.firmware.is_openhcl() {
                 let (ged, ged_send) = setup.config_openhcl_vmbus_devices(
                     &mut emulated_serial_config,
                     &mut devices,
@@ -220,7 +235,7 @@ impl PetriVmConfig {
         // Set so that we don't pull serial data until the guest is
         // ready. Otherwise, Linux will drop the input serial data
         // on the floor during boot.
-        if matches!(firmware, Firmware::LinuxDirect { .. }) {
+        if matches!(setup.firmware, Firmware::LinuxDirect { .. }) {
             chipset = chipset.with_serial_wait_for_rts();
         }
 
@@ -272,12 +287,12 @@ impl PetriVmConfig {
 
             // CPU and RAM
             memory: MemoryConfig {
-                mem_size: if firmware.is_openhcl() {
+                mem_size: if setup.firmware.is_openhcl() {
                     4 * SIZE_1_GB
                 } else {
                     SIZE_1_GB
                 },
-                mmio_gaps: if firmware.is_openhcl() {
+                mmio_gaps: if setup.firmware.is_openhcl() {
                     DEFAULT_MMIO_GAPS_WITH_VTL2.into()
                 } else {
                     DEFAULT_MMIO_GAPS.into()
@@ -301,7 +316,7 @@ impl PetriVmConfig {
                 user_mode_hv_enlightenments: false,
                 user_mode_apic: false,
                 with_vtl2,
-                with_isolation: firmware.isolation(),
+                with_isolation: setup.firmware.isolation(),
             },
             vmbus: Some(VmbusConfig {
                 vsock_listener: Some(vmbus_vsock_listener),
@@ -347,7 +362,7 @@ impl PetriVmConfig {
         let path = config.vmbus.as_ref().unwrap().vsock_path.as_ref().unwrap();
         let path = format!("{path}_{PIPETTE_VSOCK_PORT}");
         let pipette_listener = PolledSocket::new(
-            driver,
+            setup.driver,
             UnixListener::bind(path).context("failed to bind to pipette listener")?,
         )?;
 
@@ -356,7 +371,7 @@ impl PetriVmConfig {
             let path = vtl2_vmbus.vsock_path.as_ref().unwrap();
             let path = format!("{path}_{PIPETTE_VSOCK_PORT}");
             Some(PolledSocket::new(
-                driver,
+                setup.driver,
                 UnixListener::bind(path).context("failed to bind to vtl2 pipette listener")?,
             )?)
         } else {
@@ -364,11 +379,9 @@ impl PetriVmConfig {
         };
 
         Ok(Self {
-            firmware,
-            arch,
             config,
 
-            resources: PetriVmResources {
+            resources: PetriVmResourcesOpenVMM {
                 serial_tasks,
                 firmware_event_recv,
                 shutdown_ic_send,
@@ -378,12 +391,12 @@ impl PetriVmConfig {
                 vtl2_pipette_listener,
                 openhcl_diag_handler,
                 linux_direct_serial_agent,
-                driver: driver.clone(),
-                resolver,
-                output_dir,
+                driver: setup.driver.clone(),
+                resolver: setup.resolver.clone(),
+                output_dir: log_files.output_dir,
             },
 
-            hvlite_log_file: hvlite_file,
+            vmm_log_file: log_files.vmm_file,
 
             ged,
             vtl2_settings,
@@ -408,9 +421,8 @@ struct SerialData {
 
 struct TestLogFiles {
     output_dir: PathBuf,
-    hvlite_file: File,
+    vmm_file: File,
     guest_file: File,
-    petri_file: File,
     openhcl_file: Option<File>,
 }
 
@@ -433,7 +445,7 @@ enum VideoDevice {
 }
 
 impl PetriVmConfigSetupCore<'_> {
-    fn create_log_files(&self) -> anyhow::Result<TestLogFiles> {
+    fn create_log_files(&self) -> anyhow::Result<(File, TestLogFiles)> {
         // DEVNOTE: This function runs before tracing is set up.
 
         let test_log_dir = self.resolver.resolve(common_artifacts::TEST_LOG_DIRECTORY);
@@ -445,7 +457,7 @@ impl PetriVmConfigSetupCore<'_> {
 
         // NOTE: Due to a WSL + Windows defender bug, .txt extensions take forever to create within WSL
         // when cross compiling. Name them .log which works around it.
-        let hvlite_file = File::create(output_dir.join("hvlite.log"))?;
+        let vmm_file = File::create(output_dir.join("hvlite.log"))?;
         let guest_file = File::create(output_dir.join("guest.log"))?;
         let petri_file = File::create(output_dir.join("petri.log"))?;
         let openhcl_file = if self.firmware.is_openhcl() {
@@ -454,20 +466,22 @@ impl PetriVmConfigSetupCore<'_> {
             None
         };
 
-        for attachment in [&hvlite_file, &guest_file, &petri_file]
+        for attachment in [&vmm_file, &guest_file, &petri_file]
             .into_iter()
             .chain(openhcl_file.as_ref())
         {
             trace_attachment(attachment.path());
         }
 
-        Ok(TestLogFiles {
-            output_dir,
-            hvlite_file,
-            guest_file,
+        Ok((
             petri_file,
-            openhcl_file,
-        })
+            TestLogFiles {
+                output_dir,
+                vmm_file,
+                guest_file,
+                openhcl_file,
+            },
+        ))
     }
 
     fn configure_serial(

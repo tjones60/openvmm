@@ -9,6 +9,8 @@ use crate::worker::Worker;
 use crate::Firmware;
 use crate::PetriVm;
 use crate::PetriVmConfig;
+use crate::PetriVmConfigOpenVMM;
+use crate::PetriVmConfigVmmBackend;
 use anyhow::Context;
 use diag_client::DiagClient;
 use disk_backend_resources::FileDiskHandle;
@@ -46,78 +48,83 @@ impl PetriVmConfig {
         let Self {
             firmware,
             arch,
-            mut config,
-
-            resources,
-
-            hvlite_log_file,
-
-            ged,
-            vtl2_settings,
-            framebuffer_access,
+            backend,
         } = self;
 
-        // Add the GED and VTL 2 settings.
-        if let Some(mut ged) = ged {
-            ged.vtl2_settings = Some(prost::Message::encode_to_vec(&vtl2_settings.unwrap()));
-            config
-                .vmbus_devices
-                .push((DeviceVtl::Vtl2, ged.into_resource()));
-        }
-
-        let vtl2_vsock_path = config
-            .vtl2_vmbus
-            .as_ref()
-            .and_then(|s| s.vsock_path.as_ref().map(|v| v.into()));
-
-        tracing::debug!(?config, ?firmware, ?arch, "VM config");
-
-        let mesh = Mesh::new("petri_mesh".to_string())?;
-
-        let host = Self::hvlite_host(&mesh, &resources.resolver, hvlite_log_file)
-            .await
-            .context("failed to create host process")?;
-        let (worker, halt_notif) = Worker::launch(&host, config)
-            .await
-            .context("failed to launch vm worker")?;
-
-        let worker = Arc::new(worker);
-        let watchdog_tasks = Self::start_watchdog_tasks(
-            framebuffer_access,
-            worker.clone(),
-            vtl2_vsock_path,
-            &resources.output_dir,
-            &resources.driver,
-        )?;
-
-        let mut vm = PetriVm::new(
-            super::runtime::PetriVmInner {
+        if let PetriVmConfigVmmBackend::OpenVMM(backend) = backend {
+            let PetriVmConfigOpenVMM {
+                mut config,
                 resources,
-                mesh,
-                worker,
-                watchdog_tasks,
-                quirks: firmware.quirks(),
-            },
-            halt_notif,
-        );
+                vmm_log_file,
+                ged,
+                vtl2_settings,
+                framebuffer_access,
+            } = backend;
 
-        tracing::info!("Resuming VM");
-        vm.resume().await?;
+            // Add the GED and VTL 2 settings.
+            if let Some(mut ged) = ged {
+                ged.vtl2_settings = Some(prost::Message::encode_to_vec(&vtl2_settings.unwrap()));
+                config
+                    .vmbus_devices
+                    .push((DeviceVtl::Vtl2, ged.into_resource()));
+            }
 
-        // Run basic save/restore test that should run on every vm
-        // TODO: OpenHCL needs virt_whp support
-        // TODO: PCAT needs vga device support
-        // TODO: arm64 is broken?
-        if !firmware.is_openhcl()
-            && !matches!(firmware, Firmware::Pcat { .. })
-            && !matches!(arch, MachineArch::Aarch64)
-        {
-            tracing::info!("Testing save/restore");
-            vm.verify_save_restore().await?;
+            let vtl2_vsock_path = config
+                .vtl2_vmbus
+                .as_ref()
+                .and_then(|s| s.vsock_path.as_ref().map(|v| v.into()));
+
+            tracing::debug!(?config, ?firmware, ?arch, "VM config");
+
+            let mesh = Mesh::new("petri_mesh".to_string())?;
+
+            let host = Self::hvlite_host(&mesh, &resources.resolver, vmm_log_file)
+                .await
+                .context("failed to create host process")?;
+            let (worker, halt_notif) = Worker::launch(&host, config)
+                .await
+                .context("failed to launch vm worker")?;
+
+            let worker = Arc::new(worker);
+            let watchdog_tasks = Self::start_watchdog_tasks(
+                framebuffer_access,
+                worker.clone(),
+                vtl2_vsock_path,
+                &resources.output_dir,
+                &resources.driver,
+            )?;
+
+            let mut vm = PetriVm::new(
+                super::runtime::PetriVmInner {
+                    resources,
+                    mesh,
+                    worker,
+                    watchdog_tasks,
+                    quirks: firmware.quirks(),
+                },
+                halt_notif,
+            );
+
+            tracing::info!("Resuming VM");
+            vm.resume().await?;
+
+            // Run basic save/restore test that should run on every vm
+            // TODO: OpenHCL needs virt_whp support
+            // TODO: PCAT needs vga device support
+            // TODO: arm64 is broken?
+            if !firmware.is_openhcl()
+                && !matches!(firmware, Firmware::Pcat { .. })
+                && !matches!(arch, MachineArch::Aarch64)
+            {
+                tracing::info!("Testing save/restore");
+                vm.verify_save_restore().await?;
+            }
+
+            tracing::info!("VM ready");
+            Ok(vm)
+        } else {
+            panic!("Incorrect backend.")
         }
-
-        tracing::info!("VM ready");
-        Ok(vm)
     }
 
     /// Build and boot the requested VM. Does not configure and start pipette.
@@ -137,75 +144,25 @@ impl PetriVmConfig {
     /// for it to connect. This is useful for tests where the first boot attempt
     /// is expected to not succeed, but pipette functionality is still desired.
     pub async fn run_with_lazy_pipette(mut self) -> anyhow::Result<PetriVm> {
-        const CIDATA_SCSI_INSTANCE: Guid =
-            Guid::from_static_str("766e96f8-2ceb-437e-afe3-a93169e48a7b");
+        if let PetriVmConfigVmmBackend::OpenVMM(backend) = &mut self.backend {
+            const CIDATA_SCSI_INSTANCE: Guid =
+                Guid::from_static_str("766e96f8-2ceb-437e-afe3-a93169e48a7b");
 
-        // Construct the agent disk.
-        let agent_disk = build_agent_image(
-            self.arch,
-            self.firmware.os_flavor(),
-            &self.resources.resolver,
-        )
-        .context("failed to build agent image")?;
+            // Construct the agent disk.
+            let agent_disk = build_agent_image(
+                self.arch,
+                self.firmware.os_flavor(),
+                &backend.resources.resolver,
+            )
+            .context("failed to build agent image")?;
 
-        // Add a SCSI controller to contain the agent disk. Don't reuse an
-        // existing controller so that we can avoid interfering with
-        // test-specific configuration.
-        self.config.vmbus_devices.push((
-            DeviceVtl::Vtl0,
-            ScsiControllerHandle {
-                instance_id: CIDATA_SCSI_INSTANCE,
-                max_sub_channel_count: 1,
-                io_queue_depth: None,
-                devices: vec![ScsiDeviceAndPath {
-                    path: ScsiPath {
-                        path: 0,
-                        target: 0,
-                        lun: 0,
-                    },
-                    device: SimpleScsiDiskHandle {
-                        read_only: true,
-                        parameters: Default::default(),
-                        disk: FileDiskHandle(agent_disk).into_resource(),
-                    }
-                    .into_resource(),
-                }],
-                requests: None,
-            }
-            .into_resource(),
-        ));
-
-        if matches!(self.firmware.os_flavor(), OsFlavor::Windows) {
-            // Make a file for the IMC hive. It's not guaranteed to be at a fixed
-            // location at runtime.
-            let mut imc_hive_file = tempfile::tempfile().context("failed to create temp file")?;
-            imc_hive_file
-                .write_all(include_bytes!("../../guest-bootstrap/imc.hiv"))
-                .context("failed to write imc hive")?;
-
-            // Add the IMC device.
-            self.config.vmbus_devices.push((
+            // Add a SCSI controller to contain the agent disk. Don't reuse an
+            // existing controller so that we can avoid interfering with
+            // test-specific configuration.
+            backend.config.vmbus_devices.push((
                 DeviceVtl::Vtl0,
-                vmbfs_resources::VmbfsImcDeviceHandle {
-                    file: imc_hive_file,
-                }
-                .into_resource(),
-            ));
-        }
-
-        if self.firmware.is_openhcl() {
-            // Add a second pipette disk for VTL 2
-            const UH_CIDATA_SCSI_INSTANCE: Guid =
-                Guid::from_static_str("766e96f8-2ceb-437e-afe3-a93169e48a7c");
-
-            let uh_agent_disk =
-                build_agent_image(self.arch, OsFlavor::Linux, &self.resources.resolver)
-                    .context("failed to build agent image")?;
-
-            self.config.vmbus_devices.push((
-                DeviceVtl::Vtl2,
                 ScsiControllerHandle {
-                    instance_id: UH_CIDATA_SCSI_INSTANCE,
+                    instance_id: CIDATA_SCSI_INSTANCE,
                     max_sub_channel_count: 1,
                     io_queue_depth: None,
                     devices: vec![ScsiDeviceAndPath {
@@ -217,7 +174,7 @@ impl PetriVmConfig {
                         device: SimpleScsiDiskHandle {
                             read_only: true,
                             parameters: Default::default(),
-                            disk: FileDiskHandle(uh_agent_disk).into_resource(),
+                            disk: FileDiskHandle(agent_disk).into_resource(),
                         }
                         .into_resource(),
                     }],
@@ -225,18 +182,75 @@ impl PetriVmConfig {
                 }
                 .into_resource(),
             ));
+
+            if matches!(self.firmware.os_flavor(), OsFlavor::Windows) {
+                // Make a file for the IMC hive. It's not guaranteed to be at a fixed
+                // location at runtime.
+                let mut imc_hive_file =
+                    tempfile::tempfile().context("failed to create temp file")?;
+                imc_hive_file
+                    .write_all(include_bytes!("../../guest-bootstrap/imc.hiv"))
+                    .context("failed to write imc hive")?;
+
+                // Add the IMC device.
+                backend.config.vmbus_devices.push((
+                    DeviceVtl::Vtl0,
+                    vmbfs_resources::VmbfsImcDeviceHandle {
+                        file: imc_hive_file,
+                    }
+                    .into_resource(),
+                ));
+            }
+
+            if self.firmware.is_openhcl() {
+                // Add a second pipette disk for VTL 2
+                const UH_CIDATA_SCSI_INSTANCE: Guid =
+                    Guid::from_static_str("766e96f8-2ceb-437e-afe3-a93169e48a7c");
+
+                let uh_agent_disk =
+                    build_agent_image(self.arch, OsFlavor::Linux, &backend.resources.resolver)
+                        .context("failed to build agent image")?;
+
+                backend.config.vmbus_devices.push((
+                    DeviceVtl::Vtl2,
+                    ScsiControllerHandle {
+                        instance_id: UH_CIDATA_SCSI_INSTANCE,
+                        max_sub_channel_count: 1,
+                        io_queue_depth: None,
+                        devices: vec![ScsiDeviceAndPath {
+                            path: ScsiPath {
+                                path: 0,
+                                target: 0,
+                                lun: 0,
+                            },
+                            device: SimpleScsiDiskHandle {
+                                read_only: true,
+                                parameters: Default::default(),
+                                disk: FileDiskHandle(uh_agent_disk).into_resource(),
+                            }
+                            .into_resource(),
+                        }],
+                        requests: None,
+                    }
+                    .into_resource(),
+                ));
+            }
+
+            let is_linux_direct = self.firmware.is_linux_direct();
+
+            // Start the VM.
+            let mut vm = self.run_core().await?;
+
+            if is_linux_direct {
+                vm.launch_linux_direct_pipette().await?;
+            }
+
+            Ok(vm)
+        } else {
+            panic!(
+                "Modifying the VM configuration in this way is only supported for OpenVMM backend."
+            )
         }
-
-        let is_linux_direct = self.firmware.is_linux_direct();
-
-        // Start the VM.
-        let mut vm = self.run_core().await?;
-
-        if is_linux_direct {
-            vm.launch_linux_direct_pipette().await?;
-        }
-
-        Ok(vm)
     }
 
     fn start_watchdog_tasks(

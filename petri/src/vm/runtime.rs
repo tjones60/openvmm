@@ -3,7 +3,7 @@
 
 //! Methods to interact with a running [`PetriVm`].
 
-use super::PetriVmResources;
+use super::PetriVmResourcesOpenVMM;
 use crate::openhcl_diag::OpenHclDiagHandler;
 use crate::worker::Worker;
 use crate::ShutdownKind;
@@ -41,7 +41,7 @@ pub struct PetriVm {
 }
 
 pub(super) struct PetriVmInner {
-    pub(super) resources: PetriVmResources,
+    pub(super) resources: PetriVmResourcesOpenVMM,
     pub(super) mesh: Mesh,
     pub(super) worker: Arc<Worker>,
     pub(super) watchdog_tasks: Vec<Task<()>>,
