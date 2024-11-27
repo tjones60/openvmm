@@ -44,7 +44,7 @@ mod test {
     #[test]
     fn hyperv_test() {
         let config = PetriVmConfigHyperV {
-            name: "testvm".to_string(),
+            name: "petritestvm".to_string(),
         };
         let vm = config.run().unwrap();
         vm.wait_for_teardown().unwrap();
