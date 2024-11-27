@@ -5072,6 +5072,7 @@ name = "petri"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "chipset_resources",
  "diag_client",
  "disk_backend_resources",
@@ -5108,6 +5109,7 @@ dependencies = [
  "serial_16550_resources",
  "serial_core",
  "serial_socket",
+ "socket2",
  "sparse_mmap",
  "storvsp_resources",
  "tempfile",
@@ -5126,6 +5128,7 @@ dependencies = [
  "vmgs_format",
  "vmm_core_defs",
  "vmotherboard",
+ "vmsocket",
  "vtl2_settings_proto",
 ]
 
