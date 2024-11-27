@@ -644,7 +644,7 @@ fn make_vmm_test(args: Args, item: ItemFn) -> syn::Result<TokenStream> {
             3 => quote! {config, resolver, driver },
             _ => return Err(Error::new(
                 item.sig.inputs.span(),
-                "expected 1, 2, or 3 arguments (the PetriVmConfig, ArtifactResolver, and Driver)",
+                "expected 1, 2, or 3 arguments (the PetriVmConfigOpenVMM, ArtifactResolver, and Driver)",
             )),
         };
 
@@ -679,7 +679,7 @@ fn make_vmm_test(args: Args, item: ItemFn) -> syn::Result<TokenStream> {
                 #( .require(#extra_deps) )*
                 #( .try_require(#optional_deps) )*
                 .finalize();
-            let config = PetriVmConfig::new(
+            let config = PetriVmConfigOpenVMM::new(
                 #firmware,
                 #arch,
                 resolver.clone(),

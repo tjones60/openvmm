@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-//! Methods to interact with a running [`PetriVm`].
+//! Methods to interact with a running [`PetriVmOpenVMM`].
 
-use super::PetriVmResources;
+use super::PetriVmResourcesOpenVMM;
 use crate::openhcl_diag::OpenHclDiagHandler;
 use crate::worker::Worker;
 use crate::ShutdownKind;
@@ -35,13 +35,13 @@ use vmm_core_defs::HaltReason;
 // DEVNOTE: Really the PetriVmInner is the actual VM and channels that we interact
 // with. This struct exists as a wrapper to provide error handling, such as not
 // hanging indefinitely when waiting on certain channels if the VM crashes.
-pub struct PetriVm {
+pub struct PetriVmOpenVMM {
     inner: PetriVmInner,
     halt: PetriVmHaltReceiver,
 }
 
 pub(super) struct PetriVmInner {
-    pub(super) resources: PetriVmResources,
+    pub(super) resources: PetriVmResourcesOpenVMM,
     pub(super) mesh: Mesh,
     pub(super) worker: Arc<Worker>,
     pub(super) watchdog_tasks: Vec<Task<()>>,
@@ -53,7 +53,7 @@ struct PetriVmHaltReceiver {
     already_received: Option<Result<HaltReason, RecvError>>,
 }
 
-// Wrap a PetriVmInner function in [`PetriVm::wait_for_halt_or_internal`] to
+// Wrap a PetriVmInner function in [`PetriVmOpenVMM::wait_for_halt_or_internal`] to
 // provide better error handling.
 macro_rules! petri_vm_fn {
     ($(#[$($attrss:tt)*])* $vis:vis async fn $fn_name:ident (&mut self $(,$arg:ident: $ty:ty)*) $(-> $ret:ty)?) => {
@@ -64,7 +64,7 @@ macro_rules! petri_vm_fn {
     };
 }
 
-impl PetriVm {
+impl PetriVmOpenVMM {
     pub(super) fn new(inner: PetriVmInner, halt_notif: Receiver<HaltReason>) -> Self {
         Self {
             inner,
