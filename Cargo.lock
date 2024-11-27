@@ -4847,6 +4847,7 @@ name = "petri"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "chipset_resources",
  "diag_client",
  "disk_backend_resources",
