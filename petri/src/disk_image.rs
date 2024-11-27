@@ -15,19 +15,27 @@ use std::io::Write;
 use std::ops::Range;
 use std::path::Path;
 
+pub enum ImageType {
+    Raw,
+    #[cfg_attr(not(windows), allow(dead_code))]
+    Vhd,
+}
+
 /// Builds a disk image containing pipette and any files needed for the guest VM
 /// to run pipette.
 pub fn build_agent_image(
     arch: MachineArch,
     os_flavor: OsFlavor,
     resolver: &TestArtifacts,
+    path: Option<&Path>,
+    image_type: ImageType,
 ) -> anyhow::Result<std::fs::File> {
     match os_flavor {
         OsFlavor::Windows => {
             // Windows doesn't use cloud-init, so we only need pipette
             // (which is configured via the IMC hive).
             build_disk_image(
-                b"pipette    ",
+                "PIPETTE",
                 &[(
                     "pipette.exe",
                     PathOrBinary::Path(&resolver.resolve(match arch {
@@ -35,13 +43,19 @@ pub fn build_agent_image(
                         MachineArch::Aarch64 => common_artifacts::PIPETTE_WINDOWS_AARCH64.erase(),
                     })),
                 )],
+                path,
+                image_type,
             )
         }
         OsFlavor::Linux => {
             // Linux uses cloud-init, so we need to include the cloud-init
             // configuration files as well.
             build_disk_image(
-                b"cidata     ", // cloud-init looks for a volume label of "cidata",
+                // cloud-init looks for a volume label of "CIDATA"
+                // volume labels are always all caps when creating VHDs on
+                // Windows, so just always use all caps since Linux is case
+                // sensitive
+                "CIDATA",
                 &[
                     (
                         "pipette",
@@ -65,6 +79,8 @@ pub fn build_agent_image(
                         PathOrBinary::Binary(include_bytes!("../guest-bootstrap/network-config")),
                     ),
                 ],
+                path,
+                image_type,
             )
         }
         OsFlavor::FreeBsd | OsFlavor::Uefi => {
@@ -80,10 +96,39 @@ enum PathOrBinary<'a> {
 }
 
 fn build_disk_image(
+    volume_label: &str,
+    files: &[(&str, PathOrBinary<'_>)],
+    path: Option<&Path>,
+    image_type: ImageType,
+) -> anyhow::Result<std::fs::File> {
+    match image_type {
+        ImageType::Raw => build_disk_image_raw(
+            format!("{volume_label:<11}").as_bytes().try_into()?,
+            files,
+            path,
+        ),
+        #[cfg(windows)]
+        ImageType::Vhd => build_disk_image_vhd(
+            volume_label,
+            files,
+            path.expect("file name required for vhd image"),
+        ),
+        #[cfg(not(windows))]
+        ImageType::Vhd => anyhow::bail!("creating VHDs is only supported on Windows"),
+    }
+}
+
+fn build_disk_image_raw(
     volume_label: &[u8; 11],
     files: &[(&str, PathOrBinary<'_>)],
+    path: Option<&Path>,
 ) -> anyhow::Result<std::fs::File> {
-    let mut file = tempfile::tempfile().context("failed to make temp file")?;
+    let mut file = if let Some(path) = path {
+        std::fs::File::create_new(path).context("failed to create disk image file")?
+    } else {
+        tempfile::tempfile().context("failed to make temp file")?
+    };
+
     file.set_len(64 * 1024 * 1024)
         .context("failed to set file size")?;
 
@@ -96,6 +141,35 @@ fn build_disk_image(
     )
     .context("failed to format volume")?;
     Ok(file)
+}
+
+#[cfg(windows)]
+fn build_disk_image_vhd(
+    volume_label: &str,
+    files: &[(&str, PathOrBinary<'_>)],
+    vhd_path: &Path,
+) -> anyhow::Result<std::fs::File> {
+    let disk_letter =
+        crate::hyperv::powershell::create_vhd(crate::hyperv::powershell::CreateVhdArgs {
+            path: vhd_path,
+            label: volume_label,
+        })?;
+    for (path, src) in files {
+        let mut dest = std::fs::File::create_new(format!("{disk_letter}:\\{path}"))
+            .context("failed to create file")?;
+        match *src {
+            PathOrBinary::Path(src_path) => {
+                let mut src = fs_err::File::open(src_path)?;
+                std::io::copy(&mut src, &mut dest).context("failed to copy file")?;
+            }
+            PathOrBinary::Binary(src_data) => {
+                dest.write_all(src_data).context("failed to write file")?;
+            }
+        }
+    }
+    crate::hyperv::powershell::run_dismount_vhd(vhd_path)?;
+
+    Ok(std::fs::File::open(vhd_path)?)
 }
 
 fn build_gpt(file: &mut (impl Read + Write + Seek), name: &str) -> anyhow::Result<Range<u64>> {

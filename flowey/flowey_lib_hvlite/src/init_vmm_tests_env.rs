@@ -48,6 +48,8 @@ flowey_request! {
         pub get_openhcl_dump_path: Option<WriteVar<PathBuf>>,
         /// Get a map of env vars required to be set when running VMM tests
         pub get_env: WriteVar<BTreeMap<String, String>>,
+        /// Add registry key to allow pipette to communicate with Hyper-V VMs
+        pub add_hyperv_pipette_reg_key: bool,
     }
 }
 
@@ -74,6 +76,7 @@ impl SimpleFlowNode for Node {
             get_test_log_path,
             get_openhcl_dump_path,
             get_env,
+            add_hyperv_pipette_reg_key,
         } = request;
 
         let openvmm_deps_arch = match vmm_tests_target.architecture {
@@ -271,6 +274,11 @@ impl SimpleFlowNode for Node {
 
                 if let Some(var) = get_openhcl_dump_path {
                     rt.write(var, &openhcl_dumps_dir)
+                }
+
+                if add_hyperv_pipette_reg_key && rt.platform() == FlowPlatform::Windows {
+                    let sh = xshell::Shell::new()?;
+                    xshell::cmd!(sh, "reg add \"HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Virtualization\\GuestCommunicationServices\\00001337-facb-11e6-bd58-64006a7986d3\" /v ElementName /t REG_SZ /d \"pipette\" /f").run()?;
                 }
 
                 Ok(())

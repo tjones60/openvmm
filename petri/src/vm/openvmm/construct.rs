@@ -1,16 +1,17 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-//! Contains [`PetriVmConfig::new`], which builds a [`PetriVmConfig`] with all
+//! Contains [`PetriVmConfigOpenVmm::new`], which builds a [`PetriVmConfigOpenVmm`] with all
 //! default settings for a given [`Firmware`] and [`MachineArch`].
 
+use super::PetriVmResourcesOpenVmm;
 use crate::linux_direct_serial_agent::LinuxDirectSerialAgent;
 use crate::openhcl_diag::OpenHclDiagHandler;
 use crate::tracing::trace_attachment;
-use crate::vm::PetriVmResources;
 use crate::Firmware;
+use crate::IsolationType;
 use crate::PcatGuest;
-use crate::PetriVmConfig;
+use crate::PetriVmConfigOpenVmm;
 use crate::UefiGuest;
 use crate::BOOT_NVME_INSTANCE;
 use crate::BOOT_NVME_LUN;
@@ -90,7 +91,7 @@ use vmbus_serial_resources::VmbusSerialDeviceHandle;
 use vmbus_serial_resources::VmbusSerialPort;
 use vtl2_settings_proto::Vtl2Settings;
 
-impl PetriVmConfig {
+impl PetriVmConfigOpenVmm {
     /// Create a new VM configuration.
     pub fn new(
         firmware: Firmware,
@@ -98,20 +99,8 @@ impl PetriVmConfig {
         resolver: TestArtifacts,
         driver: &DefaultDriver,
     ) -> anyhow::Result<Self> {
-        // Use the current thread name for the test name, both cargo-test and
-        // cargo-nextest set this.
-        // FUTURE: If we ever want to use petri outside a testing context this
-        // will need to be revisited.
-        let current_thread = std::thread::current();
-        let test_name = current_thread.name().context("no thread name configured")?;
-        if test_name.is_empty() {
-            anyhow::bail!("thread name is empty");
-        }
-        if test_name == "main" {
-            anyhow::bail!("thread name is 'main', not running from test thread");
-        }
-        // Windows paths can't include colons, replace them.
-        let test_name = test_name.replace("::", "__");
+        let test_name = crate::get_test_name()?;
+
         let setup = PetriVmConfigSetupCore {
             test_name: &test_name,
             arch,
@@ -306,7 +295,11 @@ impl PetriVmConfig {
                 user_mode_hv_enlightenments: false,
                 user_mode_apic: false,
                 with_vtl2,
-                with_isolation: firmware.isolation(),
+                with_isolation: match firmware.isolation() {
+                    Some(IsolationType::Vbs) => Some(hvlite_defs::config::IsolationType::Vbs),
+                    None => None,
+                    _ => anyhow::bail!("unsupported isolation type"),
+                },
             },
             vmbus: Some(VmbusConfig {
                 vsock_listener: Some(vmbus_vsock_listener),
@@ -373,7 +366,7 @@ impl PetriVmConfig {
             arch,
             config,
 
-            resources: PetriVmResources {
+            resources: PetriVmResourcesOpenVmm {
                 serial_tasks,
                 firmware_event_recv,
                 shutdown_ic_send,
