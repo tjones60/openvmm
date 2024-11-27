@@ -3,13 +3,13 @@
 
 //! Integration tests that run on more than one architecture.
 
-use petri::PetriVmConfig;
+use petri::PetriVmConfigOpenVMM;
 use vmm_core_defs::HaltReason;
 use vmm_test_macros::vmm_test;
 
 /// Boot through the UEFI firmware, it will shut itself down after booting.
 #[vmm_test(uefi_x64(none), openhcl_uefi_x64(none), uefi_aarch64(none))]
-async fn frontpage(config: PetriVmConfig) -> anyhow::Result<()> {
+async fn frontpage(config: PetriVmConfigOpenVMM) -> anyhow::Result<()> {
     let mut vm = config.run_without_agent().await?;
     vm.wait_for_successful_boot_event().await?;
     assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
@@ -28,7 +28,7 @@ async fn frontpage(config: PetriVmConfig) -> anyhow::Result<()> {
     pcat_x64(vhd(ubuntu_2204_server_x64)),
     uefi_aarch64(vhd(ubuntu_2404_server_aarch64))
 )]
-async fn boot(config: PetriVmConfig) -> anyhow::Result<()> {
+async fn boot(config: PetriVmConfigOpenVMM) -> anyhow::Result<()> {
     let (vm, agent) = config.run().await?;
     agent.power_off().await?;
     assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);

@@ -6,13 +6,13 @@
 use hvlite_defs::config::ProcessorTopologyConfig;
 use hvlite_defs::config::X2ApicConfig;
 use hvlite_defs::config::X86TopologyConfig;
-use petri::PetriVmConfig;
+use petri::PetriVmConfigOpenVMM;
 use vmm_core_defs::HaltReason;
 use vmm_test_macros::vmm_test;
 
 /// Validate we can run with VP index != APIC ID.
 #[vmm_test(linux_direct_x64)]
-async fn apicid_offset(config: PetriVmConfig) -> Result<(), anyhow::Error> {
+async fn apicid_offset(config: PetriVmConfigOpenVMM) -> Result<(), anyhow::Error> {
     let (vm, agent) = config
         .with_custom_config(|c| c.processor_topology.arch.apic_id_offset = 16)
         .run()
@@ -28,7 +28,7 @@ async fn apicid_offset(config: PetriVmConfig) -> Result<(), anyhow::Error> {
 
 /// Boot Linux with legacy xapic with 2 VPs and apic_ids of 253 and 254, the maximum.
 #[vmm_test(linux_direct_x64)]
-async fn legacy_xapic(config: PetriVmConfig) -> Result<(), anyhow::Error> {
+async fn legacy_xapic(config: PetriVmConfigOpenVMM) -> Result<(), anyhow::Error> {
     let (vm, agent) = config
         .with_custom_config(|c| {
             c.processor_topology = ProcessorTopologyConfig {

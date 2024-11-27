@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-//! Helpers to modify a [`PetriVmConfig`] from its defaults.
+//! Helpers to modify a [`PetriVmConfigOpenVMM`] from its defaults.
 
-use crate::PetriVmConfig;
+use crate::PetriVmConfigOpenVMM;
 use chipset_resources::battery::BatteryDeviceHandleX64;
 use chipset_resources::battery::HostBatteryUpdate;
 use fs_err::File;
@@ -19,7 +19,7 @@ use vmcore::non_volatile_store::resources::EphemeralNonVolatileStoreHandle;
 use vmotherboard::ChipsetDeviceHandle;
 use vtl2_settings_proto::Vtl2Settings;
 
-impl PetriVmConfig {
+impl PetriVmConfigOpenVMM {
     /// Enable VMBus redirection.
     pub fn with_vmbus_redirect(mut self) -> Self {
         self.config

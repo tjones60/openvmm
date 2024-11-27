@@ -1,16 +1,16 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-//! Contains [`PetriVmConfig::new`], which builds a [`PetriVmConfig`] with all
+//! Contains [`PetriVmConfigOpenVMM::new`], which builds a [`PetriVmConfigOpenVMM`] with all
 //! default settings for a given [`Firmware`] and [`MachineArch`].
 
+use super::PetriVmResourcesOpenVMM;
 use crate::linux_direct_serial_agent::LinuxDirectSerialAgent;
 use crate::openhcl_diag::OpenHclDiagHandler;
 use crate::tracing::trace_attachment;
-use crate::vm::PetriVmResources;
 use crate::Firmware;
 use crate::PcatGuest;
-use crate::PetriVmConfig;
+use crate::PetriVmConfigOpenVMM;
 use crate::UefiGuest;
 use crate::BOOT_NVME_INSTANCE;
 use crate::BOOT_NVME_LUN;
@@ -90,7 +90,7 @@ use vmbus_serial_resources::VmbusSerialDeviceHandle;
 use vmbus_serial_resources::VmbusSerialPort;
 use vtl2_settings_proto::Vtl2Settings;
 
-impl PetriVmConfig {
+impl PetriVmConfigOpenVMM {
     /// Create a new VM configuration.
     pub fn new(
         firmware: Firmware,
@@ -373,7 +373,7 @@ impl PetriVmConfig {
             arch,
             config,
 
-            resources: PetriVmResources {
+            resources: PetriVmResourcesOpenVMM {
                 serial_tasks,
                 firmware_event_recv,
                 shutdown_ic_send,

@@ -9,7 +9,7 @@ mod openhcl_uefi;
 
 use anyhow::Context;
 use petri::pipette::cmd;
-use petri::PetriVmConfig;
+use petri::PetriVmConfigOpenVMM;
 use petri::ShutdownKind;
 use petri::SIZE_1_GB;
 use petri_artifacts_common::tags::OsFlavor;
@@ -18,7 +18,7 @@ use vmm_test_macros::vmm_test;
 
 /// Basic boot test with no agent for unsupported guests.
 #[vmm_test(pcat_x64(vhd(freebsd_13_2_x64)), pcat_x64(iso(freebsd_13_2_x64)))]
-async fn boot_no_agent(config: PetriVmConfig) -> anyhow::Result<()> {
+async fn boot_no_agent(config: PetriVmConfigOpenVMM) -> anyhow::Result<()> {
     let mut vm = config.run_without_agent().await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
@@ -33,7 +33,7 @@ async fn boot_no_agent(config: PetriVmConfig) -> anyhow::Result<()> {
     openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))
 )]
-async fn boot_alias_map(config: PetriVmConfig) -> anyhow::Result<()> {
+async fn boot_alias_map(config: PetriVmConfigOpenVMM) -> anyhow::Result<()> {
     let (vm, agent) = config.with_vtl0_alias_map().run().await?;
     agent.power_off().await?;
     assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
@@ -45,7 +45,7 @@ async fn boot_alias_map(config: PetriVmConfig) -> anyhow::Result<()> {
     openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))
 )]
-async fn boot_with_tpm(config: PetriVmConfig) -> anyhow::Result<()> {
+async fn boot_with_tpm(config: PetriVmConfigOpenVMM) -> anyhow::Result<()> {
     let os_flavor = config.os_flavor();
     let config = config
         // "OPENHCL_ENABLE_VTL2_GPA_POOL=1" is currently required to make test
@@ -99,7 +99,7 @@ async fn boot_with_tpm(config: PetriVmConfig) -> anyhow::Result<()> {
     openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2022_x64)),
     openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64))
 )]
-async fn vbs_boot(config: PetriVmConfig) -> anyhow::Result<()> {
+async fn vbs_boot(config: PetriVmConfigOpenVMM) -> anyhow::Result<()> {
     let mut vm = config.run_without_agent().await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
@@ -112,7 +112,7 @@ async fn vbs_boot(config: PetriVmConfig) -> anyhow::Result<()> {
     openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2022_x64)),
     openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64))
 )]
-async fn vbs_boot_single_proc(config: PetriVmConfig) -> anyhow::Result<()> {
+async fn vbs_boot_single_proc(config: PetriVmConfigOpenVMM) -> anyhow::Result<()> {
     let mut vm = config.with_single_processor().run_without_agent().await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
@@ -126,7 +126,7 @@ async fn vbs_boot_single_proc(config: PetriVmConfig) -> anyhow::Result<()> {
     openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2022_x64)),
     openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64))
 )]
-async fn vbs_boot_with_tpm(config: PetriVmConfig) -> anyhow::Result<()> {
+async fn vbs_boot_with_tpm(config: PetriVmConfigOpenVMM) -> anyhow::Result<()> {
     let os_flavor = config.os_flavor();
     let mut vm = config.with_tpm().run_without_agent().await?;
 
@@ -154,7 +154,7 @@ async fn vbs_boot_with_tpm(config: PetriVmConfig) -> anyhow::Result<()> {
     // uefi_x64(vhd(ubuntu_2204_server_x64)),
     // pcat_x64(vhd(ubuntu_2204_server_x64))
 )]
-async fn reboot(config: PetriVmConfig) -> Result<(), anyhow::Error> {
+async fn reboot(config: PetriVmConfigOpenVMM) -> Result<(), anyhow::Error> {
     let (mut vm, agent) = config.run().await?;
 
     agent.ping().await?;
@@ -178,7 +178,7 @@ async fn reboot(config: PetriVmConfig) -> Result<(), anyhow::Error> {
     openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2022_x64)),
     openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64))
 )]
-async fn vbs_reboot(config: PetriVmConfig) -> anyhow::Result<()> {
+async fn vbs_reboot(config: PetriVmConfigOpenVMM) -> anyhow::Result<()> {
     let mut vm = config.run_without_agent().await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Reboot).await?;
@@ -192,7 +192,7 @@ async fn vbs_reboot(config: PetriVmConfig) -> anyhow::Result<()> {
 
 /// Basic VTL 2 pipette functionality test.
 #[vmm_test(openhcl_linux_direct_x64)]
-async fn vtl2_pipette(config: PetriVmConfig) -> anyhow::Result<()> {
+async fn vtl2_pipette(config: PetriVmConfigOpenVMM) -> anyhow::Result<()> {
     let (mut vm, agent) = config.run().await?;
 
     let vtl2_agent = vm.wait_for_vtl2_agent().await?;
@@ -209,7 +209,7 @@ async fn vtl2_pipette(config: PetriVmConfig) -> anyhow::Result<()> {
 /// and then purposefully triple fault itself via an expiring
 /// watchdog timer.
 #[vmm_test(uefi_x64(guest_test_uefi_x64), openhcl_uefi_x64(guest_test_uefi_x64))]
-async fn guest_test_uefi(config: PetriVmConfig) -> anyhow::Result<()> {
+async fn guest_test_uefi(config: PetriVmConfigOpenVMM) -> anyhow::Result<()> {
     let vm = config
         .with_windows_secure_boot_template()
         .run_without_agent()
@@ -224,7 +224,7 @@ async fn guest_test_uefi(config: PetriVmConfig) -> anyhow::Result<()> {
 
 /// Boot Linux and have it write the visible memory size.
 #[vmm_test(linux_direct_x64)]
-async fn five_gb(config: PetriVmConfig) -> Result<(), anyhow::Error> {
+async fn five_gb(config: PetriVmConfigOpenVMM) -> Result<(), anyhow::Error> {
     let configured_size = 5 * SIZE_1_GB;
     let expected_size = configured_size - configured_size / 10; // 10% buffer; TODO-figure out where this goes
 
@@ -269,7 +269,7 @@ async fn five_gb(config: PetriVmConfig) -> Result<(), anyhow::Error> {
     openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)),
     uefi_x64(vhd(ubuntu_2204_server_x64))
 )]
-async fn file_transfer_test(config: PetriVmConfig) -> Result<(), anyhow::Error> {
+async fn file_transfer_test(config: PetriVmConfigOpenVMM) -> Result<(), anyhow::Error> {
     const TEST_CONTENT: &str = "hello world!";
     const FILE_NAME: &str = "test.txt";
 
@@ -286,7 +286,7 @@ async fn file_transfer_test(config: PetriVmConfig) -> Result<(), anyhow::Error> 
 
 /// Boot Linux and have it dump MTRR related output.
 #[vmm_test(linux_direct_x64, openhcl_linux_direct_x64)]
-async fn mtrrs(config: PetriVmConfig) -> Result<(), anyhow::Error> {
+async fn mtrrs(config: PetriVmConfigOpenVMM) -> Result<(), anyhow::Error> {
     let (vm, agent) = config.run().await?;
 
     let sh = agent.unix_shell();
@@ -329,7 +329,7 @@ async fn mtrrs(config: PetriVmConfig) -> Result<(), anyhow::Error> {
     openhcl_linux_direct_x64,
     openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))
 )]
-async fn vmbus_redirect(config: PetriVmConfig) -> Result<(), anyhow::Error> {
+async fn vmbus_redirect(config: PetriVmConfigOpenVMM) -> Result<(), anyhow::Error> {
     let (mut vm, agent) = config.with_vmbus_redirect().run().await?;
     vm.wait_for_successful_boot_event().await?;
     agent.power_off().await?;
@@ -344,7 +344,7 @@ async fn vmbus_redirect(config: PetriVmConfig) -> Result<(), anyhow::Error> {
     uefi_x64(vhd(ubuntu_2204_server_x64)),
     uefi_x64(vhd(windows_datacenter_core_2022_x64))
 )]
-async fn battery_capacity(config: PetriVmConfig) -> Result<(), anyhow::Error> {
+async fn battery_capacity(config: PetriVmConfigOpenVMM) -> Result<(), anyhow::Error> {
     let os_flavor = config.os_flavor();
     let (mut vm, agent) = config.with_battery().run().await?;
     vm.wait_for_successful_boot_event().await?;
