@@ -155,6 +155,9 @@ pub struct HclDevicePlatformSettingsV2Dynamic {
     pub generation_id_high: u64,
     pub smbios: HclDevicePlatformSettingsV2DynamicSmbios,
     pub is_servicing_scenario: bool,
+
+    #[serde(default)]
+    pub acpi_tables: Option<HclDevicePlatformSettingsAcpiTables>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -176,6 +179,23 @@ pub struct HclDevicePlatformSettingsV2DynamicSmbios {
     pub voltage: u8,
     pub status: u8,
     pub processor_upgrade: u8,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct HclDevicePlatformSettingsAcpiTables {
+    #[serde(default)]
+    #[serde(with = "serde_helpers::opt_base64_vec")]
+    pub hmat: Option<Vec<u8>>,
+    #[serde(default)]
+    #[serde(with = "serde_helpers::opt_base64_vec")]
+    pub iort: Option<Vec<u8>>,
+    #[serde(default)]
+    #[serde(with = "serde_helpers::opt_base64_vec")]
+    pub mcfg: Option<Vec<u8>>,
+    #[serde(default)]
+    #[serde(with = "serde_helpers::opt_base64_vec")]
+    pub ssdt: Option<Vec<u8>>,
 }
 
 #[cfg(test)]

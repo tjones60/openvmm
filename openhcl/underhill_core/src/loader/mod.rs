@@ -623,6 +623,22 @@ pub fn write_uefi_config(
         });
     }
 
+    // ACPI tables that come from the DevicePlatformSettings
+    {
+        if let Some(hmat) = &platform_config.acpi_tables.hmat {
+            cfg.add_raw(config::BlobStructureType::Hmat, hmat);
+        }
+        if let Some(iort) = &platform_config.acpi_tables.iort {
+            cfg.add_raw(config::BlobStructureType::Iort, iort);
+        }
+        if let Some(mcfg) = &platform_config.acpi_tables.mcfg {
+            cfg.add_raw(config::BlobStructureType::Mcfg, mcfg);
+        }
+        if let Some(ssdt) = &platform_config.acpi_tables.ssdt {
+            cfg.add_raw(config::BlobStructureType::Ssdt, ssdt);
+        }
+    }
+
     // Finally, with the bios config constructed, we can inject it into guest memory
     gm.write_at(loader::uefi::CONFIG_BLOB_GPA_BASE, &cfg.complete())
         .map_err(Error::GuestMemoryAccess)
