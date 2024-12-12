@@ -624,7 +624,8 @@ pub fn write_uefi_config(
     }
 
     // ACPI tables that come from the DevicePlatformSettings
-    {
+    // We can only trust these tables from the host if this is not an isolated VM
+    if !isolated {
         if let Some(hmat) = &platform_config.acpi_tables.hmat {
             cfg.add_raw(config::BlobStructureType::Hmat, hmat);
         }
