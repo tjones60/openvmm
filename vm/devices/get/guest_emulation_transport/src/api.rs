@@ -33,7 +33,8 @@ pub mod platform_settings {
     pub struct DevicePlatformSettings {
         pub smbios: Smbios,
         pub general: General,
-        pub acpi_tables: AcpiTables,
+        #[inspect(with = "inspect::iter_by_index")]
+        pub acpi_tables: Vec<Vec<u8>>,
     }
 
     /// All available SMBIOS related config.
@@ -115,14 +116,6 @@ pub mod platform_settings {
         pub watchdog_enabled: bool,
         pub firmware_mode_is_pcat: bool,
         pub imc_enabled: bool,
-    }
-
-    #[derive(Debug, Inspect)]
-    pub struct AcpiTables {
-        pub hmat: Option<Vec<u8>>,
-        pub iort: Option<Vec<u8>>,
-        pub mcfg: Option<Vec<u8>>,
-        pub ssdt: Option<Vec<u8>>,
     }
 
     #[derive(Copy, Clone, Debug, Inspect)]

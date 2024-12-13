@@ -206,8 +206,6 @@ impl GuestEmulationTransportClient {
             None
         };
 
-        let acpi_tables = json.v2.dynamic.acpi_tables.unwrap_or_default();
-
         Ok(platform_settings::DevicePlatformSettings {
             smbios: platform_settings::Smbios {
                 serial_number: json.v1.serial_number.into(),
@@ -336,12 +334,7 @@ impl GuestEmulationTransportClient {
                 firmware_mode_is_pcat: json.v2.r#static.firmware_mode_is_pcat,
                 imc_enabled: json.v2.r#static.imc_enabled,
             },
-            acpi_tables: platform_settings::AcpiTables {
-                hmat: acpi_tables.hmat,
-                iort: acpi_tables.iort,
-                mcfg: acpi_tables.mcfg,
-                ssdt: acpi_tables.ssdt,
-            },
+            acpi_tables: json.v2.dynamic.acpi_tables,
         })
     }
 

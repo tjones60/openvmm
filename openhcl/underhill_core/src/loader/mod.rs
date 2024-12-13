@@ -25,6 +25,7 @@ use vm_topology::memory::MemoryRangeWithNode;
 use vm_topology::processor::ProcessorTopology;
 use vmm_core::acpi_builder::AcpiTablesBuilder;
 use zerocopy::AsBytes;
+use zerocopy::FromBytes;
 
 pub mod vtl0_config;
 pub mod vtl2_config;
@@ -626,17 +627,19 @@ pub fn write_uefi_config(
     // ACPI tables that come from the DevicePlatformSettings
     // We can only trust these tables from the host if this is not an isolated VM
     if !isolated {
-        if let Some(hmat) = &platform_config.acpi_tables.hmat {
-            cfg.add_raw(config::BlobStructureType::Hmat, hmat);
-        }
-        if let Some(iort) = &platform_config.acpi_tables.iort {
-            cfg.add_raw(config::BlobStructureType::Iort, iort);
-        }
-        if let Some(mcfg) = &platform_config.acpi_tables.mcfg {
-            cfg.add_raw(config::BlobStructureType::Mcfg, mcfg);
-        }
-        if let Some(ssdt) = &platform_config.acpi_tables.ssdt {
-            cfg.add_raw(config::BlobStructureType::Ssdt, ssdt);
+        for table in &platform_config.acpi_tables {
+            let header =
+                acpi_spec::Header::ref_from_prefix(table).expect("Invalid ACPI table: too short");
+            match &header.signature {
+                b"HMAT" => cfg.add_raw(config::BlobStructureType::Hmat, table),
+                b"IORT" => cfg.add_raw(config::BlobStructureType::Iort, table),
+                b"MCFG" => cfg.add_raw(config::BlobStructureType::Mcfg, table),
+                b"SSDT" => cfg.add_raw(config::BlobStructureType::Ssdt, table),
+                _ => panic!(
+                    "Invalid ACPI table: unknown header signature {:?}",
+                    header.signature
+                ),
+            };
         }
     }
 
