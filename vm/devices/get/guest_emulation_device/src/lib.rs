@@ -36,6 +36,7 @@ use get_resources::ged::GuestEmulationRequest;
 use get_resources::ged::ModifyVtl2SettingsError;
 use get_resources::ged::SaveRestoreError;
 use get_resources::ged::Vtl0StartError;
+use guestmem::GuestMemory;
 use guid::Guid;
 use inspect::Inspect;
 use inspect::InspectMut;
@@ -248,9 +249,10 @@ impl SimpleVmbusDevice for GuestEmulationDevice {
     fn open(
         &mut self,
         channel: RawAsyncChannel<GpadlRingMem>,
+        guest_memory: GuestMemory,
     ) -> Result<Self::Runner, ChannelOpenError> {
         let pipe = MessagePipe::new(channel)?;
-        Ok(GedChannel::new(pipe))
+        Ok(GedChannel::new(pipe, guest_memory))
     }
 
     async fn run(
@@ -294,6 +296,11 @@ pub struct GedChannel<T: RingMem = GpadlRingMem> {
     vtl0_start_report: Option<Result<(), Vtl0StartError>>,
     #[inspect(with = "Option::is_some")]
     modify: Option<mesh::OneshotSender<Result<(), ModifyVtl2SettingsError>>>,
+    // TODO: allow unused temporarily as a follow up change will use it to
+    // implement AK cert renewal.
+    #[inspect(skip)]
+    #[allow(dead_code)]
+    gm: GuestMemory,
 }
 
 struct InProgressSave {
@@ -308,13 +315,14 @@ enum GedState {
 }
 
 impl<T: RingMem + Unpin> GedChannel<T> {
-    fn new(channel: MessagePipe<T>) -> Self {
+    fn new(channel: MessagePipe<T>, guest_memory: GuestMemory) -> Self {
         Self {
             channel,
             save: None,
             state: GedState::Init,
             vtl0_start_report: None,
             modify: None,
+            gm: guest_memory,
         }
     }
 
