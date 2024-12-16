@@ -72,6 +72,8 @@ pub enum Error {
     LinuxSupport,
     #[error("finalizing boot")]
     Finalize(#[source] vtl0_config::Error),
+    #[error("invalid acpi table: {0}")]
+    InvalidAcpiTable(String),
 }
 
 pub const PV_CONFIG_BASE_PAGE: u64 = if cfg!(guest_arch = "x86_64") {
@@ -628,17 +630,19 @@ pub fn write_uefi_config(
     // We can only trust these tables from the host if this is not an isolated VM
     if !isolated {
         for table in &platform_config.acpi_tables {
-            let header =
-                acpi_spec::Header::ref_from_prefix(table).expect("Invalid ACPI table: too short");
+            let header = acpi_spec::Header::ref_from_prefix(table)
+                .ok_or(Error::InvalidAcpiTable("too short".to_string()))?;
             match &header.signature {
                 b"HMAT" => cfg.add_raw(config::BlobStructureType::Hmat, table),
                 b"IORT" => cfg.add_raw(config::BlobStructureType::Iort, table),
                 b"MCFG" => cfg.add_raw(config::BlobStructureType::Mcfg, table),
                 b"SSDT" => cfg.add_raw(config::BlobStructureType::Ssdt, table),
-                _ => panic!(
-                    "Invalid ACPI table: unknown header signature {:?}",
-                    header.signature
-                ),
+                _ => {
+                    return Err(Error::InvalidAcpiTable(format!(
+                        "unknown header signature {:?}",
+                        header.signature
+                    )))
+                }
             };
         }
     }
