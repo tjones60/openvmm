@@ -17,14 +17,12 @@ vmcore.workspace = true
 
 guid.workspace = true
 hcl.workspace = true
-hvdef.workspace = true
 inspect.workspace = true
 mesh.workspace = true
 pal_async.workspace = true
 safeatomic.workspace = true
 task_control.workspace = true
 user_driver.workspace = true
-virt.workspace = true
 
 anyhow.workspace = true
 futures.workspace = true
