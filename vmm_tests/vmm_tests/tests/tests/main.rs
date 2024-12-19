@@ -24,6 +24,8 @@ mod x86_64;
 #[cfg(guest_arch = "x86_64")]
 mod x86_64_exclusive;
 
+mod hyperv;
+
 /// Common prelude shared by all VMM tests.
 mod prelude {
     /// Obtain a new  [`petri::TestArtifactResolver`]
