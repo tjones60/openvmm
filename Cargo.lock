@@ -5030,6 +5030,7 @@ dependencies = [
  "serial_16550_resources",
  "serial_core",
  "serial_socket",
+ "socket2",
  "sparse_mmap",
  "storvsp_resources",
  "tempfile",

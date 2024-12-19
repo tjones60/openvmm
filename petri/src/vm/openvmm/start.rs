@@ -145,6 +145,8 @@ impl PetriVmConfigOpenVMM {
             self.arch,
             self.firmware.os_flavor(),
             &self.resources.resolver,
+            None,
+            crate::disk_image::ImageType::Raw,
         )
         .context("failed to build agent image")?;
 
@@ -198,9 +200,14 @@ impl PetriVmConfigOpenVMM {
             const UH_CIDATA_SCSI_INSTANCE: Guid =
                 Guid::from_static_str("766e96f8-2ceb-437e-afe3-a93169e48a7c");
 
-            let uh_agent_disk =
-                build_agent_image(self.arch, OsFlavor::Linux, &self.resources.resolver)
-                    .context("failed to build agent image")?;
+            let uh_agent_disk = build_agent_image(
+                self.arch,
+                OsFlavor::Linux,
+                &self.resources.resolver,
+                None,
+                crate::disk_image::ImageType::Raw,
+            )
+            .context("failed to build agent image")?;
 
             self.config.vmbus_devices.push((
                 DeviceVtl::Vtl2,
