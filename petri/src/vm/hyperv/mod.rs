@@ -97,9 +97,16 @@ impl PetriVmConfigHyperV {
 
         powershell::run_set_vm_firmware(powershell::HyperVSetVMFirmwareArgs {
             name: &self.name,
-            secure_boot_template: Some(
-                powershell::HyperVSecureBootTemplate::MicrosoftUEFICertificateAuthority,
-            ),
+            secure_boot_template: Some(match &self.firmware.os_flavor() {
+                OsFlavor::Windows => powershell::HyperVSecureBootTemplate::MicrosoftWindows,
+                OsFlavor::Linux => {
+                    powershell::HyperVSecureBootTemplate::MicrosoftUEFICertificateAuthority
+                }
+                OsFlavor::FreeBsd => powershell::HyperVSecureBootTemplate::SecureBootDisabled,
+                OsFlavor::Uefi => {
+                    powershell::HyperVSecureBootTemplate::MicrosoftUEFICertificateAuthority
+                }
+            }),
         })?;
 
         for (controller_number, vhds) in self.vhd_paths.iter().enumerate() {
