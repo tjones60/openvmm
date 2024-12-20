@@ -4,10 +4,10 @@
 mod hvc;
 mod modify;
 pub mod powershell;
+use vmsocket::VmAddress;
+use vmsocket::VmSocket;
 
-pub use powershell::HyperVGeneration;
-pub use powershell::HyperVGuestStateIsolationType;
-
+use super::Firmware;
 use crate::disk_image::build_agent_image;
 use crate::disk_image::ImageType;
 use anyhow::Context;
@@ -21,28 +21,65 @@ use std::path::Path;
 use std::path::PathBuf;
 use vmm_core_defs::HaltReason;
 
+/// Hyper-V VM configuration and resources
 pub struct PetriVmConfigHyperV {
-    /// Specifies the name of the new virtual machine.
-    pub name: String,
-    /// Specifies the generation for the virtual machine.
-    pub generation: Option<HyperVGeneration>,
-    /// Specifies the Guest State Isolation Type
-    pub guest_state_isolation_type: Option<HyperVGuestStateIsolationType>,
-    /// Specifies the amount of memory, in bytes, to assign to the virtual machine.
-    pub memory: Option<u64>,
-    /// Specifies the directory to store the files for the new virtual machine.
-    pub vm_path: Option<PathBuf>,
-    /// Specifies the path to a virtual hard disk file(s) to attach to the
-    /// virtual machine as SCSI (Gen2) or IDE (Gen1) drives.
-    pub vhd_paths: Vec<Vec<PathBuf>>,
-    pub resolver: TestArtifacts,
+    // Specifies the name of the new virtual machine.
+    name: String,
+    // Specifies the generation for the virtual machine.
+    generation: powershell::HyperVGeneration,
+    // Specifies the Guest State Isolation Type
+    guest_state_isolation_type: powershell::HyperVGuestStateIsolationType,
+    // Specifies the amount of memory, in bytes, to assign to the virtual machine.
+    memory: u64,
+    // Specifies the directory to store the files for the new virtual machine.
+    vm_path: Option<PathBuf>,
+    // Specifies the path to a virtual hard disk file(s) to attach to the
+    // virtual machine as SCSI (Gen2) or IDE (Gen1) drives.
+    vhd_paths: Vec<Vec<PathBuf>>,
+    // Petri test dependency resolver
+    resolver: TestArtifacts,
+    arch: MachineArch,
+    firmware: Firmware,
+    driver: DefaultDriver,
 }
 
+/// A running VM that tests can interact with.
 pub struct PetriVmHyperV {
     config: PetriVmConfigHyperV,
+    agent_disk_path: PathBuf,
 }
 
 impl PetriVmConfigHyperV {
+    /// Create a new Hyper-V petri VM config
+    pub fn new(
+        firmware: Firmware,
+        arch: MachineArch,
+        resolver: TestArtifacts,
+        driver: &DefaultDriver,
+    ) -> anyhow::Result<Self> {
+        Ok(PetriVmConfigHyperV {
+            name: "petritestvm".to_string(),
+            generation: powershell::HyperVGeneration::Two,
+            guest_state_isolation_type: match &firmware {
+                Firmware::LinuxDirect | Firmware::OpenhclLinuxDirect => {
+                    panic!("linux direct not supported on hyper-v")
+                }
+                Firmware::Pcat { .. } | Firmware::Uefi { .. } => {
+                    powershell::HyperVGuestStateIsolationType::Disabled
+                }
+                Firmware::OpenhclUefi { .. } => {
+                    powershell::HyperVGuestStateIsolationType::TrustedLaunch
+                }
+            },
+            memory: 0x1_0000_0000,
+            vm_path: None,
+            vhd_paths: vec![vec![PathBuf::from("C:\\cross\\disk.vhdx")]],
+            resolver,
+            arch,
+            firmware,
+            driver: driver.clone(),
+        })
+    }
     /// Build and boot the requested VM
     pub async fn run(
         self,
@@ -51,14 +88,19 @@ impl PetriVmConfigHyperV {
         powershell::run_new_vm(powershell::HyperVNewVMArgs {
             name: &self.name,
             boot_device: None,
-            generation: self.generation,
-            guest_state_isolation_type: self.guest_state_isolation_type,
-            memory_startup_bytes: self.memory,
+            generation: Some(self.generation),
+            guest_state_isolation_type: Some(self.guest_state_isolation_type),
+            memory_startup_bytes: Some(self.memory),
             path: self.vm_path.as_deref(),
             vhd_path: None,
         })?;
 
-        // powershell::run_set_vm_firmware
+        powershell::run_set_vm_firmware(powershell::HyperVSetVMFirmwareArgs {
+            name: &self.name,
+            secure_boot_template: Some(
+                powershell::HyperVSecureBootTemplate::MicrosoftUEFICertificateAuthority,
+            ),
+        })?;
 
         for (controller_number, vhds) in self.vhd_paths.iter().enumerate() {
             powershell::run_add_vm_scsi_controller(&self.name)?;
@@ -74,11 +116,11 @@ impl PetriVmConfigHyperV {
         }
 
         // Construct the agent disk.
-        let agent_disk_path = PathBuf::from("E:\\test\\cidata.vhd");
+        let agent_disk_path = PathBuf::from("C:\\cross\\cidata.vhd");
         {
             let _agent_disk = build_agent_image(
-                MachineArch::X86_64,
-                OsFlavor::Linux,
+                MachineArch::Aarch64,
+                OsFlavor::Windows,
                 &self.resolver,
                 Some(&agent_disk_path),
                 ImageType::Vhd,
@@ -98,9 +140,15 @@ impl PetriVmConfigHyperV {
         hvc::hvc_start(&self.name)?;
 
         let pipette_output_dir = PathBuf::from("E:\\test\\pipette");
-        let client = wait_for_agent(driver, &self.name, &pipette_output_dir).await?;
+        let client = wait_for_agent(driver, &self.name, &pipette_output_dir, false).await?;
 
-        Ok((PetriVmHyperV { config: self }, client))
+        Ok((
+            PetriVmHyperV {
+                config: self,
+                agent_disk_path,
+            },
+            client,
+        ))
     }
 }
 
@@ -109,7 +157,7 @@ impl PetriVmHyperV {
     pub fn wait_for_teardown(self) -> anyhow::Result<HaltReason> {
         hvc::hvc_wait_for_power_off(&self.config.name)?;
         powershell::run_remove_vm(&self.config.name)?;
-
+        std::fs::remove_file(&self.agent_disk_path)?;
         Ok(HaltReason::PowerOff)
     }
 }
@@ -118,25 +166,36 @@ async fn wait_for_agent(
     driver: &DefaultDriver,
     name: &str,
     output_dir: &Path,
+    set_high_vtl: bool,
 ) -> anyhow::Result<PipetteClient> {
     let vm_id = diag_client::hyperv::vm_id_from_name(name)?;
-    let stream =
-        diag_client::hyperv::connect_vsock(driver, vm_id, pipette_client::PIPETTE_VSOCK_PORT)
-            .await?;
-    let mut vsock = PolledSocket::new(driver, socket2::Socket::from(stream))?;
 
-    // Wait for the pipette connection.
-    tracing::info!("listening for pipette connection");
-    let (conn, _) = vsock
+    let mut socket = VmSocket::new().context("failed to create AF_HYPERV socket")?;
+
+    socket
+        .set_connect_timeout(std::time::Duration::from_secs(300))
+        .context("failed to set connect timeout")?;
+
+    socket
+        .set_high_vtl(set_high_vtl)
+        .context("failed to set socket for VTL0")?;
+
+    socket.bind(VmAddress::hyperv_vsock(
+        vm_id,
+        pipette_client::PIPETTE_VSOCK_PORT,
+    ))?;
+
+    let mut socket: PolledSocket<socket2::Socket> =
+        PolledSocket::new(driver, socket.into()).context("failed to create polled socket")?;
+
+    socket.listen(1)?;
+
+    let (conn, _) = socket
         .accept()
         .await
         .context("failed to accept pipette connection")?;
 
-    tracing::info!("handshaking with pipette");
-    let client = PipetteClient::new(driver, PolledSocket::new(driver, conn)?, output_dir)
+    PipetteClient::new(driver, PolledSocket::new(driver, conn)?, output_dir)
         .await
-        .context("failed to connect to pipette");
-
-    tracing::info!("completed pipette handshake");
-    client
+        .context("failed to connect to pipette")
 }

@@ -140,7 +140,11 @@ fn build_disk_image_vhd(
     files: &[(&str, PathOrBinary<'_>)],
     vhd_path: &Path,
 ) -> anyhow::Result<std::fs::File> {
-    let disk_letter = crate::hyperv::powershell::create_vhd(vhd_path, volume_label)?;
+    let disk_letter =
+        crate::hyperv::powershell::create_vhd(crate::hyperv::powershell::CreateVhdArgs {
+            path: vhd_path,
+            label: volume_label,
+        })?;
     for (path, src) in files {
         let mut dest = std::fs::File::create_new(format!("{disk_letter}:\\{path}"))
             .context("failed to create file")?;

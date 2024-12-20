@@ -5050,6 +5050,7 @@ dependencies = [
  "vmgs_format",
  "vmm_core_defs",
  "vmotherboard",
+ "vmsocket",
  "vtl2_settings_proto",
 ]
 

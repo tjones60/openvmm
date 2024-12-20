@@ -42,6 +42,7 @@ vm_resource.workspace = true
 vmgs_format.workspace = true
 vmm_core_defs.workspace = true
 vmotherboard.workspace = true
+vmsocket.workspace = true
 
 guid.workspace = true
 inspect = { workspace = true, features = ["initiate"] }

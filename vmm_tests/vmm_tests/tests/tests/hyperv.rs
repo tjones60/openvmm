@@ -3,9 +3,8 @@
 
 //! Integration tests that run on hyper-v
 
-use petri::hyperv::HyperVGeneration;
 use petri::hyperv::PetriVmConfigHyperV;
-use std::path::PathBuf;
+use petri_artifacts_common::tags::MachineArch;
 
 #[test]
 fn hyperv_test() {
@@ -13,19 +12,16 @@ fn hyperv_test() {
         let resolver = petri::TestArtifactResolver::new(Box::new(
             petri_artifact_resolver_openvmm_known_paths::OpenvmmKnownPathsTestArtifactResolver,
         ))
-        .require(::petri_artifacts_common::artifacts::PIPETTE_LINUX_X64)
+        .require(::petri_artifacts_common::artifacts::PIPETTE_WINDOWS_AARCH64)
         .finalize();
-        let config = PetriVmConfigHyperV {
-            name: "petritestvm".to_string(),
-            generation: Some(HyperVGeneration::Two),
-            guest_state_isolation_type: None,
-            memory: Some(0x1_0000_0000),
-            vm_path: None,
-            vhd_paths: vec![vec![PathBuf::from(
-                "E:\\test\\ubuntu-22.04-server-cloudimg-amd64.vhd",
-            )]],
+        let config = PetriVmConfigHyperV::new(
+            petri::Firmware::Uefi {
+                guest: petri::UefiGuest::None,
+            },
+            MachineArch::Aarch64,
             resolver,
-        };
+            &driver,
+        )?;
         let (vm, agent) = config.run(&driver).await?;
         agent.power_off().await?;
         vm.wait_for_teardown()?;

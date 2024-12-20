@@ -10,9 +10,12 @@ use std::fmt::Display;
 use std::path::Path;
 use std::process::Command;
 
+/// Hyper-V VM Generation
 #[derive(Clone, Copy)]
 pub enum HyperVGeneration {
+    /// Generation 1 (with emulated legacy devices and PCAT BIOS)
     One,
+    /// Generation 2 (synthetic devices and UEFI)
     Two,
 }
 
@@ -29,13 +32,20 @@ impl Display for HyperVGeneration {
     }
 }
 
+/// Hyper-V Guest State Isolation Type
 #[derive(Clone, Copy)]
 pub enum HyperVGuestStateIsolationType {
+    /// Trusted Launch (HCL, SecureBoot, TPM)
     TrustedLaunch,
+    /// VBS
     Vbs,
+    /// SNP
     Snp,
+    /// TDX
     Tdx,
+    /// HCL but no isolation
     None,
+    /// No isolation
     Disabled,
 }
 
@@ -64,6 +74,38 @@ impl Display for HyperVGuestStateIsolationType {
     }
 }
 
+/// Hyper-V Secure Boot Template
+pub enum HyperVSecureBootTemplate {
+    /// Secure Boot Disabled
+    SecureBootDisabled,
+    /// Windows Secure Boot Template
+    MicrosoftWindows,
+    /// Microsoft UEFI Certificate Authority Template
+    MicrosoftUEFICertificateAuthority,
+    /// Open Source Shielded VM Template
+    OpenSourceShieldedVM = 3,
+}
+
+impl Display for HyperVSecureBootTemplate {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            HyperVSecureBootTemplate::SecureBootDisabled => {
+                write!(f, "SecureBootDisabled")
+            }
+            HyperVSecureBootTemplate::MicrosoftWindows => {
+                write!(f, "MicrosoftWindows")
+            }
+            HyperVSecureBootTemplate::MicrosoftUEFICertificateAuthority => {
+                write!(f, "MicrosoftUEFICertificateAuthority")
+            }
+            HyperVSecureBootTemplate::OpenSourceShieldedVM => {
+                write!(f, "OpenSourceShieldedVM")
+            }
+        }
+    }
+}
+
+/// Arguments for the New-VM powershell cmdlet
 pub struct HyperVNewVMArgs<'a> {
     /// Specifies the name of the new virtual machine.
     pub name: &'a str,
@@ -110,15 +152,27 @@ pub fn run_remove_vm(name: &str) -> anyhow::Result<()> {
     run_powershell_cmdlet("Remove-VM", |cmd| cmd.arg("-Name").arg(name).arg("-Force"))
 }
 
+/// Arguments for the Add-VMHardDiskDrive powershell cmdlet
 pub struct HyperVAddVMHardDiskDriveArgs<'a> {
-    /// Specifies the name of the new virtual machine.
+    /// Specifies the name of the virtual machine to which the hard disk
+    /// drive is to be added.
     pub name: &'a str,
     /// Specifies the number of the location on the controller at which the
     /// hard disk drive is to be added. If not specified, the first available
     /// location in the controller specified with the ControllerNumber parameter
     /// is used.
     pub controller_location: Option<u32>,
+    /// Specifies the number of the controller to which the hard disk drive is
+    /// to be added. If not specified, this parameter assumes the value of the
+    /// first available controller at the location specified in the
+    /// ControllerLocation parameter.
     pub controller_number: Option<u32>,
+    /// Specifies the type of the controller to which the hard disk drive is to
+    /// be added. If not specified, IDE is attempted first. If the IDE
+    /// controller port at the specified number and location is already
+    /// connected to a drive, then it will try to create one on the SCSI
+    /// controller specified by ControllerNumber. Allowed values are IDE
+    /// and SCSI.
     pub controller_type: Option<String>,
     /// Specifies the full path of the hard disk drive file to be added.
     pub path: Option<&'a Path>,
@@ -145,16 +199,20 @@ pub fn run_add_vm_hard_disk_drive(args: HyperVAddVMHardDiskDriveArgs<'_>) -> any
     })
 }
 
+/// Arguments for the Add-VMDvdDrive powershell cmdlet
 pub struct HyperVAddVMDvdDriveArgs<'a> {
-    /// Specifies the name of the new virtual machine.
+    /// Specifies the name of the virtual machine on which the DVD drive
+    /// is to be configured.
     pub name: &'a str,
-    /// Specifies the number of the location on the controller at which the
-    /// hard disk drive is to be added. If not specified, the first available
-    /// location in the controller specified with the ControllerNumber parameter
-    /// is used.
+    /// Specifies the IDE controller location of the DVD drives to be
+    /// configured. If not specified, DVD drives in all controller locations
+    /// are configured.
     pub controller_location: Option<u32>,
+    /// Specifies the IDE controller of the DVD drives to be configured.
+    /// If not specified, DVD drives attached to all controllers are configured.
     pub controller_number: Option<u32>,
-    /// Specifies the full path of the hard disk drive file to be added.
+    /// Specifies the path to the ISO file or physical DVD drive that will serv
+    /// as media for the virtual DVD drive.
     pub path: Option<&'a Path>,
 }
 
@@ -181,11 +239,19 @@ pub fn run_add_vm_scsi_controller(name: &str) -> anyhow::Result<()> {
     run_powershell_cmdlet("Add-VMScsiController", |cmd| cmd.arg("-VMName").arg(name))
 }
 
-/// Create a new VHD, mount, initialize, and format as FAT32. Returns drive letter.
-pub fn create_vhd(path: &Path, label: &str) -> anyhow::Result<char> {
+/// Arguments for creating a new VHD
+pub struct CreateVhdArgs<'a> {
+    /// VHD path
+    pub path: &'a Path,
+    /// Filesystem label
+    pub label: &'a str,
+}
+
+/// Create a new VHD, mount, initialize, and format. Returns drive letter.
+pub fn create_vhd(args: CreateVhdArgs<'_>) -> anyhow::Result<char> {
     let drive_letter = run_powershell_cmdlet_output("New-VHD", |cmd| {
         cmd.arg("-Path")
-            .arg(path)
+            .arg(args.path)
             .arg("-Fixed")
             .arg("-SizeBytes")
             .arg("64MB");
@@ -205,7 +271,7 @@ pub fn create_vhd(path: &Path, label: &str) -> anyhow::Result<char> {
             .arg("FAT32")
             .arg("-Force")
             .arg("-NewFileSystemLabel")
-            .arg(label);
+            .arg(args.label);
 
         cmd.arg("|")
             .arg("Select-Object")
@@ -228,12 +294,25 @@ pub fn run_dismount_vhd(path: &Path) -> anyhow::Result<()> {
     run_powershell_cmdlet("Dismount-VHD", |cmd| cmd.arg("-Path").arg(path))
 }
 
+/// Arguments for the Set-VMFirmware powershell cmdlet
+pub struct HyperVSetVMFirmwareArgs<'a> {
+    /// Specifies the name of virtual machines for which you want to modify the
+    /// firmware configuration.
+    pub name: &'a str,
+    /// Specifies the name of the secure boot template. If secure boot is
+    /// enabled, you must have a valid secure boot template for the guest
+    /// operating system to start.
+    pub secure_boot_template: Option<HyperVSecureBootTemplate>,
+}
+
 /// Runs Set-VMFirmware with the given arguments.
-pub fn run_set_vm_firmware(name: &str) -> anyhow::Result<()> {
+pub fn run_set_vm_firmware(args: HyperVSetVMFirmwareArgs<'_>) -> anyhow::Result<()> {
     run_powershell_cmdlet("Set-VMFirmware", |cmd| {
-        cmd.arg(name)
-            .arg("-SecureBootTemplate")
-            .arg("MicrosoftUEFICertificateAuthority")
+        if let Some(secure_boot_template) = args.secure_boot_template {
+            cmd.arg("-SecureBootTemplate")
+                .arg(secure_boot_template.to_string());
+        }
+        cmd.arg("-VMName").arg(args.name)
     })
 }
 
