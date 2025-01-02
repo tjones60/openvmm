@@ -8,6 +8,7 @@ use vmm_core_defs::HaltReason;
 pub mod hyperv;
 mod openvmm;
 
+use anyhow::Context;
 use hvlite_defs::config::IsolationType;
 pub use openvmm::*;
 use petri_artifacts_common::tags::GuestQuirks;
@@ -259,4 +260,22 @@ impl BootImageConfig<boot_image_type::Iso> {
             _type: std::marker::PhantomData,
         }
     }
+}
+
+/// Generates a name for the petri test based on the thread name
+pub fn get_test_name() -> anyhow::Result<String> {
+    // Use the current thread name for the test name, both cargo-test and
+    // cargo-nextest set this.
+    // FUTURE: If we ever want to use petri outside a testing context this
+    // will need to be revisited.
+    let current_thread = std::thread::current();
+    let test_name = current_thread.name().context("no thread name configured")?;
+    if test_name.is_empty() {
+        anyhow::bail!("thread name is empty");
+    }
+    if test_name == "main" {
+        anyhow::bail!("thread name is 'main', not running from test thread");
+    }
+    // Windows paths can't include colons, replace them.
+    Ok(test_name.replace("::", "__"))
 }

@@ -75,6 +75,7 @@ impl Display for HyperVGuestStateIsolationType {
 }
 
 /// Hyper-V Secure Boot Template
+#[derive(Clone, Copy)]
 pub enum HyperVSecureBootTemplate {
     /// Secure Boot Disabled
     SecureBootDisabled,

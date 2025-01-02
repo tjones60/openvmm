@@ -11,12 +11,14 @@ use super::Firmware;
 use crate::disk_image::build_agent_image;
 use crate::disk_image::ImageType;
 use anyhow::Context;
+use hvlite_defs::config::IsolationType;
 use pal_async::socket::PolledSocket;
 use pal_async::DefaultDriver;
 use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_common::tags::OsFlavor;
 use petri_artifacts_core::TestArtifacts;
 use pipette_client::PipetteClient;
+use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use vmm_core_defs::HaltReason;
@@ -39,8 +41,10 @@ pub struct PetriVmConfigHyperV {
     // Petri test dependency resolver
     resolver: TestArtifacts,
     arch: MachineArch,
-    firmware: Firmware,
     driver: DefaultDriver,
+    secure_boot_template: powershell::HyperVSecureBootTemplate,
+    os_flavor: OsFlavor,
+    temp_dir: tempfile::TempDir,
 }
 
 /// A running VM that tests can interact with.
@@ -57,34 +61,69 @@ impl PetriVmConfigHyperV {
         resolver: TestArtifacts,
         driver: &DefaultDriver,
     ) -> anyhow::Result<Self> {
+        let test_name = crate::get_test_name()?;
+        let temp_dir = tempfile::tempdir()?;
+        eprintln!(
+            "Test Name: {test_name} Temp Dir: {}",
+            temp_dir.path().display()
+        );
+
+        let (guest_state_isolation_type, guest_artifact) = match &firmware {
+            Firmware::LinuxDirect | Firmware::OpenhclLinuxDirect => {
+                panic!("linux direct not supported on hyper-v")
+            }
+            Firmware::Pcat { guest } => (
+                powershell::HyperVGuestStateIsolationType::Disabled,
+                guest.artifact(),
+            ),
+            Firmware::Uefi { guest } => (
+                powershell::HyperVGuestStateIsolationType::Disabled,
+                guest.artifact(),
+            ),
+            Firmware::OpenhclUefi {
+                guest,
+                isolation,
+                vtl2_nvme_boot: _,
+            } => (
+                match isolation {
+                    Some(IsolationType::Vbs) => powershell::HyperVGuestStateIsolationType::Vbs,
+                    None => powershell::HyperVGuestStateIsolationType::TrustedLaunch,
+                },
+                guest.artifact(),
+            ),
+        };
+        let original_os_disk = resolver.resolve(guest_artifact);
+        let os_disk = temp_dir.path().join(
+            original_os_disk
+                .file_name()
+                .context("path has no filename")?,
+        );
+        fs::copy(&original_os_disk, &os_disk)?;
         Ok(PetriVmConfigHyperV {
-            name: "petritestvm".to_string(),
+            name: test_name,
             generation: powershell::HyperVGeneration::Two,
-            guest_state_isolation_type: match &firmware {
-                Firmware::LinuxDirect | Firmware::OpenhclLinuxDirect => {
-                    panic!("linux direct not supported on hyper-v")
-                }
-                Firmware::Pcat { .. } | Firmware::Uefi { .. } => {
-                    powershell::HyperVGuestStateIsolationType::Disabled
-                }
-                Firmware::OpenhclUefi { .. } => {
-                    powershell::HyperVGuestStateIsolationType::TrustedLaunch
-                }
-            },
+            guest_state_isolation_type,
             memory: 0x1_0000_0000,
             vm_path: None,
-            vhd_paths: vec![vec![PathBuf::from("C:\\cross\\disk.vhdx")]],
+            vhd_paths: vec![vec![os_disk]],
             resolver,
             arch,
-            firmware,
             driver: driver.clone(),
+            secure_boot_template: match firmware.os_flavor() {
+                OsFlavor::Windows => powershell::HyperVSecureBootTemplate::MicrosoftWindows,
+                OsFlavor::Linux => {
+                    powershell::HyperVSecureBootTemplate::MicrosoftUEFICertificateAuthority
+                }
+                OsFlavor::FreeBsd | OsFlavor::Uefi => {
+                    powershell::HyperVSecureBootTemplate::SecureBootDisabled
+                }
+            },
+            os_flavor: firmware.os_flavor(),
+            temp_dir,
         })
     }
     /// Build and boot the requested VM
-    pub async fn run(
-        self,
-        driver: &DefaultDriver,
-    ) -> anyhow::Result<(PetriVmHyperV, PipetteClient)> {
+    pub async fn run(self) -> anyhow::Result<(PetriVmHyperV, PipetteClient)> {
         powershell::run_new_vm(powershell::HyperVNewVMArgs {
             name: &self.name,
             boot_device: None,
@@ -97,16 +136,7 @@ impl PetriVmConfigHyperV {
 
         powershell::run_set_vm_firmware(powershell::HyperVSetVMFirmwareArgs {
             name: &self.name,
-            secure_boot_template: Some(match &self.firmware.os_flavor() {
-                OsFlavor::Windows => powershell::HyperVSecureBootTemplate::MicrosoftWindows,
-                OsFlavor::Linux => {
-                    powershell::HyperVSecureBootTemplate::MicrosoftUEFICertificateAuthority
-                }
-                OsFlavor::FreeBsd => powershell::HyperVSecureBootTemplate::SecureBootDisabled,
-                OsFlavor::Uefi => {
-                    powershell::HyperVSecureBootTemplate::MicrosoftUEFICertificateAuthority
-                }
-            }),
+            secure_boot_template: Some(self.secure_boot_template),
         })?;
 
         for (controller_number, vhds) in self.vhd_paths.iter().enumerate() {
@@ -123,11 +153,11 @@ impl PetriVmConfigHyperV {
         }
 
         // Construct the agent disk.
-        let agent_disk_path = PathBuf::from("C:\\cross\\cidata.vhd");
+        let agent_disk_path = self.temp_dir.path().join("cidata.vhd");
         {
             let _agent_disk = build_agent_image(
-                MachineArch::Aarch64,
-                OsFlavor::Windows,
+                self.arch,
+                self.os_flavor,
                 &self.resolver,
                 Some(&agent_disk_path),
                 ImageType::Vhd,
@@ -146,8 +176,9 @@ impl PetriVmConfigHyperV {
 
         hvc::hvc_start(&self.name)?;
 
-        let pipette_output_dir = PathBuf::from("E:\\test\\pipette");
-        let client = wait_for_agent(driver, &self.name, &pipette_output_dir, false).await?;
+        let pipette_output_dir = self.temp_dir.path().join("pipette");
+        fs::create_dir(&pipette_output_dir)?;
+        let client = wait_for_agent(&self.driver, &self.name, &pipette_output_dir, false).await?;
 
         Ok((
             PetriVmHyperV {
@@ -164,7 +195,7 @@ impl PetriVmHyperV {
     pub fn wait_for_teardown(self) -> anyhow::Result<HaltReason> {
         hvc::hvc_wait_for_power_off(&self.config.name)?;
         powershell::run_remove_vm(&self.config.name)?;
-        std::fs::remove_file(&self.agent_disk_path)?;
+        fs::remove_file(&self.agent_disk_path)?;
         Ok(HaltReason::PowerOff)
     }
 }

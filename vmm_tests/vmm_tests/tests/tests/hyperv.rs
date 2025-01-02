@@ -12,17 +12,20 @@ fn hyperv_test() {
         let resolver = petri::TestArtifactResolver::new(Box::new(
             petri_artifact_resolver_openvmm_known_paths::OpenvmmKnownPathsTestArtifactResolver,
         ))
-        .require(::petri_artifacts_common::artifacts::PIPETTE_WINDOWS_AARCH64)
+        .require(::petri_artifacts_common::artifacts::PIPETTE_LINUX_AARCH64)
+        .require(petri_artifacts_vmm_test::artifacts::test_vhd::UBUNTU_2404_SERVER_AARCH64)
         .finalize();
         let config = PetriVmConfigHyperV::new(
             petri::Firmware::Uefi {
-                guest: petri::UefiGuest::None,
+                guest: petri::UefiGuest::Vhd(petri::BootImageConfig::from_vhd(
+                    petri_artifacts_vmm_test::artifacts::test_vhd::UBUNTU_2404_SERVER_AARCH64,
+                )),
             },
             MachineArch::Aarch64,
             resolver,
             &driver,
         )?;
-        let (vm, agent) = config.run(&driver).await?;
+        let (vm, agent) = config.run().await?;
         agent.power_off().await?;
         vm.wait_for_teardown()?;
 

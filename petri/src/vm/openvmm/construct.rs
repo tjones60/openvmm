@@ -98,20 +98,8 @@ impl PetriVmConfigOpenVMM {
         resolver: TestArtifacts,
         driver: &DefaultDriver,
     ) -> anyhow::Result<Self> {
-        // Use the current thread name for the test name, both cargo-test and
-        // cargo-nextest set this.
-        // FUTURE: If we ever want to use petri outside a testing context this
-        // will need to be revisited.
-        let current_thread = std::thread::current();
-        let test_name = current_thread.name().context("no thread name configured")?;
-        if test_name.is_empty() {
-            anyhow::bail!("thread name is empty");
-        }
-        if test_name == "main" {
-            anyhow::bail!("thread name is 'main', not running from test thread");
-        }
-        // Windows paths can't include colons, replace them.
-        let test_name = test_name.replace("::", "__");
+        let test_name = crate::get_test_name()?;
+
         let setup = PetriVmConfigSetupCore {
             test_name: &test_name,
             arch,

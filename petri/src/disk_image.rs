@@ -34,7 +34,7 @@ pub fn build_agent_image(
             // Windows doesn't use cloud-init, so we only need pipette
             // (which is configured via the IMC hive).
             build_disk_image(
-                "pipette",
+                "PIPETTE",
                 &[(
                     "pipette.exe",
                     PathOrBinary::Path(&resolver.resolve(match arch {
@@ -50,7 +50,7 @@ pub fn build_agent_image(
             // Linux uses cloud-init, so we need to include the cloud-init
             // configuration files as well.
             build_disk_image(
-                "cidata", // cloud-init looks for a volume label of "cidata",
+                "CIDATA", // cloud-init looks for a volume label of "cidata",
                 &[
                     (
                         "pipette",
