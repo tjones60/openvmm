@@ -50,7 +50,11 @@ pub fn build_agent_image(
             // Linux uses cloud-init, so we need to include the cloud-init
             // configuration files as well.
             build_disk_image(
-                "CIDATA", // cloud-init looks for a volume label of "cidata",
+                // cloud-init looks for a volume label of "CIDATA"
+                // volume labels are always all caps when creating VHDs on
+                // Windows, so just always use all caps since Linux is case
+                // sensitive
+                "CIDATA",
                 &[
                     (
                         "pipette",
