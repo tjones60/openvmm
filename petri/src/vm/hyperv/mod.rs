@@ -19,6 +19,7 @@ use petri_artifacts_common::tags::OsFlavor;
 use petri_artifacts_core::TestArtifacts;
 use pipette_client::PipetteClient;
 use std::fs;
+use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use vmm_core_defs::HaltReason;
@@ -163,6 +164,29 @@ impl PetriVmConfigHyperV {
                 ImageType::Vhd,
             )
             .context("failed to build agent image")?;
+        }
+
+        if matches!(self.os_flavor, OsFlavor::Windows) {
+            // Make a file for the IMC hive. It's not guaranteed to be at a fixed
+            // location at runtime.
+            let imc_hive = self.temp_dir.path().join("imc.hiv");
+            {
+                let mut imc_hive_file = fs::File::create_new(&imc_hive)?;
+                imc_hive_file
+                    .write_all(include_bytes!("../../../guest-bootstrap/imc.hiv"))
+                    .context("failed to write imc hive")?;
+            }
+
+            let ps_mod = self.temp_dir.path().join("imc.psm1");
+            {
+                let mut ps_mod_file = fs::File::create_new(&ps_mod)?;
+                ps_mod_file
+                    .write_all(include_bytes!("../../../guest-bootstrap/imc.psm1"))
+                    .context("failed to write imc powershell module")?;
+            }
+
+            // Set the IMC
+            powershell::run_set_initial_machine_configuration(&self.name, &ps_mod, &imc_hive)?;
         }
 
         powershell::run_add_vm_scsi_controller(&self.name)?;

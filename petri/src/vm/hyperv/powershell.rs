@@ -317,6 +317,22 @@ pub fn run_set_vm_firmware(args: HyperVSetVMFirmwareArgs<'_>) -> anyhow::Result<
     })
 }
 
+/// Sets the initial machine configuration for a VM
+pub fn run_set_initial_machine_configuration(
+    name: &str,
+    ps_mod: &Path,
+    imc_hive: &Path,
+) -> anyhow::Result<()> {
+    run_powershell_cmdlet("Import-Module", |cmd| {
+        cmd.arg(ps_mod).arg(";");
+        cmd.arg("Set-InitialMachineConfiguration")
+            .arg("-VMName")
+            .arg(name)
+            .arg("-ImcHive")
+            .arg(imc_hive)
+    })
+}
+
 /// Runs a powershell cmdlet with the given arguments.
 fn run_powershell_cmdlet(
     cmdlet: &str,
