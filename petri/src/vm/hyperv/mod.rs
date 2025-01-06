@@ -10,12 +10,13 @@ use vmsocket::VmSocket;
 use super::Firmware;
 use crate::disk_image::build_agent_image;
 use crate::disk_image::ImageType;
+use crate::IsolationType;
 use anyhow::Context;
-use hvlite_defs::config::IsolationType;
 use pal_async::socket::PolledSocket;
 use pal_async::DefaultDriver;
 use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_common::tags::OsFlavor;
+use petri_artifacts_core::AsArtifactHandle;
 use petri_artifacts_core::TestArtifacts;
 use pipette_client::PipetteClient;
 use std::fs;
@@ -39,12 +40,17 @@ pub struct PetriVmConfigHyperV {
     // Specifies the path to a virtual hard disk file(s) to attach to the
     // virtual machine as SCSI (Gen2) or IDE (Gen1) drives.
     vhd_paths: Vec<Vec<PathBuf>>,
+    secure_boot_template: powershell::HyperVSecureBootTemplate,
+    openhcl_igvm: Option<PathBuf>,
+
     // Petri test dependency resolver
     resolver: TestArtifacts,
-    arch: MachineArch,
     driver: DefaultDriver,
-    secure_boot_template: powershell::HyperVSecureBootTemplate,
+
+    arch: MachineArch,
     os_flavor: OsFlavor,
+
+    // Folder to store temporary data for this test
     temp_dir: tempfile::TempDir,
 }
 
@@ -69,17 +75,19 @@ impl PetriVmConfigHyperV {
             temp_dir.path().display()
         );
 
-        let (guest_state_isolation_type, guest_artifact) = match &firmware {
+        let (guest_state_isolation_type, guest_artifact, igvm_artifact) = match &firmware {
             Firmware::LinuxDirect | Firmware::OpenhclLinuxDirect => {
                 panic!("linux direct not supported on hyper-v")
             }
             Firmware::Pcat { guest } => (
                 powershell::HyperVGuestStateIsolationType::Disabled,
                 guest.artifact(),
+                None,
             ),
             Firmware::Uefi { guest } => (
                 powershell::HyperVGuestStateIsolationType::Disabled,
                 guest.artifact(),
+                None,
             ),
             Firmware::OpenhclUefi {
                 guest,
@@ -88,18 +96,28 @@ impl PetriVmConfigHyperV {
             } => (
                 match isolation {
                     Some(IsolationType::Vbs) => powershell::HyperVGuestStateIsolationType::Vbs,
+                    Some(IsolationType::Snp) => powershell::HyperVGuestStateIsolationType::Snp,
+                    Some(IsolationType::Tdx) => powershell::HyperVGuestStateIsolationType::Tdx,
                     None => powershell::HyperVGuestStateIsolationType::TrustedLaunch,
                 },
                 guest.artifact(),
+                Some(if isolation.is_some() {
+                    petri_artifacts_vmm_test::artifacts::openhcl_igvm::LATEST_STANDARD_X64.erase()
+                } else {
+                    petri_artifacts_vmm_test::artifacts::openhcl_igvm::LATEST_CVM_X64.erase()
+                }),
             ),
         };
-        let original_os_disk = resolver.resolve(guest_artifact);
+
+        let reference_os_disk = resolver.resolve(guest_artifact);
         let os_disk = temp_dir.path().join(
-            original_os_disk
+            reference_os_disk
                 .file_name()
                 .context("path has no filename")?,
         );
-        fs::copy(&original_os_disk, &os_disk)?;
+        fs::copy(&reference_os_disk, &os_disk)?;
+        let openhcl_igvm = igvm_artifact.map(|a| resolver.resolve(a));
+
         Ok(PetriVmConfigHyperV {
             name: test_name,
             generation: powershell::HyperVGeneration::Two,
@@ -107,9 +125,6 @@ impl PetriVmConfigHyperV {
             memory: 0x1_0000_0000,
             vm_path: None,
             vhd_paths: vec![vec![os_disk]],
-            resolver,
-            arch,
-            driver: driver.clone(),
             secure_boot_template: match firmware.os_flavor() {
                 OsFlavor::Windows => powershell::HyperVSecureBootTemplate::MicrosoftWindows,
                 OsFlavor::Linux => {
@@ -119,12 +134,24 @@ impl PetriVmConfigHyperV {
                     powershell::HyperVSecureBootTemplate::SecureBootDisabled
                 }
             },
+            openhcl_igvm,
+            resolver,
+            driver: driver.clone(),
+            arch,
             os_flavor: firmware.os_flavor(),
             temp_dir,
         })
     }
     /// Build and boot the requested VM
     pub async fn run(self) -> anyhow::Result<(PetriVmHyperV, PipetteClient)> {
+        let ps_mod = self.temp_dir.path().join("hyperv.psm1");
+        {
+            let mut ps_mod_file = fs::File::create_new(&ps_mod)?;
+            ps_mod_file
+                .write_all(include_bytes!("hyperv.psm1"))
+                .context("failed to write imc powershell module")?;
+        }
+
         powershell::run_new_vm(powershell::HyperVNewVMArgs {
             name: &self.name,
             boot_device: None,
@@ -134,6 +161,10 @@ impl PetriVmConfigHyperV {
             path: self.vm_path.as_deref(),
             vhd_path: None,
         })?;
+
+        if let Some(igvm_file) = &self.openhcl_igvm {
+            powershell::run_set_openhcl_firmware(&self.name, &ps_mod, igvm_file)?;
+        }
 
         powershell::run_set_vm_firmware(powershell::HyperVSetVMFirmwareArgs {
             name: &self.name,
@@ -175,14 +206,6 @@ impl PetriVmConfigHyperV {
                 imc_hive_file
                     .write_all(include_bytes!("../../../guest-bootstrap/imc.hiv"))
                     .context("failed to write imc hive")?;
-            }
-
-            let ps_mod = self.temp_dir.path().join("imc.psm1");
-            {
-                let mut ps_mod_file = fs::File::create_new(&ps_mod)?;
-                ps_mod_file
-                    .write_all(include_bytes!("../../../guest-bootstrap/imc.psm1"))
-                    .context("failed to write imc powershell module")?;
             }
 
             // Set the IMC

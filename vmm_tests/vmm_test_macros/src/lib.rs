@@ -43,6 +43,8 @@ struct OpenhclUefiOptions {
 
 enum IsolationType {
     Vbs,
+    Snp,
+    Tdx,
 }
 
 enum PcatGuest {
@@ -519,6 +521,8 @@ impl OpenhclUefiOptions {
         if let Some(isolation) = &self.isolation {
             prefix.push_str(match isolation {
                 IsolationType::Vbs => "vbs",
+                IsolationType::Snp => "snp",
+                IsolationType::Tdx => "tdx",
             });
         }
         if self.nvme {
@@ -552,6 +556,18 @@ impl Parse for OpenhclUefiOptions {
                     }
                     options.isolation = Some(IsolationType::Vbs);
                 }
+                "snp" => {
+                    if options.isolation.is_some() {
+                        return Err(Error::new(word.span(), "isolation type already specified"));
+                    }
+                    options.isolation = Some(IsolationType::Snp);
+                }
+                "tdx" => {
+                    if options.isolation.is_some() {
+                        return Err(Error::new(word.span(), "isolation type already specified"));
+                    }
+                    options.isolation = Some(IsolationType::Tdx);
+                }
                 _ => return Err(Error::new(word.span(), "unrecognized openhcl uefi option")),
             }
         }
@@ -562,7 +578,9 @@ impl Parse for OpenhclUefiOptions {
 impl ToTokens for IsolationType {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         tokens.extend(match self {
-            IsolationType::Vbs => quote!(::hvlite_defs::config::IsolationType::Vbs),
+            IsolationType::Vbs => quote!(petri::IsolationType::Vbs),
+            IsolationType::Snp => quote!(petri::IsolationType::Snp),
+            IsolationType::Tdx => quote!(petri::IsolationType::Tdx),
         });
     }
 }

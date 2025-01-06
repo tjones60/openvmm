@@ -9,7 +9,6 @@ pub mod hyperv;
 mod openvmm;
 
 use anyhow::Context;
-use hvlite_defs::config::IsolationType;
 pub use openvmm::*;
 use petri_artifacts_common::tags::GuestQuirks;
 use petri_artifacts_common::tags::MachineArch;
@@ -260,6 +259,17 @@ impl BootImageConfig<boot_image_type::Iso> {
             _type: std::marker::PhantomData,
         }
     }
+}
+
+/// Isolation type
+#[derive(Debug, Clone, Copy)]
+pub enum IsolationType {
+    /// VBS
+    Vbs,
+    /// SNP
+    Snp,
+    /// TDX
+    Tdx,
 }
 
 /// Generates a name for the petri test based on the thread name

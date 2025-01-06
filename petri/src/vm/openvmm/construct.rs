@@ -9,6 +9,7 @@ use crate::linux_direct_serial_agent::LinuxDirectSerialAgent;
 use crate::openhcl_diag::OpenHclDiagHandler;
 use crate::tracing::trace_attachment;
 use crate::Firmware;
+use crate::IsolationType;
 use crate::PcatGuest;
 use crate::PetriVmConfigOpenVMM;
 use crate::UefiGuest;
@@ -294,7 +295,11 @@ impl PetriVmConfigOpenVMM {
                 user_mode_hv_enlightenments: false,
                 user_mode_apic: false,
                 with_vtl2,
-                with_isolation: firmware.isolation(),
+                with_isolation: match firmware.isolation() {
+                    Some(IsolationType::Vbs) => Some(hvlite_defs::config::IsolationType::Vbs),
+                    None => None,
+                    _ => anyhow::bail!("unsupported isolation type"),
+                },
             },
             vmbus: Some(VmbusConfig {
                 vsock_listener: Some(vmbus_vsock_listener),

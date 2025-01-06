@@ -3,7 +3,7 @@
 
 //! Functions for creating Hyper-V VMs.
 
-use anyhow::Context as _;
+use anyhow::Context;
 use core::str;
 use std::borrow::Cow;
 use std::fmt::Display;
@@ -35,7 +35,7 @@ impl Display for HyperVGeneration {
 /// Hyper-V Guest State Isolation Type
 #[derive(Clone, Copy)]
 pub enum HyperVGuestStateIsolationType {
-    /// Trusted Launch (HCL, SecureBoot, TPM)
+    /// Trusted Launch (OpenHCL, SecureBoot, TPM)
     TrustedLaunch,
     /// VBS
     Vbs,
@@ -43,9 +43,9 @@ pub enum HyperVGuestStateIsolationType {
     Snp,
     /// TDX
     Tdx,
-    /// HCL but no isolation
-    None,
-    /// No isolation
+    /// OpenHCL but no isolation
+    OpenHCL,
+    /// No HCL and no isolation
     Disabled,
 }
 
@@ -64,8 +64,8 @@ impl Display for HyperVGuestStateIsolationType {
             HyperVGuestStateIsolationType::Tdx => {
                 write!(f, "TDX")
             }
-            HyperVGuestStateIsolationType::None => {
-                write!(f, "None")
+            HyperVGuestStateIsolationType::OpenHCL => {
+                write!(f, "OpenHCL")
             }
             HyperVGuestStateIsolationType::Disabled => {
                 write!(f, "Disabled")
@@ -317,14 +317,26 @@ pub fn run_set_vm_firmware(args: HyperVSetVMFirmwareArgs<'_>) -> anyhow::Result<
     })
 }
 
+/// Runs Set-VMFirmware with the given arguments.
+pub fn run_set_openhcl_firmware(name: &str, ps_mod: &Path, igvm_file: &Path) -> anyhow::Result<()> {
+    run_powershell(Some("Set-OpenHCLFirware"), |cmd| {
+        cmd.arg("Import-Module").arg(ps_mod).arg(";");
+        cmd.arg("Set-OpenHCLFirware")
+            .arg("-VMName")
+            .arg(name)
+            .arg("-IgvmFile")
+            .arg(igvm_file)
+    })
+}
+
 /// Sets the initial machine configuration for a VM
 pub fn run_set_initial_machine_configuration(
     name: &str,
     ps_mod: &Path,
     imc_hive: &Path,
 ) -> anyhow::Result<()> {
-    run_powershell_cmdlet("Import-Module", |cmd| {
-        cmd.arg(ps_mod).arg(";");
+    run_powershell(Some("Set-InitialMachineConfiguration"), |cmd| {
+        cmd.arg("Import-Module").arg(ps_mod).arg(";");
         cmd.arg("Set-InitialMachineConfiguration")
             .arg("-VMName")
             .arg(name)
@@ -338,14 +350,31 @@ fn run_powershell_cmdlet(
     cmdlet: &str,
     f: impl FnOnce(&mut Command) -> &mut Command,
 ) -> anyhow::Result<()> {
+    run_powershell(None, |cmd| {
+        cmd.arg(cmdlet);
+        f(cmd)
+    })
+}
+
+/// Runs a powershell cmdlet with the given arguments.
+fn run_powershell(
+    name: Option<&str>,
+    f: impl FnOnce(&mut Command) -> &mut Command,
+) -> anyhow::Result<()> {
     let mut cmd = Command::new("powershell.exe");
-    cmd.arg(cmdlet);
     f(&mut cmd);
+    let cmdlet = cmd
+        .get_args()
+        .next()
+        .context("no cmdlet in args")?
+        .to_string_lossy()
+        .into_owned();
+    let name = name.unwrap_or(&cmdlet);
     let status = cmd
         .status()
-        .context(format!("failed to launch powershell cmdlet {cmdlet}"))?;
+        .context(format!("failed to launch powershell cmdlet {name}"))?;
     if !status.success() {
-        anyhow::bail!("powershell cmdlet {cmdlet} failed with exit code: {status}");
+        anyhow::bail!("powershell cmdlet {name} failed with exit code: {status}");
     }
     Ok(())
 }
