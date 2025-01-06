@@ -72,21 +72,19 @@ fn hyperv_test_windows_openhcl() {
         let resolver = petri::TestArtifactResolver::new(Box::new(
             petri_artifact_resolver_openvmm_known_paths::OpenvmmKnownPathsTestArtifactResolver,
         ))
-        .require(::petri_artifacts_common::artifacts::PIPETTE_WINDOWS_X64)
-        .require(
-            petri_artifacts_vmm_test::artifacts::test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64,
-        )
-        .require(petri_artifacts_vmm_test::artifacts::openhcl_igvm::LATEST_STANDARD_X64)
+        .require(::petri_artifacts_common::artifacts::PIPETTE_LINUX_AARCH64)
+        .require(petri_artifacts_vmm_test::artifacts::test_vhd::UBUNTU_2404_SERVER_AARCH64)
+        .require(petri_artifacts_vmm_test::artifacts::openhcl_igvm::LATEST_STANDARD_AARCH64)
         .finalize();
         let config = PetriVmConfigHyperV::new(
-            petri::Firmware::OpenhclUefi { 
+            petri::Firmware::OpenhclUefi {
                 guest: petri::UefiGuest::Vhd(petri::BootImageConfig::from_vhd(
-                    petri_artifacts_vmm_test::artifacts::test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64,
+                    petri_artifacts_vmm_test::artifacts::test_vhd::UBUNTU_2404_SERVER_AARCH64,
                 )),
                 isolation: None,
-                vtl2_nvme_boot: false
+                vtl2_nvme_boot: false,
             },
-            MachineArch::X86_64,
+            MachineArch::Aarch64,
             resolver,
             &driver,
         )?;

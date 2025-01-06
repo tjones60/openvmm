@@ -101,10 +101,19 @@ impl PetriVmConfigHyperV {
                     None => powershell::HyperVGuestStateIsolationType::TrustedLaunch,
                 },
                 guest.artifact(),
-                Some(if isolation.is_some() {
-                    petri_artifacts_vmm_test::artifacts::openhcl_igvm::LATEST_STANDARD_X64.erase()
-                } else {
-                    petri_artifacts_vmm_test::artifacts::openhcl_igvm::LATEST_CVM_X64.erase()
+                Some(match (arch, isolation) {
+                    (MachineArch::X86_64, None) => {
+                        petri_artifacts_vmm_test::artifacts::openhcl_igvm::LATEST_STANDARD_X64
+                            .erase()
+                    }
+                    (MachineArch::X86_64, Some(_)) => {
+                        petri_artifacts_vmm_test::artifacts::openhcl_igvm::LATEST_CVM_X64.erase()
+                    }
+                    (MachineArch::Aarch64, None) => {
+                        petri_artifacts_vmm_test::artifacts::openhcl_igvm::LATEST_STANDARD_AARCH64
+                            .erase()
+                    }
+                    _ => anyhow::bail!("unsupported arch/isolation combination"),
                 }),
             ),
         };

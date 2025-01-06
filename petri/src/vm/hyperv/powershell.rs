@@ -319,9 +319,9 @@ pub fn run_set_vm_firmware(args: HyperVSetVMFirmwareArgs<'_>) -> anyhow::Result<
 
 /// Runs Set-VMFirmware with the given arguments.
 pub fn run_set_openhcl_firmware(name: &str, ps_mod: &Path, igvm_file: &Path) -> anyhow::Result<()> {
-    run_powershell(Some("Set-OpenHCLFirware"), |cmd| {
+    run_powershell(Some("Set-OpenHCLFirmware"), |cmd| {
         cmd.arg("Import-Module").arg(ps_mod).arg(";");
-        cmd.arg("Set-OpenHCLFirware")
+        cmd.arg("Set-OpenHCLFirmware")
             .arg("-VMName")
             .arg(name)
             .arg("-IgvmFile")
