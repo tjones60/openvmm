@@ -23,7 +23,7 @@ use pipette_client::PipetteClient;
 ///
 /// R is the type of the struct used to interact with the VM once it is created
 #[async_trait]
-pub trait PetriVmConfig: Sync + Send {
+pub trait PetriVmConfig: Send {
     /// Build and boot the requested VM. Does not configure and start pipette.
     /// Should only be used for testing platforms that pipette does not support.
     async fn run_without_agent(self: Box<Self>) -> anyhow::Result<Box<dyn PetriVm>>;
@@ -37,7 +37,7 @@ pub trait PetriVmConfig: Sync + Send {
 
 /// A running VM that tests can interact with.
 #[async_trait]
-pub trait PetriVm: Sync + Send {
+pub trait PetriVm: Send {
     /// Wait for the VM to halt, returning the reason for the halt.
     async fn wait_for_halt(&mut self) -> anyhow::Result<HaltReason>;
     /// Wait for the VM to halt, returning the reason for the halt,

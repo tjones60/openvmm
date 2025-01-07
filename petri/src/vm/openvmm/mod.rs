@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-//! Code managing the lifetime of a `PetriVmOpenVMM`. All VMs live the same lifecycle:
-//! * A `PetriVmConfigOpenVMM` is built for the given firmware and architecture in `construct`.
+//! Code managing the lifetime of a `PetriVmOpenVmm`. All VMs live the same lifecycle:
+//! * A `PetriVmConfigOpenVmm` is built for the given firmware and architecture in `construct`.
 //! * The configuration is optionally modified from the defaults using the helpers in `modify`.
-//! * The `PetriVmOpenVMM` is started by the code in `start`.
+//! * The `PetriVmOpenVmm` is started by the code in `start`.
 //! * The VM is interacted with through the methods in `runtime`.
 //! * The VM is either shut down by the code in `runtime`, or gets dropped and cleaned up automatically.
 
@@ -13,14 +13,14 @@ mod modify;
 mod runtime;
 mod start;
 
-pub use runtime::PetriVmOpenVMM;
+pub use runtime::PetriVmOpenVmm;
 
 use crate::linux_direct_serial_agent::LinuxDirectSerialAgent;
 use crate::openhcl_diag::OpenHclDiagHandler;
 use crate::Firmware;
-// use crate::PetriVm;
-// use crate::PetriVmConfig;
-// use async_trait::async_trait;
+use crate::PetriVm;
+use crate::PetriVmConfig;
+use async_trait::async_trait;
 use framebuffer::FramebufferAccess;
 use fs_err::File;
 use get_resources::ged::FirmwareEvent;
@@ -35,7 +35,7 @@ use pal_async::DefaultDriver;
 use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_common::tags::OsFlavor;
 use petri_artifacts_core::TestArtifacts;
-// use pipette_client::PipetteClient;
+use pipette_client::PipetteClient;
 use std::path::PathBuf;
 use std::sync::Arc;
 use unix_socket::UnixListener;
@@ -56,14 +56,14 @@ pub(crate) const BOOT_NVME_NSID: u32 = 37;
 pub(crate) const BOOT_NVME_LUN: u32 = 1;
 
 /// Configuration state for a test VM.
-pub struct PetriVmConfigOpenVMM {
+pub struct PetriVmConfigOpenVmm {
     // Direct configuration related information.
     firmware: Firmware,
     arch: MachineArch,
     config: Config,
 
     // Runtime resources
-    resources: PetriVmResourcesOpenVMM,
+    resources: PetriVmResourcesOpenVmm,
 
     // Logging
     hvlite_log_file: File,
@@ -74,24 +74,24 @@ pub struct PetriVmConfigOpenVMM {
     framebuffer_access: Option<FramebufferAccess>,
 }
 
-// #[async_trait]
-// impl PetriVmConfig for PetriVmConfigOpenVMM {
-//     async fn run_without_agent(self: Box<Self>) -> anyhow::Result<Box<dyn PetriVm>> {
-//         Ok(Box::new(Self::run_without_agent(*self).await?))
-//     }
+#[async_trait]
+impl PetriVmConfig for PetriVmConfigOpenVmm {
+    async fn run_without_agent(self: Box<Self>) -> anyhow::Result<Box<dyn PetriVm>> {
+        Ok(Box::new(Self::run_without_agent(*self).await?))
+    }
 
-//     async fn run_with_lazy_pipette(mut self: Box<Self>) -> anyhow::Result<Box<dyn PetriVm>> {
-//         Ok(Box::new(Self::run_with_lazy_pipette(*self).await?))
-//     }
+    async fn run_with_lazy_pipette(mut self: Box<Self>) -> anyhow::Result<Box<dyn PetriVm>> {
+        Ok(Box::new(Self::run_with_lazy_pipette(*self).await?))
+    }
 
-//     async fn run(self: Box<Self>) -> anyhow::Result<(Box<dyn PetriVm>, PipetteClient)> {
-//         let (vm, client) = Self::run(*self).await?;
-//         Ok((Box::new(vm), client))
-//     }
-// }
+    async fn run(self: Box<Self>) -> anyhow::Result<(Box<dyn PetriVm>, PipetteClient)> {
+        let (vm, client) = Self::run(*self).await?;
+        Ok((Box::new(vm), client))
+    }
+}
 
 /// Various channels and resources used to interact with the VM while it is running.
-struct PetriVmResourcesOpenVMM {
+struct PetriVmResourcesOpenVmm {
     serial_tasks: Vec<Task<anyhow::Result<()>>>,
     firmware_event_recv: MpscReceiver<FirmwareEvent>,
     shutdown_ic_send: Sender<ShutdownRpc>,
@@ -108,7 +108,7 @@ struct PetriVmResourcesOpenVMM {
     output_dir: PathBuf,
 }
 
-impl PetriVmConfigOpenVMM {
+impl PetriVmConfigOpenVmm {
     /// Get the OS that the VM will boot into.
     pub fn os_flavor(&self) -> OsFlavor {
         self.firmware.os_flavor()

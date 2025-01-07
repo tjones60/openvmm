@@ -94,6 +94,11 @@ impl Config {
     fn name_prefix(&self) -> String {
         let arch_prefix = arch_to_str(self.arch);
 
+        let vmm_prefix = match self.vmm {
+            Vmm::OpenVmm => "openvmm",
+            Vmm::HyperV => "hyperv",
+        };
+
         let firmware_prefix = match &self.firmware {
             Firmware::LinuxDirect => "linux",
             Firmware::Pcat(_) => "pcat",
@@ -116,7 +121,7 @@ impl Config {
             Firmware::OpenhclUefi(opt, _) => opt.name_prefix(),
         };
 
-        let mut name_prefix = format!("{}_{}", firmware_prefix, arch_prefix);
+        let mut name_prefix = format!("{}_{}_{}", vmm_prefix, firmware_prefix, arch_prefix);
         if let Some(guest_prefix) = guest_prefix {
             name_prefix.push('_');
             name_prefix.push_str(&guest_prefix);
@@ -664,7 +669,7 @@ fn parse_extra_deps(input: ParseStream<'_>) -> syn::Result<Vec<Path>> {
 /// Each configuration can be optionally followed by a square-bracketed, comma-separated
 /// list of additional artifacts required for that particular configuration.
 #[proc_macro_attribute]
-pub fn universal_vmm_test(
+pub fn vmm_test(
     attr: proc_macro::TokenStream,
     item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
@@ -676,9 +681,8 @@ pub fn universal_vmm_test(
 }
 
 /// Same options as `vmm_test`, but only for OpenVMM tests
-// TODO: Rename openvmm_test
 #[proc_macro_attribute]
-pub fn vmm_test(
+pub fn openvmm_test(
     attr: proc_macro::TokenStream,
     item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
@@ -746,7 +750,7 @@ fn make_vmm_test(args: Args, item: ItemFn, specific_vmm: Option<Vmm>) -> syn::Re
                     #( .require(#extra_deps) )*
                     #( .try_require(#optional_deps) )*
                     .finalize();
-                let config = PetriVmConfigOpenVMM::new(
+                let config = PetriVmConfigOpenVmm::new(
                     #firmware,
                     #arch,
                     resolver.clone(),
@@ -785,7 +789,7 @@ fn make_vmm_test(args: Args, item: ItemFn, specific_vmm: Option<Vmm>) -> syn::Re
                     #( .require(#extra_deps) )*
                     #( .try_require(#optional_deps) )*
                     .finalize();
-                let config = Box::new(PetriVmConfigOpenVMM::new(
+                let config = Box::new(PetriVmConfigOpenVmm::new(
                     #firmware,
                     #arch,
                     resolver.clone(),

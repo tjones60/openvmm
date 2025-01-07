@@ -119,24 +119,26 @@ impl PetriVmConfigHyperV {
             temp_dir.path().display()
         );
 
-        let (guest_state_isolation_type, guest_artifact, igvm_artifact) = match &firmware {
+        let (guest_state_isolation_type, generation, guest_artifact, igvm_artifact) = match &firmware {
             Firmware::LinuxDirect | Firmware::OpenhclLinuxDirect => {
                 panic!("linux direct not supported on hyper-v")
             }
             Firmware::Pcat { guest } => (
                 powershell::HyperVGuestStateIsolationType::Disabled,
+                powershell::HyperVGeneration::One,
                 guest.artifact(),
                 None,
             ),
             Firmware::Uefi { guest } => (
                 powershell::HyperVGuestStateIsolationType::Disabled,
+                powershell::HyperVGeneration::Two,
                 guest.artifact(),
                 None,
             ),
             Firmware::OpenhclUefi {
                 guest,
                 isolation,
-                vtl2_nvme_boot: _,
+                vtl2_nvme_boot: _, // TODO
             } => (
                 match isolation {
                     Some(IsolationType::Vbs) => powershell::HyperVGuestStateIsolationType::Vbs,
@@ -144,6 +146,7 @@ impl PetriVmConfigHyperV {
                     Some(IsolationType::Tdx) => powershell::HyperVGuestStateIsolationType::Tdx,
                     None => powershell::HyperVGuestStateIsolationType::TrustedLaunch,
                 },
+                powershell::HyperVGeneration::Two,
                 guest.artifact(),
                 Some(match (arch, isolation) {
                     (MachineArch::X86_64, None) => {
@@ -173,7 +176,7 @@ impl PetriVmConfigHyperV {
 
         Ok(PetriVmConfigHyperV {
             name: test_name,
-            generation: powershell::HyperVGeneration::Two, // TODO
+            generation,
             guest_state_isolation_type,
             memory: 0x1_0000_0000,
             vm_path: None,
