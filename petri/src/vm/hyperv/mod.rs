@@ -7,11 +7,15 @@ pub mod powershell;
 use vmsocket::VmAddress;
 use vmsocket::VmSocket;
 
-use super::Firmware;
 use crate::disk_image::build_agent_image;
 use crate::disk_image::ImageType;
+use crate::openhcl_diag::OpenHclDiagHandler;
+use crate::Firmware;
 use crate::IsolationType;
+use crate::PetriVm;
+use crate::PetriVmConfig;
 use anyhow::Context;
+use async_trait::async_trait;
 use pal_async::socket::PolledSocket;
 use pal_async::DefaultDriver;
 use petri_artifacts_common::tags::MachineArch;
@@ -54,10 +58,50 @@ pub struct PetriVmConfigHyperV {
     temp_dir: tempfile::TempDir,
 }
 
+#[async_trait]
+impl PetriVmConfig for PetriVmConfigHyperV {
+    async fn run_without_agent(self: Box<Self>) -> anyhow::Result<Box<dyn PetriVm>> {
+        Ok(Box::new(Self::run_without_agent(*self)?))
+    }
+
+    async fn run_with_lazy_pipette(mut self: Box<Self>) -> anyhow::Result<Box<dyn PetriVm>> {
+        Ok(Box::new(Self::run_with_lazy_pipette(*self)?))
+    }
+
+    async fn run(self: Box<Self>) -> anyhow::Result<(Box<dyn PetriVm>, PipetteClient)> {
+        let (vm, client) = Self::run(*self).await?;
+        Ok((Box::new(vm), client))
+    }
+}
+
 /// A running VM that tests can interact with.
 pub struct PetriVmHyperV {
     config: PetriVmConfigHyperV,
-    agent_disk_path: PathBuf,
+    agent_disk_path: Option<PathBuf>,
+    openhcl_diag_handler: Option<OpenHclDiagHandler>,
+}
+
+#[async_trait]
+impl PetriVm for PetriVmHyperV {
+    async fn wait_for_halt(&mut self) -> anyhow::Result<HaltReason> {
+        Self::wait_for_halt(self)
+    }
+
+    async fn wait_for_teardown(self: Box<Self>) -> anyhow::Result<HaltReason> {
+        Self::wait_for_teardown(*self)
+    }
+
+    async fn test_inspect_openhcl(&mut self) -> anyhow::Result<()> {
+        Self::test_inspect_openhcl(self).await
+    }
+
+    async fn wait_for_agent(&mut self) -> anyhow::Result<PipetteClient> {
+        Self::wait_for_agent(self).await
+    }
+
+    async fn wait_for_vtl2_ready(&mut self) -> anyhow::Result<()> {
+        Self::wait_for_vtl2_ready(self).await
+    }
 }
 
 impl PetriVmConfigHyperV {
@@ -129,7 +173,7 @@ impl PetriVmConfigHyperV {
 
         Ok(PetriVmConfigHyperV {
             name: test_name,
-            generation: powershell::HyperVGeneration::Two,
+            generation: powershell::HyperVGeneration::Two, // TODO
             guest_state_isolation_type,
             memory: 0x1_0000_0000,
             vm_path: None,
@@ -151,8 +195,29 @@ impl PetriVmConfigHyperV {
             temp_dir,
         })
     }
-    /// Build and boot the requested VM
+
+    /// Build and boot the requested VM. Does not configure and start pipette.
+    /// Should only be used for testing platforms that pipette does not support.
+    pub fn run_without_agent(self) -> anyhow::Result<PetriVmHyperV> {
+        self.run_core(false)
+    }
+
+    /// Run the VM, configuring pipette to automatically start, but do not wait
+    /// for it to connect. This is useful for tests where the first boot attempt
+    /// is expected to not succeed, but pipette functionality is still desired.
+    pub fn run_with_lazy_pipette(self) -> anyhow::Result<PetriVmHyperV> {
+        self.run_core(true)
+    }
+
+    /// Run the VM, launching pipette and returning a client to it.
     pub async fn run(self) -> anyhow::Result<(PetriVmHyperV, PipetteClient)> {
+        let mut vm = self.run_core(true)?;
+        let client = vm.wait_for_agent().await?;
+        Ok((vm, client))
+    }
+
+    /// Build and boot the requested VM
+    fn run_core(self, with_agent: bool) -> anyhow::Result<PetriVmHyperV> {
         let ps_mod = self.temp_dir.path().join("hyperv.psm1");
         {
             let mut ps_mod_file = fs::File::create_new(&ps_mod)?;
@@ -193,103 +258,160 @@ impl PetriVmConfigHyperV {
             }
         }
 
-        // Construct the agent disk.
-        let agent_disk_path = self.temp_dir.path().join("cidata.vhd");
-        {
-            let _agent_disk = build_agent_image(
-                self.arch,
-                self.os_flavor,
-                &self.resolver,
-                Some(&agent_disk_path),
-                ImageType::Vhd,
-            )
-            .context("failed to build agent image")?;
-        }
-
-        if matches!(self.os_flavor, OsFlavor::Windows) {
-            // Make a file for the IMC hive. It's not guaranteed to be at a fixed
-            // location at runtime.
-            let imc_hive = self.temp_dir.path().join("imc.hiv");
+        let agent_disk_path = if with_agent {
+            // Construct the agent disk.
+            let agent_disk_path = self.temp_dir.path().join("cidata.vhd");
             {
-                let mut imc_hive_file = fs::File::create_new(&imc_hive)?;
-                imc_hive_file
-                    .write_all(include_bytes!("../../../guest-bootstrap/imc.hiv"))
-                    .context("failed to write imc hive")?;
+                let _agent_disk = build_agent_image(
+                    self.arch,
+                    self.os_flavor,
+                    &self.resolver,
+                    Some(&agent_disk_path),
+                    ImageType::Vhd,
+                )
+                .context("failed to build agent image")?;
             }
 
-            // Set the IMC
-            powershell::run_set_initial_machine_configuration(&self.name, &ps_mod, &imc_hive)?;
-        }
+            if matches!(self.os_flavor, OsFlavor::Windows) {
+                // Make a file for the IMC hive. It's not guaranteed to be at a fixed
+                // location at runtime.
+                let imc_hive = self.temp_dir.path().join("imc.hiv");
+                {
+                    let mut imc_hive_file = fs::File::create_new(&imc_hive)?;
+                    imc_hive_file
+                        .write_all(include_bytes!("../../../guest-bootstrap/imc.hiv"))
+                        .context("failed to write imc hive")?;
+                }
 
-        powershell::run_add_vm_scsi_controller(&self.name)?;
-        powershell::run_add_vm_hard_disk_drive(powershell::HyperVAddVMHardDiskDriveArgs {
-            name: &self.name,
-            controller_location: Some(0),
-            controller_number: Some(self.vhd_paths.len() as u32),
-            controller_type: None,
-            path: Some(&agent_disk_path),
-        })?;
+                // Set the IMC
+                powershell::run_set_initial_machine_configuration(&self.name, &ps_mod, &imc_hive)?;
+            }
+
+            powershell::run_add_vm_scsi_controller(&self.name)?;
+            powershell::run_add_vm_hard_disk_drive(powershell::HyperVAddVMHardDiskDriveArgs {
+                name: &self.name,
+                controller_location: Some(0),
+                controller_number: Some(self.vhd_paths.len() as u32),
+                controller_type: None,
+                path: Some(&agent_disk_path),
+            })?;
+
+            Some(agent_disk_path)
+        } else {
+            None
+        };
+
+        let openhcl_diag_handler = if self.openhcl_igvm.is_some() {
+            Some(OpenHclDiagHandler {
+                client: diag_client::DiagClient::from_hyperv_name(self.driver.clone(), &self.name)?,
+                vtl2_vsock_path: PathBuf::from("TODO get rid of this"),
+            })
+        } else {
+            None
+        };
 
         hvc::hvc_start(&self.name)?;
 
-        let pipette_output_dir = self.temp_dir.path().join("pipette");
-        fs::create_dir(&pipette_output_dir)?;
-        let client = wait_for_agent(&self.driver, &self.name, &pipette_output_dir, false).await?;
-
-        Ok((
-            PetriVmHyperV {
-                config: self,
-                agent_disk_path,
-            },
-            client,
-        ))
+        Ok(PetriVmHyperV {
+            config: self,
+            agent_disk_path,
+            openhcl_diag_handler,
+        })
     }
 }
 
 impl PetriVmHyperV {
-    /// Wait for VM to stop
-    pub fn wait_for_teardown(self) -> anyhow::Result<HaltReason> {
+    /// Wait for the VM to halt, returning the reason for the halt.
+    pub fn wait_for_halt(&mut self) -> anyhow::Result<HaltReason> {
         hvc::hvc_wait_for_power_off(&self.config.name)?;
-        powershell::run_remove_vm(&self.config.name)?;
-        fs::remove_file(&self.agent_disk_path)?;
         Ok(HaltReason::PowerOff)
     }
-}
 
-async fn wait_for_agent(
-    driver: &DefaultDriver,
-    name: &str,
-    output_dir: &Path,
-    set_high_vtl: bool,
-) -> anyhow::Result<PipetteClient> {
-    let vm_id = diag_client::hyperv::vm_id_from_name(name)?;
+    /// Wait for the VM to halt, returning the reason for the halt,
+    /// and cleanly tear down the VM.
+    pub fn wait_for_teardown(mut self) -> anyhow::Result<HaltReason> {
+        let halt_reason = self.wait_for_halt()?;
+        self.teardown()?;
+        Ok(halt_reason)
+    }
 
-    let mut socket = VmSocket::new().context("failed to create AF_HYPERV socket")?;
+    /// Test that we are able to inspect OpenHCL.
+    pub async fn test_inspect_openhcl(&mut self) -> anyhow::Result<()> {
+        self.openhcl_diag()?.test_inspect().await
+    }
 
-    socket
-        .set_connect_timeout(std::time::Duration::from_secs(300))
-        .context("failed to set connect timeout")?;
+    /// Wait for a connection from a pipette agent running in the guest.
+    /// Useful if you've rebooted the vm or are otherwise expecting a fresh connection.
+    pub async fn wait_for_vtl2_ready(&mut self) -> anyhow::Result<()> {
+        self.openhcl_diag()?.wait_for_vtl2().await
+    }
 
-    socket
-        .set_high_vtl(set_high_vtl)
-        .context("failed to set socket for VTL0")?;
-
-    socket.bind(VmAddress::hyperv_vsock(
-        vm_id,
-        pipette_client::PIPETTE_VSOCK_PORT,
-    ))?;
-
-    let mut socket: PolledSocket<socket2::Socket> =
-        PolledSocket::new(driver, socket.into()).context("failed to create polled socket")?;
-
-    socket.listen(1)?;
-
-    let (conn, _) = socket
-        .accept()
+    /// Wait for VTL 2 to report that it is ready to respond to commands.
+    /// Will fail if the VM is not running OpenHCL.
+    ///
+    /// This should only be necessary if you're doing something manual. All
+    /// Petri-provided methods will wait for VTL 2 to be ready automatically.
+    pub async fn wait_for_agent(&mut self) -> anyhow::Result<PipetteClient> {
+        Self::wait_for_agent_core(
+            &self.config.driver,
+            &self.config.name,
+            self.config.temp_dir.path(),
+            false,
+        )
         .await
-        .context("failed to accept pipette connection")?;
+    }
 
-    PipetteClient::new(driver, PolledSocket::new(driver, conn)?, output_dir)
-        .await
-        .context("failed to connect to pipette")
+    async fn wait_for_agent_core(
+        driver: &DefaultDriver,
+        name: &str,
+        output_dir: &Path,
+        set_high_vtl: bool,
+    ) -> anyhow::Result<PipetteClient> {
+        let vm_id = diag_client::hyperv::vm_id_from_name(name)?;
+
+        let mut socket = VmSocket::new().context("failed to create AF_HYPERV socket")?;
+
+        socket
+            .set_connect_timeout(std::time::Duration::from_secs(300))
+            .context("failed to set connect timeout")?;
+
+        socket
+            .set_high_vtl(set_high_vtl)
+            .context("failed to set socket for VTL0")?;
+
+        socket.bind(VmAddress::hyperv_vsock(
+            vm_id,
+            pipette_client::PIPETTE_VSOCK_PORT,
+        ))?;
+
+        let mut socket: PolledSocket<socket2::Socket> =
+            PolledSocket::new(driver, socket.into()).context("failed to create polled socket")?;
+
+        socket.listen(1)?;
+
+        let (conn, _) = socket
+            .accept()
+            .await
+            .context("failed to accept pipette connection")?;
+
+        PipetteClient::new(driver, PolledSocket::new(driver, conn)?, output_dir)
+            .await
+            .context("failed to connect to pipette")
+    }
+
+    fn teardown(self) -> anyhow::Result<()> {
+        powershell::run_remove_vm(&self.config.name)?;
+        if let Some(agent_disk_path) = &self.agent_disk_path {
+            fs::remove_file(agent_disk_path)?;
+        }
+        Ok(())
+    }
+
+    fn openhcl_diag(&self) -> anyhow::Result<&OpenHclDiagHandler> {
+        if let Some(ohd) = &self.openhcl_diag_handler {
+            Ok(ohd)
+        } else {
+            anyhow::bail!("VM is not configured with OpenHCL")
+        }
+    }
 }

@@ -3,8 +3,11 @@
 
 //! Integration tests that run on more than one architecture.
 
+use petri::hyperv::PetriVmConfigHyperV;
+use petri::PetriVmConfig;
 use petri::PetriVmConfigOpenVMM;
 use vmm_core_defs::HaltReason;
+use vmm_test_macros::universal_vmm_test;
 use vmm_test_macros::vmm_test;
 
 /// Boot through the UEFI firmware, it will shut itself down after booting.
@@ -29,6 +32,21 @@ async fn frontpage(config: PetriVmConfigOpenVMM) -> anyhow::Result<()> {
     uefi_aarch64(vhd(ubuntu_2404_server_aarch64))
 )]
 async fn boot(config: PetriVmConfigOpenVMM) -> anyhow::Result<()> {
+    let (vm, agent) = config.run().await?;
+    agent.power_off().await?;
+    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    Ok(())
+}
+
+/// Basic boot test.
+#[universal_vmm_test(
+    hyperv_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
+    hyperv_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
+    hyperv_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)),
+    hyperv_uefi_x64(vhd(ubuntu_2204_server_x64)),
+    hyperv_uefi_aarch64(vhd(ubuntu_2404_server_aarch64))
+)]
+async fn boot_universal(config: Box<dyn PetriVmConfig>) -> anyhow::Result<()> {
     let (vm, agent) = config.run().await?;
     agent.power_off().await?;
     assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);

@@ -17,21 +17,43 @@ use petri_artifacts_core::ArtifactHandle;
 use petri_artifacts_core::AsArtifactHandle;
 use petri_artifacts_core::ErasedArtifactHandle;
 use petri_artifacts_vmm_test::artifacts as hvlite_artifacts;
+use pipette_client::PipetteClient;
 
 /// Configuration state for a test VM.
+///
+/// R is the type of the struct used to interact with the VM once it is created
 #[async_trait]
-pub trait PetriVmConfig<T: PetriVm> {
+pub trait PetriVmConfig: Sync + Send {
     /// Build and boot the requested VM. Does not configure and start pipette.
     /// Should only be used for testing platforms that pipette does not support.
-    async fn run_without_agent(self) -> anyhow::Result<T>;
+    async fn run_without_agent(self: Box<Self>) -> anyhow::Result<Box<dyn PetriVm>>;
+    /// Run the VM, configuring pipette to automatically start, but do not wait
+    /// for it to connect. This is useful for tests where the first boot attempt
+    /// is expected to not succeed, but pipette functionality is still desired.
+    async fn run_with_lazy_pipette(self: Box<Self>) -> anyhow::Result<Box<dyn PetriVm>>;
+    /// Run the VM, launching pipette and returning a client to it.
+    async fn run(self: Box<Self>) -> anyhow::Result<(Box<dyn PetriVm>, PipetteClient)>;
 }
 
 /// A running VM that tests can interact with.
 #[async_trait]
-pub trait PetriVm {
+pub trait PetriVm: Sync + Send {
+    /// Wait for the VM to halt, returning the reason for the halt.
+    async fn wait_for_halt(&mut self) -> anyhow::Result<HaltReason>;
     /// Wait for the VM to halt, returning the reason for the halt,
     /// and cleanly tear down the VM.
-    async fn wait_for_teardown(mut self) -> anyhow::Result<HaltReason>;
+    async fn wait_for_teardown(self: Box<Self>) -> anyhow::Result<HaltReason>;
+    /// Test that we are able to inspect OpenHCL.
+    async fn test_inspect_openhcl(&mut self) -> anyhow::Result<()>;
+    /// Wait for a connection from a pipette agent running in the guest.
+    /// Useful if you've rebooted the vm or are otherwise expecting a fresh connection.
+    async fn wait_for_agent(&mut self) -> anyhow::Result<PipetteClient>;
+    /// Wait for VTL 2 to report that it is ready to respond to commands.
+    /// Will fail if the VM is not running OpenHCL.
+    ///
+    /// This should only be necessary if you're doing something manual. All
+    /// Petri-provided methods will wait for VTL 2 to be ready automatically.
+    async fn wait_for_vtl2_ready(&mut self) -> anyhow::Result<()>;
 }
 
 /// Firmware to load into the test VM.

@@ -21,10 +21,17 @@ use syn::Path;
 use syn::Token;
 
 struct Config {
+    vmm: Vmm,
     firmware: Firmware,
     arch: MachineArch,
     span: Span,
     extra_deps: Vec<Path>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Vmm {
+    OpenVmm,
+    HyperV,
 }
 
 enum Firmware {
@@ -354,8 +361,17 @@ impl Parse for Args {
 impl Parse for Config {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let word = input.parse::<Ident>()?;
+        let word_string = word.to_string();
 
-        let (arch, firmware) = match &*word.to_string() {
+        let (vmm, remainder) = if let Some(remainder) = word_string.strip_prefix("hyperv_") {
+            (Vmm::HyperV, remainder)
+        } else if let Some(remainder) = word_string.strip_prefix("openvmm_") {
+            (Vmm::OpenVmm, remainder)
+        } else {
+            (Vmm::OpenVmm, word_string.as_str())
+        };
+
+        let (arch, firmware) = match remainder {
             "linux_direct_x64" => (MachineArch::X86_64, Firmware::LinuxDirect),
             "linux_direct_aarch64" => (MachineArch::Aarch64, Firmware::LinuxDirect),
             "openhcl_linux_direct_x64" => (MachineArch::X86_64, Firmware::OpenhclLinuxDirect),
@@ -387,6 +403,7 @@ impl Parse for Config {
         let extra_deps = parse_extra_deps(input)?;
 
         Ok(Config {
+            vmm,
             firmware,
             arch,
             span: input.span(),
@@ -609,11 +626,15 @@ fn parse_extra_deps(input: ParseStream<'_>) -> syn::Result<Vec<Path>> {
 /// Transform the function into VMM tests, one for each specified firmware configuration.
 ///
 /// Valid configuration options are:
-/// - `linux_direct_{arch}`: Our provided Linux direct image
-/// - `openhcl_linux_direct_{arch}`: Our provided Linux direct image with OpenHCL
-/// - `pcat_{arch}(<PCAT guest>)`: A Gen 1 configuration
-/// - `uefi_{arch}(<UEFI guest>)`: A Gen 2 configuration
-/// - `openhcl_uefi_{arch}[list,of,options](<UEFI guest>)`: A Gen 2 configuration with OpenHCL
+/// - `{vmm}_linux_direct_{arch}`: Our provided Linux direct image
+/// - `{vmm}_openhcl_linux_direct_{arch}`: Our provided Linux direct image with OpenHCL
+/// - `{vmm}_pcat_{arch}(<PCAT guest>)`: A Gen 1 configuration
+/// - `{vmm}_uefi_{arch}(<UEFI guest>)`: A Gen 2 configuration
+/// - `{vmm}_openhcl_uefi_{arch}[list,of,options](<UEFI guest>)`: A Gen 2 configuration with OpenHCL
+///
+/// Valid VMMs are:
+/// - openvmm
+/// - hyperv
 ///
 /// Valid architectures are:
 /// - x64
@@ -643,18 +664,45 @@ fn parse_extra_deps(input: ParseStream<'_>) -> syn::Result<Vec<Path>> {
 /// Each configuration can be optionally followed by a square-bracketed, comma-separated
 /// list of additional artifacts required for that particular configuration.
 #[proc_macro_attribute]
+pub fn universal_vmm_test(
+    attr: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let args = parse_macro_input!(attr as Args);
+    let item = parse_macro_input!(item as ItemFn);
+    make_vmm_test(args, item, None)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// Same options as `vmm_test`, but only for OpenVMM tests
+// TODO: Rename openvmm_test
+#[proc_macro_attribute]
 pub fn vmm_test(
     attr: proc_macro::TokenStream,
     item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     let args = parse_macro_input!(attr as Args);
     let item = parse_macro_input!(item as ItemFn);
-    make_vmm_test(args, item)
+    make_vmm_test(args, item, Some(Vmm::OpenVmm))
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
 
-fn make_vmm_test(args: Args, item: ItemFn) -> syn::Result<TokenStream> {
+/// Same options as `vmm_test`, but only for Hyper-V tests
+#[proc_macro_attribute]
+pub fn hyperv_test(
+    attr: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let args = parse_macro_input!(attr as Args);
+    let item = parse_macro_input!(item as ItemFn);
+    make_vmm_test(args, item, Some(Vmm::HyperV))
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+fn make_vmm_test(args: Args, item: ItemFn, specific_vmm: Option<Vmm>) -> syn::Result<TokenStream> {
     let original_args =
         match item.sig.inputs.len() {
             1 => quote! {config},
@@ -662,7 +710,7 @@ fn make_vmm_test(args: Args, item: ItemFn) -> syn::Result<TokenStream> {
             3 => quote! {config, resolver, driver },
             _ => return Err(Error::new(
                 item.sig.inputs.span(),
-                "expected 1, 2, or 3 arguments (the PetriVmConfigOpenVMM, ArtifactResolver, and Driver)",
+                "expected 1, 2, or 3 arguments (the PetriVmConfig, ArtifactResolver, and Driver)",
             )),
         };
 
@@ -686,25 +734,87 @@ fn make_vmm_test(args: Args, item: ItemFn) -> syn::Result<TokenStream> {
         let firmware = config.firmware;
         let arch = arch_to_tokens(config.arch);
 
-        tests.extend(quote!(
-        #[cfg(guest_arch=#guest_arch)]
-        #[::pal_async::async_test]
-        async fn #fn_name(driver: ::pal_async::DefaultDriver) -> anyhow::Result<()> {
-            let resolver = crate::prelude::vmm_tests_artifact_resolver()
-                .require(::petri_artifacts_common::artifacts::TEST_LOG_DIRECTORY)
-                .require(::petri_artifacts_vmm_test::artifacts::OPENVMM_NATIVE)
-                #( .require(#deps) )*
-                #( .require(#extra_deps) )*
-                #( .try_require(#optional_deps) )*
-                .finalize();
-            let config = PetriVmConfigOpenVMM::new(
-                #firmware,
-                #arch,
-                resolver.clone(),
-                &driver,
-            )?;
-            #original_name(#original_args).await
-        }))
+        match (specific_vmm, config.vmm) {
+            (Some(Vmm::OpenVmm), Vmm::OpenVmm) => tests.extend(quote!(
+            #[cfg(guest_arch=#guest_arch)]
+            #[::pal_async::async_test]
+            async fn #fn_name(driver: ::pal_async::DefaultDriver) -> anyhow::Result<()> {
+                let resolver = crate::prelude::vmm_tests_artifact_resolver()
+                    .require(::petri_artifacts_common::artifacts::TEST_LOG_DIRECTORY)
+                    .require(::petri_artifacts_vmm_test::artifacts::OPENVMM_NATIVE)
+                    #( .require(#deps) )*
+                    #( .require(#extra_deps) )*
+                    #( .try_require(#optional_deps) )*
+                    .finalize();
+                let config = PetriVmConfigOpenVMM::new(
+                    #firmware,
+                    #arch,
+                    resolver.clone(),
+                    &driver,
+                )?;
+                #original_name(#original_args).await
+            })),
+
+            (Some(Vmm::HyperV), Vmm::HyperV) => tests.extend(quote!(
+            #[cfg(guest_arch=#guest_arch)]
+            #[::pal_async::async_test]
+            async fn #fn_name(driver: ::pal_async::DefaultDriver) -> anyhow::Result<()> {
+                let resolver = crate::prelude::vmm_tests_artifact_resolver()
+                    .require(::petri_artifacts_common::artifacts::TEST_LOG_DIRECTORY)
+                    #( .require(#deps) )*
+                    #( .require(#extra_deps) )*
+                    #( .try_require(#optional_deps) )*
+                    .finalize();
+                let config = ::new(
+                    #firmware,
+                    #arch,
+                    resolver.clone(),
+                    &driver,
+                )?;
+                #original_name(#original_args).await
+            })),
+
+            (None, Vmm::OpenVmm) => tests.extend(quote!(
+            #[cfg(guest_arch=#guest_arch)]
+            #[::pal_async::async_test]
+            async fn #fn_name(driver: ::pal_async::DefaultDriver) -> anyhow::Result<()> {
+                let resolver = crate::prelude::vmm_tests_artifact_resolver()
+                    .require(::petri_artifacts_common::artifacts::TEST_LOG_DIRECTORY)
+                    .require(::petri_artifacts_vmm_test::artifacts::OPENVMM_NATIVE)
+                    #( .require(#deps) )*
+                    #( .require(#extra_deps) )*
+                    #( .try_require(#optional_deps) )*
+                    .finalize();
+                let config = Box::new(PetriVmConfigOpenVMM::new(
+                    #firmware,
+                    #arch,
+                    resolver.clone(),
+                    &driver,
+                )?);
+                #original_name(#original_args).await
+            })),
+
+            (None, Vmm::HyperV) => tests.extend(quote!(
+            #[cfg(guest_arch=#guest_arch)]
+            #[::pal_async::async_test]
+            async fn #fn_name(driver: ::pal_async::DefaultDriver) -> anyhow::Result<()> {
+                let resolver = crate::prelude::vmm_tests_artifact_resolver()
+                    .require(::petri_artifacts_common::artifacts::TEST_LOG_DIRECTORY)
+                    #( .require(#deps) )*
+                    #( .require(#extra_deps) )*
+                    #( .try_require(#optional_deps) )*
+                    .finalize();
+                let config = Box::new(PetriVmConfigHyperV::new(
+                    #firmware,
+                    #arch,
+                    resolver.clone(),
+                    &driver,
+                )?);
+                #original_name(#original_args).await
+            })),
+
+            _ => return Err(Error::new(config.span, "vmm mismatch")),
+        }
     }
 
     let guest_archs = guest_archs.into_iter();

@@ -15,9 +15,12 @@ mod start;
 
 pub use runtime::PetriVmOpenVMM;
 
-use super::Firmware;
 use crate::linux_direct_serial_agent::LinuxDirectSerialAgent;
 use crate::openhcl_diag::OpenHclDiagHandler;
+use crate::Firmware;
+// use crate::PetriVm;
+// use crate::PetriVmConfig;
+// use async_trait::async_trait;
 use framebuffer::FramebufferAccess;
 use fs_err::File;
 use get_resources::ged::FirmwareEvent;
@@ -32,6 +35,7 @@ use pal_async::DefaultDriver;
 use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_common::tags::OsFlavor;
 use petri_artifacts_core::TestArtifacts;
+// use pipette_client::PipetteClient;
 use std::path::PathBuf;
 use std::sync::Arc;
 use unix_socket::UnixListener;
@@ -69,6 +73,22 @@ pub struct PetriVmConfigOpenVMM {
     vtl2_settings: Option<Vtl2Settings>,
     framebuffer_access: Option<FramebufferAccess>,
 }
+
+// #[async_trait]
+// impl PetriVmConfig for PetriVmConfigOpenVMM {
+//     async fn run_without_agent(self: Box<Self>) -> anyhow::Result<Box<dyn PetriVm>> {
+//         Ok(Box::new(Self::run_without_agent(*self).await?))
+//     }
+
+//     async fn run_with_lazy_pipette(mut self: Box<Self>) -> anyhow::Result<Box<dyn PetriVm>> {
+//         Ok(Box::new(Self::run_with_lazy_pipette(*self).await?))
+//     }
+
+//     async fn run(self: Box<Self>) -> anyhow::Result<(Box<dyn PetriVm>, PipetteClient)> {
+//         let (vm, client) = Self::run(*self).await?;
+//         Ok((Box::new(vm), client))
+//     }
+// }
 
 /// Various channels and resources used to interact with the VM while it is running.
 struct PetriVmResourcesOpenVMM {
