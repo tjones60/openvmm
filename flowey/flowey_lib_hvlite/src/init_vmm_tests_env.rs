@@ -277,8 +277,10 @@ impl SimpleFlowNode for Node {
                 }
 
                 if add_hyperv_pipette_reg_key && rt.platform() == FlowPlatform::Windows {
+                    let path = r#"HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization\GuestCommunicationServices\00001337-facb-11e6-bd58-64006a7986d3"#;
                     let sh = xshell::Shell::new()?;
-                    xshell::cmd!(sh, "reg add \"HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Virtualization\\GuestCommunicationServices\\00001337-facb-11e6-bd58-64006a7986d3\" /v ElementName /t REG_SZ /d \"pipette\" /f").env("MSYS_NO_PATHCONV","1").run()?;
+                    let res = xshell::cmd!(sh, "reg add {path} /v ElementName /t REG_SZ /d pipette /f").run();
+                    log::info!("set reg key result: {:?}", res); // TODO: remove this once it is working
                 }
 
                 Ok(())
