@@ -17,7 +17,7 @@ use std::path::Path;
 
 pub enum ImageType {
     Raw,
-    #[cfg_attr(not(windows), allow(dead_code))]
+    #[allow(dead_code)]
     Vhd,
 }
 

@@ -5076,6 +5076,7 @@ dependencies = [
  "chipset_resources",
  "diag_client",
  "disk_backend_resources",
+ "disk_vhd1",
  "fatfs",
  "framebuffer",
  "fs-err",
