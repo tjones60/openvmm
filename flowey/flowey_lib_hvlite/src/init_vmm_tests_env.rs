@@ -277,8 +277,7 @@ impl SimpleFlowNode for Node {
                 }
 
                 // Only X64 for now, these are set manually on ARM64 runners
-                if add_hyperv_pipette_reg_key && rt.platform() == FlowPlatform::Windows && rt.arch() == FlowArch::X86_64 {
-                    
+                if add_hyperv_pipette_reg_key && matches!(rt.platform(), FlowPlatform::Windows) && matches!(rt.arch(), FlowArch::X86_64) {
                     let sh = xshell::Shell::new()?;
 
                     let pipette_path = r#"HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization\GuestCommunicationServices\00001337-facb-11e6-bd58-64006a7986d3"#;

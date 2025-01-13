@@ -16,7 +16,7 @@ use mesh::rpc::RpcSend;
 use nvme_resources::NamespaceDefinition;
 use nvme_resources::NvmeControllerHandle;
 use petri::pipette::cmd;
-use petri::PetriVmConfigOpenVmm;
+use petri::openvmm::PetriVmConfigOpenVmm;
 use scsidisk_resources::SimpleScsiDiskHandle;
 use scsidisk_resources::SimpleScsiDvdHandle;
 use scsidisk_resources::SimpleScsiDvdRequest;

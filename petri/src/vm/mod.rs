@@ -1,16 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use async_trait::async_trait;
-use vmm_core_defs::HaltReason;
-
-/// Functions for managing Hyper-V VMs
+/// Hyper-V VM management
 #[cfg(windows)]
 pub mod hyperv;
-mod openvmm;
+/// OpenVMM VM management
+pub mod openvmm;
 
 use anyhow::Context;
-pub use openvmm::*;
+use async_trait::async_trait;
 use petri_artifacts_common::tags::GuestQuirks;
 use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_common::tags::OsFlavor;
@@ -19,6 +17,7 @@ use petri_artifacts_core::AsArtifactHandle;
 use petri_artifacts_core::ErasedArtifactHandle;
 use petri_artifacts_vmm_test::artifacts as hvlite_artifacts;
 use pipette_client::PipetteClient;
+use vmm_core_defs::HaltReason;
 
 /// Configuration state for a test VM.
 ///

@@ -3,12 +3,12 @@
 
 //! Methods to start a [`PetriVmConfigOpenVmm`] and produce a running [`PetriVmOpenVmm`].
 
+use super::PetriVmConfigOpenVmm;
+use super::PetriVmOpenVmm;
 use crate::disk_image::build_agent_image;
 use crate::tracing::trace_attachment;
 use crate::worker::Worker;
 use crate::Firmware;
-use crate::PetriVmConfigOpenVmm;
-use crate::PetriVmOpenVmm;
 use anyhow::Context;
 use diag_client::DiagClient;
 use disk_backend_resources::FileDiskHandle;
@@ -146,7 +146,6 @@ impl PetriVmConfigOpenVmm {
             self.firmware.os_flavor(),
             &self.resources.resolver,
             None,
-            crate::disk_image::ImageType::Raw,
         )
         .context("failed to build agent image")?;
 
@@ -200,14 +199,9 @@ impl PetriVmConfigOpenVmm {
             const UH_CIDATA_SCSI_INSTANCE: Guid =
                 Guid::from_static_str("766e96f8-2ceb-437e-afe3-a93169e48a7c");
 
-            let uh_agent_disk = build_agent_image(
-                self.arch,
-                OsFlavor::Linux,
-                &self.resources.resolver,
-                None,
-                crate::disk_image::ImageType::Raw,
-            )
-            .context("failed to build agent image")?;
+            let uh_agent_disk =
+                build_agent_image(self.arch, OsFlavor::Linux, &self.resources.resolver, None)
+                    .context("failed to build agent image")?;
 
             self.config.vmbus_devices.push((
                 DeviceVtl::Vtl2,

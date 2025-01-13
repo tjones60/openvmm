@@ -15,12 +15,6 @@ use std::io::Write;
 use std::ops::Range;
 use std::path::Path;
 
-pub enum ImageType {
-    Raw,
-    #[allow(dead_code)]
-    Vhd,
-}
-
 /// Builds a disk image containing pipette and any files needed for the guest VM
 /// to run pipette.
 pub fn build_agent_image(
@@ -28,7 +22,6 @@ pub fn build_agent_image(
     os_flavor: OsFlavor,
     resolver: &TestArtifacts,
     path: Option<&Path>,
-    image_type: ImageType,
 ) -> anyhow::Result<std::fs::File> {
     match os_flavor {
         OsFlavor::Windows => {
@@ -44,7 +37,6 @@ pub fn build_agent_image(
                     })),
                 )],
                 path,
-                image_type,
             )
         }
         OsFlavor::Linux => {
@@ -80,7 +72,6 @@ pub fn build_agent_image(
                     ),
                 ],
                 path,
-                image_type,
             )
         }
         OsFlavor::FreeBsd | OsFlavor::Uefi => {
@@ -99,29 +90,6 @@ fn build_disk_image(
     volume_label: &str,
     files: &[(&str, PathOrBinary<'_>)],
     path: Option<&Path>,
-    image_type: ImageType,
-) -> anyhow::Result<std::fs::File> {
-    match image_type {
-        ImageType::Raw => build_disk_image_raw(
-            format!("{volume_label:<11}").as_bytes().try_into()?,
-            files,
-            path,
-        ),
-        #[cfg(windows)]
-        ImageType::Vhd => build_disk_image_vhd(
-            volume_label,
-            files,
-            path.expect("file name required for vhd image"),
-        ),
-        #[cfg(not(windows))]
-        ImageType::Vhd => anyhow::bail!("creating VHDs is only supported on Windows"),
-    }
-}
-
-fn build_disk_image_raw(
-    volume_label: &[u8; 11],
-    files: &[(&str, PathOrBinary<'_>)],
-    path: Option<&Path>,
 ) -> anyhow::Result<std::fs::File> {
     let mut file = if let Some(path) = path {
         std::fs::File::create_new(path).context("failed to create disk image file")?
@@ -136,40 +104,11 @@ fn build_disk_image_raw(
         build_gpt(&mut file, "CIDATA").context("failed to construct partition table")?;
     build_fat32(
         &mut fscommon::StreamSlice::new(&mut file, partition_range.start, partition_range.end)?,
-        volume_label,
+        format!("{volume_label:<11}").as_bytes().try_into()?,
         files,
     )
     .context("failed to format volume")?;
     Ok(file)
-}
-
-#[cfg(windows)]
-fn build_disk_image_vhd(
-    volume_label: &str,
-    files: &[(&str, PathOrBinary<'_>)],
-    vhd_path: &Path,
-) -> anyhow::Result<std::fs::File> {
-    let disk_letter =
-        crate::hyperv::powershell::create_vhd(crate::hyperv::powershell::CreateVhdArgs {
-            path: vhd_path,
-            label: volume_label,
-        })?;
-    for (path, src) in files {
-        let mut dest = std::fs::File::create_new(format!("{disk_letter}:\\{path}"))
-            .context("failed to create file")?;
-        match *src {
-            PathOrBinary::Path(src_path) => {
-                let mut src = fs_err::File::open(src_path)?;
-                std::io::copy(&mut src, &mut dest).context("failed to copy file")?;
-            }
-            PathOrBinary::Binary(src_data) => {
-                dest.write_all(src_data).context("failed to write file")?;
-            }
-        }
-    }
-    crate::hyperv::powershell::run_dismount_vhd(vhd_path)?;
-
-    Ok(std::fs::File::open(vhd_path)?)
 }
 
 fn build_gpt(file: &mut (impl Read + Write + Seek), name: &str) -> anyhow::Result<Range<u64>> {
