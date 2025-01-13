@@ -276,11 +276,19 @@ impl SimpleFlowNode for Node {
                     rt.write(var, &openhcl_dumps_dir)
                 }
 
-                if add_hyperv_pipette_reg_key && rt.platform() == FlowPlatform::Windows {
-                    let path = r#"HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization\GuestCommunicationServices\00001337-facb-11e6-bd58-64006a7986d3"#;
+                // Only X64 for now, these are set manually on ARM64 runners
+                if add_hyperv_pipette_reg_key && rt.platform() == FlowPlatform::Windows && rt.arch() == FlowArch::X86_64 {
+                    
                     let sh = xshell::Shell::new()?;
-                    let res = xshell::cmd!(sh, "reg add {path} /v ElementName /t REG_SZ /d pipette /f").run();
-                    log::info!("set reg key result: {:?}", res); // TODO: remove this once it is working
+
+                    let pipette_path = r#"HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization\GuestCommunicationServices\00001337-facb-11e6-bd58-64006a7986d3"#;
+                    xshell::cmd!(sh, "reg add {pipette_path} /v ElementName /t REG_SZ /d pipette /f").run()?;
+
+                    // TODO: add this to the initial CI image (and maybe the reg keys too)
+                    xshell::cmd!(sh, "DISM /Online /Norestart /Enable-Feature /All /FeatureName:Microsoft-Hyper-V-Management-PowerShell").run()?;
+
+                    let firmware_load_path = r#"HKLM\Software\Microsoft\Windows NT\CurrentVersion\Virtualization"#;
+                    xshell::cmd!(sh, "reg add {firmware_load_path} /v AllowFirmwareLoadFromFile /t REG_DWORD /d 1 /f").run()?;
                 }
 
                 Ok(())
