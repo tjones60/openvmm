@@ -3,7 +3,7 @@
 
 //! Helpers to modify a [`PetriVmConfigOpenVmm`] from its defaults.
 
-use crate::PetriVmConfigOpenVmm;
+use super::PetriVmConfigOpenVmm;
 use chipset_resources::battery::BatteryDeviceHandleX64;
 use chipset_resources::battery::HostBatteryUpdate;
 use fs_err::File;

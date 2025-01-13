@@ -3,7 +3,7 @@
 
 //! Integration tests for Generation 2 UEFI x86_64 guests with OpenHCL.
 
-use petri::PetriVmConfigOpenVmm;
+use petri::openvmm::PetriVmConfigOpenVmm;
 use vmm_core_defs::HaltReason;
 use vmm_test_macros::openvmm_test;
 

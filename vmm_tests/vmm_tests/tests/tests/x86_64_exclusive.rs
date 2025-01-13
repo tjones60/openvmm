@@ -6,7 +6,7 @@
 use hvlite_defs::config::ProcessorTopologyConfig;
 use hvlite_defs::config::X2ApicConfig;
 use hvlite_defs::config::X86TopologyConfig;
-use petri::PetriVmConfigOpenVmm;
+use petri::openvmm::PetriVmConfigOpenVmm;
 use vmm_core_defs::HaltReason;
 use vmm_test_macros::openvmm_test;
 

@@ -8,8 +8,8 @@ mod openhcl_servicing;
 mod openhcl_uefi;
 
 use anyhow::Context;
+use petri::openvmm::PetriVmConfigOpenVmm;
 use petri::pipette::cmd;
-use petri::PetriVmConfigOpenVmm;
 use petri::ShutdownKind;
 use petri::SIZE_1_GB;
 use petri_artifacts_common::tags::OsFlavor;

@@ -4,19 +4,19 @@
 //! Contains [`PetriVmConfigOpenVmm::new`], which builds a [`PetriVmConfigOpenVmm`] with all
 //! default settings for a given [`Firmware`] and [`MachineArch`].
 
+use super::PetriVmConfigOpenVmm;
 use super::PetriVmResourcesOpenVmm;
+use super::BOOT_NVME_INSTANCE;
+use super::BOOT_NVME_LUN;
+use super::BOOT_NVME_NSID;
+use super::SCSI_INSTANCE;
 use crate::linux_direct_serial_agent::LinuxDirectSerialAgent;
 use crate::openhcl_diag::OpenHclDiagHandler;
 use crate::tracing::trace_attachment;
 use crate::Firmware;
 use crate::IsolationType;
 use crate::PcatGuest;
-use crate::PetriVmConfigOpenVmm;
 use crate::UefiGuest;
-use crate::BOOT_NVME_INSTANCE;
-use crate::BOOT_NVME_LUN;
-use crate::BOOT_NVME_NSID;
-use crate::SCSI_INSTANCE;
 use crate::SIZE_1_GB;
 use anyhow::Context;
 use disk_backend_resources::layer::DiskLayerHandle;

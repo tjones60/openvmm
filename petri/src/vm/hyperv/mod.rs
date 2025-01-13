@@ -7,7 +7,6 @@ use vmsocket::VmAddress;
 use vmsocket::VmSocket;
 
 use crate::disk_image::build_agent_image;
-use crate::disk_image::ImageType;
 use crate::openhcl_diag::OpenHclDiagHandler;
 use crate::Firmware;
 use crate::IsolationType;
@@ -77,6 +76,7 @@ impl PetriVmConfig for PetriVmConfigHyperV {
 pub struct PetriVmHyperV {
     config: PetriVmConfigHyperV,
     openhcl_diag_handler: Option<OpenHclDiagHandler>,
+    destroyed: bool,
 }
 
 #[async_trait]
@@ -115,7 +115,7 @@ impl PetriVmConfigHyperV {
 
         let (guest_state_isolation_type, generation, guest_artifact, igvm_artifact) = match &firmware {
             Firmware::LinuxDirect | Firmware::OpenhclLinuxDirect => {
-                panic!("linux direct not supported on hyper-v")
+                todo!("linux direct not supported on hyper-v")
             }
             Firmware::Pcat { guest } => (
                 powershell::HyperVGuestStateIsolationType::Disabled,
@@ -263,20 +263,11 @@ impl PetriVmConfigHyperV {
             // Construct the agent disk.
             let agent_disk_path = self.temp_dir.path().join("cidata.vhd");
             {
-                // let _agent_disk = build_agent_image(
-                //     self.arch,
-                //     self.os_flavor,
-                //     &self.resolver,
-                //     Some(&agent_disk_path),
-                //     ImageType::Vhd,
-                // )
-                // .context("failed to build agent image")?;
                 let agent_disk = build_agent_image(
                     self.arch,
                     self.os_flavor,
                     &self.resolver,
                     Some(&agent_disk_path),
-                    ImageType::Raw,
                 )
                 .context("failed to build agent image")?;
                 disk_vhd1::Vhd1Disk::make_fixed(&agent_disk)
@@ -322,6 +313,7 @@ impl PetriVmConfigHyperV {
         Ok(PetriVmHyperV {
             config: self,
             openhcl_diag_handler,
+            destroyed: false,
         })
     }
 }
@@ -406,7 +398,11 @@ impl PetriVmHyperV {
     }
 
     fn teardown(&mut self) -> anyhow::Result<()> {
-        powershell::run_remove_vm(&self.config.name)?;
+        if !self.destroyed {
+            powershell::run_remove_vm(&self.config.name)?;
+            self.destroyed = true;
+        }
+
         Ok(())
     }
 
