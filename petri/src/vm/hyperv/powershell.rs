@@ -109,8 +109,6 @@ impl Display for HyperVSecureBootTemplate {
 pub struct HyperVNewVMArgs<'a> {
     /// Specifies the name of the new virtual machine.
     pub name: &'a str,
-    /// Specifies the device to use as the boot device for the new virtual machine.
-    pub boot_device: Option<String>,
     /// Specifies the generation for the virtual machine.
     pub generation: Option<HyperVGeneration>,
     /// Specifies the Guest State Isolation Type
@@ -167,13 +165,6 @@ pub struct HyperVAddVMHardDiskDriveArgs<'a> {
     /// first available controller at the location specified in the
     /// ControllerLocation parameter.
     pub controller_number: Option<u32>,
-    /// Specifies the type of the controller to which the hard disk drive is to
-    /// be added. If not specified, IDE is attempted first. If the IDE
-    /// controller port at the specified number and location is already
-    /// connected to a drive, then it will try to create one on the SCSI
-    /// controller specified by ControllerNumber. Allowed values are IDE
-    /// and SCSI.
-    pub controller_type: Option<String>,
     /// Specifies the full path of the hard disk drive file to be added.
     pub path: Option<&'a Path>,
 }
@@ -188,9 +179,6 @@ pub fn run_add_vm_hard_disk_drive(args: HyperVAddVMHardDiskDriveArgs<'_>) -> any
         if let Some(controller_number) = args.controller_number {
             cmd.arg("-ControllerNumber")
                 .arg(controller_number.to_string());
-        }
-        if let Some(controller_type) = args.controller_type {
-            cmd.arg("-ControllerType").arg(controller_type);
         }
         if let Some(path) = args.path {
             cmd.arg("-Path").arg(path);

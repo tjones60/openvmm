@@ -219,7 +219,6 @@ impl PetriVmConfigHyperV {
 
         powershell::run_new_vm(powershell::HyperVNewVMArgs {
             name: &self.name,
-            boot_device: None,
             generation: Some(self.generation),
             guest_state_isolation_type: Some(self.guest_state_isolation_type),
             memory_startup_bytes: Some(self.memory),
@@ -253,7 +252,6 @@ impl PetriVmConfigHyperV {
                     name: &self.name,
                     controller_location: Some(controller_location as u32),
                     controller_number: Some(controller_number as u32),
-                    controller_type: None,
                     path: Some(&diff_disk_path),
                 })?;
             }
@@ -294,7 +292,6 @@ impl PetriVmConfigHyperV {
                 name: &self.name,
                 controller_location: Some(0),
                 controller_number: Some(self.vhd_paths.len() as u32),
-                controller_type: None,
                 path: Some(&agent_disk_path),
             })?;
         }
