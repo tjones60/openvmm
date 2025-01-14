@@ -3,8 +3,6 @@
 
 //! Integration tests that run on more than one architecture.
 
-#[cfg(windows)]
-use petri::hyperv::PetriVmConfigHyperV;
 use petri::openvmm::PetriVmConfigOpenVmm;
 use petri::PetriVmConfig;
 use vmm_core_defs::HaltReason;

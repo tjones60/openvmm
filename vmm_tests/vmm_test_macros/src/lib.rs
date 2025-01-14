@@ -743,7 +743,7 @@ fn make_vmm_test(args: Args, item: ItemFn, specific_vmm: Option<Vmm>) -> syn::Re
         let name = format!("{}_{original_name}", config.name_prefix(specific_vmm));
         let fn_name = Ident::new(&name, original_name.span());
 
-        let deps = config.deps();
+        let mut deps = config.deps();
         let optional_deps = config.optional_deps();
         let extra_deps = config.extra_deps;
 
@@ -756,91 +756,56 @@ fn make_vmm_test(args: Args, item: ItemFn, specific_vmm: Option<Vmm>) -> syn::Re
         let firmware = config.firmware;
         let arch = arch_to_tokens(config.arch);
 
-        match (specific_vmm, config.vmm) {
-            (Some(Vmm::OpenVmm), Some(Vmm::OpenVmm)) | (Some(Vmm::OpenVmm), None) => {
-                tests.extend(quote!(
-                #[cfg(guest_arch=#guest_arch)]
-                #[::pal_async::async_test]
-                async fn #fn_name(driver: ::pal_async::DefaultDriver) -> anyhow::Result<()> {
-                    let resolver = crate::prelude::vmm_tests_artifact_resolver()
-                        .require(::petri_artifacts_common::artifacts::TEST_LOG_DIRECTORY)
-                        .require(::petri_artifacts_vmm_test::artifacts::OPENVMM_NATIVE)
-                        #( .require(#deps) )*
-                        #( .require(#extra_deps) )*
-                        #( .try_require(#optional_deps) )*
-                        .finalize();
-                    let config = PetriVmConfigOpenVmm::new(
-                        #firmware,
-                        #arch,
-                        resolver.clone(),
-                        &driver,
-                    )?;
-                    #original_name(#original_args).await
-                }))
-            }
-
-            (Some(Vmm::HyperV), Some(Vmm::HyperV)) | (Some(Vmm::HyperV), None) => {
-                tests.extend(quote!(
-                #[cfg(all(guest_arch=#guest_arch, windows))]
-                #[::pal_async::async_test]
-                async fn #fn_name(driver: ::pal_async::DefaultDriver) -> anyhow::Result<()> {
-                    let resolver = crate::prelude::vmm_tests_artifact_resolver()
-                        .require(::petri_artifacts_common::artifacts::TEST_LOG_DIRECTORY)
-                        #( .require(#deps) )*
-                        #( .require(#extra_deps) )*
-                        #( .try_require(#optional_deps) )*
-                        .finalize();
-                    let config = PetriVmConfigHyperV::new(
-                        #firmware,
-                        #arch,
-                        resolver.clone(),
-                        &driver,
-                    )?;
-                    #original_name(#original_args).await
-                }))
-            }
-
-            (None, Some(Vmm::OpenVmm)) => tests.extend(quote!(
-            #[cfg(guest_arch=#guest_arch)]
-            #[::pal_async::async_test]
-            async fn #fn_name(driver: ::pal_async::DefaultDriver) -> anyhow::Result<()> {
-                let resolver = crate::prelude::vmm_tests_artifact_resolver()
-                    .require(::petri_artifacts_common::artifacts::TEST_LOG_DIRECTORY)
-                    .require(::petri_artifacts_vmm_test::artifacts::OPENVMM_NATIVE)
-                    #( .require(#deps) )*
-                    #( .require(#extra_deps) )*
-                    #( .try_require(#optional_deps) )*
-                    .finalize();
-                let config = Box::new(PetriVmConfigOpenVmm::new(
+        let (cfg_conditions, mut petri_vm_config) = match (specific_vmm, config.vmm) {
+            (Some(Vmm::HyperV), Some(Vmm::HyperV))
+            | (Some(Vmm::HyperV), None)
+            | (None, Some(Vmm::HyperV)) => (
+                quote!(#[cfg(all(guest_arch=#guest_arch, windows))]),
+                quote!(::petri::hyperv::PetriVmConfigHyperV::new(
                     #firmware,
                     #arch,
                     resolver.clone(),
                     &driver,
-                )?);
-                #original_name(#original_args).await
-            })),
+                )?),
+            ),
 
-            (None, Some(Vmm::HyperV)) => tests.extend(quote!(
-            #[cfg(all(guest_arch=#guest_arch, windows))]
-            #[::pal_async::async_test]
-            async fn #fn_name(driver: ::pal_async::DefaultDriver) -> anyhow::Result<()> {
-                let resolver = crate::prelude::vmm_tests_artifact_resolver()
-                    .require(::petri_artifacts_common::artifacts::TEST_LOG_DIRECTORY)
-                    #( .require(#deps) )*
-                    #( .require(#extra_deps) )*
-                    #( .try_require(#optional_deps) )*
-                    .finalize();
-                let config = Box::new(PetriVmConfigHyperV::new(
-                    #firmware,
-                    #arch,
-                    resolver.clone(),
-                    &driver,
-                )?);
-                #original_name(#original_args).await
-            })),
+            (Some(Vmm::OpenVmm), Some(Vmm::OpenVmm))
+            | (Some(Vmm::OpenVmm), None)
+            | (None, Some(Vmm::OpenVmm)) => {
+                deps.push(quote!(
+                    ::petri_artifacts_vmm_test::artifacts::OPENVMM_NATIVE
+                ));
+                (
+                    quote!(#[cfg(guest_arch=#guest_arch)]),
+                    quote!(::petri::openvmm::PetriVmConfigOpenVmm::new(
+                        #firmware,
+                        #arch,
+                        resolver.clone(),
+                        &driver,
+                    )?),
+                )
+            }
             (None, None) => return Err(Error::new(config.span, "vmm must be specified")),
             _ => return Err(Error::new(config.span, "vmm mismatch")),
+        };
+
+        if specific_vmm.is_none() {
+            petri_vm_config = quote!(Box::new(#petri_vm_config));
         }
+
+        tests.extend(quote!(
+        #cfg_conditions
+        #[::pal_async::async_test]
+        async fn #fn_name(driver: ::pal_async::DefaultDriver) -> anyhow::Result<()> {
+            let resolver = crate::prelude::vmm_tests_artifact_resolver()
+                .require(::petri_artifacts_common::artifacts::TEST_LOG_DIRECTORY)
+                #( .require(#deps) )*
+                #( .require(#extra_deps) )*
+                #( .try_require(#optional_deps) )*
+                .finalize();
+            let config = #petri_vm_config;
+            #original_name(#original_args).await
+        }))
     }
 
     let guest_archs = guest_archs.into_iter();
