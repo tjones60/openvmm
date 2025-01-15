@@ -145,7 +145,6 @@ impl PetriVmConfigOpenVmm {
             self.arch,
             self.firmware.os_flavor(),
             &self.resources.resolver,
-            None,
         )
         .context("failed to build agent image")?;
 
@@ -167,7 +166,7 @@ impl PetriVmConfigOpenVmm {
                     device: SimpleScsiDiskHandle {
                         read_only: true,
                         parameters: Default::default(),
-                        disk: FileDiskHandle(agent_disk).into_resource(),
+                        disk: FileDiskHandle(agent_disk.into_file()).into_resource(),
                     }
                     .into_resource(),
                 }],
@@ -200,7 +199,7 @@ impl PetriVmConfigOpenVmm {
                 Guid::from_static_str("766e96f8-2ceb-437e-afe3-a93169e48a7c");
 
             let uh_agent_disk =
-                build_agent_image(self.arch, OsFlavor::Linux, &self.resources.resolver, None)
+                build_agent_image(self.arch, OsFlavor::Linux, &self.resources.resolver)
                     .context("failed to build agent image")?;
 
             self.config.vmbus_devices.push((
@@ -218,7 +217,7 @@ impl PetriVmConfigOpenVmm {
                         device: SimpleScsiDiskHandle {
                             read_only: true,
                             parameters: Default::default(),
-                            disk: FileDiskHandle(uh_agent_disk).into_resource(),
+                            disk: FileDiskHandle(uh_agent_disk.into_file()).into_resource(),
                         }
                         .into_resource(),
                     }],

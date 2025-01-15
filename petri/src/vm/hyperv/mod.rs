@@ -262,15 +262,11 @@ impl PetriVmConfigHyperV {
             // Construct the agent disk.
             let agent_disk_path = self.temp_dir.path().join("cidata.vhd");
             {
-                let agent_disk = build_agent_image(
-                    self.arch,
-                    self.os_flavor,
-                    &self.resolver,
-                    Some(&agent_disk_path),
-                )
-                .context("failed to build agent image")?;
-                disk_vhd1::Vhd1Disk::make_fixed(&agent_disk)
+                let agent_disk = build_agent_image(self.arch, self.os_flavor, &self.resolver)
+                    .context("failed to build agent image")?;
+                disk_vhd1::Vhd1Disk::make_fixed(agent_disk.as_file())
                     .context("failed to make vhd for agent image")?;
+                agent_disk.persist(&agent_disk_path)?;
             }
 
             if matches!(self.os_flavor, OsFlavor::Windows) {
