@@ -21,14 +21,13 @@ pub fn build_agent_image(
     arch: MachineArch,
     os_flavor: OsFlavor,
     resolver: &TestArtifacts,
-    path: Option<&Path>,
-) -> anyhow::Result<std::fs::File> {
+) -> anyhow::Result<tempfile::NamedTempFile> {
     match os_flavor {
         OsFlavor::Windows => {
             // Windows doesn't use cloud-init, so we only need pipette
             // (which is configured via the IMC hive).
             build_disk_image(
-                "PIPETTE",
+                b"pipette    ",
                 &[(
                     "pipette.exe",
                     PathOrBinary::Path(&resolver.resolve(match arch {
@@ -36,18 +35,13 @@ pub fn build_agent_image(
                         MachineArch::Aarch64 => common_artifacts::PIPETTE_WINDOWS_AARCH64.erase(),
                     })),
                 )],
-                path,
             )
         }
         OsFlavor::Linux => {
             // Linux uses cloud-init, so we need to include the cloud-init
             // configuration files as well.
             build_disk_image(
-                // cloud-init looks for a volume label of "CIDATA"
-                // volume labels are always all caps when creating VHDs on
-                // Windows, so just always use all caps since Linux is case
-                // sensitive
-                "CIDATA",
+                b"cidata     ", // cloud-init looks for a volume label of "cidata",
                 &[
                     (
                         "pipette",
@@ -71,7 +65,6 @@ pub fn build_agent_image(
                         PathOrBinary::Binary(include_bytes!("../guest-bootstrap/network-config")),
                     ),
                 ],
-                path,
             )
         }
         OsFlavor::FreeBsd | OsFlavor::Uefi => {
@@ -87,24 +80,19 @@ enum PathOrBinary<'a> {
 }
 
 fn build_disk_image(
-    volume_label: &str,
+    volume_label: &[u8; 11],
     files: &[(&str, PathOrBinary<'_>)],
-    path: Option<&Path>,
-) -> anyhow::Result<std::fs::File> {
-    let mut file = if let Some(path) = path {
-        std::fs::File::create_new(path).context("failed to create disk image file")?
-    } else {
-        tempfile::tempfile().context("failed to make temp file")?
-    };
-
-    file.set_len(64 * 1024 * 1024)
+) -> anyhow::Result<tempfile::NamedTempFile> {
+    let mut file = tempfile::NamedTempFile::new()?;
+    file.as_file()
+        .set_len(64 * 1024 * 1024)
         .context("failed to set file size")?;
 
     let partition_range =
         build_gpt(&mut file, "CIDATA").context("failed to construct partition table")?;
     build_fat32(
         &mut fscommon::StreamSlice::new(&mut file, partition_range.start, partition_range.end)?,
-        format!("{volume_label:<11}").as_bytes().try_into()?,
+        volume_label,
         files,
     )
     .context("failed to format volume")?;
