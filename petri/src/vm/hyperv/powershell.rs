@@ -316,14 +316,19 @@ pub fn run_set_vm_firmware(args: HyperVSetVMFirmwareArgs<'_>) -> anyhow::Result<
 }
 
 /// Runs Set-VMFirmware with the given arguments.
-pub fn run_set_openhcl_firmware(name: &str, ps_mod: &Path, igvm_file: &Path) -> anyhow::Result<()> {
+pub fn run_set_openhcl_firmware(
+    name: &str,
+    ps_mod: &Path,
+    igvm_file: &Path,
+    increase_vtl2_memory: bool,
+) -> anyhow::Result<()> {
     run_powershell(Some("Set-OpenHCLFirmware"), |cmd| {
         cmd.arg("Import-Module").arg(ps_mod).arg(";");
-        cmd.arg("Set-OpenHCLFirmware")
-            .arg("-VMName")
-            .arg(name)
-            .arg("-IgvmFile")
-            .arg(igvm_file)
+        cmd.arg("Set-OpenHCLFirmware");
+        if increase_vtl2_memory {
+            cmd.arg("-IncreaseVtl2Memory");
+        }
+        cmd.arg("-VMName").arg(name).arg("-IgvmFile").arg(igvm_file)
     })
 }
 

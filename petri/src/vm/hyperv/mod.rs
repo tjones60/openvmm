@@ -227,7 +227,8 @@ impl PetriVmConfigHyperV {
         })?;
 
         if let Some(igvm_file) = &self.openhcl_igvm {
-            powershell::run_set_openhcl_firmware(&self.name, &ps_mod, igvm_file)?;
+            // TODO: only increase VTL2 memory on debug builds
+            powershell::run_set_openhcl_firmware(&self.name, &ps_mod, igvm_file, true)?;
         }
 
         powershell::run_set_vm_firmware(powershell::HyperVSetVMFirmwareArgs {
