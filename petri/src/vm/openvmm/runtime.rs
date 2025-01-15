@@ -473,7 +473,7 @@ impl PetriVmInner {
             .linux_direct_serial_agent
             .as_mut()
             .unwrap()
-            .run_command("mkdir /cidata && mount LABEL=CIDATA /cidata && sh -c '/cidata/pipette &'")
+            .run_command("mkdir /cidata && mount LABEL=cidata /cidata && sh -c '/cidata/pipette &'")
             .await?;
         Ok(())
     }
@@ -486,7 +486,7 @@ impl PetriVmInner {
                 "sh",
                 &[
                     "-c",
-                    "mkdir /cidata && mount LABEL=CIDATA /cidata && sh -c '/cidata/pipette &'",
+                    "mkdir /cidata && mount LABEL=cidata /cidata && sh -c '/cidata/pipette &'",
                 ],
             )
             .await?;
