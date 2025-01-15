@@ -42,7 +42,7 @@ pub struct PetriVmConfigHyperV {
     // Specifies the path to a virtual hard disk file(s) to attach to the
     // virtual machine as SCSI (Gen2) or IDE (Gen1) drives.
     vhd_paths: Vec<Vec<PathBuf>>,
-    secure_boot_template: powershell::HyperVSecureBootTemplate,
+    secure_boot_template: Option<powershell::HyperVSecureBootTemplate>,
     openhcl_igvm: Option<PathBuf>,
 
     // Petri test dependency resolver
@@ -169,15 +169,16 @@ impl PetriVmConfigHyperV {
             memory: 0x1_0000_0000,
             vm_path: None,
             vhd_paths: vec![vec![reference_disk_path]],
-            secure_boot_template: match firmware.os_flavor() {
-                OsFlavor::Windows => powershell::HyperVSecureBootTemplate::MicrosoftWindows,
-                OsFlavor::Linux => {
-                    powershell::HyperVSecureBootTemplate::MicrosoftUEFICertificateAuthority
-                }
-                OsFlavor::FreeBsd | OsFlavor::Uefi => {
-                    powershell::HyperVSecureBootTemplate::SecureBootDisabled
-                }
-            },
+            secure_boot_template: matches!(generation, powershell::HyperVGeneration::Two)
+                .then_some(match firmware.os_flavor() {
+                    OsFlavor::Windows => powershell::HyperVSecureBootTemplate::MicrosoftWindows,
+                    OsFlavor::Linux => {
+                        powershell::HyperVSecureBootTemplate::MicrosoftUEFICertificateAuthority
+                    }
+                    OsFlavor::FreeBsd | OsFlavor::Uefi => {
+                        powershell::HyperVSecureBootTemplate::SecureBootDisabled
+                    }
+                }),
             openhcl_igvm,
             resolver,
             driver: driver.clone(),
@@ -231,10 +232,12 @@ impl PetriVmConfigHyperV {
             powershell::run_set_openhcl_firmware(&self.name, &ps_mod, igvm_file, true)?;
         }
 
-        powershell::run_set_vm_firmware(powershell::HyperVSetVMFirmwareArgs {
-            name: &self.name,
-            secure_boot_template: Some(self.secure_boot_template),
-        })?;
+        if matches!(self.generation, powershell::HyperVGeneration::Two) {
+            powershell::run_set_vm_firmware(powershell::HyperVSetVMFirmwareArgs {
+                name: &self.name,
+                secure_boot_template: self.secure_boot_template,
+            })?;
+        }
 
         for (controller_number, vhds) in self.vhd_paths.iter().enumerate() {
             powershell::run_add_vm_scsi_controller(&self.name)?;
