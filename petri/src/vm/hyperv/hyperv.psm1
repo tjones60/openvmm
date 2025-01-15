@@ -91,6 +91,7 @@ function Set-OpenHCLFirmware
         [string] $VMName,
         [Parameter(Mandatory = $true)]
         [string] $IgvmFile
+        [switch] $IncreaseVtl2Memory
     )
 
     $vssd = Get-Vssd $VMName
@@ -98,6 +99,15 @@ function Set-OpenHCLFirmware
     $vssd.GuestFeatureSet = 0x00000201
     # Set the OpenHCL image file path 
     $vssd.FirmwareFile = $IgvmFile
+
+    if ($IncreaseVtl2Memory) {
+        # Configure VM for auto placement mode
+        $vssd.Vtl2AddressSpaceConfigurationMode = 1
+        # 1GB of OpenHCL address space
+        $vssd.Vtl2AddressRangeSize = 1024
+        # 512 MB of OpenHCL MMIO space. So total OpenHCL ram = Vtl2AddressRangeSize- Vtl2MmioAddressRangeSize.
+        $vssd.Vtl2MmioAddressRangeSize = 512
+    }
 
     $vmms = Get-Vmms
     $vmms | Invoke-CimMethod -Name "ModifySystemSettings" -Arguments @{
