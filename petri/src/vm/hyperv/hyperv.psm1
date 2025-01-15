@@ -90,7 +90,7 @@ function Set-OpenHCLFirmware
         [Parameter(Mandatory = $true)]
         [string] $VMName,
         [Parameter(Mandatory = $true)]
-        [string] $IgvmFile
+        [string] $IgvmFile,
         [switch] $IncreaseVtl2Memory
     )
 
