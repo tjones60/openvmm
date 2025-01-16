@@ -125,6 +125,8 @@ impl FlowNode for Node {
                     "test_with_tracing_macro",
                     "pal_async_test",
                     "vmm_test_macros",
+                    // Was causing issues building on for Aarch64, and doesn't have any unit tests
+                    "vmfirmwareigvm_dll",
                 ]
                 .map(|x| x.to_string())
                 .to_vec();
