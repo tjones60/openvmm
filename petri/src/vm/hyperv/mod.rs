@@ -15,6 +15,7 @@ use crate::PetriVmConfig;
 use anyhow::Context;
 use async_trait::async_trait;
 use pal_async::socket::PolledSocket;
+use pal_async::timer::PolledTimer;
 use pal_async::DefaultDriver;
 use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_common::tags::OsFlavor;
@@ -25,6 +26,7 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
+use std::time::Duration;
 use vmm_core_defs::HaltReason;
 
 /// Hyper-V VM configuration and resources
@@ -364,32 +366,29 @@ impl PetriVmHyperV {
     ) -> anyhow::Result<PipetteClient> {
         let vm_id = diag_client::hyperv::vm_id_from_name(name)?;
 
-        let mut socket = VmSocket::new().context("failed to create AF_HYPERV socket")?;
-
+        let socket = VmSocket::new().context("failed to create AF_HYPERV socket")?;
         socket
-            .set_connect_timeout(std::time::Duration::from_secs(300))
+            .set_connect_timeout(Duration::from_secs(5))
             .context("failed to set connect timeout")?;
-
         socket
             .set_high_vtl(set_high_vtl)
             .context("failed to set socket for VTL0")?;
 
-        socket.bind(VmAddress::hyperv_vsock(
-            vm_id,
-            pipette_client::PIPETTE_VSOCK_PORT,
-        ))?;
+        let mut socket = PolledSocket::new(driver, socket)?.convert();
+        loop {
+            match socket
+                .connect(&VmAddress::hyperv_vsock(vm_id, pipette_client::PIPETTE_VSOCK_PORT).into())
+                .await
+            {
+                Ok(_) => break,
+                Err(_) => {
+                    PolledTimer::new(driver).sleep(Duration::from_secs(1)).await;
+                    continue;
+                }
+            }
+        }
 
-        let mut socket: PolledSocket<socket2::Socket> =
-            PolledSocket::new(driver, socket.into()).context("failed to create polled socket")?;
-
-        socket.listen(1)?;
-
-        let (conn, _) = socket
-            .accept()
-            .await
-            .context("failed to accept pipette connection")?;
-
-        PipetteClient::new(driver, PolledSocket::new(driver, conn)?, output_dir)
+        PipetteClient::new(driver, socket, output_dir)
             .await
             .context("failed to connect to pipette")
     }

@@ -49,7 +49,7 @@ flowey_request! {
         /// Get a map of env vars required to be set when running VMM tests
         pub get_env: WriteVar<BTreeMap<String, String>>,
         /// Add registry key to allow pipette to communicate with Hyper-V VMs
-        pub add_hyperv_pipette_reg_key: bool,
+        pub init_hyperv_tests: bool,
     }
 }
 
@@ -76,7 +76,7 @@ impl SimpleFlowNode for Node {
             get_test_log_path,
             get_openhcl_dump_path,
             get_env,
-            add_hyperv_pipette_reg_key,
+            init_hyperv_tests,
         } = request;
 
         let openvmm_deps_arch = match vmm_tests_target.architecture {
@@ -277,11 +277,9 @@ impl SimpleFlowNode for Node {
                 }
 
                 // Only X64 for now, these are set manually on ARM64 runners
-                if add_hyperv_pipette_reg_key && matches!(rt.platform(), FlowPlatform::Windows) && matches!(rt.arch(), FlowArch::X86_64) {
+                // TODO before merge: more to separate node
+                if init_hyperv_tests && matches!(rt.platform(), FlowPlatform::Windows) && matches!(rt.arch(), FlowArch::X86_64) {
                     let sh = xshell::Shell::new()?;
-
-                    let pipette_path = r#"HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization\GuestCommunicationServices\00001337-facb-11e6-bd58-64006a7986d3"#;
-                    xshell::cmd!(sh, "reg add {pipette_path} /v ElementName /t REG_SZ /d pipette /f").run()?;
 
                     // TODO: add this to the initial CI image (and maybe the reg keys too)
                     xshell::cmd!(sh, "DISM /Online /Norestart /Enable-Feature /All /FeatureName:Microsoft-Hyper-V-Management-PowerShell").run()?;

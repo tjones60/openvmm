@@ -5110,7 +5110,6 @@ dependencies = [
  "serial_16550_resources",
  "serial_core",
  "serial_socket",
- "socket2",
  "sparse_mmap",
  "storvsp_resources",
  "tempfile",
@@ -5223,6 +5222,7 @@ dependencies = [
  "mesh_remote",
  "pal_async",
  "pipette_protocol",
+ "socket2",
  "tracing",
  "tracing-subscriber",
  "unicycle",
@@ -5253,6 +5253,17 @@ name = "pipette_protocol"
 version = "0.0.0"
 dependencies = [
  "mesh",
+]
+
+[[package]]
+name = "pipette_util"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "diag_client",
+ "pal_async",
+ "pipette_client",
+ "vmsocket",
 ]
 
 [[package]]
