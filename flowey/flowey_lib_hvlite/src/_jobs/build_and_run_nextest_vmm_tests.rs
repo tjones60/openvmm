@@ -211,7 +211,7 @@ impl SimpleFlowNode for Node {
             get_test_log_path: Some(get_test_log_path),
             get_openhcl_dump_path: Some(get_openhcl_dump_path),
             get_env: v,
-            add_hyperv_pipette_reg_key: true,
+            init_hyperv_tests: true,
         });
 
         let results = ctx.reqv(|v| crate::build_nextest_vmm_tests::Request {
