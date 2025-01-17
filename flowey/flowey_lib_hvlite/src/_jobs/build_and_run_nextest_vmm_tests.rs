@@ -48,6 +48,7 @@ impl SimpleFlowNode for Node {
         ctx.import::<crate::build_openvmm::Node>();
         ctx.import::<crate::build_pipette::Node>();
         ctx.import::<crate::download_openvmm_vmm_tests_vhds::Node>();
+        ctx.import::<crate::init_hyperv_tests::Node>();
         ctx.import::<crate::init_vmm_tests_env::Node>();
         ctx.import::<flowey_lib_common::publish_test_results::Node>();
     }
@@ -211,8 +212,9 @@ impl SimpleFlowNode for Node {
             get_test_log_path: Some(get_test_log_path),
             get_openhcl_dump_path: Some(get_openhcl_dump_path),
             get_env: v,
-            init_hyperv_tests: true,
         });
+
+        let hyperv_test_deps = ctx.reqv(crate::init_hyperv_tests::Request);
 
         let results = ctx.reqv(|v| crate::build_nextest_vmm_tests::Request {
             profile,
@@ -221,7 +223,7 @@ impl SimpleFlowNode for Node {
                 nextest_profile,
                 nextest_filter_expr,
                 extra_env,
-                pre_run_deps: Vec::new(),
+                pre_run_deps: vec![hyperv_test_deps],
                 results: v,
             },
         });

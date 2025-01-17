@@ -48,8 +48,6 @@ flowey_request! {
         pub get_openhcl_dump_path: Option<WriteVar<PathBuf>>,
         /// Get a map of env vars required to be set when running VMM tests
         pub get_env: WriteVar<BTreeMap<String, String>>,
-        /// Add registry key to allow pipette to communicate with Hyper-V VMs
-        pub init_hyperv_tests: bool,
     }
 }
 
@@ -76,7 +74,6 @@ impl SimpleFlowNode for Node {
             get_test_log_path,
             get_openhcl_dump_path,
             get_env,
-            init_hyperv_tests,
         } = request;
 
         let openvmm_deps_arch = match vmm_tests_target.architecture {
@@ -274,18 +271,6 @@ impl SimpleFlowNode for Node {
 
                 if let Some(var) = get_openhcl_dump_path {
                     rt.write(var, &openhcl_dumps_dir)
-                }
-
-                // Only X64 for now, these are set manually on ARM64 runners
-                // TODO before merge: more to separate node
-                if init_hyperv_tests && matches!(rt.platform(), FlowPlatform::Windows) && matches!(rt.arch(), FlowArch::X86_64) {
-                    let sh = xshell::Shell::new()?;
-
-                    // TODO: add this to the initial CI image (and maybe the reg keys too)
-                    xshell::cmd!(sh, "DISM /Online /Norestart /Enable-Feature /All /FeatureName:Microsoft-Hyper-V-Management-PowerShell").run()?;
-
-                    let firmware_load_path = r#"HKLM\Software\Microsoft\Windows NT\CurrentVersion\Virtualization"#;
-                    xshell::cmd!(sh, "reg add {firmware_load_path} /v AllowFirmwareLoadFromFile /t REG_DWORD /d 1 /f").run()?;
                 }
 
                 Ok(())

@@ -66,7 +66,6 @@ gptman.workspace = true
 image = { workspace = true, features = ["png"] }
 mbrman.workspace = true
 prost.workspace = true
-socket2.workspace = true
 tempfile.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true

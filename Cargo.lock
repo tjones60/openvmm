@@ -5256,17 +5256,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pipette_util"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "diag_client",
- "pal_async",
- "pipette_client",
- "vmsocket",
-]
-
-[[package]]
 name = "pkg-config"
 version = "0.3.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
