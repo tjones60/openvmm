@@ -42,6 +42,7 @@ members = [
   "vm/vmgs/vmgs_lib",
   "vm/vmgs/vmgstool",
   "hyperv/tools/hypestv",
+  "petri/pipette_util",
 ]
 exclude = [
   "xsync",

@@ -1,0 +1,23 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+[package]
+name = "pipette_util"
+edition = "2021"
+rust-version.workspace = true
+
+[features]
+pipette_host_server = []
+
+[dependencies]
+pipette_client.workspace = true
+diag_client.workspace = true
+pal_async.workspace = true
+vmsocket.workspace = true
+
+anyhow.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+
+[lints]
+workspace = true
