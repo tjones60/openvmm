@@ -96,7 +96,7 @@ impl Agent {
 
 fn connect_server(driver: &DefaultDriver) -> anyhow::Result<PolledSocket<VmStream>> {
     let mut socket = VmSocket::new()?;
-    socket.bind(VmAddress::vsock_host(pipette_protocol::PIPETTE_VSOCK_PORT))?;
+    socket.bind(VmAddress::vsock_any(pipette_protocol::PIPETTE_VSOCK_PORT))?;
     let socket = socket
         .listen(1)?
         .accept()

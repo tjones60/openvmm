@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 $ROOT_HYPER_V_NAMESPACE = "root\virtualization\v2"
 
 function Get-MsvmComputerSystem
