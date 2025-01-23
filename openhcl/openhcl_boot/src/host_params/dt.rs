@@ -510,6 +510,12 @@ impl PartitionInfo {
             storage.vtl2_pool_memory = pool;
         }
 
+        // If we can trust the host, use the provided physical address width
+        // to determine the alias map
+        if can_trust_host {
+            storage.vtl0_alias_map = parsed.physical_address_width.map(|x| 1 << (x - 1));
+        }
+
         // Set remaining struct fields before returning.
         let Self {
             vtl2_ram: _,

@@ -236,6 +236,9 @@ pub struct ParsedDeviceTree<
     pub device_dma_page_count: Option<u64>,
     /// Indicates that Host does support NVMe keep-alive.
     pub nvme_keepalive: bool,
+    /// Physical address width. Used to calculate the alias map bit on
+    /// systems that don't reliably report this value architecturally (ARM).
+    pub physical_address_width: Option<u32>,
 }
 
 /// The memory allocation mode provided by the host. This determines how OpenHCL
@@ -316,6 +319,7 @@ impl<
             entropy: None,
             device_dma_page_count: None,
             nvme_keepalive: false,
+            physical_address_width: None,
         }
     }
 
@@ -482,6 +486,13 @@ impl<
                             return Err(ErrorKind::UnexpectedMemoryAllocationMode { mode });
                         }
                     }
+
+                    storage.physical_address_width = child
+                        .find_property("physical-address-width")
+                        .map_err(ErrorKind::Prop)?
+                        .map(|p| p.read_u32(0))
+                        .transpose()
+                        .map_err(ErrorKind::Prop)?;
 
                     for openhcl_child in child.children() {
                         let openhcl_child = openhcl_child.map_err(|error| ErrorKind::Node {
@@ -727,6 +738,7 @@ impl<
             entropy: _,
             device_dma_page_count: _,
             nvme_keepalive: _,
+            physical_address_width: _,
         } = storage;
 
         *device_tree_size = parser.total_size;

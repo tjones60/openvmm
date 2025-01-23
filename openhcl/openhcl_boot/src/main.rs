@@ -605,13 +605,17 @@ fn shim_main(shim_params_raw_offset: isize) -> ! {
         )
         .vtl0_alias_map_available()
     {
-        // Disable the alias map on ARM because physical address size is not
-        // reliably reported. Since the position of the alias map bit is inferred
-        // from address size, the alias map is broken when the PA size is wrong.
-        // TODO: is this still true?
+        // On ARM, use the physical address width reported via device tree since
+        // it is not reliably reported architecturally. Since the position of
+        // the alias map bit is inferred from address size, the alias map is
+        // broken when the PA size is wrong.
         if !cfg!(target_arch = "aarch64") {
-            partition_info.vtl0_alias_map =
-                Some(1 << (arch::physical_address_bits(p.isolation_type) - 1));
+            let vtl0_alias_map = 1 << (arch::physical_address_bits(p.isolation_type) - 1);
+            if let Some(dt_vtl0_alias_map) = partition_info.vtl0_alias_map {
+                // if we got the alias map via device tree, it should match.
+                assert_eq!(dt_vtl0_alias_map, vtl0_alias_map);
+            }
+            partition_info.vtl0_alias_map = Some(vtl0_alias_map);
         }
     }
 
