@@ -6,7 +6,8 @@
 #![cfg(any(target_os = "linux", target_os = "windows"))]
 
 use anyhow::Context;
-use futures::FutureExt;
+use futures::future::FutureExt;
+use futures_concurrency::future::RaceOk;
 use mesh_remote::PointToPointMesh;
 use pal_async::socket::PolledSocket;
 use pal_async::task::Spawn;
@@ -15,12 +16,13 @@ use pal_async::DefaultDriver;
 use pipette_protocol::DiagnosticFile;
 use pipette_protocol::PipetteBootstrap;
 use pipette_protocol::PipetteRequest;
+use socket2::Socket;
+use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use unicycle::FuturesUnordered;
 use vmsocket::VmAddress;
 use vmsocket::VmSocket;
-use vmsocket::VmStream;
 
 pub struct Agent {
     driver: DefaultDriver,
@@ -36,15 +38,20 @@ pub struct DiagnosticSender(Arc<mesh::Sender<DiagnosticFile>>);
 
 impl Agent {
     pub async fn new(driver: DefaultDriver) -> anyhow::Result<Self> {
-        let socket = match connect_client(&driver) {
-            Ok(socket) => socket,
-            Err(client_error) => match connect_server(&driver) {
-                Ok(socket) => socket,
-                Err(server_error) => anyhow::bail!(
-                    "failed to connect. client: {client_error} server: {server_error}"
-                ),
-            },
-        };
+        let socket = (
+            connect_client(&driver).fuse(),
+            connect_server(&driver).fuse(),
+        )
+            .race_ok()
+            .await
+            .map_err(|e| {
+                let e = e.deref();
+                anyhow::anyhow!(
+                    "failed to connect. client error: {} server error: {}",
+                    e[0],
+                    e[1]
+                )
+            })?;
 
         let (bootstrap_send, bootstrap_recv) = mesh::oneshot::<PipetteBootstrap>();
         let mesh = PointToPointMesh::new(&driver, socket, bootstrap_recv.into());
@@ -94,28 +101,34 @@ impl Agent {
     }
 }
 
-fn connect_server(driver: &DefaultDriver) -> anyhow::Result<PolledSocket<VmStream>> {
+async fn connect_server(driver: &DefaultDriver) -> anyhow::Result<PolledSocket<Socket>> {
     let mut socket = VmSocket::new()?;
     socket.bind(VmAddress::vsock_any(pipette_protocol::PIPETTE_VSOCK_PORT))?;
+    let mut socket =
+        PolledSocket::new(driver, socket.into()).context("failed to create polled socket")?;
+    socket.listen(1)?;
     let socket = socket
-        .listen(1)?
         .accept()
+        .await
         .context("failed to accept connection")?
         .0;
     PolledSocket::new(driver, socket).context("failed to create polled socket")
 }
 
-fn connect_client(driver: &DefaultDriver) -> anyhow::Result<PolledSocket<VmStream>> {
+async fn connect_client(driver: &DefaultDriver) -> anyhow::Result<PolledSocket<Socket>> {
     let socket = VmSocket::new()?;
     // Extend the default timeout of 2 seconds, as tests are often run in
     // parallel on a host, causing very heavy load on the overall system.
     socket
         .set_connect_timeout(Duration::from_secs(5))
         .context("failed to set socket timeout")?;
-    let socket = socket
-        .connect(VmAddress::vsock_host(pipette_protocol::PIPETTE_VSOCK_PORT))
-        .context("failed to connect to vsock")?;
-    PolledSocket::new(driver, socket).context("failed to create polled socket")
+    let mut socket = PolledSocket::new(driver, socket)
+        .context("failed to create polled socket")?
+        .convert();
+    socket
+        .connect(&VmAddress::vsock_host(pipette_protocol::PIPETTE_VSOCK_PORT).into())
+        .await?;
+    Ok(socket)
 }
 
 async fn handle_request(

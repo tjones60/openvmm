@@ -18,6 +18,7 @@ async fn frontpage(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
     Ok(())
 }
 
+// TODO: reorganize tests based on VMM
 /// Basic boot test.
 #[vmm_test(
     openvmm_linux_direct_x64,
