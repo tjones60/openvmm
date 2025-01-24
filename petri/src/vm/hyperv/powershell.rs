@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-//! Functions for creating Hyper-V VMs.
+//! Wrappers for Hyper-V Powershell Cmdlets
 
 use anyhow::Context;
 use core::str;

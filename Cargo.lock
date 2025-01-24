@@ -5222,7 +5222,6 @@ dependencies = [
  "mesh_remote",
  "pal_async",
  "pipette_protocol",
- "socket2",
  "tracing",
  "tracing-subscriber",
  "unicycle",

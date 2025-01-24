@@ -3,6 +3,7 @@
 
 mod hvc;
 pub mod powershell;
+pub mod vm;
 use vmsocket::VmAddress;
 use vmsocket::VmSocket;
 
@@ -27,6 +28,7 @@ use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
+use vm::HyperVVM;
 use vmm_core_defs::HaltReason;
 
 /// Hyper-V VM configuration and resources
@@ -39,8 +41,6 @@ pub struct PetriVmConfigHyperV {
     guest_state_isolation_type: powershell::HyperVGuestStateIsolationType,
     // Specifies the amount of memory, in bytes, to assign to the virtual machine.
     memory: u64,
-    // Specifies the directory to store the files for the new virtual machine.
-    vm_path: Option<PathBuf>,
     // Specifies the path to a virtual hard disk file(s) to attach to the
     // virtual machine as SCSI (Gen2) or IDE (Gen1) drives.
     vhd_paths: Vec<Vec<PathBuf>>,
@@ -77,8 +77,8 @@ impl PetriVmConfig for PetriVmConfigHyperV {
 /// A running VM that tests can interact with.
 pub struct PetriVmHyperV {
     config: PetriVmConfigHyperV,
+    vm: HyperVVM,
     openhcl_diag_handler: Option<OpenHclDiagHandler>,
-    destroyed: bool,
 }
 
 #[async_trait]
@@ -169,7 +169,6 @@ impl PetriVmConfigHyperV {
             generation,
             guest_state_isolation_type,
             memory: 0x1_0000_0000,
-            vm_path: None,
             vhd_paths: vec![vec![reference_disk_path]],
             secure_boot_template: matches!(generation, powershell::HyperVGeneration::Two)
                 .then_some(match firmware.os_flavor() {
@@ -212,37 +211,24 @@ impl PetriVmConfigHyperV {
 
     /// Build and boot the requested VM
     fn run_core(self, with_agent: bool) -> anyhow::Result<PetriVmHyperV> {
-        let ps_mod = self.temp_dir.path().join("hyperv.psm1");
-        {
-            let mut ps_mod_file = fs::File::create_new(&ps_mod)?;
-            ps_mod_file
-                .write_all(include_bytes!("hyperv.psm1"))
-                .context("failed to write imc powershell module")?;
-        }
-
-        powershell::run_new_vm(powershell::HyperVNewVMArgs {
-            name: &self.name,
-            generation: Some(self.generation),
-            guest_state_isolation_type: Some(self.guest_state_isolation_type),
-            memory_startup_bytes: Some(self.memory),
-            path: self.vm_path.as_deref(),
-            vhd_path: None,
-        })?;
+        let mut vm = HyperVVM::new(
+            &self.name,
+            self.generation,
+            self.guest_state_isolation_type,
+            self.memory,
+        )?;
 
         if let Some(igvm_file) = &self.openhcl_igvm {
             // TODO: only increase VTL2 memory on debug builds
-            powershell::run_set_openhcl_firmware(&self.name, &ps_mod, igvm_file, true)?;
+            vm.set_openhcl_firmware(igvm_file, true)?;
         }
 
-        if matches!(self.generation, powershell::HyperVGeneration::Two) {
-            powershell::run_set_vm_firmware(powershell::HyperVSetVMFirmwareArgs {
-                name: &self.name,
-                secure_boot_template: self.secure_boot_template,
-            })?;
+        if let Some(secure_boot_template) = self.secure_boot_template {
+            vm.set_secure_boot_template(secure_boot_template)?;
         }
 
         for (controller_number, vhds) in self.vhd_paths.iter().enumerate() {
-            powershell::run_add_vm_scsi_controller(&self.name)?;
+            vm.add_scsi_controller()?;
             for (controller_location, vhd) in vhds.iter().enumerate() {
                 let diff_disk_path = self.temp_dir.path().join(format!(
                     "{}_{}_{}",
@@ -254,12 +240,11 @@ impl PetriVmConfigHyperV {
                 ));
 
                 powershell::create_child_vhd(&diff_disk_path, vhd)?;
-                powershell::run_add_vm_hard_disk_drive(powershell::HyperVAddVMHardDiskDriveArgs {
-                    name: &self.name,
-                    controller_location: Some(controller_location as u32),
-                    controller_number: Some(controller_number as u32),
-                    path: Some(&diff_disk_path),
-                })?;
+                vm.add_vhd(
+                    &diff_disk_path,
+                    Some(controller_location as u32),
+                    Some(controller_number as u32),
+                )?;
             }
         }
 
@@ -286,16 +271,11 @@ impl PetriVmConfigHyperV {
                 }
 
                 // Set the IMC
-                powershell::run_set_initial_machine_configuration(&self.name, &ps_mod, &imc_hive)?;
+                vm.set_imc(&imc_hive)?;
             }
 
-            powershell::run_add_vm_scsi_controller(&self.name)?;
-            powershell::run_add_vm_hard_disk_drive(powershell::HyperVAddVMHardDiskDriveArgs {
-                name: &self.name,
-                controller_location: Some(0),
-                controller_number: Some(self.vhd_paths.len() as u32),
-                path: Some(&agent_disk_path),
-            })?;
+            vm.add_scsi_controller()?;
+            vm.add_vhd(&agent_disk_path, Some(0), Some(self.vhd_paths.len() as u32))?;
         }
 
         let openhcl_diag_handler = if self.openhcl_igvm.is_some() {
@@ -307,12 +287,12 @@ impl PetriVmConfigHyperV {
             None
         };
 
-        hvc::hvc_start(&self.name)?;
+        vm.start()?;
 
         Ok(PetriVmHyperV {
             config: self,
+            vm,
             openhcl_diag_handler,
-            destroyed: false,
         })
     }
 }
@@ -320,7 +300,7 @@ impl PetriVmConfigHyperV {
 impl PetriVmHyperV {
     /// Wait for the VM to halt, returning the reason for the halt.
     pub fn wait_for_halt(&mut self) -> anyhow::Result<HaltReason> {
-        hvc::hvc_wait_for_power_off(&self.config.name)?;
+        self.vm.wait_for_power_off()?;
         Ok(HaltReason::PowerOff) // TODO: Get actual halt reason
     }
 
@@ -328,7 +308,7 @@ impl PetriVmHyperV {
     /// and cleanly tear down the VM.
     pub fn wait_for_teardown(mut self) -> anyhow::Result<HaltReason> {
         let halt_reason = self.wait_for_halt()?;
-        self.teardown()?;
+        self.vm.remove()?;
         Ok(halt_reason)
     }
 
@@ -393,27 +373,11 @@ impl PetriVmHyperV {
             .context("failed to connect to pipette")
     }
 
-    fn teardown(&mut self) -> anyhow::Result<()> {
-        if !self.destroyed {
-            powershell::run_remove_vm(&self.config.name)?;
-            self.destroyed = true;
-        }
-
-        Ok(())
-    }
-
     fn openhcl_diag(&self) -> anyhow::Result<&OpenHclDiagHandler> {
         if let Some(ohd) = &self.openhcl_diag_handler {
             Ok(ohd)
         } else {
             anyhow::bail!("VM is not configured with OpenHCL")
         }
-    }
-}
-
-impl Drop for PetriVmHyperV {
-    fn drop(&mut self) {
-        // Try to remove the VM on test failure
-        let _ = self.teardown();
     }
 }
