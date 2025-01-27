@@ -48,7 +48,6 @@ impl SimpleFlowNode for Node {
         ctx.import::<crate::build_openvmm::Node>();
         ctx.import::<crate::build_pipette::Node>();
         ctx.import::<crate::download_openvmm_vmm_tests_vhds::Node>();
-        ctx.import::<crate::init_hyperv_tests::Node>();
         ctx.import::<crate::init_vmm_tests_env::Node>();
         ctx.import::<flowey_lib_common::publish_test_results::Node>();
     }
