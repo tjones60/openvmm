@@ -38,7 +38,8 @@ pub struct DiagnosticSender(Arc<mesh::Sender<DiagnosticFile>>);
 impl Agent {
     pub async fn new(driver: DefaultDriver) -> anyhow::Result<Self> {
         // These shouldn't need `.fuse()`, but without it the code panics with
-        // 'async fn' resumed after completion. Likely a futures_concurrency bug
+        // 'async fn' resumed after completion.
+        // https://github.com/yoshuawuyts/futures-concurrency/pull/204
         let socket = (
             connect_client(&driver).fuse(),
             connect_server(&driver).fuse(),
