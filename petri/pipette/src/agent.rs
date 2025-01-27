@@ -17,7 +17,6 @@ use pipette_protocol::DiagnosticFile;
 use pipette_protocol::PipetteBootstrap;
 use pipette_protocol::PipetteRequest;
 use socket2::Socket;
-use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use unicycle::FuturesUnordered;
@@ -45,11 +44,11 @@ impl Agent {
             .race_ok()
             .await
             .map_err(|e| {
-                let e = e.deref();
+                let [e0, e1] = &*e;
                 anyhow::anyhow!(
-                    "failed to connect. client error: {} server error: {}",
-                    e[0],
-                    e[1]
+                    "failed to connect. client error: {:#} server error: {:#}",
+                    e0,
+                    e1
                 )
             })?;
 

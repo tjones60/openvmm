@@ -159,6 +159,7 @@ impl PetriVmConfigHyperV {
                     _ => anyhow::bail!("unsupported arch/isolation combination"),
                 }),
             ),
+            // TODO: OpenHCL PCAT
         };
 
         let reference_disk_path = resolver.resolve(guest_artifact);

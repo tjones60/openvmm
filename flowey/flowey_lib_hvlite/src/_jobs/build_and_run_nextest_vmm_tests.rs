@@ -214,8 +214,6 @@ impl SimpleFlowNode for Node {
             get_env: v,
         });
 
-        let hyperv_test_deps = ctx.reqv(crate::init_hyperv_tests::Request);
-
         let results = ctx.reqv(|v| crate::build_nextest_vmm_tests::Request {
             profile,
             target,
@@ -223,7 +221,7 @@ impl SimpleFlowNode for Node {
                 nextest_profile,
                 nextest_filter_expr,
                 extra_env,
-                pre_run_deps: vec![hyperv_test_deps],
+                pre_run_deps: Vec::new(),
                 results: v,
             },
         });

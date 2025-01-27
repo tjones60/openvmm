@@ -20,9 +20,7 @@ impl FlowNode for Node {
     }
 
     fn emit(requests: Vec<Self::Request>, ctx: &mut NodeCtx<'_>) -> anyhow::Result<()> {
-        // Only X64 for now, these are set manually on ARM64 runners
-        if matches!(ctx.platform(), FlowPlatform::Windows) && matches!(ctx.arch(), FlowArch::X86_64)
-        {
+        if matches!(ctx.platform(), FlowPlatform::Windows) {
             ctx.emit_rust_step("init hyperv tests", move |ctx| {
                 requests.into_iter().for_each(|x| {
                     x.0.claim(ctx);
