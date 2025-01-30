@@ -325,7 +325,6 @@ fn build_device_tree(
     let p_clock_frequency = builder.add_string("clock-frequency")?;
     let p_current_speed = builder.add_string("current-speed")?;
     let p_interrupts = builder.add_string("interrupts")?;
-    let p_vtl0_alias_map = builder.add_string("vtl0-alias-map")?;
 
     let mut cpus = builder
         .start_node("")?
@@ -487,11 +486,6 @@ fn build_device_tree(
     };
 
     openhcl = openhcl.add_str(p_memory_allocation_mode, memory_allocation_mode)?;
-
-    openhcl = openhcl.add_u32(
-        p_vtl0_alias_map,
-        1 << (mem_layout.physical_address_size() - 1),
-    )?;
 
     if let Some(entropy) = entropy {
         openhcl = openhcl
