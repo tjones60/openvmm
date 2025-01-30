@@ -510,12 +510,9 @@ impl PartitionInfo {
             storage.vtl2_pool_memory = pool;
         }
 
-        // If we can trust the host, use the provided physical address width
-        // to determine the alias map
+        // If we can trust the host, use the provided alias map
         if can_trust_host {
-            storage.vtl0_alias_map = parsed
-                .physical_address_width
-                .map(|x| 1 << x.checked_sub(1).expect("invalid physical address width"));
+            storage.vtl0_alias_map = parsed.vtl0_alias_map;
         }
 
         // Set remaining struct fields before returning.
