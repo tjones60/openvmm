@@ -100,6 +100,13 @@ enum ExitCode {
     ErrorV1 = 5,
 }
 
+#[derive(Debug, Clone, Copy)]
+enum VmgsEncryptionScheme {
+    Gsp,
+    GspById,
+    None,
+}
+
 #[derive(Args)]
 struct FilePathArg {
     /// VMGS file path
@@ -973,7 +980,7 @@ async fn vmgs_file_query_file_size(
 ) -> Result<(), Error> {
     let vmgs = vmgs_file_open(file_path, None as Option<PathBuf>, OpenMode::ReadOnly, true).await?;
 
-    let file_size = vmgs_query_file_size(&vmgs, file_id).await?;
+    let file_size = vmgs_query_file_size(&vmgs, file_id)?;
 
     println!(
         "File ID {} ({:?}) has a size of {}",
@@ -983,7 +990,7 @@ async fn vmgs_file_query_file_size(
     Ok(())
 }
 
-async fn vmgs_query_file_size(vmgs: &Vmgs, file_id: FileId) -> Result<u64, Error> {
+fn vmgs_query_file_size(vmgs: &Vmgs, file_id: FileId) -> Result<u64, Error> {
     Ok(vmgs.get_file_info(file_id)?.valid_bytes)
 }
 
@@ -992,21 +999,38 @@ async fn vmgs_file_query_encryption(file_path: impl AsRef<Path>) -> Result<(), E
 
     let vmgs = vmgs_file_open(file_path, None as Option<PathBuf>, OpenMode::ReadOnly, true).await?;
 
-    match vmgs.get_encryption_algorithm() {
-        EncryptionAlgorithm::NONE => {
+    match (
+        vmgs.get_encryption_algorithm(),
+        vmgs_get_encryption_scheme(&vmgs),
+    ) {
+        (EncryptionAlgorithm::NONE, VmgsEncryptionScheme::None) => {
             println!("not encrypted");
             // Returning an error for HA to easily parse
             return Err(Error::NotEncrypted);
         }
-        EncryptionAlgorithm::AES_GCM => {
-            println!("encrypted with AES GCM encryption algorithm");
+        (EncryptionAlgorithm::AES_GCM, VmgsEncryptionScheme::Gsp) => {
+            println!("encrypted with AES GCM encryption algorithm using Gsp");
         }
-        _ => {
-            unreachable!("Invalid encryption algorithm");
+        (EncryptionAlgorithm::AES_GCM, VmgsEncryptionScheme::GspById) => {
+            println!("encrypted with AES GCM encryption algorithm using GspById");
+        }
+        (alg, scheme) => {
+            unreachable!("Invalid encryption algorithm ({alg:?}) / scheme ({scheme:?})");
         }
     }
 
     Ok(())
+}
+
+fn vmgs_get_encryption_scheme(vmgs: &Vmgs) -> VmgsEncryptionScheme {
+    // TODO: validate that the files are the expected size
+    if vmgs_query_file_size(vmgs, FileId::KEY_PROTECTOR).is_ok() {
+        VmgsEncryptionScheme::Gsp
+    } else if vmgs_query_file_size(vmgs, FileId::VM_UNIQUE_ID).is_ok() {
+        VmgsEncryptionScheme::GspById
+    } else {
+        VmgsEncryptionScheme::None
+    }
 }
 
 fn vmgs_file_validate(file: &File) -> Result<(), Error> {
@@ -1137,7 +1161,7 @@ mod tests {
         let vmgs =
             vmgs_file_open(file_path, None as Option<PathBuf>, OpenMode::ReadOnly, true).await?;
 
-        vmgs_query_file_size(&vmgs, file_id).await
+        vmgs_query_file_size(&vmgs, file_id)
     }
 
     #[cfg(with_encryption)]
