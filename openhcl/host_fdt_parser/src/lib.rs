@@ -229,6 +229,8 @@ pub struct ParsedDeviceTree<
     /// Entropy from the host to be used by the OpenHCL kernel
     #[cfg_attr(feature = "inspect", inspect(with = "Option::is_some"))]
     pub entropy: Option<ArrayVec<u8, MAX_ENTROPY_SIZE>>,
+    /// The physical address of the VTL0 alias mapping, if one is configured.
+    pub vtl0_alias_map: Option<u64>,
 }
 
 /// The memory allocation mode provided by the host. This determines how OpenHCL
@@ -307,6 +309,7 @@ impl<
             gic: None,
             memory_allocation_mode: MemoryAllocationMode::Host,
             entropy: None,
+            vtl0_alias_map: None,
         }
     }
 
@@ -473,6 +476,13 @@ impl<
                             return Err(ErrorKind::UnexpectedMemoryAllocationMode { mode });
                         }
                     }
+
+                    storage.vtl0_alias_map = child
+                        .find_property("vtl0-alias-map")
+                        .map_err(ErrorKind::Prop)?
+                        .map(|p| p.read_u64(0))
+                        .transpose()
+                        .map_err(ErrorKind::Prop)?;
 
                     for openhcl_child in child.children() {
                         let openhcl_child = openhcl_child.map_err(|error| ErrorKind::Node {
@@ -698,6 +708,7 @@ impl<
             gic: _,
             memory_allocation_mode: _,
             entropy: _,
+            vtl0_alias_map: _,
         } = storage;
 
         *device_tree_size = parser.total_size;
