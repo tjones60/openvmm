@@ -97,7 +97,7 @@ async fn boot_with_tpm(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
 /// Basic VBS boot test.
 #[openvmm_test(
     openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2022_x64)),
-    openhcl_uefi_x64[vbs](vhd(ubuntu_2404_server_x64))
+    openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64))
 )]
 async fn vbs_boot(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
     let mut vm = config.run_without_agent().await?;
@@ -110,7 +110,7 @@ async fn vbs_boot(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
 /// Basic VBS boot test with a single VP.
 #[openvmm_test(
     openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2022_x64)),
-    openhcl_uefi_x64[vbs](vhd(ubuntu_2404_server_x64))
+    openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64))
 )]
 async fn vbs_boot_single_proc(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
     let mut vm = config.with_single_processor().run_without_agent().await?;
@@ -123,7 +123,7 @@ async fn vbs_boot_single_proc(config: PetriVmConfigOpenVmm) -> anyhow::Result<()
 /// Basic VBS boot test with TPM enabled.
 #[openvmm_test(
     openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2022_x64)),
-    openhcl_uefi_x64[vbs](vhd(ubuntu_2404_server_x64))
+    openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64))
 )]
 async fn vbs_boot_with_tpm(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
     let os_flavor = config.os_flavor();
@@ -175,7 +175,7 @@ async fn reboot(config: PetriVmConfigOpenVmm) -> Result<(), anyhow::Error> {
 /// Basic VBS reboot test.
 #[openvmm_test(
     openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2022_x64)),
-    openhcl_uefi_x64[vbs](vhd(ubuntu_2404_server_x64))
+    openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64))
 )]
 async fn vbs_reboot(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
     let mut vm = config.run_without_agent().await?;
