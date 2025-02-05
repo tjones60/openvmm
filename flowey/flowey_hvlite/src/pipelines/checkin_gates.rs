@@ -16,6 +16,7 @@ use flowey_lib_hvlite::run_cargo_build::common::CommonArch;
 use flowey_lib_hvlite::run_cargo_build::common::CommonPlatform;
 use flowey_lib_hvlite::run_cargo_build::common::CommonProfile;
 use flowey_lib_hvlite::run_cargo_build::common::CommonTriple;
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 use target_lexicon::Triple;
 
@@ -517,6 +518,13 @@ impl IntoPipeline for CheckinGatesCli {
                 }
             }
 
+            let mut openvmm_features =
+                BTreeSet::from([flowey_lib_hvlite::build_openvmm::OpenvmmFeature::Tpm]);
+            if matches!(arch, CommonArch::Aarch64) {
+                openvmm_features
+                    .insert(flowey_lib_hvlite::build_openvmm::OpenvmmFeature::UnstableWhp);
+            }
+
             let mut job = pipeline
                 .new_job(
                     FlowPlatform::Linux(FlowPlatformLinuxDistro::Ubuntu),
@@ -534,7 +542,7 @@ impl IntoPipeline for CheckinGatesCli {
                         },
                         profile: CommonProfile::from_release(release),
                         // FIXME: this relies on openvmm default features
-                        features: [flowey_lib_hvlite::build_openvmm::OpenvmmFeature::Tpm].into(),
+                        features: openvmm_features,
                         artifact_dir: ctx.publish_artifact(pub_openvmm),
                         done: ctx.new_done_handle(),
                     }
