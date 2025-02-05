@@ -344,6 +344,12 @@ impl PowerShellBuilder {
         PowerShellCmdletBuilder(self.0)
     }
 
+    /// Add a Powershell Script
+    pub fn script(mut self, script: &str) -> Self {
+        self.0.arg("-Command").arg(format!("&{{{script}}}"));
+        self
+    }
+
     /// Run the PowerShell script
     pub fn run(mut self) -> anyhow::Result<()> {
         let status = self.0.status().context("failed to launch powershell")?;

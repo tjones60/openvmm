@@ -69,7 +69,7 @@ function Set-InitialMachineConfiguration
         [string] $ImcHive
     )
 
-    $msvm_ComputerSystem = Get-MsvmComputerSystem $VMName
+    $vm = Get-MsvmComputerSystem $VMName
 
     $imcHiveData = Get-Content -Encoding Byte $ImcHive
     $length = [System.BitConverter]::GetBytes([int32]$imcHiveData.Length + 4)
@@ -79,9 +79,8 @@ function Set-InitialMachineConfiguration
     }
     $imcData = $length + $imcHiveData
 
-    $vmms = Get-Vmms
-    $vmms | Invoke-CimMethod -name "SetInitialMachineConfigurationData" -Arguments @{
-        "TargetSystem" = $msvm_ComputerSystem;
+    Get-Vmms | Invoke-CimMethod -name "SetInitialMachineConfigurationData" -Arguments @{
+        "TargetSystem" = $vm;
         "ImcData" = [byte[]]$imcData
     }
 }
@@ -112,9 +111,27 @@ function Set-OpenHCLFirmware
         $vssd.Vtl2MmioAddressRangeSize = 512
     }
 
-    $vmms = Get-Vmms
-    $vmms | Invoke-CimMethod -Name "ModifySystemSettings" -Arguments @{
+    Get-Vmms | Invoke-CimMethod -Name "ModifySystemSettings" -Arguments @{
         "SystemSettings" = ($vssd | ConvertTo-CimEmbeddedString)
     }
 }
 
+function Get-VMScreenshot
+{
+    [CmdletBinding()]
+    Param (
+        [Parameter(Mandatory = $true)]
+        [string] $VMName,
+        [Parameter(Mandatory = $true)]
+        [string] $OutFile
+    )
+
+    $vm = Get-MsvmComputerSystem $VMName
+    $videoHead = $vm | Get-CimAssociatedInstance -ResultClass "Msvm_VideoHead"
+
+    Get-Vmms | Invoke-CimMethod -MethodName "GetVirtualSystemThumbnailImage" -Arguments @{
+        TargetSystem = $vm;
+        WidthPixels = $videoHead.CurrentHorizontalResolution;
+        HeightPixels = $videoHead.CurrentVerticalResolution
+    }
+}
