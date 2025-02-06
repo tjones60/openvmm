@@ -1020,14 +1020,14 @@ pub const WHvVirtualProcessorStateTypeXsaveState: WHV_VIRTUAL_PROCESSOR_STATE_TY
     WHV_VIRTUAL_PROCESSOR_STATE_TYPE(0x00001001);
 
 #[repr(u32)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, IntoBytes, Immutable, KnownLayout)]
 pub enum WHV_ARM64_IC_EMULATION_MODE {
     None = 0,
     GicV3 = 1,
 }
 
 #[repr(C, packed)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, IntoBytes, Immutable, KnownLayout)]
 pub struct WHV_ARM64_IC_GIC_V3_PARAMETERS {
     pub GicdBaseAddress: u64,
     pub GitsTranslatorBaseAddress: u64,
@@ -1044,7 +1044,7 @@ pub const DEFAULT_GIC_LPI_INT_ID_BITS: u32 = 1;
 pub const DEFAULT_GIC_PPI_OVERFLOW_INTERRUPT_FROM_CNTV: u32 = 0x14;
 
 #[repr(C, packed)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, IntoBytes, Immutable, KnownLayout)]
 pub struct WHV_ARM64_IC_PARAMETERS {
     pub EmulationMode: WHV_ARM64_IC_EMULATION_MODE,
     pub Reserved: u32,
