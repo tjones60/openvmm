@@ -75,6 +75,10 @@ macro_rules! bitops {
 }
 
 pub(crate) use bitops;
+use zerocopy::FromBytes;
+use zerocopy::Immutable;
+use zerocopy::IntoBytes;
+use zerocopy::KnownLayout;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -309,7 +313,7 @@ pub struct WHV_ADVISE_GPA_RANGE_POPULATE {
     pub AccessType: WHV_MEMORY_ACCESS_TYPE,
 }
 
-#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq, IntoBytes, Immutable, KnownLayout)]
 pub struct WHV_EXTENDED_VM_EXITS(pub u64);
 bitops!(WHV_EXTENDED_VM_EXITS);
 
@@ -765,7 +769,7 @@ pub struct WHV_NOTIFICATION_PORT_PARAMETERS_u_Event {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct WHV_CPUID_OUTPUT {
     pub Eax: u32,
     pub Ebx: u32,
@@ -796,7 +800,7 @@ pub union WHV_VIRTUAL_PROCESSOR_PROPERTY_u {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct WHV_MSR_ACTION_ENTRY {
     pub Index: u32,
     pub ReadAction: u8,  // WHV_MSR_ACTION

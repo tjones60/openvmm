@@ -12,6 +12,10 @@ use super::WHV_PROCESSOR_FEATURES1;
 use super::WHV_REGISTER_NAME;
 use super::WHV_RUN_VP_EXIT_REASON;
 use super::WHV_UINT128;
+use zerocopy::FromBytes;
+use zerocopy::Immutable;
+use zerocopy::IntoBytes;
+use zerocopy::KnownLayout;
 
 pub const WHvX64RegisterRax: WHV_REGISTER_NAME = WHV_REGISTER_NAME(0x00000000);
 pub const WHvX64RegisterRcx: WHV_REGISTER_NAME = WHV_REGISTER_NAME(0x00000001);
@@ -713,7 +717,7 @@ pub struct WHV_HYPERCALL_CONTEXT {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct WHV_X64_CPUID_RESULT {
     pub Function: u32,
     pub Reserved: [u32; 3],
@@ -735,7 +739,7 @@ pub const WHvX64LocalApicEmulationModeX2Apic: WHV_X64_LOCAL_APIC_EMULATION_MODE 
     WHV_X64_LOCAL_APIC_EMULATION_MODE(2);
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct WHV_X64_CPUID_RESULT2_FLAGS(pub u32);
 bitops!(WHV_X64_CPUID_RESULT2_FLAGS);
 
@@ -745,7 +749,7 @@ pub const WHvX64CpuidResult2FlagVpSpecific: WHV_X64_CPUID_RESULT2_FLAGS =
     WHV_X64_CPUID_RESULT2_FLAGS(0x00000002);
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct WHV_X64_CPUID_RESULT2 {
     Function: u32,
     Index: u32,
