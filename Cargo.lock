@@ -8802,7 +8802,6 @@ dependencies = [
  "criterion",
  "win_import_lib",
  "winapi",
- "zerocopy 0.8.14",
 ]
 
 [[package]]

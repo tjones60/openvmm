@@ -9,6 +9,7 @@
 pub mod abi;
 mod api;
 mod arm64;
+mod partition_prop;
 mod x64;
 
 #[cfg(target_arch = "aarch64")]
@@ -20,6 +21,7 @@ use std::alloc::Layout;
 use std::ffi::c_void;
 use std::fmt;
 use std::fmt::Debug;
+use std::marker::PhantomData;
 use std::num::NonZeroI32;
 use std::num::NonZeroU16;
 use std::os::windows::prelude::*;
@@ -31,7 +33,6 @@ use winapi::shared::ntdef::LUID;
 use winapi::shared::winerror;
 use winapi::um::winnt::DEVICE_POWER_STATE;
 use winerror::ERROR_BAD_PATHNAME;
-use zerocopy::IntoBytes;
 
 /// Functions to get the WHP platform's capabilities.
 pub mod capabilities {
@@ -354,51 +355,46 @@ impl Partition {
     }
 
     pub fn set_property(&self, property: PartitionProperty<'_>) -> Result<()> {
-        let mut banks = [0u64; 8];
+        struct Input<'a>(
+            abi::WHV_PARTITION_PROPERTY_CODE,
+            *const u8,
+            u32,
+            PhantomData<&'a ()>,
+        );
+        fn set<T: partition_prop::AssociatedType>(code: T, val: &T::Type) -> Input<'_> {
+            Input(
+                code.code(),
+                (&raw const *val).cast(),
+                size_of_val(val).try_into().unwrap(),
+                PhantomData,
+            )
+        }
 
-        let (code, data) = match &property {
-            PartitionProperty::ExtendedVmExits(val) => (
-                abi::WHvPartitionPropertyCodeExtendedVmExits,
-                val.0.as_bytes(),
-            ),
+        let banks;
+        let synth_banks;
+        let data = match &property {
+            PartitionProperty::ExtendedVmExits(val) => set(partition_prop::ExtendedVmExits, val),
             #[cfg(target_arch = "x86_64")]
-            PartitionProperty::ExceptionExitBitmap(val) => (
-                abi::WHvPartitionPropertyCodeExceptionExitBitmap,
-                val.as_bytes(),
-            ),
-            PartitionProperty::SeparateSecurityDomain(val) => (
-                abi::WHvPartitionPropertyCodeSeparateSecurityDomain,
-                val.as_bytes(),
-            ),
+            PartitionProperty::ExceptionExitBitmap(val) => {
+                set(partition_prop::ExceptionExitBitmap, val)
+            }
+            PartitionProperty::SeparateSecurityDomain(val) => {
+                set(partition_prop::SeparateSecurityDomain, val)
+            }
             #[cfg(target_arch = "x86_64")]
-            PartitionProperty::X64MsrExitBitmap(val) => (
-                abi::WHvPartitionPropertyCodeX64MsrExitBitmap,
-                val.0.as_bytes(),
-            ),
-            PartitionProperty::PrimaryNumaNode(val) => {
-                (abi::WHvPartitionPropertyCodePrimaryNumaNode, val.as_bytes())
+            PartitionProperty::X64MsrExitBitmap(val) => set(partition_prop::X64MsrExitBitmap, val),
+            PartitionProperty::PrimaryNumaNode(val) => set(partition_prop::PrimaryNumaNode, val),
+            PartitionProperty::CpuReserve(val) => set(partition_prop::CpuReserve, val),
+            PartitionProperty::CpuCap(val) => set(partition_prop::CpuCap, val),
+            PartitionProperty::CpuWeight(val) => set(partition_prop::CpuWeight, val),
+            PartitionProperty::CpuGroupId(val) => set(partition_prop::CpuGroupId, val),
+            PartitionProperty::ProcessorFrequencyCap(val) => {
+                set(partition_prop::ProcessorFrequencyCap, val)
             }
-            PartitionProperty::CpuReserve(val) => {
-                (abi::WHvPartitionPropertyCodeCpuReserve, val.as_bytes())
+            PartitionProperty::AllowDeviceAssignment(val) => {
+                set(partition_prop::AllowDeviceAssignment, val)
             }
-            PartitionProperty::CpuCap(val) => (abi::WHvPartitionPropertyCodeCpuCap, val.as_bytes()),
-            PartitionProperty::CpuWeight(val) => {
-                (abi::WHvPartitionPropertyCodeCpuWeight, val.as_bytes())
-            }
-            PartitionProperty::CpuGroupId(val) => {
-                (abi::WHvPartitionPropertyCodeCpuGroupId, val.as_bytes())
-            }
-            PartitionProperty::ProcessorFrequencyCap(val) => (
-                abi::WHvPartitionPropertyCodeProcessorFrequencyCap,
-                val.as_bytes(),
-            ),
-            PartitionProperty::AllowDeviceAssignment(val) => (
-                abi::WHvPartitionPropertyCodeAllowDeviceAssignment,
-                val.as_bytes(),
-            ),
-            PartitionProperty::DisableSmt(val) => {
-                (abi::WHvPartitionPropertyCodeDisableSmt, val.as_bytes())
-            }
+            PartitionProperty::DisableSmt(val) => set(partition_prop::DisableSmt, val),
             PartitionProperty::ProcessorFeatures(val) => {
                 let ProcessorFeatures {
                     bank0: b0,
@@ -407,121 +403,98 @@ impl Partition {
 
                 if b1.0 == 0 {
                     // Use the old interface if possible.
-                    (
-                        abi::WHvPartitionPropertyCodeProcessorFeatures,
-                        b0.0.as_bytes(),
-                    )
+                    set(partition_prop::ProcessorFeatures, b0)
                 } else {
-                    banks[0] = 2;
-                    banks[1] = b0.0;
-                    banks[2] = b1.0;
-                    (
-                        abi::WHvPartitionPropertyCodeProcessorFeaturesBanks,
-                        banks.as_bytes(),
-                    )
+                    banks = abi::WHV_PROCESSOR_FEATURES_BANKS {
+                        BanksCount: 2,
+                        Reserved0: 0,
+                        Banks: [b0.0, b1.0],
+                    };
+                    set(partition_prop::ProcessorFeaturesBanks, &banks)
                 }
             }
-            PartitionProperty::ProcessorClFlushSize(val) => (
-                abi::WHvPartitionPropertyCodeProcessorClFlushSize,
-                val.as_bytes(),
-            ),
-            #[cfg(target_arch = "x86_64")]
-            PartitionProperty::CpuidExitList(val) => {
-                (abi::WHvPartitionPropertyCodeCpuidExitList, val.as_bytes())
+            PartitionProperty::ProcessorClFlushSize(val) => {
+                set(partition_prop::ProcessorClFlushSize, val)
             }
             #[cfg(target_arch = "x86_64")]
-            PartitionProperty::CpuidResultList(val) => {
-                (abi::WHvPartitionPropertyCodeCpuidResultList, val.as_bytes())
+            PartitionProperty::CpuidExitList(val) => set(partition_prop::CpuidExitList, val),
+            #[cfg(target_arch = "x86_64")]
+            PartitionProperty::CpuidResultList(val) => set(partition_prop::CpuidResultList, val),
+            #[cfg(target_arch = "x86_64")]
+            PartitionProperty::LocalApicEmulationMode(val) => {
+                set(partition_prop::LocalApicEmulationMode, val)
             }
             #[cfg(target_arch = "x86_64")]
-            PartitionProperty::LocalApicEmulationMode(val) => (
-                abi::WHvPartitionPropertyCodeLocalApicEmulationMode,
-                val.0.as_bytes(),
-            ),
-            #[cfg(target_arch = "x86_64")]
-            PartitionProperty::ProcessorXsaveFeatures(val) => (
-                abi::WHvPartitionPropertyCodeProcessorXsaveFeatures,
-                val.0.as_bytes(),
-            ),
-            PartitionProperty::ProcessorClockFrequency(val) => (
-                abi::WHvPartitionPropertyCodeProcessorClockFrequency,
-                val.as_bytes(),
-            ),
-            #[cfg(target_arch = "x86_64")]
-            PartitionProperty::InterruptClockFrequency(val) => (
-                abi::WHvPartitionPropertyCodeInterruptClockFrequency,
-                val.as_bytes(),
-            ),
-            #[cfg(target_arch = "x86_64")]
-            PartitionProperty::ApicRemoteReadSupport(val) => (
-                abi::WHvPartitionPropertyCodeApicRemoteReadSupport,
-                val.as_bytes(),
-            ),
-            PartitionProperty::ReferenceTime(val) => {
-                (abi::WHvPartitionPropertyCodeReferenceTime, val.as_bytes())
+            PartitionProperty::ProcessorXsaveFeatures(val) => {
+                set(partition_prop::ProcessorXsaveFeatures, val)
             }
+            PartitionProperty::ProcessorClockFrequency(val) => {
+                set(partition_prop::ProcessorClockFrequency, val)
+            }
+            #[cfg(target_arch = "x86_64")]
+            PartitionProperty::InterruptClockFrequency(val) => {
+                set(partition_prop::InterruptClockFrequency, val)
+            }
+            #[cfg(target_arch = "x86_64")]
+            PartitionProperty::ApicRemoteReadSupport(val) => {
+                set(partition_prop::ApicRemoteReadSupport, val)
+            }
+            PartitionProperty::ReferenceTime(val) => set(partition_prop::ReferenceTime, val),
             PartitionProperty::SyntheticProcessorFeatures(val) => {
                 let SyntheticProcessorFeatures { bank0: b0 } = val;
-                banks[0] = 1;
-                banks[1] = b0.0;
-                (
-                    abi::WHvPartitionPropertyCodeSyntheticProcessorFeaturesBanks,
-                    banks.as_bytes(),
+                synth_banks = abi::WHV_SYNTHETIC_PROCESSOR_FEATURES_BANKS {
+                    BanksCount: 1,
+                    Reserved0: 0,
+                    Banks: [b0.0],
+                };
+                set(
+                    partition_prop::SyntheticProcessorFeaturesBanks,
+                    &synth_banks,
                 )
             }
-            PartitionProperty::ProcessorCount(val) => {
-                (abi::WHvPartitionPropertyCodeProcessorCount, val.as_bytes())
+            PartitionProperty::ProcessorCount(val) => set(partition_prop::ProcessorCount, val),
+            #[cfg(target_arch = "x86_64")]
+            PartitionProperty::CpuidResultList2(val) => set(partition_prop::CpuidResultList2, val),
+            #[cfg(target_arch = "x86_64")]
+            PartitionProperty::PerfmonFeatures(val) => {
+                set(partition_prop::ProcessorPerfmonFeatures, val)
             }
             #[cfg(target_arch = "x86_64")]
-            PartitionProperty::CpuidResultList2(val) => (
-                abi::WHvPartitionPropertyCodeCpuidResultList2,
-                val.as_bytes(),
-            ),
+            PartitionProperty::MsrActionList(val) => set(partition_prop::MsrActionList, val),
             #[cfg(target_arch = "x86_64")]
-            PartitionProperty::PerfmonFeatures(val) => (
-                abi::WHvPartitionPropertyCodeProcessorPerfmonFeatures,
-                val.0.as_bytes(),
-            ),
-            #[cfg(target_arch = "x86_64")]
-            PartitionProperty::MsrActionList(val) => {
-                (abi::WHvPartitionPropertyCodeMsrActionList, val.as_bytes())
+            PartitionProperty::UnimplementedMsrAction(val) => {
+                set(partition_prop::UnimplementedMsrAction, val)
             }
-            #[cfg(target_arch = "x86_64")]
-            PartitionProperty::UnimplementedMsrAction(val) => (
-                abi::WHvPartitionPropertyCodeUnimplementedMsrAction,
-                val.0.as_bytes(),
-            ),
-            PartitionProperty::PhysicalAddressWidth(val) => (
-                abi::WhvPartitionPropertyCodePhysicalAddressWidth,
-                val.as_bytes(),
-            ),
+            PartitionProperty::PhysicalAddressWidth(val) => {
+                set(partition_prop::PhysicalAddressWidth, val)
+            }
             #[cfg(target_arch = "aarch64")]
-            PartitionProperty::GicParameters(val) => (
-                abi::WHvPartitionPropertyCodeArm64IcParameters,
-                val.as_bytes(),
-            ),
+            PartitionProperty::GicParameters(val) => set(partition_prop::Arm64IcParameters, val),
             #[cfg(target_arch = "aarch64")]
             PartitionProperty::_Dummy(_, _) => unreachable!(),
         };
         unsafe {
             check_hresult(api::WHvSetPartitionProperty(
                 self.handle,
-                code,
-                data.as_ptr(),
-                data.len().try_into().unwrap(),
+                data.0,
+                data.1,
+                data.2,
             ))
         }
     }
 
-    fn get_property<T>(&self, code: abi::WHV_PARTITION_PROPERTY_CODE) -> Result<T> {
-        let mut val = std::mem::MaybeUninit::<T>::uninit();
+    fn get_property<T: partition_prop::AssociatedType>(&self, code: T) -> Result<T::Type>
+    where
+        T::Type: Sized,
+    {
+        let mut val = std::mem::MaybeUninit::<T::Type>::uninit();
         unsafe {
             let argn = size_of_val(&val) as u32;
             let argp = std::ptr::from_mut(&mut val).cast::<u8>();
             let mut outn = 0;
             check_hresult(api::WHvGetPartitionProperty(
                 self.handle,
-                code,
+                code.code(),
                 argp,
                 argn,
                 &mut outn,
@@ -708,20 +681,20 @@ impl Partition {
     }
 
     pub fn tsc_frequency(&self) -> Result<u64> {
-        self.get_property(abi::WHvPartitionPropertyCodeProcessorClockFrequency)
+        self.get_property(partition_prop::ProcessorClockFrequency)
     }
 
     #[cfg(target_arch = "x86_64")]
     pub fn apic_frequency(&self) -> Result<u64> {
-        self.get_property(abi::WHvPartitionPropertyCodeInterruptClockFrequency)
+        self.get_property(partition_prop::InterruptClockFrequency)
     }
 
     pub fn reference_time(&self) -> Result<u64> {
-        self.get_property(abi::WHvPartitionPropertyCodeReferenceTime)
+        self.get_property(partition_prop::ReferenceTime)
     }
 
     pub fn physical_address_width(&self) -> Result<u32> {
-        self.get_property(abi::WhvPartitionPropertyCodePhysicalAddressWidth)
+        self.get_property(partition_prop::PhysicalAddressWidth)
     }
 
     #[allow(clippy::missing_safety_doc)]

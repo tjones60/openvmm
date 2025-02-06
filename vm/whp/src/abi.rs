@@ -20,10 +20,6 @@ use std::ffi::c_void;
 use std::fmt::Debug;
 use std::fmt::Display;
 use winapi::shared::ntdef::LUID;
-use zerocopy::FromBytes;
-use zerocopy::Immutable;
-use zerocopy::IntoBytes;
-use zerocopy::KnownLayout;
 
 macro_rules! bitops_base {
     ($t:ty) => {
@@ -258,7 +254,7 @@ pub const WHvPartitionPropertyCodeMsrActionList: WHV_PARTITION_PROPERTY_CODE =
 #[cfg(target_arch = "x86_64")]
 pub const WHvPartitionPropertyCodeUnimplementedMsrAction: WHV_PARTITION_PROPERTY_CODE =
     WHV_PARTITION_PROPERTY_CODE(0x00001010);
-pub const WhvPartitionPropertyCodePhysicalAddressWidth: WHV_PARTITION_PROPERTY_CODE =
+pub const WHvPartitionPropertyCodePhysicalAddressWidth: WHV_PARTITION_PROPERTY_CODE =
     WHV_PARTITION_PROPERTY_CODE(0x00001011);
 pub const WHvPartitionPropertyCodeArm64IcParameters: WHV_PARTITION_PROPERTY_CODE =
     WHV_PARTITION_PROPERTY_CODE(0x00001012);
@@ -313,7 +309,7 @@ pub struct WHV_ADVISE_GPA_RANGE_POPULATE {
     pub AccessType: WHV_MEMORY_ACCESS_TYPE,
 }
 
-#[derive(Debug, Copy, Clone, Default, PartialEq, Eq, IntoBytes, Immutable, KnownLayout)]
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
 pub struct WHV_EXTENDED_VM_EXITS(pub u64);
 bitops!(WHV_EXTENDED_VM_EXITS);
 
@@ -769,7 +765,7 @@ pub struct WHV_NOTIFICATION_PORT_PARAMETERS_u_Event {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, IntoBytes, Immutable, KnownLayout, FromBytes)]
+#[derive(Debug, Copy, Clone)]
 pub struct WHV_CPUID_OUTPUT {
     pub Eax: u32,
     pub Ebx: u32,
@@ -800,7 +796,7 @@ pub union WHV_VIRTUAL_PROCESSOR_PROPERTY_u {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, IntoBytes, Immutable, KnownLayout, FromBytes)]
+#[derive(Debug, Copy, Clone)]
 pub struct WHV_MSR_ACTION_ENTRY {
     pub Index: u32,
     pub ReadAction: u8,  // WHV_MSR_ACTION
@@ -1020,14 +1016,14 @@ pub const WHvVirtualProcessorStateTypeXsaveState: WHV_VIRTUAL_PROCESSOR_STATE_TY
     WHV_VIRTUAL_PROCESSOR_STATE_TYPE(0x00001001);
 
 #[repr(u32)]
-#[derive(Debug, Copy, Clone, IntoBytes, Immutable, KnownLayout)]
+#[derive(Debug, Copy, Clone)]
 pub enum WHV_ARM64_IC_EMULATION_MODE {
     None = 0,
     GicV3 = 1,
 }
 
 #[repr(C, packed)]
-#[derive(Debug, Copy, Clone, IntoBytes, Immutable, KnownLayout)]
+#[derive(Debug, Copy, Clone)]
 pub struct WHV_ARM64_IC_GIC_V3_PARAMETERS {
     pub GicdBaseAddress: u64,
     pub GitsTranslatorBaseAddress: u64,
@@ -1044,7 +1040,7 @@ pub const DEFAULT_GIC_LPI_INT_ID_BITS: u32 = 1;
 pub const DEFAULT_GIC_PPI_OVERFLOW_INTERRUPT_FROM_CNTV: u32 = 0x14;
 
 #[repr(C, packed)]
-#[derive(Debug, Copy, Clone, IntoBytes, Immutable, KnownLayout)]
+#[derive(Debug, Copy, Clone)]
 pub struct WHV_ARM64_IC_PARAMETERS {
     pub EmulationMode: WHV_ARM64_IC_EMULATION_MODE,
     pub Reserved: u32,
