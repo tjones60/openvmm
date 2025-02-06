@@ -20,6 +20,10 @@ use std::ffi::c_void;
 use std::fmt::Debug;
 use std::fmt::Display;
 use winapi::shared::ntdef::LUID;
+use zerocopy::FromBytes;
+use zerocopy::Immutable;
+use zerocopy::IntoBytes;
+use zerocopy::KnownLayout;
 
 macro_rules! bitops_base {
     ($t:ty) => {
@@ -75,10 +79,6 @@ macro_rules! bitops {
 }
 
 pub(crate) use bitops;
-use zerocopy::FromBytes;
-use zerocopy::Immutable;
-use zerocopy::IntoBytes;
-use zerocopy::KnownLayout;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
