@@ -3,7 +3,7 @@
 
 [package]
 name = "whp"
-edition.workspace = true
+edition = "2021"
 rust-version.workspace = true
 
 [features]
