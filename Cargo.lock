@@ -8421,7 +8421,6 @@ dependencies = [
  "criterion",
  "win_import_lib",
  "winapi",
- "zerocopy",
 ]
 
 [[package]]
