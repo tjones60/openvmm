@@ -22,8 +22,6 @@ use std::ffi::c_void;
 use std::fmt;
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use std::num::NonZeroI32;
-use std::num::NonZeroU16;
 use std::os::windows::prelude::*;
 use std::ptr::null;
 use std::ptr::null_mut;
@@ -358,6 +356,7 @@ impl Partition {
         fn set<T: partition_prop::AssociatedType>(code: T, val: &T::Type) -> Input<'_> {
             Input(
                 code.code(),
+                #[allow(clippy::borrow_deref_ref)]
                 (&raw const *val).cast(),
                 size_of_val(val).try_into().unwrap(),
                 PhantomData,
