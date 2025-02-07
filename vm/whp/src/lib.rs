@@ -261,7 +261,7 @@ pub enum PartitionProperty<'a> {
     // Needed to reference 'a on aarch64.
     #[doc(hidden)]
     #[cfg(target_arch = "aarch64")]
-    _Dummy(std::convert::Infallible, std::marker::PhantomData<&'a ()>),
+    _Dummy(std::convert::Infallible, PhantomData<&'a ()>),
 }
 
 impl PartitionConfig {
