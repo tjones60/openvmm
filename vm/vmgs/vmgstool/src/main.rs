@@ -81,6 +81,8 @@ enum Error {
     Json(String),
     #[error("File ID {0:?} already exists. Use `--allow-overwrite` to ignore.")]
     FileIdExists(FileId),
+    #[error("VMGS file is encrypted using GspById")]
+    GspByIdEncryption,
 }
 
 /// Automation requires certain exit codes to be guaranteed
@@ -98,11 +100,12 @@ enum ExitCode {
     ErrorEmpty = 3,
     ErrorNotFound = 4,
     ErrorV1 = 5,
+    ErrorGspById = 6,
 }
 
 #[derive(Debug, Clone, Copy)]
 enum VmgsEncryptionScheme {
-    Gsp,
+    GspKey,
     GspById,
     None,
 }
@@ -334,6 +337,7 @@ fn main() {
                 Error::ZeroSize => ExitCode::ErrorEmpty,
                 Error::Vmgs(VmgsError::FileInfoAllocated) => ExitCode::ErrorNotFound,
                 Error::V1Format => ExitCode::ErrorV1,
+                Error::GspByIdEncryption => ExitCode::ErrorGspById,
                 _ => ExitCode::Error,
             };
 
@@ -1006,26 +1010,26 @@ async fn vmgs_file_query_encryption(file_path: impl AsRef<Path>) -> Result<(), E
         (EncryptionAlgorithm::NONE, VmgsEncryptionScheme::None) => {
             println!("not encrypted");
             // Returning an error for HA to easily parse
-            return Err(Error::NotEncrypted);
+            Err(Error::NotEncrypted)
         }
-        (EncryptionAlgorithm::AES_GCM, VmgsEncryptionScheme::Gsp) => {
-            println!("encrypted with AES GCM encryption algorithm using Gsp");
+        (EncryptionAlgorithm::AES_GCM, VmgsEncryptionScheme::GspKey) => {
+            println!("encrypted with AES GCM encryption algorithm using GspKey");
+            Ok(())
         }
         (EncryptionAlgorithm::AES_GCM, VmgsEncryptionScheme::GspById) => {
             println!("encrypted with AES GCM encryption algorithm using GspById");
+            Err(Error::GspByIdEncryption)
         }
         (alg, scheme) => {
             unreachable!("Invalid encryption algorithm ({alg:?}) / scheme ({scheme:?})");
         }
     }
-
-    Ok(())
 }
 
 fn vmgs_get_encryption_scheme(vmgs: &Vmgs) -> VmgsEncryptionScheme {
     // TODO: validate that the files are the expected size
     if vmgs_query_file_size(vmgs, FileId::KEY_PROTECTOR).is_ok() {
-        VmgsEncryptionScheme::Gsp
+        VmgsEncryptionScheme::GspKey
     } else if vmgs_query_file_size(vmgs, FileId::VM_UNIQUE_ID).is_ok() {
         VmgsEncryptionScheme::GspById
     } else {
