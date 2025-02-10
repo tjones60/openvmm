@@ -199,52 +199,6 @@ pub fn run_add_vm_scsi_controller(name: &str) -> anyhow::Result<()> {
         .context("add_vm_scsi_controller")
 }
 
-/// Arguments for creating a new VHD
-pub struct CreateVhdArgs<'a> {
-    /// VHD path
-    pub path: &'a Path,
-    /// Filesystem label
-    pub label: &'a str,
-}
-
-/// Create a new VHD, mount, initialize, and format. Returns drive letter.
-pub fn create_vhd(args: CreateVhdArgs<'_>) -> anyhow::Result<char> {
-    let drive_letter = PowerShellBuilder::new()
-        .cmdlet("New-VHD")
-        .arg("Path", args.path)
-        .arg("SizeBytes", "64MB")
-        .flag("Fixed")
-        .pipeline()
-        .cmdlet("Mount-VHD")
-        .flag("Passthru")
-        .pipeline()
-        .cmdlet("Initialize-Disk")
-        .flag("Passthru")
-        .pipeline()
-        .cmdlet("New-Partition")
-        .flag("AssignDriveLetter")
-        .flag("UseMaximumSize")
-        .pipeline()
-        .cmdlet("Format-Volume")
-        .arg("FileSystem", "FAT32")
-        .arg("NewFileSystemLabel", args.label)
-        .flag("Force")
-        .pipeline()
-        .select_object_property("DriveLetter")
-        .finish()
-        .output()
-        .context("create_vhd")?;
-
-    if drive_letter.trim().len() != 1 {
-        anyhow::bail!("invalid drive letter: {drive_letter}");
-    }
-
-    drive_letter
-        .chars()
-        .next()
-        .context("could not get drive letter")
-}
-
 /// Create a new differencing VHD with the provided parent.
 pub fn create_child_vhd(path: &Path, parent_path: &Path) -> anyhow::Result<()> {
     PowerShellBuilder::new()
