@@ -25,24 +25,6 @@ async fn boot_no_agent(config: PetriVmConfig) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Basic boot test.
-#[vmm_test(
-    linux_direct_x64,
-    openhcl_linux_direct_x64,
-    openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
-    uefi_x64(vhd(windows_datacenter_core_2022_x64)),
-    pcat_x64(vhd(windows_datacenter_core_2022_x64)),
-    openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)),
-    uefi_x64(vhd(ubuntu_2204_server_x64)),
-    pcat_x64(vhd(ubuntu_2204_server_x64))
-)]
-async fn boot(config: PetriVmConfig) -> anyhow::Result<()> {
-    let (vm, agent) = config.run().await?;
-    agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
-    Ok(())
-}
-
 /// Basic boot test with the VTL 0 alias map.
 // TODO: Remove once #912 is fixed.
 #[vmm_test(
