@@ -90,7 +90,7 @@ pub struct PetriVmHyperV {
 #[async_trait]
 impl PetriVm for PetriVmHyperV {
     async fn wait_for_halt(&mut self) -> anyhow::Result<HaltReason> {
-        Self::wait_for_halt(self)
+        Self::wait_for_halt(self).await
     }
 
     async fn wait_for_teardown(self: Box<Self>) -> anyhow::Result<HaltReason> {
@@ -328,15 +328,15 @@ impl PetriVmConfigHyperV {
 
 impl PetriVmHyperV {
     /// Wait for the VM to halt, returning the reason for the halt.
-    pub fn wait_for_halt(&mut self) -> anyhow::Result<HaltReason> {
-        self.vm.wait_for_power_off()?;
+    pub async fn wait_for_halt(&mut self) -> anyhow::Result<HaltReason> {
+        self.vm.wait_for_power_off(&self.config.driver).await?;
         Ok(HaltReason::PowerOff) // TODO: Get actual halt reason
     }
 
     /// Wait for the VM to halt, returning the reason for the halt,
     /// and cleanly tear down the VM.
     pub async fn wait_for_teardown(mut self) -> anyhow::Result<HaltReason> {
-        let halt_reason = self.wait_for_halt()?;
+        let halt_reason = self.wait_for_halt().await?;
         self.vm.remove()?;
         for t in self.log_tasks {
             t.await?;
@@ -390,7 +390,7 @@ impl PetriVmHyperV {
         //
         // Allow for the slowest test (hyperv_pcat_x64_ubuntu_2204_server_x64_boot)
         // but fail before the nextest timeout. (~1 attempt for second)
-        const PIPETTE_CONNECT_ATTEMPTS: u32 = 240;
+        const PIPETTE_CONNECT_ATTEMPTS: usize = 240;
         let mut attempts = 0;
         let mut socket = PolledSocket::new(driver, socket)?.convert();
         loop {

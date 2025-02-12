@@ -6,6 +6,7 @@
 use super::hvc;
 use super::powershell;
 use anyhow::Context;
+use pal_async::DefaultDriver;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
@@ -117,8 +118,8 @@ impl HyperVVM {
     }
 
     /// Wait for the VM to turn off
-    pub fn wait_for_power_off(&self) -> anyhow::Result<()> {
-        hvc::hvc_wait_for_power_off(&self.name)
+    pub async fn wait_for_power_off(&self, driver: &DefaultDriver) -> anyhow::Result<()> {
+        hvc::hvc_wait_for_power_off(driver, &self.name).await
     }
 
     /// Remove the VM
