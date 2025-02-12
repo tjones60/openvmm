@@ -16,6 +16,7 @@ use diag_proto::WaitResponse;
 use futures::AsyncReadExt;
 use futures::AsyncWrite;
 use futures::AsyncWriteExt;
+use futures::StreamExt;
 use inspect::Node;
 use inspect::ValueKind;
 use kmsg_stream::KmsgStream;
@@ -587,6 +588,56 @@ impl DiagClient {
             .map_err(grpc_status)?;
 
         Ok(KmsgStream::new(socket))
+    }
+
+    /// Streams the contents of /dev/kmsg to the writer
+    #[allow(clippy::fn_params_excessive_bools)]
+    pub async fn stream_kmsg(
+        &self,
+        mut writer: impl AsyncWrite + Unpin,
+        reconnect: bool,
+        verbose: bool,
+        is_terminal: bool,
+        follow: bool,
+    ) -> anyhow::Result<()> {
+        'connect: loop {
+            if reconnect {
+                self.wait_for_server().await?;
+            }
+            let mut file_stream = self.kmsg(follow).await?;
+            if verbose {
+                eprintln!("Connected to the diagnostics server.");
+            }
+
+            while let Some(data) = file_stream.next().await {
+                match data {
+                    Ok(data) => {
+                        let message = kmsg::KmsgParsedEntry::new(&data)?;
+                        writer
+                            .write_all(message.display(is_terminal).to_string().as_bytes())
+                            .await?;
+                    }
+                    Err(err) if reconnect && err.kind() == ErrorKind::ConnectionReset => {
+                        if verbose {
+                            eprintln!("Connection reset to the diagnostics server. Reconnecting.");
+                        }
+                        continue 'connect;
+                    }
+                    Err(err) => Err(err).context("failed to read kmsg")?,
+                }
+            }
+
+            if reconnect {
+                if verbose {
+                    eprintln!("Lost connection to the diagnostics server. Reconnecting.");
+                }
+                continue 'connect;
+            }
+
+            break;
+        }
+
+        Ok(())
     }
 
     /// Gets the contents of the file

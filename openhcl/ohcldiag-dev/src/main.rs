@@ -617,42 +617,15 @@ pub fn main() -> anyhow::Result<()> {
                 }
 
                 let client = new_client(driver.clone(), &vm)?;
-                'connect: loop {
-                    if reconnect {
-                        client.wait_for_server().await?;
-                    }
-                    let mut file_stream = client.kmsg(follow).await?;
-                    if verbose {
-                        eprintln!("Connected.");
-                    }
-
-                    while let Some(data) = file_stream.next().await {
-                        match data {
-                            Ok(data) => {
-                                let message = kmsg::KmsgParsedEntry::new(&data)?;
-                                println!("{}", message.display(is_terminal));
-                            }
-                            Err(err) if reconnect && err.kind() == ErrorKind::ConnectionReset => {
-                                if verbose {
-                                    eprintln!(
-                                        "Connection reset to the diagnostics server. Reconnecting."
-                                    );
-                                }
-                                continue 'connect;
-                            }
-                            Err(err) => Err(err).context("failed to read kmsg")?,
-                        }
-                    }
-
-                    if reconnect {
-                        if verbose {
-                            eprintln!("Lost connection to the diagnostics server. Reconnecting.");
-                        }
-                        continue 'connect;
-                    }
-
-                    break;
-                }
+                client
+                    .stream_kmsg(
+                        AllowStdIo::new(std::io::stdout()),
+                        reconnect,
+                        verbose,
+                        is_terminal,
+                        follow,
+                    )
+                    .await?;
             }
             Command::File { follow, file_path } => {
                 let client = new_client(driver.clone(), &vm)?;

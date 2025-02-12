@@ -1,10 +1,18 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use anyhow::Context;
+use diag_client::DiagClient;
 use fs_err::File;
 use fs_err::PathExt;
+use futures::io::BufReader;
+use futures::AsyncBufReadExt;
+use futures::AsyncRead;
+use futures::AsyncReadExt;
+use futures::StreamExt;
 use parking_lot::Mutex;
 use std::collections::HashMap;
+use std::io::ErrorKind;
 use std::io::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
@@ -16,6 +24,18 @@ use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::fmt::MakeWriter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
+
+// use unix_socket::UnixStream;
+// use std::task::Context;
+// use std::task::Poll;
+// use std::pin::Pin;
+// use std::io;
+// use pal_async::driver;
+// use pal_async::socket::ReadHalf;
+// use pal_async::task::Spawn;
+// use diag_client::kmsg_stream::KmsgStream;
+// use pal_async::task::Task;
+// use pal_async::DefaultDriver;
 
 /// A source of [`PetriLogFile`] log files for test output.
 #[derive(Clone)]
@@ -60,6 +80,16 @@ impl PetriLogSource {
         };
         Ok(log_file)
     }
+
+    // /// Spawn task to log
+    // pub fn spawn_log_task(
+    //     &self,
+    //     driver: &DefaultDriver,
+    //     name: &str,
+    //     reader: impl AsyncRead + Unpin + Send + 'static,
+    // ) -> anyhow::Result<Task<anyhow::Result<()>>> {
+    //     spawn_serial_log_task(driver, &format!("{name}-log"), self.log_file(name)?, reader)
+    // }
 
     fn attachment_path(&self, name: &str) -> PathBuf {
         let mut attachments = self.0.attachments.lock();
@@ -286,3 +316,156 @@ impl<'a> MakeWriter<'a> for PetriWriter {
         }
     }
 }
+
+/// spawn a log task
+pub async fn serial_log_task(
+    log_file: PetriLogFile,
+    reader: impl AsyncRead + Unpin + Send + 'static,
+) -> anyhow::Result<()> {
+    let mut buf = Vec::new();
+    let mut reader = BufReader::new(reader);
+    loop {
+        buf.clear();
+        let n = (&mut reader).take(256).read_until(b'\n', &mut buf).await?;
+        if n == 0 {
+            break;
+        }
+
+        let string_buf = String::from_utf8_lossy(&buf);
+        let string_buf_trimmed = string_buf.trim_end();
+        log_file.write_entry(string_buf_trimmed);
+    }
+    Ok(())
+}
+
+/// kmsg log task
+pub async fn kmsg_log_task(
+    log_file: PetriLogFile,
+    diag_client: DiagClient,
+    reconnect: bool,
+    verbose: bool,
+) -> anyhow::Result<()> {
+    'connect: loop {
+        if reconnect {
+            diag_client.wait_for_server().await?;
+        }
+        let mut file_stream = diag_client.kmsg(true).await?;
+        if verbose {
+            eprintln!("Connected to the diagnostics server.");
+        }
+
+        while let Some(data) = file_stream.next().await {
+            match data {
+                Ok(data) => {
+                    let message = kmsg::KmsgParsedEntry::new(&data)?;
+                    log_file.write_entry(message.display(false));
+                }
+                Err(err) if reconnect && err.kind() == ErrorKind::ConnectionReset => {
+                    if verbose {
+                        eprintln!("Connection reset to the diagnostics server. Reconnecting.");
+                    }
+                    continue 'connect;
+                }
+                Err(err) => Err(err).context("failed to read kmsg")?,
+            }
+        }
+
+        if reconnect {
+            if verbose {
+                eprintln!("Lost connection to the diagnostics server. Reconnecting.");
+            }
+            continue 'connect;
+        }
+
+        break;
+    }
+
+    Ok(())
+}
+/*
+/// spawn a log task
+pub fn spawn_stream_log_task(
+    driver: &DefaultDriver,
+    task_name: &str,
+    log_file: PetriLogFile,
+    stream: impl futures::Stream + Unpin + Send + 'static,
+) -> anyhow::Result<Task<anyhow::Result<()>>> {
+    Ok(driver.spawn(task_name, async move {
+        let mut buf = Vec::new();
+        loop {
+            stream.next()
+
+            let string_buf = String::from_utf8_lossy(&buf);
+            let string_buf_trimmed = string_buf.trim_end();
+            log_file.write_entry(string_buf_trimmed);
+        }
+        Ok(())
+    }))
+}
+
+
+const SERIAL_MAX_READ: usize = 256;
+
+pub struct SerialStream {
+    reader: ReadHalf<UnixStream>,
+    buffer: Vec<u8>,
+    end: usize,
+}
+
+impl SerialStream {
+    pub(crate) fn new(reader: ReadHalf<UnixStream>) -> Self {
+        Self {
+            reader,
+            buffer: vec![0; SERIAL_MAX_READ],
+            end: 0,
+        }
+    }
+}
+
+impl futures::Stream for SerialStream {
+    type Item = io::Result<Vec<u8>>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+
+        let mut reader = BufReader::new(reader);
+        loop {
+            buf.clear();
+            let n = (&mut reader).take(256).read_until(b'\n', &mut buf).await?;
+            if n == 0 {
+                break;
+            }
+
+            let string_buf = String::from_utf8_lossy(&buf);
+            let string_buf_trimmed = string_buf.trim_end();
+            log_file.write_entry(string_buf_trimmed);
+        }
+
+        loop {
+            if let Some(len) = this.buffer[..this.end].iter().position(|&x| x == 0) {
+                let line = this.buffer[..len].to_vec();
+                this.buffer.copy_within(len + 1..this.end, 0);
+                this.end -= len + 1;
+                break Poll::Ready(Some(Ok(line)));
+            } else if this.end == this.buffer.len() {
+                return Poll::Ready(Some(Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "missing null terminator",
+                ))));
+            } else {
+                match std::task::ready!(
+                    Pin::new(&mut this.reader).poll_read(cx, &mut this.buffer[this.end..])
+                ) {
+                    Ok(n) => {
+                        if n == 0 {
+                            break Poll::Ready(None);
+                        }
+                        this.end += n
+                    }
+                    Err(err) => return Poll::Ready(Some(Err(err))),
+                }
+            }
+        }
+    }
+}
+*/

@@ -8,15 +8,19 @@ use vmsocket::VmAddress;
 use vmsocket::VmSocket;
 
 use crate::disk_image::AgentImage;
+use crate::kmsg_log_task;
 use crate::openhcl_diag::OpenHclDiagHandler;
 use crate::Firmware;
 use crate::IsolationType;
+use crate::PetriLogSource;
 use crate::PetriTestParams;
 use crate::PetriVm;
 use crate::PetriVmConfig;
 use anyhow::Context;
 use async_trait::async_trait;
 use pal_async::socket::PolledSocket;
+use pal_async::task::Spawn;
+use pal_async::task::Task;
 use pal_async::timer::PolledTimer;
 use pal_async::DefaultDriver;
 use petri_artifacts_common::tags::MachineArch;
@@ -55,6 +59,8 @@ pub struct PetriVmConfigHyperV {
 
     // Folder to store temporary data for this test
     temp_dir: tempfile::TempDir,
+    // output_dir: PathBuf,
+    log_source: PetriLogSource,
 }
 
 #[async_trait]
@@ -78,6 +84,7 @@ pub struct PetriVmHyperV {
     config: PetriVmConfigHyperV,
     vm: HyperVVM,
     openhcl_diag_handler: Option<OpenHclDiagHandler>,
+    log_tasks: Vec<Task<anyhow::Result<()>>>,
 }
 
 #[async_trait]
@@ -87,7 +94,7 @@ impl PetriVm for PetriVmHyperV {
     }
 
     async fn wait_for_teardown(self: Box<Self>) -> anyhow::Result<HaltReason> {
-        Self::wait_for_teardown(*self)
+        Self::wait_for_teardown(*self).await
     }
 
     async fn test_inspect_openhcl(&mut self) -> anyhow::Result<()> {
@@ -192,6 +199,8 @@ impl PetriVmConfigHyperV {
             driver: driver.clone(),
             os_flavor: firmware.os_flavor(),
             temp_dir,
+            // output_dir: params.output_dir.to_owned(),
+            log_source: params.logger.clone(),
         })
     }
 
@@ -286,11 +295,22 @@ impl PetriVmConfigHyperV {
             vm.add_vhd(&agent_disk_path, Some(0), Some(self.vhd_paths.len() as u32))?;
         }
 
+        let mut log_tasks = Vec::new();
+
         let openhcl_diag_handler = if self.openhcl_igvm.is_some() {
-            Some(OpenHclDiagHandler {
-                client: diag_client::DiagClient::from_hyperv_name(self.driver.clone(), &self.name)?,
-                vtl2_vsock_path: PathBuf::from("TODO get rid of this"),
-            })
+            let openhcl_diag_handler = OpenHclDiagHandler::from(
+                diag_client::DiagClient::from_hyperv_name(self.driver.clone(), &self.name)?,
+            );
+            log_tasks.push(self.driver.spawn(
+                "openhcl-log",
+                kmsg_log_task(
+                    self.log_source.log_file("openhcl")?,
+                    diag_client::DiagClient::from_hyperv_name(self.driver.clone(), &self.name)?,
+                    false,
+                    true,
+                ),
+            ));
+            Some(openhcl_diag_handler)
         } else {
             None
         };
@@ -301,6 +321,7 @@ impl PetriVmConfigHyperV {
             config: self,
             vm,
             openhcl_diag_handler,
+            log_tasks,
         })
     }
 }
@@ -314,9 +335,12 @@ impl PetriVmHyperV {
 
     /// Wait for the VM to halt, returning the reason for the halt,
     /// and cleanly tear down the VM.
-    pub fn wait_for_teardown(mut self) -> anyhow::Result<HaltReason> {
+    pub async fn wait_for_teardown(mut self) -> anyhow::Result<HaltReason> {
         let halt_reason = self.wait_for_halt()?;
         self.vm.remove()?;
+        for t in self.log_tasks {
+            t.await?;
+        }
         Ok(halt_reason)
     }
 
