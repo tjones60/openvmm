@@ -366,6 +366,9 @@ pub async fn kmsg_log_task(
                     }
                     continue 'connect;
                 }
+                Err(err) if err.kind() == ErrorKind::ConnectionAborted => {
+                    break;
+                }
                 Err(err) => Err(err).context("failed to read kmsg")?,
             }
         }
