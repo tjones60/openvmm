@@ -10,6 +10,7 @@ use vmsocket::VmSocket;
 use crate::disk_image::AgentImage;
 use crate::kmsg_log_task;
 use crate::openhcl_diag::OpenHclDiagHandler;
+use crate::serial_log_task;
 use crate::Firmware;
 use crate::IsolationType;
 use crate::PetriLogSource;
@@ -18,6 +19,7 @@ use crate::PetriVm;
 use crate::PetriVmConfig;
 use anyhow::Context;
 use async_trait::async_trait;
+use futures::io::AllowStdIo;
 use pal_async::socket::PolledSocket;
 use pal_async::task::Spawn;
 use pal_async::task::Task;
@@ -297,6 +299,14 @@ impl PetriVmConfigHyperV {
 
         let mut log_tasks = Vec::new();
 
+        log_tasks.push(self.driver.spawn(
+            "guest-log",
+            serial_log_task(
+                self.log_source.log_file("guest")?,
+                AllowStdIo::new(vm.serial()?),
+            ),
+        ));
+
         let openhcl_diag_handler = if self.openhcl_igvm.is_some() {
             let openhcl_diag_handler = OpenHclDiagHandler::from(
                 diag_client::DiagClient::from_hyperv_name(self.driver.clone(), &self.name)?,
@@ -337,10 +347,10 @@ impl PetriVmHyperV {
     /// and cleanly tear down the VM.
     pub async fn wait_for_teardown(mut self) -> anyhow::Result<HaltReason> {
         let halt_reason = self.wait_for_halt().await?;
-        self.vm.remove()?;
         for t in self.log_tasks {
             t.await?;
         }
+        self.vm.remove()?;
         Ok(halt_reason)
     }
 

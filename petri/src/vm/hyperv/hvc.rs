@@ -3,10 +3,12 @@
 
 //! Functions for interacting with Hyper-V VMs.
 
-use anyhow::Context as _;
+use anyhow::Context;
 use anyhow::Ok;
 use pal_async::timer::PolledTimer;
 use pal_async::DefaultDriver;
+use std::process::Child;
+use std::process::Stdio;
 use std::time::Duration;
 
 pub fn hvc_start(vm: &str) -> anyhow::Result<()> {
@@ -89,6 +91,17 @@ pub fn hvc_ensure_off(vm: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+pub fn hvc_serial(vm: &str, port: u8) -> anyhow::Result<Child> {
+    hvc_stream(|cmd| {
+        cmd.arg("serial")
+            .arg("-r")
+            .arg("-c")
+            .arg("-p")
+            .arg(port.to_string())
+            .arg(vm)
+    })
+}
+
 /// Runs hvc with the given arguments.
 fn run_hvc(
     f: impl FnOnce(&mut std::process::Command) -> &mut std::process::Command,
@@ -113,4 +126,15 @@ fn hvc_output(
         anyhow::bail!("hvc failed with exit code: {}", output.status);
     }
     String::from_utf8(output.stdout).context("output is not utf-8")
+}
+
+/// Runs hvc with the given arguments and returns the output.
+fn hvc_stream(
+    f: impl FnOnce(&mut std::process::Command) -> &mut std::process::Command,
+) -> anyhow::Result<Child> {
+    let mut cmd = std::process::Command::new("hvc.exe");
+    f(&mut cmd);
+    cmd.stdout(Stdio::piped())
+        .spawn()
+        .context("failed to launch hvc")
 }

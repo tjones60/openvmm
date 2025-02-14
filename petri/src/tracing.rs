@@ -360,14 +360,15 @@ pub async fn kmsg_log_task(
                     let message = kmsg::KmsgParsedEntry::new(&data)?;
                     log_file.write_entry(message.display(false));
                 }
-                Err(err) if reconnect && err.kind() == ErrorKind::ConnectionReset => {
-                    if verbose {
-                        eprintln!("Connection reset to the diagnostics server. Reconnecting.");
+                Err(err) if err.kind() == ErrorKind::ConnectionReset => {
+                    if reconnect {
+                        if verbose {
+                            eprintln!("Connection reset to the diagnostics server. Reconnecting.");
+                        }
+                        continue 'connect;
+                    } else {
+                        break;
                     }
-                    continue 'connect;
-                }
-                Err(err) if err.kind() == ErrorKind::ConnectionAborted => {
-                    break;
                 }
                 Err(err) => Err(err).context("failed to read kmsg")?,
             }

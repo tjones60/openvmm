@@ -10,6 +10,8 @@ use pal_async::DefaultDriver;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::Child;
+use std::process::ChildStdout;
 use tempfile::TempDir;
 
 /// A Hyper-V VM
@@ -18,6 +20,7 @@ pub struct HyperVVM {
     destroyed: bool,
     _temp_dir: TempDir,
     ps_mod: PathBuf,
+    serial_task: Option<Child>,
 }
 
 impl HyperVVM {
@@ -42,6 +45,7 @@ impl HyperVVM {
             destroyed: false,
             _temp_dir: temp_dir,
             ps_mod,
+            serial_task: None,
         };
 
         // Delete the VM if it already exists
@@ -117,6 +121,20 @@ impl HyperVVM {
         hvc::hvc_start(&self.name)
     }
 
+    /// Get serial output
+    pub fn serial(&mut self) -> anyhow::Result<ChildStdout> {
+        if self.serial_task.is_some() {
+            anyhow::bail!("already started reading serial output")
+        }
+
+        powershell::run_set_vm_com_port(&self.name, 1, Path::new(r#"\\.\pipe\test"#))?;
+
+        let mut cmd = hvc::hvc_serial(&self.name, 1)?;
+        let reader = cmd.stdout.take().context("stdout missing")?;
+        self.serial_task = Some(cmd);
+        Ok(reader)
+    }
+
     /// Wait for the VM to turn off
     pub async fn wait_for_power_off(&self, driver: &DefaultDriver) -> anyhow::Result<()> {
         hvc::hvc_wait_for_power_off(driver, &self.name).await
@@ -132,6 +150,11 @@ impl HyperVVM {
             hvc::hvc_ensure_off(&self.name)?;
             powershell::run_remove_vm(&self.name)?;
             self.destroyed = true;
+        }
+
+        if let Some(serial_task) = self.serial_task.as_mut() {
+            // TODO: gracefully exit
+            _ = serial_task.kill();
         }
 
         Ok(())
