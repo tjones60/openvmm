@@ -1,8 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use diag_client::kmsg_stream::KmsgStream;
 use fs_err::File;
 use fs_err::PathExt;
+use futures::io::BufReader;
+use futures::AsyncBufReadExt;
+use futures::AsyncRead;
+use futures::AsyncReadExt;
+use futures::StreamExt;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::io::Write as _;
@@ -285,4 +291,46 @@ impl<'a> MakeWriter<'a> for PetriWriter {
             level: *meta.level(),
         }
     }
+}
+
+/// read from the serial reader and write entries to the log
+pub async fn serial_log_task(
+    log_file: PetriLogFile,
+    reader: impl AsyncRead + Unpin + Send + 'static,
+) -> anyhow::Result<()> {
+    let mut buf = Vec::new();
+    let mut reader = BufReader::new(reader);
+    loop {
+        buf.clear();
+        let n = (&mut reader).take(256).read_until(b'\n', &mut buf).await?;
+        if n == 0 {
+            break;
+        }
+
+        let string_buf = String::from_utf8_lossy(&buf);
+        let string_buf_trimmed = string_buf.trim_end();
+        log_file.write_entry(string_buf_trimmed);
+    }
+    Ok(())
+}
+
+/// read from the kmsg stream and write entries to the log
+pub async fn kmsg_log_task(
+    log_file: PetriLogFile,
+    mut file_stream: KmsgStream,
+) -> anyhow::Result<()> {
+    while let Some(data) = file_stream.next().await {
+        match data {
+            Ok(data) => {
+                let message = kmsg::KmsgParsedEntry::new(&data)?;
+                log_file.write_entry(message.display(false));
+            }
+            Err(err) => {
+                tracing::info!("kmsg disconnected: {err:?}");
+                break;
+            }
+        }
+    }
+
+    Ok(())
 }

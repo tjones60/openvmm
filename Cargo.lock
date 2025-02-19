@@ -5180,6 +5180,7 @@ dependencies = [
  "image",
  "inspect",
  "jiff",
+ "kmsg",
  "libtest-mimic",
  "linkme",
  "mbrman",

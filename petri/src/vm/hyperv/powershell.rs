@@ -281,6 +281,18 @@ pub fn run_set_initial_machine_configuration(
         .context("set_initial_machine_configuration")
 }
 
+/// Enables the specified vm com port and binds it to the named pipe path
+pub fn run_set_vm_com_port(name: &str, port: u8, path: &Path) -> anyhow::Result<()> {
+    PowerShellBuilder::new()
+        .cmdlet("Set-VMComPort")
+        .arg("VMName", name)
+        .arg_string("Number", port)
+        .arg("Path", path)
+        .finish()
+        .run()
+        .context("run_set_vm_com_port")
+}
+
 /// A PowerShell script builder
 pub struct PowerShellBuilder(Command);
 

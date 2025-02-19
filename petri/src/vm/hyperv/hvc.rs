@@ -3,8 +3,11 @@
 
 //! Functions for interacting with Hyper-V VMs.
 
-use anyhow::Context as _;
+use anyhow::Context;
 use anyhow::Ok;
+use pal_async::timer::PolledTimer;
+use pal_async::DefaultDriver;
+use std::time::Duration;
 
 pub fn hvc_start(vm: &str) -> anyhow::Result<()> {
     run_hvc(|cmd| cmd.arg("start").arg(vm))
@@ -64,9 +67,15 @@ pub fn hvc_list() -> anyhow::Result<Vec<String>> {
     Ok(output.lines().map(|l| l.to_owned()).collect())
 }
 
-pub fn hvc_wait_for_power_off(vm: &str) -> anyhow::Result<()> {
+pub async fn hvc_wait_for_power_off(driver: &DefaultDriver, vm: &str) -> anyhow::Result<()> {
+    const SHUTDOWN_TIMEOUT: usize = 20;
+    let mut attempts = 0;
     while !matches!(hvc_state(vm), VmState::Off) {
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        if attempts >= SHUTDOWN_TIMEOUT {
+            anyhow::bail!("VM shutdown timed out")
+        }
+        attempts += 1;
+        PolledTimer::new(driver).sleep(Duration::from_secs(1)).await;
     }
 
     Ok(())
