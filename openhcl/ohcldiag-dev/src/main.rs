@@ -589,12 +589,11 @@ pub fn main() -> anyhow::Result<()> {
                     let port_access_info = if let Some(pipe_path) = pipe_path {
                         ComPortAccessInfo::PortPipePath(pipe_path)
                     } else {
-                        ComPortAccessInfo::PortNumber(3)
+                        ComPortAccessInfo::NameAndPortNumber(vm_name.to_owned(), 3)
                     };
 
                     let pipe =
-                        diag_client::hyperv::open_serial_port(&driver, vm_name, port_access_info)
-                            .await?;
+                        diag_client::hyperv::open_serial_port(&driver, port_access_info).await?;
                     let pipe = pal_async::pipe::PolledPipe::new(&driver, pipe)
                         .context("failed to make a polled pipe")?;
                     let pipe = futures::io::BufReader::new(pipe);

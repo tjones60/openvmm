@@ -1,8 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use anyhow::Context;
-use diag_client::DiagClient;
+use diag_client::kmsg_stream::KmsgStream;
 use fs_err::File;
 use fs_err::PathExt;
 use futures::io::BufReader;
@@ -12,7 +11,6 @@ use futures::AsyncReadExt;
 use futures::StreamExt;
 use parking_lot::Mutex;
 use std::collections::HashMap;
-use std::io::ErrorKind;
 use std::io::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
@@ -341,47 +339,19 @@ pub async fn serial_log_task(
 /// kmsg log task
 pub async fn kmsg_log_task(
     log_file: PetriLogFile,
-    diag_client: DiagClient,
-    reconnect: bool,
-    verbose: bool,
+    mut file_stream: KmsgStream,
 ) -> anyhow::Result<()> {
-    'connect: loop {
-        if reconnect {
-            diag_client.wait_for_server().await?;
-        }
-        let mut file_stream = diag_client.kmsg(true).await?;
-        if verbose {
-            eprintln!("Connected to the diagnostics server.");
-        }
-
-        while let Some(data) = file_stream.next().await {
-            match data {
-                Ok(data) => {
-                    let message = kmsg::KmsgParsedEntry::new(&data)?;
-                    log_file.write_entry(message.display(false));
-                }
-                Err(err) if err.kind() == ErrorKind::ConnectionReset => {
-                    if reconnect {
-                        if verbose {
-                            eprintln!("Connection reset to the diagnostics server. Reconnecting.");
-                        }
-                        continue 'connect;
-                    } else {
-                        break;
-                    }
-                }
-                Err(err) => Err(err).context("failed to read kmsg")?,
+    while let Some(data) = file_stream.next().await {
+        match data {
+            Ok(data) => {
+                let message = kmsg::KmsgParsedEntry::new(&data)?;
+                log_file.write_entry(message.display(false));
+            }
+            Err(err) => {
+                tracing::info!("kmsg disconnected: {err:?}");
+                break;
             }
         }
-
-        if reconnect {
-            if verbose {
-                eprintln!("Lost connection to the diagnostics server. Reconnecting.");
-            }
-            continue 'connect;
-        }
-
-        break;
     }
 
     Ok(())

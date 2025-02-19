@@ -50,7 +50,7 @@ pub mod hyperv {
     /// Defines how to access the serial port
     pub enum ComPortAccessInfo {
         /// Access by number
-        PortNumber(u32),
+        NameAndPortNumber(String, u32),
         /// Access through a named pipe
         PortPipePath(String),
     }
@@ -120,11 +120,10 @@ pub mod hyperv {
     /// again, so don't do that.
     pub async fn open_serial_port(
         driver: &(impl Driver + ?Sized),
-        vm: &str,
         port: ComPortAccessInfo,
     ) -> anyhow::Result<File> {
         let path = match port {
-            ComPortAccessInfo::PortNumber(num) => {
+            ComPortAccessInfo::NameAndPortNumber(vm, num) => {
                 let output = Command::new("powershell.exe")
                     .arg("-NoProfile")
                     .arg(format!(

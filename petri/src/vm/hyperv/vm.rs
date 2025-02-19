@@ -11,7 +11,6 @@ use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Child;
-use std::process::ChildStdout;
 use tempfile::TempDir;
 
 /// A Hyper-V VM
@@ -122,17 +121,10 @@ impl HyperVVM {
     }
 
     /// Get serial output
-    pub fn serial(&mut self) -> anyhow::Result<ChildStdout> {
-        if self.serial_task.is_some() {
-            anyhow::bail!("already started reading serial output")
-        }
-
-        powershell::run_set_vm_com_port(&self.name, 1, Path::new(r#"\\.\pipe\test"#))?;
-
-        let mut cmd = hvc::hvc_serial(&self.name, 1)?;
-        let reader = cmd.stdout.take().context("stdout missing")?;
-        self.serial_task = Some(cmd);
-        Ok(reader)
+    pub fn set_vm_com_port(&mut self) -> anyhow::Result<String> {
+        let pipe_path: &str = r#"\\.\pipe\test"#;
+        powershell::run_set_vm_com_port(&self.name, 1, Path::new(pipe_path))?;
+        Ok(pipe_path.to_owned())
     }
 
     /// Wait for the VM to turn off
