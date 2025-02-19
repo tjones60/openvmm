@@ -7,6 +7,8 @@ use anyhow::Context;
 use anyhow::Ok;
 use pal_async::timer::PolledTimer;
 use pal_async::DefaultDriver;
+use std::ffi::OsStr;
+use std::process::Stdio;
 use std::time::Duration;
 
 pub fn hvc_start(vm: &str) -> anyhow::Result<()> {
@@ -93,12 +95,7 @@ pub fn hvc_ensure_off(vm: &str) -> anyhow::Result<()> {
 fn run_hvc(
     f: impl FnOnce(&mut std::process::Command) -> &mut std::process::Command,
 ) -> anyhow::Result<()> {
-    let mut cmd = std::process::Command::new("hvc.exe");
-    f(&mut cmd);
-    let status = cmd.status().context("failed to launch hvc")?;
-    if !status.success() {
-        anyhow::bail!("hvc failed with exit code: {}", status);
-    }
+    _ = hvc_output(f)?;
     Ok(())
 }
 
@@ -107,8 +104,25 @@ fn hvc_output(
     f: impl FnOnce(&mut std::process::Command) -> &mut std::process::Command,
 ) -> anyhow::Result<String> {
     let mut cmd = std::process::Command::new("hvc.exe");
+    cmd.stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .stdin(Stdio::null());
     f(&mut cmd);
+
     let output = cmd.output().expect("failed to launch hvc");
+
+    let hvc_cmd = format!(
+        "{} {}",
+        cmd.get_program().to_string_lossy(),
+        cmd.get_args()
+            .collect::<Vec<_>>()
+            .join(OsStr::new(" "))
+            .to_string_lossy()
+    );
+    let hvc_stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let hvc_stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    tracing::debug!(hvc_cmd, hvc_stdout, hvc_stderr);
     if !output.status.success() {
         anyhow::bail!("hvc failed with exit code: {}", output.status);
     }

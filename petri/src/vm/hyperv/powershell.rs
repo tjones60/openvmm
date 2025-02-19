@@ -5,10 +5,21 @@
 
 use anyhow::Context;
 use core::str;
+use guid::Guid;
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::path::Path;
 use std::process::Command;
+use std::process::Stdio;
+use std::str::FromStr;
+
+/// Information needed to identify a Hyper-V VM
+pub enum VmId<'a> {
+    /// The name of the VM
+    Name(&'a str),
+    /// The VmId Guid
+    Id(&'a Guid),
+}
 
 /// Hyper-V VM Generation
 #[derive(Clone, Copy)]
@@ -101,8 +112,8 @@ pub struct HyperVNewVMArgs<'a> {
 }
 
 /// Runs New-VM with the given arguments.
-pub fn run_new_vm(args: HyperVNewVMArgs<'_>) -> anyhow::Result<()> {
-    PowerShellBuilder::new()
+pub fn run_new_vm(args: HyperVNewVMArgs<'_>) -> anyhow::Result<Guid> {
+    let vmid = PowerShellBuilder::new()
         .cmdlet("New-VM")
         .arg("Name", args.name)
         .arg_opt("Generation", args.generation)
@@ -111,16 +122,23 @@ pub fn run_new_vm(args: HyperVNewVMArgs<'_>) -> anyhow::Result<()> {
         .arg_opt("Path", args.path)
         .arg_opt("VHDPath", args.vhd_path)
         .flag("Force")
+        .pipeline()
+        .select_object_property("Id")
+        .pipeline()
+        .select_object_property("Guid")
         .finish()
-        .run()
-        .context("new_vm")
+        .output()
+        .context("new_vm")?;
+
+    Guid::from_str(&vmid).context("invalid vmid")
 }
 
 /// Runs New-VM with the given arguments.
-pub fn run_remove_vm(name: &str) -> anyhow::Result<()> {
+pub fn run_remove_vm(vmid: VmId<'_>) -> anyhow::Result<()> {
     PowerShellBuilder::new()
+        .get_vm(vmid)
+        .pipeline()
         .cmdlet("Remove-VM")
-        .arg("Name", name)
         .flag("Force")
         .finish()
         .run()
@@ -131,7 +149,7 @@ pub fn run_remove_vm(name: &str) -> anyhow::Result<()> {
 pub struct HyperVAddVMHardDiskDriveArgs<'a> {
     /// Specifies the name of the virtual machine to which the hard disk
     /// drive is to be added.
-    pub name: &'a str,
+    pub vmid: VmId<'a>,
     /// Specifies the number of the location on the controller at which the
     /// hard disk drive is to be added. If not specified, the first available
     /// location in the controller specified with the ControllerNumber parameter
@@ -149,8 +167,9 @@ pub struct HyperVAddVMHardDiskDriveArgs<'a> {
 /// Runs Add-VMHardDiskDrive with the given arguments.
 pub fn run_add_vm_hard_disk_drive(args: HyperVAddVMHardDiskDriveArgs<'_>) -> anyhow::Result<()> {
     PowerShellBuilder::new()
+        .get_vm(args.vmid)
+        .pipeline()
         .cmdlet("Add-VMHardDiskDrive")
-        .arg("VMName", args.name)
         .arg_opt_string("ControllerLocation", args.controller_location)
         .arg_opt_string("ControllerNumber", args.controller_number)
         .arg_opt("Path", args.path)
@@ -163,7 +182,7 @@ pub fn run_add_vm_hard_disk_drive(args: HyperVAddVMHardDiskDriveArgs<'_>) -> any
 pub struct HyperVAddVMDvdDriveArgs<'a> {
     /// Specifies the name of the virtual machine on which the DVD drive
     /// is to be configured.
-    pub name: &'a str,
+    pub vmid: VmId<'a>,
     /// Specifies the IDE controller location of the DVD drives to be
     /// configured. If not specified, DVD drives in all controller locations
     /// are configured.
@@ -179,8 +198,9 @@ pub struct HyperVAddVMDvdDriveArgs<'a> {
 /// Runs Add-VMDvdDrive with the given arguments.
 pub fn run_add_vm_dvd_drive(args: HyperVAddVMDvdDriveArgs<'_>) -> anyhow::Result<()> {
     PowerShellBuilder::new()
+        .get_vm(args.vmid)
+        .pipeline()
         .cmdlet("Add-VMDvdDrive")
-        .arg("VMName", args.name)
         .arg_opt_string("ControllerLocation", args.controller_location)
         .arg_opt_string("ControllerNumber", args.controller_number)
         .arg_opt("Path", args.path)
@@ -190,10 +210,11 @@ pub fn run_add_vm_dvd_drive(args: HyperVAddVMDvdDriveArgs<'_>) -> anyhow::Result
 }
 
 /// Runs Add-VMScsiController with the given arguments.
-pub fn run_add_vm_scsi_controller(name: &str) -> anyhow::Result<()> {
+pub fn run_add_vm_scsi_controller(vmid: VmId<'_>) -> anyhow::Result<()> {
     PowerShellBuilder::new()
+        .get_vm(vmid)
+        .pipeline()
         .cmdlet("Add-VMScsiController")
-        .arg("VMName", name)
         .finish()
         .run()
         .context("add_vm_scsi_controller")
@@ -225,7 +246,7 @@ pub fn run_dismount_vhd(path: &Path) -> anyhow::Result<()> {
 pub struct HyperVSetVMFirmwareArgs<'a> {
     /// Specifies the name of virtual machines for which you want to modify the
     /// firmware configuration.
-    pub name: &'a str,
+    pub vmid: VmId<'a>,
     /// Specifies the name of the secure boot template. If secure boot is
     /// enabled, you must have a valid secure boot template for the guest
     /// operating system to start.
@@ -235,9 +256,10 @@ pub struct HyperVSetVMFirmwareArgs<'a> {
 /// Runs Set-VMFirmware with the given arguments.
 pub fn run_set_vm_firmware(args: HyperVSetVMFirmwareArgs<'_>) -> anyhow::Result<()> {
     PowerShellBuilder::new()
+        .get_vm(args.vmid)
+        .pipeline()
         .cmdlet("Set-VMFirmware")
         .arg_opt("SecureBootTemplate", args.secure_boot_template)
-        .arg("VMName", args.name)
         .finish()
         .run()
         .context("set_vm_firmware")
@@ -245,7 +267,7 @@ pub fn run_set_vm_firmware(args: HyperVSetVMFirmwareArgs<'_>) -> anyhow::Result<
 
 /// Runs Set-VMFirmware with the given arguments.
 pub fn run_set_openhcl_firmware(
-    name: &str,
+    vmid: VmId<'_>,
     ps_mod: &Path,
     igvm_file: &Path,
     increase_vtl2_memory: bool,
@@ -254,8 +276,9 @@ pub fn run_set_openhcl_firmware(
         .cmdlet("Import-Module")
         .positional(ps_mod)
         .next()
+        .get_vm(vmid)
+        .pipeline()
         .cmdlet("Set-OpenHCLFirmware")
-        .arg("VMName", name)
         .arg("IgvmFile", igvm_file)
         .flag_opt(increase_vtl2_memory.then_some("IncreaseVtl2Memory"))
         .finish()
@@ -265,7 +288,7 @@ pub fn run_set_openhcl_firmware(
 
 /// Sets the initial machine configuration for a VM
 pub fn run_set_initial_machine_configuration(
-    name: &str,
+    vmid: VmId<'_>,
     ps_mod: &Path,
     imc_hive: &Path,
 ) -> anyhow::Result<()> {
@@ -273,8 +296,9 @@ pub fn run_set_initial_machine_configuration(
         .cmdlet("Import-Module")
         .positional(ps_mod)
         .next()
+        .get_vm(vmid)
+        .pipeline()
         .cmdlet("Set-InitialMachineConfiguration")
-        .arg("VMName", name)
         .arg("ImcHive", imc_hive)
         .finish()
         .run()
@@ -282,10 +306,11 @@ pub fn run_set_initial_machine_configuration(
 }
 
 /// Enables the specified vm com port and binds it to the named pipe path
-pub fn run_set_vm_com_port(name: &str, port: u8, path: &Path) -> anyhow::Result<()> {
+pub fn run_set_vm_com_port(vmid: VmId<'_>, port: u8, path: &Path) -> anyhow::Result<()> {
     PowerShellBuilder::new()
+        .get_vm(vmid)
+        .pipeline()
         .cmdlet("Set-VMComPort")
-        .arg("VMName", name)
         .arg_string("Number", port)
         .arg("Path", path)
         .finish()
@@ -300,7 +325,10 @@ impl PowerShellBuilder {
     /// Create a new PowerShell command
     pub fn new() -> Self {
         let mut cmd = Command::new("powershell.exe");
-        cmd.arg("-NoProfile");
+        cmd.arg("-NoProfile")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .stdin(Stdio::null());
         Self(cmd)
     }
 
@@ -311,24 +339,40 @@ impl PowerShellBuilder {
     }
 
     /// Run the PowerShell script
-    pub fn run(mut self) -> anyhow::Result<()> {
-        let status = self.0.status().context("failed to launch powershell")?;
-        if !status.success() {
-            anyhow::bail!("powershell script failed with exit code: {}", status);
-        }
+    pub fn run(self) -> anyhow::Result<()> {
+        _ = self.output()?;
         Ok(())
     }
 
     /// Run the PowerShell script and return the output
     pub fn output(mut self) -> anyhow::Result<String> {
         let output = self.0.output().context("failed to launch powershell")?;
+        let ps_stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let ps_stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        tracing::debug!(ps_cmd = self.get_cmd(), ps_stdout, ps_stderr);
         if !output.status.success() {
             anyhow::bail!("powershell script failed with exit code: {}", output.status);
         }
-        String::from_utf8(output.stdout).context("powershell output is not utf-8")
+        Ok(String::from_utf8(output.stdout)
+            .context("powershell output is not utf-8")?
+            .trim()
+            .to_owned())
     }
 
-    /// Use Select-Object to return a property of the returned object
+    /// Get the command to be run
+    pub fn get_cmd(&self) -> String {
+        format!(
+            "{} {}",
+            self.0.get_program().to_string_lossy(),
+            self.0
+                .get_args()
+                .collect::<Vec<_>>()
+                .join(OsStr::new(" "))
+                .to_string_lossy()
+        )
+    }
+
+    /// Return a property using `Select-Object`. Usually preceeded by `pipeline()`.
     pub fn select_object_property<S: AsRef<OsStr>>(
         mut self,
         property: S,
@@ -337,6 +381,16 @@ impl PowerShellBuilder {
             .arg("Select-Object")
             .arg("-ExpandProperty")
             .arg(property);
+        PowerShellCmdletBuilder(self.0)
+    }
+
+    /// Get a VM object using `Get-VM`. Usually followed by `pipeline()`.
+    pub fn get_vm(mut self, vmid: VmId<'_>) -> PowerShellCmdletBuilder {
+        self.0.arg("Get-VM");
+        match vmid {
+            VmId::Name(name) => self.0.arg("-Name").arg(name),
+            VmId::Id(guid) => self.0.arg("-Id").arg(guid.to_string()),
+        };
         PowerShellCmdletBuilder(self.0)
     }
 }
