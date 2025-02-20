@@ -297,7 +297,7 @@ impl PetriVmConfigHyperV {
 
         let mut log_tasks = Vec::new();
 
-        let serial_pipe_path = vm.set_vm_com_port()?;
+        let serial_pipe_path = vm.set_vm_com_port(1)?;
         let serial_log_file = self.log_source.log_file("guest")?;
         log_tasks.push(self.driver.spawn("guest-log", {
             let driver = self.driver.clone();
