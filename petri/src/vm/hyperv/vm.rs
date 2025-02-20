@@ -169,7 +169,7 @@ impl HyperVVM {
 
     /// Get serial output
     pub fn set_vm_com_port(&mut self, port: u8) -> anyhow::Result<String> {
-        let pipe_path = format!(r#"\\.\pipe\{}-{}"#, self.vmid.to_string(), port);
+        let pipe_path = format!(r#"\\.\pipe\{}-{}"#, self.vmid, port);
         powershell::run_set_vm_com_port(
             powershell::VmId::Id(&self.vmid),
             port,
