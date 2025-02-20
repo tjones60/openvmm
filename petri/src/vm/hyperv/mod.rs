@@ -230,6 +230,7 @@ impl PetriVmConfigHyperV {
             self.generation,
             self.guest_state_isolation_type,
             self.memory,
+            self.log_source.log_file("hyperv")?,
         )?;
 
         if let Some(igvm_file) = &self.openhcl_igvm {

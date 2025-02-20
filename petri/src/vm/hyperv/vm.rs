@@ -5,6 +5,7 @@
 
 use super::hvc;
 use super::powershell;
+use crate::PetriLogFile;
 use anyhow::Context;
 use guid::Guid;
 use pal_async::DefaultDriver;
@@ -12,6 +13,7 @@ use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use tempfile::TempDir;
+use time::OffsetDateTime;
 
 /// A Hyper-V VM
 pub struct HyperVVM {
@@ -20,6 +22,8 @@ pub struct HyperVVM {
     destroyed: bool,
     _temp_dir: TempDir,
     ps_mod: PathBuf,
+    create_time: OffsetDateTime,
+    log_file: PetriLogFile,
 }
 
 impl HyperVVM {
@@ -29,7 +33,9 @@ impl HyperVVM {
         generation: powershell::HyperVGeneration,
         guest_state_isolation_type: powershell::HyperVGuestStateIsolationType,
         memory: u64,
+        log_file: PetriLogFile,
     ) -> anyhow::Result<Self> {
+        let create_time = OffsetDateTime::now_local()?;
         let name = name.to_owned();
         let temp_dir = tempfile::tempdir()?;
         let ps_mod = temp_dir.path().join("hyperv.psm1");
@@ -63,6 +69,8 @@ impl HyperVVM {
             destroyed: false,
             _temp_dir: temp_dir,
             ps_mod,
+            create_time,
+            log_file,
         })
     }
 
@@ -74,6 +82,30 @@ impl HyperVVM {
     /// Get the VmId Guid of the VM
     pub fn get_vmid(&self) -> &Guid {
         &self.vmid
+    }
+
+    /// Get Hyper-V logs for the VM
+    pub fn get_logs(&self) -> anyhow::Result<Vec<String>> {
+        let mut logs = Vec::new();
+        for log_name in [
+            "Microsoft-Windows-Hyper-V-Worker-Admin",
+            "Microsoft-Windows-Hyper-V-VMMS-Admin",
+        ] {
+            logs.append(&mut powershell::run_get_winevent(
+                log_name,
+                self.create_time,
+                &self.vmid.to_string(),
+            )?);
+        }
+        Ok(logs)
+    }
+
+    /// Write logs
+    pub fn write_logs(&self) -> anyhow::Result<()> {
+        for line in self.get_logs()? {
+            self.log_file.write_entry(line);
+        }
+        Ok(())
     }
 
     /// Set the OpenHCL firmware file
@@ -156,6 +188,7 @@ impl HyperVVM {
         if !self.destroyed {
             hvc::hvc_ensure_off(&self.vmid.to_string())?;
             powershell::run_remove_vm(powershell::VmId::Id(&self.vmid))?;
+            self.write_logs()?;
             self.destroyed = true;
         }
 

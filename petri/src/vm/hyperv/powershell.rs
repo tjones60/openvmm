@@ -12,6 +12,7 @@ use std::path::Path;
 use std::process::Command;
 use std::process::Stdio;
 use std::str::FromStr;
+use time::OffsetDateTime;
 
 /// Information needed to identify a Hyper-V VM
 pub enum VmId<'a> {
@@ -127,7 +128,7 @@ pub fn run_new_vm(args: HyperVNewVMArgs<'_>) -> anyhow::Result<Guid> {
         .pipeline()
         .select_object_property("Guid")
         .finish()
-        .output()
+        .output(true)
         .context("new_vm")?;
 
     Guid::from_str(&vmid).context("invalid vmid")
@@ -318,6 +319,41 @@ pub fn run_set_vm_com_port(vmid: VmId<'_>, port: u8, path: &Path) -> anyhow::Res
         .context("run_set_vm_com_port")
 }
 
+/// Get event logs
+pub fn run_get_winevent(
+    log_name: &str,
+    start_time: OffsetDateTime,
+    find: &str,
+) -> anyhow::Result<Vec<String>> {
+    let start_time = format!(
+        "{:0>4}-{:0>2}-{:0>2} {:0>2}:{:0>2}:{:0>2}",
+        start_time.year(),
+        start_time.month() as u8,
+        start_time.day(),
+        start_time.hour(),
+        start_time.minute(),
+        start_time.second()
+    );
+    let logs = PowerShellBuilder::new()
+        .cmdlet("Get-WinEvent")
+        .flag("Oldest")
+        .arg("FilterHashtable",
+            format!(
+                "@{{ LogName=\"{log_name}\"; StartTime=\"{start_time}\" }}"
+            ),
+        )
+        .pipeline()
+        .cmdlet("where")
+        .positional("message")
+        .arg("Match", find)
+        .pipeline()
+        .cmdlet("ForEach-Object")
+        .positional(r#"{"[{0}] {1}: ({2}, {3}) {4}<END>`n" -f $_.TimeCreated, $_.ProviderName, $_.Level, $_.Id, $_.Message}"#)
+        .finish()
+        .output(false)?;
+    Ok(logs.split("<END>\n").map(|s| s.to_string()).collect())
+}
+
 /// A PowerShell script builder
 pub struct PowerShellBuilder(Command);
 
@@ -340,14 +376,14 @@ impl PowerShellBuilder {
 
     /// Run the PowerShell script
     pub fn run(self) -> anyhow::Result<()> {
-        _ = self.output()?;
+        _ = self.output(true)?;
         Ok(())
     }
 
     /// Run the PowerShell script and return the output
-    pub fn output(mut self) -> anyhow::Result<String> {
+    pub fn output(mut self, log_stdout: bool) -> anyhow::Result<String> {
         let output = self.0.output().context("failed to launch powershell")?;
-        let ps_stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let ps_stdout = log_stdout.then(|| String::from_utf8_lossy(&output.stdout).to_string());
         let ps_stderr = String::from_utf8_lossy(&output.stderr).to_string();
         tracing::debug!(ps_cmd = self.get_cmd(), ps_stdout, ps_stderr);
         if !output.status.success() {
