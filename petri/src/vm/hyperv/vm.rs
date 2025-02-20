@@ -168,10 +168,14 @@ impl HyperVVM {
     }
 
     /// Get serial output
-    pub fn set_vm_com_port(&mut self) -> anyhow::Result<String> {
-        let pipe_path: &str = r#"\\.\pipe\test"#;
-        powershell::run_set_vm_com_port(powershell::VmId::Id(&self.vmid), 1, Path::new(pipe_path))?;
-        Ok(pipe_path.to_owned())
+    pub fn set_vm_com_port(&mut self, port: u8) -> anyhow::Result<String> {
+        let pipe_path = format!(r#"\\.\pipe\{}-{}"#, self.vmid.to_string(), port);
+        powershell::run_set_vm_com_port(
+            powershell::VmId::Id(&self.vmid),
+            port,
+            Path::new(&pipe_path),
+        )?;
+        Ok(pipe_path)
     }
 
     /// Wait for the VM to turn off
