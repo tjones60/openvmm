@@ -102,6 +102,11 @@ impl PetriVmOpenVmm {
         }
     }
 
+    /// Get the path to the VTL 2 vsock socket, if the VM is configured with OpenHCL.
+    pub fn vtl2_vsock_path(&self) -> Option<&Path> {
+        self.inner.resources.vtl2_vsock_path.as_deref()
+    }
+
     /// Wait for the VM to halt, returning the reason for the halt.
     pub async fn wait_for_halt(&mut self) -> anyhow::Result<HaltReason> {
         if let Some(already) = self.halt.already_received.take() {
