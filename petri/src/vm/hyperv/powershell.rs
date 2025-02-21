@@ -6,7 +6,7 @@
 use anyhow::Context;
 use core::str;
 use guid::Guid;
-use jiff::Zoned;
+use jiff::Timestamp;
 use serde::Deserialize;
 use serde::Serialize;
 use std::ffi::OsStr;
@@ -139,7 +139,8 @@ pub fn run_remove_vm(vmid: &Guid) -> anyhow::Result<()> {
         .cmdlet("Remove-VM")
         .flag("Force")
         .finish()
-        .run()
+        .output(true)
+        .map(|_| ())
         .context("remove_vm")
 }
 
@@ -173,7 +174,8 @@ pub fn run_add_vm_hard_disk_drive(args: HyperVAddVMHardDiskDriveArgs<'_>) -> any
         .arg_opt_string("ControllerNumber", args.controller_number)
         .arg_opt("Path", args.path)
         .finish()
-        .run()
+        .output(true)
+        .map(|_| ())
         .context("add_vm_hard_disk_drive")
 }
 
@@ -205,7 +207,8 @@ pub fn run_add_vm_dvd_drive(args: HyperVAddVMDvdDriveArgs<'_>) -> anyhow::Result
         .arg_opt_string("ControllerNumber", args.controller_number)
         .arg_opt("Path", args.path)
         .finish()
-        .run()
+        .output(true)
+        .map(|_| ())
         .context("add_vm_dvd_drive")
 }
 
@@ -217,7 +220,8 @@ pub fn run_add_vm_scsi_controller(vmid: &Guid) -> anyhow::Result<()> {
         .pipeline()
         .cmdlet("Add-VMScsiController")
         .finish()
-        .run()
+        .output(true)
+        .map(|_| ())
         .context("add_vm_scsi_controller")
 }
 
@@ -229,7 +233,8 @@ pub fn create_child_vhd(path: &Path, parent_path: &Path) -> anyhow::Result<()> {
         .arg("ParentPath", parent_path)
         .flag("Differencing")
         .finish()
-        .run()
+        .output(true)
+        .map(|_| ())
         .context("create_child_vhd")
 }
 
@@ -239,7 +244,8 @@ pub fn run_dismount_vhd(path: &Path) -> anyhow::Result<()> {
         .cmdlet("Dismount-VHD")
         .arg("Path", path)
         .finish()
-        .run()
+        .output(true)
+        .map(|_| ())
         .context("dismount_vhd")
 }
 
@@ -263,7 +269,8 @@ pub fn run_set_vm_firmware(args: HyperVSetVMFirmwareArgs<'_>) -> anyhow::Result<
         .cmdlet("Set-VMFirmware")
         .arg_opt("SecureBootTemplate", args.secure_boot_template)
         .finish()
-        .run()
+        .output(true)
+        .map(|_| ())
         .context("set_vm_firmware")
 }
 
@@ -285,7 +292,8 @@ pub fn run_set_openhcl_firmware(
         .arg("IgvmFile", igvm_file)
         .flag_opt(increase_vtl2_memory.then_some("IncreaseVtl2Memory"))
         .finish()
-        .run()
+        .output(true)
+        .map(|_| ())
         .context("set_openhcl_firmware")
 }
 
@@ -305,7 +313,8 @@ pub fn run_set_initial_machine_configuration(
         .cmdlet("Set-InitialMachineConfiguration")
         .arg("ImcHive", imc_hive)
         .finish()
-        .run()
+        .output(true)
+        .map(|_| ())
         .context("set_initial_machine_configuration")
 }
 
@@ -319,7 +328,8 @@ pub fn run_set_vm_com_port(vmid: &Guid, port: u8, path: &Path) -> anyhow::Result
         .arg_string("Number", port)
         .arg("Path", path)
         .finish()
-        .run()
+        .output(true)
+        .map(|_| ())
         .context("run_set_vm_com_port")
 }
 
@@ -328,7 +338,7 @@ pub fn run_set_vm_com_port(vmid: &Guid, port: u8, path: &Path) -> anyhow::Result
 #[serde(rename_all = "PascalCase")]
 pub struct WinEvent {
     /// Time of event
-    pub time_created: String,
+    pub time_created: Timestamp,
     /// Event provider name
     pub provider_name: String,
     /// Event level (see winmeta.h)
@@ -342,19 +352,9 @@ pub struct WinEvent {
 /// Get event logs
 pub fn run_get_winevent(
     log_name: &str,
-    start_time: &Zoned,
+    start_time: &Timestamp,
     find: &str,
 ) -> anyhow::Result<Vec<WinEvent>> {
-    let start_time = format!(
-        "{:0>4}-{:0>2}-{:0>2} {:0>2}:{:0>2}:{:0>2}",
-        start_time.year(),
-        start_time.month() as u8,
-        start_time.day(),
-        start_time.hour(),
-        start_time.minute(),
-        start_time.second()
-    );
-
     let logs = PowerShellBuilder::new()
         .cmdlet("Get-WinEvent")
         .flag("Oldest")
@@ -369,13 +369,26 @@ pub fn run_get_winevent(
         .arg("Match", find)
         .pipeline()
         .cmdlet("Select-Object")
-        .positional(r#"@{label="TimeCreated";expression={$_.TimeCreated.ToString("yyyy-MM-dd HH:mm:ss")}}, ProviderName, Level, Id, Message"#)
+        .positional(r#"@{label="TimeCreated";expression={Get-Date $_.TimeCreated -Format o}}, ProviderName, Level, Id, Message"#)
         .pipeline()
         .cmdlet("ConvertTo-Json")
         .finish()
         .output(false).context("run_get_winevent")?;
 
     serde_json::from_str(&logs).context("parsing winevents")
+}
+
+/// Get Hyper-V event logs for a VM
+pub fn hyperv_event_logs(vmid: &Guid, start_time: &Timestamp) -> anyhow::Result<Vec<WinEvent>> {
+    let vmid = vmid.to_string();
+    let mut logs = Vec::new();
+    for log_name in [
+        "Microsoft-Windows-Hyper-V-Worker-Admin",
+        "Microsoft-Windows-Hyper-V-VMMS-Admin",
+    ] {
+        logs.append(&mut run_get_winevent(log_name, start_time, &vmid)?);
+    }
+    Ok(logs)
 }
 
 /// Get the IDs of the VM(s) with the specified name
@@ -416,18 +429,13 @@ impl PowerShellBuilder {
         PowerShellCmdletBuilder(self.0)
     }
 
-    /// Run the PowerShell script
-    pub fn run(self) -> anyhow::Result<()> {
-        _ = self.output(true)?;
-        Ok(())
-    }
-
     /// Run the PowerShell script and return the output
     pub fn output(mut self, log_stdout: bool) -> anyhow::Result<String> {
         self.0.stderr(Stdio::piped()).stdin(Stdio::null());
         let output = self.0.output().context("failed to launch powershell")?;
 
-        let ps_stdout = log_stdout.then(|| String::from_utf8_lossy(&output.stdout).to_string());
+        let ps_stdout = (log_stdout || !output.status.success())
+            .then(|| String::from_utf8_lossy(&output.stdout).to_string());
         let ps_stderr = String::from_utf8_lossy(&output.stderr).to_string();
         tracing::debug!(ps_cmd = self.cmd(), ps_stdout, ps_stderr);
         if !output.status.success() {

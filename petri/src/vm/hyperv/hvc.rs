@@ -13,11 +13,15 @@ use std::process::Stdio;
 use std::time::Duration;
 
 pub fn hvc_start(vmid: &Guid) -> anyhow::Result<()> {
-    run_hvc(|cmd| cmd.arg("start").arg(vmid.to_string()))
+    hvc_output(|cmd| cmd.arg("start").arg(vmid.to_string()))
+        .map(|_| ())
+        .context("hvc_start")
 }
 
 pub fn hvc_kill(vmid: &Guid) -> anyhow::Result<()> {
-    run_hvc(|cmd| cmd.arg("kill").arg(vmid.to_string()))
+    hvc_output(|cmd| cmd.arg("kill").arg(vmid.to_string()))
+        .map(|_| ())
+        .context("hvc_kill")
 }
 
 /// HyperV VM state as reported by hvc
@@ -46,10 +50,9 @@ pub enum VmState {
     Unknown,
 }
 
-pub fn hvc_state(vmid: &Guid) -> VmState {
-    hvc_output(|cmd| cmd.arg("state").arg(vmid.to_string())).map_or_else(
-        |_| VmState::Unknown,
-        |s| match s.trim_end() {
+pub fn hvc_state(vmid: &Guid) -> anyhow::Result<VmState> {
+    hvc_output(|cmd| cmd.arg("state").arg(vmid.to_string()))
+        .map(|s| match s.trim_end() {
             "off" => VmState::Off,
             "on" => VmState::On,
             "starting" => VmState::Starting,
@@ -61,14 +64,14 @@ pub fn hvc_state(vmid: &Guid) -> VmState {
             "pausing" => VmState::Pausing,
             "resuming" => VmState::Resuming,
             _ => VmState::Unknown,
-        },
-    )
+        })
+        .context("hvc_state")
 }
 
 pub async fn hvc_wait_for_power_off(driver: &DefaultDriver, vmid: &Guid) -> anyhow::Result<()> {
     const SHUTDOWN_TIMEOUT: usize = 20;
     let mut attempts = 0;
-    while !matches!(hvc_state(vmid), VmState::Off) {
+    while !matches!(hvc_state(vmid)?, VmState::Off) {
         if attempts >= SHUTDOWN_TIMEOUT {
             anyhow::bail!("VM shutdown timed out")
         }
@@ -80,18 +83,10 @@ pub async fn hvc_wait_for_power_off(driver: &DefaultDriver, vmid: &Guid) -> anyh
 }
 
 pub fn hvc_ensure_off(vmid: &Guid) -> anyhow::Result<()> {
-    if !matches!(hvc_state(vmid), VmState::Off) {
+    if !matches!(hvc_state(vmid)?, VmState::Off) {
         hvc_kill(vmid)?;
     }
 
-    Ok(())
-}
-
-/// Runs hvc with the given arguments.
-fn run_hvc(
-    f: impl FnOnce(&mut std::process::Command) -> &mut std::process::Command,
-) -> anyhow::Result<()> {
-    _ = hvc_output(f)?;
     Ok(())
 }
 

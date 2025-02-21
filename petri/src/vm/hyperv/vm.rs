@@ -8,7 +8,7 @@ use super::powershell;
 use crate::PetriLogFile;
 use anyhow::Context;
 use guid::Guid;
-use jiff::Zoned;
+use jiff::Timestamp;
 use pal_async::DefaultDriver;
 use std::io::Write;
 use std::path::Path;
@@ -23,7 +23,7 @@ pub struct HyperVVM {
     destroyed: bool,
     _temp_dir: TempDir,
     ps_mod: PathBuf,
-    create_time: Zoned,
+    create_time: Timestamp,
     log_file: PetriLogFile,
 }
 
@@ -36,7 +36,7 @@ impl HyperVVM {
         memory: u64,
         log_file: PetriLogFile,
     ) -> anyhow::Result<Self> {
-        let create_time = Zoned::now();
+        let create_time = Timestamp::now();
         let name = name.to_owned();
         let temp_dir = tempfile::tempdir()?;
         let ps_mod = temp_dir.path().join("hyperv.psm1");
@@ -87,26 +87,11 @@ impl HyperVVM {
         &self.vmid
     }
 
-    /// Get Hyper-V logs for the VM
-    fn event_logs(&self) -> anyhow::Result<Vec<powershell::WinEvent>> {
-        let mut logs = Vec::new();
-        for log_name in [
-            "Microsoft-Windows-Hyper-V-Worker-Admin",
-            "Microsoft-Windows-Hyper-V-VMMS-Admin",
-        ] {
-            logs.append(&mut powershell::run_get_winevent(
-                log_name,
-                &self.create_time,
-                &self.vmid.to_string(),
-            )?);
-        }
-        Ok(logs)
-    }
-
     /// Get Hyper-V logs and write them to the log file
     pub fn flush_logs(&self) -> anyhow::Result<()> {
-        for event in self.event_logs()? {
+        for event in powershell::hyperv_event_logs(&self.vmid, &self.create_time)? {
             self.log_file.write_entry_fmt(
+                Some(event.time_created),
                 match event.level {
                     1 | 2 => Level::ERROR,
                     3 => Level::WARN,
