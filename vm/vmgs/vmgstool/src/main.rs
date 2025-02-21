@@ -1027,7 +1027,6 @@ async fn vmgs_file_query_encryption(file_path: impl AsRef<Path>) -> Result<(), E
 }
 
 fn vmgs_get_encryption_scheme(vmgs: &Vmgs) -> VmgsEncryptionScheme {
-    // TODO: validate that the files are the expected size
     if vmgs_query_file_size(vmgs, FileId::KEY_PROTECTOR).is_ok() {
         VmgsEncryptionScheme::GspKey
     } else if vmgs_query_file_size(vmgs, FileId::VM_UNIQUE_ID).is_ok() {
