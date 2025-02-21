@@ -103,8 +103,12 @@ impl PetriVmOpenVmm {
     }
 
     /// Get the path to the VTL 2 vsock socket, if the VM is configured with OpenHCL.
-    pub fn vtl2_vsock_path(&self) -> Option<&Path> {
-        self.inner.resources.vtl2_vsock_path.as_deref()
+    pub fn vtl2_vsock_path(&self) -> anyhow::Result<&Path> {
+        self.inner
+            .resources
+            .vtl2_vsock_path
+            .as_deref()
+            .context("VM is not configured with OpenHCL")
     }
 
     /// Wait for the VM to halt, returning the reason for the halt.
