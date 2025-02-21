@@ -62,22 +62,13 @@ function Set-InitialMachineConfiguration
 {
     [CmdletBinding()]
     Param (
-        [Parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $true, ParameterSetName = "ByObject")]
+        [Parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $true)]
         [System.Object]
         $Vm,
-
-        [Parameter(Position = 0, Mandatory = $true, ParameterSetName = "ByName")]
-        [ValidateNotNullOrEmpty()]
-        [string]
-        $VMName,
 
         [Parameter(Mandatory = $true)]
         [string] $ImcHive
     )
-
-    if ($PSCmdlet.ParameterSetName -eq "ByName") {
-        $Vm = Get-VM $VMName
-    }
 
     $msvm_ComputerSystem = Get-MsvmComputerSystem $Vm
 
@@ -100,24 +91,15 @@ function Set-OpenHCLFirmware
 {
     [CmdletBinding()]
     Param (
-        [Parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $true, ParameterSetName = "ByObject")]
+        [Parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $true)]
         [System.Object]
         $Vm,
-
-        [Parameter(Position = 0, Mandatory = $true, ParameterSetName = "ByName")]
-        [ValidateNotNullOrEmpty()]
-        [string]
-        $VMName,
 
         [Parameter(Mandatory = $true)]
         [string] $IgvmFile,
 
         [switch] $IncreaseVtl2Memory
     )
-
-    if ($PSCmdlet.ParameterSetName -eq "ByName") {
-        $Vm = Get-VM $VMName
-    }
 
     $vssd = Get-Vssd $Vm
     # Enable OpenHCL by feature

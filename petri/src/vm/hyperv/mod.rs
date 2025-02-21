@@ -304,7 +304,7 @@ impl PetriVmConfigHyperV {
             async move {
                 let serial = diag_client::hyperv::open_serial_port(
                     &driver,
-                    diag_client::hyperv::ComPortAccessInfo::PortPipePath(serial_pipe_path),
+                    diag_client::hyperv::ComPortAccessInfo::PortPipePath(&serial_pipe_path),
                 )
                 .await?;
                 crate::serial_log_task(serial_log_file, PolledPipe::new(&driver, serial)?).await
@@ -329,7 +329,7 @@ impl PetriVmConfigHyperV {
                     }
                 }
             }));
-            Some(OpenHclDiagHandler::from(
+            Some(OpenHclDiagHandler::new(
                 diag_client::DiagClient::from_hyperv_name(self.driver.clone(), &self.name)?,
             ))
         } else {

@@ -176,7 +176,7 @@ impl PetriVmConfigOpenVmm {
                         #[cfg(windows)]
                         vmbusproxy_handle: None,
                     }),
-                    Some(OpenHclDiagHandler::from(
+                    Some(OpenHclDiagHandler::new(
                         diag_client::DiagClient::from_hybrid_vsock(
                             driver.clone(),
                             &vtl2_vsock_path,

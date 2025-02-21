@@ -8,12 +8,13 @@ use super::powershell;
 use crate::PetriLogFile;
 use anyhow::Context;
 use guid::Guid;
+use jiff::Zoned;
 use pal_async::DefaultDriver;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use tempfile::TempDir;
-use time::OffsetDateTime;
+use tracing::Level;
 
 /// A Hyper-V VM
 pub struct HyperVVM {
@@ -22,7 +23,7 @@ pub struct HyperVVM {
     destroyed: bool,
     _temp_dir: TempDir,
     ps_mod: PathBuf,
-    create_time: OffsetDateTime,
+    create_time: Zoned,
     log_file: PetriLogFile,
 }
 
@@ -35,7 +36,7 @@ impl HyperVVM {
         memory: u64,
         log_file: PetriLogFile,
     ) -> anyhow::Result<Self> {
-        let create_time = OffsetDateTime::now_local()?;
+        let create_time = Zoned::now();
         let name = name.to_owned();
         let temp_dir = tempfile::tempdir()?;
         let ps_mod = temp_dir.path().join("hyperv.psm1");
@@ -47,9 +48,11 @@ impl HyperVVM {
         }
 
         // Delete the VM if it already exists
-        if hvc::hvc_list()?.contains(&name) {
-            hvc::hvc_ensure_off(&name)?;
-            powershell::run_remove_vm(powershell::VmId::Name(&name))?;
+        if let Ok(vmids) = powershell::vm_id_from_name(&name) {
+            for vmid in vmids {
+                hvc::hvc_ensure_off(&vmid)?;
+                powershell::run_remove_vm(&vmid)?;
+            }
         }
 
         let vmid = powershell::run_new_vm(powershell::HyperVNewVMArgs {
@@ -75,17 +78,17 @@ impl HyperVVM {
     }
 
     /// Get the name of the VM
-    pub fn get_name(&self) -> &str {
+    pub fn name(&self) -> &str {
         &self.name
     }
 
     /// Get the VmId Guid of the VM
-    pub fn get_vmid(&self) -> &Guid {
+    pub fn vmid(&self) -> &Guid {
         &self.vmid
     }
 
     /// Get Hyper-V logs for the VM
-    pub fn get_logs(&self) -> anyhow::Result<Vec<String>> {
+    fn event_logs(&self) -> anyhow::Result<Vec<powershell::WinEvent>> {
         let mut logs = Vec::new();
         for log_name in [
             "Microsoft-Windows-Hyper-V-Worker-Admin",
@@ -93,17 +96,28 @@ impl HyperVVM {
         ] {
             logs.append(&mut powershell::run_get_winevent(
                 log_name,
-                self.create_time,
+                &self.create_time,
                 &self.vmid.to_string(),
             )?);
         }
         Ok(logs)
     }
 
-    /// Write logs
-    pub fn write_logs(&self) -> anyhow::Result<()> {
-        for line in self.get_logs()? {
-            self.log_file.write_entry(line);
+    /// Get Hyper-V logs and write them to the log file
+    pub fn flush_logs(&self) -> anyhow::Result<()> {
+        for event in self.event_logs()? {
+            self.log_file.write_entry_fmt(
+                match event.level {
+                    1 | 2 => Level::ERROR,
+                    3 => Level::WARN,
+                    5 => Level::TRACE,
+                    _ => Level::INFO,
+                },
+                format_args!(
+                    "[{}] {}: ({}, {}) {}",
+                    event.time_created, event.provider_name, event.level, event.id, event.message,
+                ),
+            );
         }
         Ok(())
     }
@@ -115,7 +129,7 @@ impl HyperVVM {
         increase_vtl2_memory: bool,
     ) -> anyhow::Result<()> {
         powershell::run_set_openhcl_firmware(
-            powershell::VmId::Id(&self.vmid),
+            &self.vmid,
             &self.ps_mod,
             igvm_file,
             increase_vtl2_memory,
@@ -128,14 +142,14 @@ impl HyperVVM {
         secure_boot_template: powershell::HyperVSecureBootTemplate,
     ) -> anyhow::Result<()> {
         powershell::run_set_vm_firmware(powershell::HyperVSetVMFirmwareArgs {
-            vmid: powershell::VmId::Id(&self.vmid),
+            vmid: &self.vmid,
             secure_boot_template: Some(secure_boot_template),
         })
     }
 
     /// Add a SCSI controller
     pub fn add_scsi_controller(&mut self) -> anyhow::Result<()> {
-        powershell::run_add_vm_scsi_controller(powershell::VmId::Id(&self.vmid))
+        powershell::run_add_vm_scsi_controller(&self.vmid)
     }
 
     /// Add a VHD
@@ -146,7 +160,7 @@ impl HyperVVM {
         controller_number: Option<u32>,
     ) -> anyhow::Result<()> {
         powershell::run_add_vm_hard_disk_drive(powershell::HyperVAddVMHardDiskDriveArgs {
-            vmid: powershell::VmId::Id(&self.vmid),
+            vmid: &self.vmid,
             controller_location,
             controller_number,
             path: Some(path),
@@ -155,32 +169,24 @@ impl HyperVVM {
 
     /// Set the initial machine configuration (IMC hive file)
     pub fn set_imc(&mut self, imc_hive: &Path) -> anyhow::Result<()> {
-        powershell::run_set_initial_machine_configuration(
-            powershell::VmId::Id(&self.vmid),
-            &self.ps_mod,
-            imc_hive,
-        )
+        powershell::run_set_initial_machine_configuration(&self.vmid, &self.ps_mod, imc_hive)
     }
 
     /// Start the VM
     pub fn start(&self) -> anyhow::Result<()> {
-        hvc::hvc_start(&self.vmid.to_string())
+        hvc::hvc_start(&self.vmid)
     }
 
-    /// Get serial output
+    /// Enable serial output and return the named pipe path
     pub fn set_vm_com_port(&mut self, port: u8) -> anyhow::Result<String> {
         let pipe_path = format!(r#"\\.\pipe\{}-{}"#, self.vmid, port);
-        powershell::run_set_vm_com_port(
-            powershell::VmId::Id(&self.vmid),
-            port,
-            Path::new(&pipe_path),
-        )?;
+        powershell::run_set_vm_com_port(&self.vmid, port, Path::new(&pipe_path))?;
         Ok(pipe_path)
     }
 
     /// Wait for the VM to turn off
     pub async fn wait_for_power_off(&self, driver: &DefaultDriver) -> anyhow::Result<()> {
-        hvc::hvc_wait_for_power_off(driver, &self.vmid.to_string()).await
+        hvc::hvc_wait_for_power_off(driver, &self.vmid).await
     }
 
     /// Remove the VM
@@ -190,9 +196,9 @@ impl HyperVVM {
 
     fn remove_inner(&mut self) -> anyhow::Result<()> {
         if !self.destroyed {
-            hvc::hvc_ensure_off(&self.vmid.to_string())?;
-            powershell::run_remove_vm(powershell::VmId::Id(&self.vmid))?;
-            self.write_logs()?;
+            hvc::hvc_ensure_off(&self.vmid)?;
+            powershell::run_remove_vm(&self.vmid)?;
+            self.flush_logs()?;
             self.destroyed = true;
         }
 

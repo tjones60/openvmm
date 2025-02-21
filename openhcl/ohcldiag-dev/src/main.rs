@@ -586,10 +586,10 @@ pub fn main() -> anyhow::Result<()> {
                         _ => anyhow::bail!("--serial is only supported for Hyper-V VMs"),
                     };
 
-                    let port_access_info = if let Some(pipe_path) = pipe_path {
+                    let port_access_info = if let Some(pipe_path) = pipe_path.as_ref() {
                         ComPortAccessInfo::PortPipePath(pipe_path)
                     } else {
-                        ComPortAccessInfo::NameAndPortNumber(vm_name.to_owned(), 3)
+                        ComPortAccessInfo::NameAndPortNumber(vm_name, 3)
                     };
 
                     let pipe =

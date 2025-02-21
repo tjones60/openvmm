@@ -25,13 +25,11 @@ pub(crate) struct Vtl2CommandResult {
     pub exit_status: ExitStatus,
 }
 
-impl From<DiagClient> for OpenHclDiagHandler {
-    fn from(value: DiagClient) -> Self {
-        Self(value)
-    }
-}
-
 impl OpenHclDiagHandler {
+    pub(crate) fn new(client: DiagClient) -> Self {
+        Self(client)
+    }
+
     pub(crate) async fn wait_for_vtl2(&self) -> anyhow::Result<()> {
         self.0.wait_for_server().await
     }

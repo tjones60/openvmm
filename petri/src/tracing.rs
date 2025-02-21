@@ -207,19 +207,19 @@ pub struct PetriLogFile(Arc<LogFileInner>);
 
 impl PetriLogFile {
     /// Write a log entry with the given format arguments.
-    pub fn write_entry_fmt(&self, args: std::fmt::Arguments<'_>) {
+    pub fn write_entry_fmt(&self, level: Level, args: std::fmt::Arguments<'_>) {
         // Convert to a single string to write to the file to ensure the entry
         // does not get interleaved with other log entries.
         let _ = LogWriter {
             inner: &self.0,
-            level: Level::INFO,
+            level,
         }
         .write_all(format!("{}\n", args).as_bytes());
     }
 
     /// Write a log entry with the given message.
     pub fn write_entry(&self, message: impl std::fmt::Display) {
-        self.write_entry_fmt(format_args!("{}", message));
+        self.write_entry_fmt(Level::INFO, format_args!("{}", message));
     }
 }
 

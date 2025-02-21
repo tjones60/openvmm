@@ -47,11 +47,11 @@ pub mod hyperv {
     use vmsocket::VmStream;
 
     /// Defines how to access the serial port
-    pub enum ComPortAccessInfo {
+    pub enum ComPortAccessInfo<'a> {
         /// Access by number
-        NameAndPortNumber(String, u32),
+        NameAndPortNumber(&'a str, u32),
         /// Access through a named pipe
-        PortPipePath(String),
+        PortPipePath(&'a str),
     }
 
     /// Get ID from name
@@ -119,7 +119,7 @@ pub mod hyperv {
     /// again, so don't do that.
     pub async fn open_serial_port(
         driver: &(impl Driver + ?Sized),
-        port: ComPortAccessInfo,
+        port: ComPortAccessInfo<'_>,
     ) -> anyhow::Result<File> {
         let path = match port {
             ComPortAccessInfo::NameAndPortNumber(vm, num) => {
@@ -138,7 +138,7 @@ pub mod hyperv {
                         output.status.code().unwrap()
                     );
                 }
-                String::from_utf8(output.stdout)?
+                &String::from_utf8(output.stdout)?
             }
             ComPortAccessInfo::PortPipePath(path) => path,
         };
