@@ -900,6 +900,12 @@ impl IntoPipeline for CheckinGatesCli {
             .map_err(|missing| {
                 anyhow::anyhow!("missing required windows-intel vmm_tests artifact: {missing}")
             })?;
+        let vmm_tests_artifacts_windows_intel_tdx_x86 = vmm_tests_artifacts_windows_x86
+            .clone()
+            .finish()
+            .map_err(|missing| {
+                anyhow::anyhow!("missing required windows-tdx vmm_tests artifact: {missing}")
+            })?;
         let vmm_tests_artifacts_windows_amd_x86 = vmm_tests_artifacts_windows_x86
             .finish()
             .map_err(|missing| {
@@ -944,6 +950,14 @@ impl IntoPipeline for CheckinGatesCli {
             VmmTestJobParams {
                 platform: FlowPlatform::Windows,
                 arch: FlowArch::X86_64,
+                gh_pool: crate::pipelines_shared::gh_pools::windows_tdx_self_hosted_baremetal(),
+                label: "x64-windows-intel-tdx",
+                target: CommonTriple::X86_64_WINDOWS_MSVC,
+                resolve_vmm_tests_artifacts: vmm_tests_artifacts_windows_intel_tdx_x86,
+            },
+            VmmTestJobParams {
+                platform: FlowPlatform::Windows,
+                arch: FlowArch::X86_64,
                 gh_pool: crate::pipelines_shared::gh_pools::windows_amd_self_hosted_largedisk(),
                 label: "x64-windows-amd",
                 target: CommonTriple::X86_64_WINDOWS_MSVC,
@@ -974,37 +988,49 @@ impl IntoPipeline for CheckinGatesCli {
                 None
             };
 
-            let nextest_filter_expr = {
-                // start with `all()` to allow easy `and`-based refinements
-                let mut expr = "all()".to_string();
+            let nextest_filter_expr = Some(
+                // Run TDX and VBS tests only when using a TDX test runner
+                if gh_pool.is_self_hosted_with_label("TDX") {
+                    "test(tdx) + (test(vbs) & test(hyperv))".to_string()
+                } else {
+                    // start with `all()` to allow easy `and`-based refinements
+                    let mut expr = "all() & !test(tdx) & !(test(vbs) & test(hyperv))".to_string();
 
-                if matches!(
-                    target.as_triple().operating_system,
-                    target_lexicon::OperatingSystem::Linux
-                ) {
-                    // - OpenHCL is not supported on KVM
-                    // - No legal way to obtain gen1 pcat blobs on non-msft linux machines
-                    expr = format!("{expr} and not test(openhcl) and not test(pcat_x64)")
-                }
+                    if matches!(
+                        target.as_triple().operating_system,
+                        target_lexicon::OperatingSystem::Linux
+                    ) {
+                        // - OpenHCL is not supported on KVM
+                        // - No legal way to obtain gen1 pcat blobs on non-msft linux machines
+                        expr = format!("{expr} & !test(openhcl) & !test(pcat_x64)")
+                    }
 
-                Some(expr)
-            };
+                    expr
+                },
+            );
 
-            let (vhds, isos) = match target.as_triple().architecture {
-                target_lexicon::Architecture::X86_64 => (
-                    vec![
-                        vmm_test_images::KnownVhd::FreeBsd13_2,
-                        vmm_test_images::KnownVhd::Gen1WindowsDataCenterCore2022,
-                        vmm_test_images::KnownVhd::Gen2WindowsDataCenterCore2022,
-                        vmm_test_images::KnownVhd::Ubuntu2204Server,
-                    ],
-                    vec![vmm_test_images::KnownIso::FreeBsd13_2],
-                ),
-                target_lexicon::Architecture::Aarch64(_) => (
-                    vec![vmm_test_images::KnownVhd::Ubuntu2404ServerAarch64],
+            let (vhds, isos) = if gh_pool.is_self_hosted_with_label("TDX") {
+                (
+                    vec![vmm_test_images::KnownVhd::Gen2WindowsDataCenterCore2025],
                     vec![],
-                ),
-                arch => anyhow::bail!("unsupported arch {arch}"),
+                )
+            } else {
+                match target.as_triple().architecture {
+                    target_lexicon::Architecture::X86_64 => (
+                        vec![
+                            vmm_test_images::KnownVhd::FreeBsd13_2,
+                            vmm_test_images::KnownVhd::Gen1WindowsDataCenterCore2022,
+                            vmm_test_images::KnownVhd::Gen2WindowsDataCenterCore2022,
+                            vmm_test_images::KnownVhd::Ubuntu2204Server,
+                        ],
+                        vec![vmm_test_images::KnownIso::FreeBsd13_2],
+                    ),
+                    target_lexicon::Architecture::Aarch64(_) => (
+                        vec![vmm_test_images::KnownVhd::Ubuntu2404ServerAarch64],
+                        vec![],
+                    ),
+                    arch => anyhow::bail!("unsupported arch {arch}"),
+                }
             };
 
             let use_vmm_tests_archive = match target {
