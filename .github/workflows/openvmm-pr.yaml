@@ -2121,7 +2121,10 @@ jobs:
     name: clippy [windows], unit tests [x64-windows]
     runs-on:
     - self-hosted
-    - 1ES.Pool=OpenVMM-GitHub-Win-Pool-WestUS3
+    - Windows
+    - X64
+    - TDX
+    - Baremetal
     permissions:
       contents: read
       id-token: write

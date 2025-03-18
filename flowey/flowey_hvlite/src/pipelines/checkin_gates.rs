@@ -776,7 +776,7 @@ impl IntoPipeline for CheckinGatesCli {
             ClippyUnitTestJobParams {
                 platform: FlowPlatform::Windows,
                 arch: FlowArch::X86_64,
-                gh_pool: crate::pipelines_shared::gh_pools::windows_amd_self_hosted(),
+                gh_pool: crate::pipelines_shared::gh_pools::windows_tdx_self_hosted_baremetal(),
                 clippy_targets: Some((
                     "windows",
                     &[
