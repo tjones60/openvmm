@@ -3573,6 +3573,15 @@ jobs:
     - name: map Github cache-hit to flowey
       run: flowey.exe e 18 flowey_lib_common::cache 6
       shell: bash
+    - name: report cargo install persistent dir
+      run: flowey.exe e 18 flowey_lib_common::cfg_persistent_dir_cargo_install 0
+      shell: bash
+    - name: detect active toolchain
+      run: flowey.exe e 18 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: report $CARGO_HOME
+      run: flowey.exe e 18 flowey_lib_common::install_rust 1
+      shell: bash
     - name: installing cargo-nextest
       run: flowey.exe e 18 flowey_lib_common::download_cargo_nextest 1
       shell: bash
@@ -3801,14 +3810,14 @@ jobs:
     - name: report test results to overall pipeline status
       run: flowey.exe e 18 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 2
       shell: bash
-    - name: 'validate cache entry: gh-release-download'
-      run: flowey.exe e 18 flowey_lib_common::cache 11
-      shell: bash
     - name: 'validate cache entry: azcopy'
       run: flowey.exe e 18 flowey_lib_common::cache 3
       shell: bash
     - name: 'validate cache entry: cargo-nextest'
       run: flowey.exe e 18 flowey_lib_common::cache 7
+      shell: bash
+    - name: 'validate cache entry: gh-release-download'
+      run: flowey.exe e 18 flowey_lib_common::cache 11
       shell: bash
   job19:
     name: run vmm-tests [x64-windows-amd]
@@ -3912,6 +3921,15 @@ jobs:
       name: 🌼 Read from 'steps.flowey_lib_common__cache__5.outputs.cache-hit'
     - name: map Github cache-hit to flowey
       run: flowey.exe e 19 flowey_lib_common::cache 6
+      shell: bash
+    - name: report cargo install persistent dir
+      run: flowey.exe e 19 flowey_lib_common::cfg_persistent_dir_cargo_install 0
+      shell: bash
+    - name: detect active toolchain
+      run: flowey.exe e 19 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: report $CARGO_HOME
+      run: flowey.exe e 19 flowey_lib_common::install_rust 1
       shell: bash
     - name: installing cargo-nextest
       run: flowey.exe e 19 flowey_lib_common::download_cargo_nextest 1
@@ -4141,14 +4159,14 @@ jobs:
     - name: report test results to overall pipeline status
       run: flowey.exe e 19 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 2
       shell: bash
-    - name: 'validate cache entry: gh-release-download'
-      run: flowey.exe e 19 flowey_lib_common::cache 11
-      shell: bash
     - name: 'validate cache entry: azcopy'
       run: flowey.exe e 19 flowey_lib_common::cache 3
       shell: bash
     - name: 'validate cache entry: cargo-nextest'
       run: flowey.exe e 19 flowey_lib_common::cache 7
+      shell: bash
+    - name: 'validate cache entry: gh-release-download'
+      run: flowey.exe e 19 flowey_lib_common::cache 11
       shell: bash
   job2:
     name: build and check docs [x64-linux]
@@ -4458,6 +4476,15 @@ jobs:
     - name: map Github cache-hit to flowey
       run: flowey e 20 flowey_lib_common::cache 6
       shell: bash
+    - name: report cargo install persistent dir
+      run: flowey e 20 flowey_lib_common::cfg_persistent_dir_cargo_install 0
+      shell: bash
+    - name: detect active toolchain
+      run: flowey e 20 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: report $CARGO_HOME
+      run: flowey e 20 flowey_lib_common::install_rust 1
+      shell: bash
     - name: installing cargo-nextest
       run: flowey e 20 flowey_lib_common::download_cargo_nextest 1
       shell: bash
@@ -4686,14 +4713,14 @@ jobs:
     - name: report test results to overall pipeline status
       run: flowey e 20 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 2
       shell: bash
-    - name: 'validate cache entry: gh-release-download'
-      run: flowey e 20 flowey_lib_common::cache 11
-      shell: bash
     - name: 'validate cache entry: azcopy'
       run: flowey e 20 flowey_lib_common::cache 3
       shell: bash
     - name: 'validate cache entry: cargo-nextest'
       run: flowey e 20 flowey_lib_common::cache 7
+      shell: bash
+    - name: 'validate cache entry: gh-release-download'
+      run: flowey e 20 flowey_lib_common::cache 11
       shell: bash
   job21:
     name: run vmm-tests [aarch64-windows]
@@ -4857,6 +4884,15 @@ jobs:
       name: 🌼 Read from 'steps.flowey_lib_common__cache__5.outputs.cache-hit'
     - name: map Github cache-hit to flowey
       run: flowey.exe e 21 flowey_lib_common::cache 6
+      shell: bash
+    - name: report cargo install persistent dir
+      run: flowey.exe e 21 flowey_lib_common::cfg_persistent_dir_cargo_install 0
+      shell: bash
+    - name: detect active toolchain
+      run: flowey.exe e 21 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: report $CARGO_HOME
+      run: flowey.exe e 21 flowey_lib_common::install_rust 1
       shell: bash
     - name: installing cargo-nextest
       run: flowey.exe e 21 flowey_lib_common::download_cargo_nextest 1
@@ -5086,14 +5122,14 @@ jobs:
     - name: report test results to overall pipeline status
       run: flowey.exe e 21 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 2
       shell: bash
-    - name: 'validate cache entry: gh-release-download'
-      run: flowey.exe e 21 flowey_lib_common::cache 11
-      shell: bash
     - name: 'validate cache entry: azcopy'
       run: flowey.exe e 21 flowey_lib_common::cache 3
       shell: bash
     - name: 'validate cache entry: cargo-nextest'
       run: flowey.exe e 21 flowey_lib_common::cache 7
+      shell: bash
+    - name: 'validate cache entry: gh-release-download'
+      run: flowey.exe e 21 flowey_lib_common::cache 11
       shell: bash
   job22:
     name: test flowey local backend

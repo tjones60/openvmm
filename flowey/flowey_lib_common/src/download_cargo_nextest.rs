@@ -73,7 +73,7 @@ impl FlowNode for Node {
             }
         });
 
-        let rust_deps = if !install_with_cargo.is_empty() {
+        let rust_deps = {
             // in case we end up doing a cargo-install
             let cargo_install_persistent_dir =
                 ctx.reqv(crate::cfg_persistent_dir_cargo_install::Request);
@@ -83,8 +83,6 @@ impl FlowNode for Node {
             let cargo_home = ctx.reqv(crate::install_rust::Request::GetCargoHome);
 
             Some((cargo_install_persistent_dir, rust_toolchain, cargo_home))
-        } else {
-            None
         };
 
         ctx.emit_rust_step("installing cargo-nextest", |ctx| {
