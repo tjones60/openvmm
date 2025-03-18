@@ -10,7 +10,7 @@ use flowey::pipeline::prelude::*;
 
 pub fn default_x86_pool(platform: FlowPlatform) -> GhRunner {
     match platform {
-        FlowPlatform::Windows => windows_amd_self_hosted(),
+        FlowPlatform::Windows => windows_tdx_self_hosted_baremetal(),
         FlowPlatform::Linux(FlowPlatformLinuxDistro::Ubuntu) => linux_self_hosted(),
         platform => panic!("unsupported platform {platform}"),
     }
