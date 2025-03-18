@@ -125,7 +125,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey v 0 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey v 0 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey e 0 flowey_lib_common::cache 2
@@ -169,8 +169,11 @@ jobs:
         flowey e 0 flowey_lib_hvlite::git_checkout_openvmm_repo 0
         flowey e 0 flowey_lib_hvlite::build_guide 0
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 0 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey e 0 flowey_lib_common::install_rust 1
       shell: bash
     - name: build OpenVMM guide (mdbook)
       run: |-
@@ -324,7 +327,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey.exe v 1 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 1 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey.exe e 1 flowey_lib_common::cache 2
@@ -338,8 +341,11 @@ jobs:
     - name: symlink protoc
       run: flowey.exe e 1 flowey_lib_hvlite::init_openvmm_magicpath_protoc 0
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey.exe e 1 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey.exe e 1 flowey_lib_common::install_rust 1
       shell: bash
     - name: unpack Microsoft.WSL.LxUtil.x64.zip
       run: flowey.exe e 1 flowey_lib_hvlite::download_lxutil 0
@@ -349,7 +355,7 @@ jobs:
       shell: bash
     - name: detect active toolchain
       run: |-
-        flowey.exe e 1 flowey_lib_common::install_rust 1
+        flowey.exe e 1 flowey_lib_common::install_rust 2
         flowey.exe e 1 flowey_lib_common::cfg_cargo_common_flags 0
       shell: bash
     - name: construct cargo doc command
@@ -479,12 +485,15 @@ jobs:
         mkdir -p "$AgentTempDirNormal/publish_artifacts/aarch64-linux-vmgstool"
         echo "$AgentTempDirNormal/publish_artifacts/aarch64-linux-vmgstool" | flowey v 10 'artifact_publish_from_aarch64-linux-vmgstool' --update-from-stdin --is-raw-string
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 10 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey e 10 flowey_lib_common::install_rust 1
       shell: bash
     - name: detect active toolchain
       run: |-
-        flowey e 10 flowey_lib_common::install_rust 1
+        flowey e 10 flowey_lib_common::install_rust 2
         flowey e 10 flowey_lib_common::cfg_cargo_common_flags 0
       shell: bash
     - name: checking if packages need to be installed
@@ -510,7 +519,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey v 10 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey v 10 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey e 10 flowey_lib_common::cache 2
@@ -800,12 +809,15 @@ jobs:
         mkdir -p "$AgentTempDirNormal/publish_artifacts/x64-linux-vmm-tests-archive"
         echo "$AgentTempDirNormal/publish_artifacts/x64-linux-vmm-tests-archive" | flowey v 11 'artifact_publish_from_x64-linux-vmm-tests-archive' --update-from-stdin --is-raw-string
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 11 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey e 11 flowey_lib_common::install_rust 1
       shell: bash
     - name: detect active toolchain
       run: |-
-        flowey e 11 flowey_lib_common::install_rust 1
+        flowey e 11 flowey_lib_common::install_rust 2
         flowey e 11 flowey_lib_common::cfg_cargo_common_flags 0
       shell: bash
     - name: checking if packages need to be installed
@@ -831,7 +843,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey v 11 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey v 11 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__5.outputs.cache-hit }}
         EOF
         flowey e 11 flowey_lib_common::cache 6
@@ -1001,12 +1013,12 @@ jobs:
       name: 'Restore cache: cargo-nextest'
     - name: report $CARGO_HOME
       run: |-
-        flowey v 11 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey v 11 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey e 11 flowey_lib_common::cache 2
         flowey e 11 flowey_lib_common::cfg_persistent_dir_cargo_install 0
-        flowey e 11 flowey_lib_common::install_rust 2
+        flowey e 11 flowey_lib_common::install_rust 3
       shell: bash
     - name: installing cargo-nextest
       run: |-
@@ -1187,7 +1199,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey v 12 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey v 12 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey e 12 flowey_lib_common::cache 2
@@ -1196,12 +1208,15 @@ jobs:
     - name: unpack mu_msvm package (aarch64)
       run: flowey e 12 flowey_lib_hvlite::download_uefi_mu_msvm 0
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 12 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey e 12 flowey_lib_common::install_rust 1
       shell: bash
     - name: detect active toolchain
       run: |-
-        flowey e 12 flowey_lib_common::install_rust 1
+        flowey e 12 flowey_lib_common::install_rust 2
         flowey e 12 flowey_lib_common::cfg_cargo_common_flags 0
       shell: bash
     - name: check if openvmm needs to be cloned
@@ -1544,7 +1559,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey v 13 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey v 13 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey e 13 flowey_lib_common::cache 2
@@ -1553,12 +1568,15 @@ jobs:
     - name: unpack mu_msvm package (x64)
       run: flowey e 13 flowey_lib_hvlite::download_uefi_mu_msvm 0
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 13 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey e 13 flowey_lib_common::install_rust 1
       shell: bash
     - name: detect active toolchain
       run: |-
-        flowey e 13 flowey_lib_common::install_rust 1
+        flowey e 13 flowey_lib_common::install_rust 2
         flowey e 13 flowey_lib_common::cfg_cargo_common_flags 0
       shell: bash
     - name: check if openvmm needs to be cloned
@@ -1969,12 +1987,15 @@ jobs:
         ${{ inputs.verbose != '' && inputs.verbose || 'false' }}
         EOF
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey.exe e 14 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey.exe e 14 flowey_lib_common::install_rust 1
       shell: bash
     - name: detect active toolchain
       run: |-
-        flowey.exe e 14 flowey_lib_common::install_rust 1
+        flowey.exe e 14 flowey_lib_common::install_rust 2
         flowey.exe e 14 flowey_lib_common::cfg_cargo_common_flags 0
       shell: bash
     - name: check if openvmm needs to be cloned
@@ -2019,7 +2040,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey.exe v 14 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 14 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__5.outputs.cache-hit }}
         EOF
         flowey.exe e 14 flowey_lib_common::cache 6
@@ -2089,12 +2110,12 @@ jobs:
       name: 'Restore cache: cargo-nextest'
     - name: report $CARGO_HOME
       run: |-
-        flowey.exe v 14 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 14 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey.exe e 14 flowey_lib_common::cache 2
         flowey.exe e 14 flowey_lib_common::cfg_persistent_dir_cargo_install 0
-        flowey.exe e 14 flowey_lib_common::install_rust 2
+        flowey.exe e 14 flowey_lib_common::install_rust 3
       shell: bash
     - name: installing cargo-nextest
       run: |-
@@ -2238,12 +2259,15 @@ jobs:
         ${{ inputs.verbose != '' && inputs.verbose || 'false' }}
         EOF
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 15 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey e 15 flowey_lib_common::install_rust 1
       shell: bash
     - name: detect active toolchain
       run: |-
-        flowey e 15 flowey_lib_common::install_rust 1
+        flowey e 15 flowey_lib_common::install_rust 2
         flowey e 15 flowey_lib_common::cfg_cargo_common_flags 0
       shell: bash
     - name: checking if packages need to be installed
@@ -2269,7 +2293,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey v 15 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey v 15 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__5.outputs.cache-hit }}
         EOF
         flowey e 15 flowey_lib_common::cache 6
@@ -2398,12 +2422,12 @@ jobs:
       name: 'Restore cache: cargo-nextest'
     - name: report $CARGO_HOME
       run: |-
-        flowey v 15 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey v 15 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey e 15 flowey_lib_common::cache 2
         flowey e 15 flowey_lib_common::cfg_persistent_dir_cargo_install 0
-        flowey e 15 flowey_lib_common::install_rust 2
+        flowey e 15 flowey_lib_common::install_rust 3
       shell: bash
     - name: installing cargo-nextest
       run: |-
@@ -2554,12 +2578,15 @@ jobs:
         ${{ inputs.verbose != '' && inputs.verbose || 'false' }}
         EOF
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 16 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey e 16 flowey_lib_common::install_rust 1
       shell: bash
     - name: detect active toolchain
       run: |-
-        flowey e 16 flowey_lib_common::install_rust 1
+        flowey e 16 flowey_lib_common::install_rust 2
         flowey e 16 flowey_lib_common::cfg_cargo_common_flags 0
       shell: bash
     - name: check if openvmm needs to be cloned
@@ -2608,7 +2635,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey v 16 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey v 16 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__5.outputs.cache-hit }}
         EOF
         flowey e 16 flowey_lib_common::cache 6
@@ -2715,12 +2742,12 @@ jobs:
       name: 'Restore cache: cargo-nextest'
     - name: report $CARGO_HOME
       run: |-
-        flowey v 16 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey v 16 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey e 16 flowey_lib_common::cache 2
         flowey e 16 flowey_lib_common::cfg_persistent_dir_cargo_install 0
-        flowey e 16 flowey_lib_common::install_rust 2
+        flowey e 16 flowey_lib_common::install_rust 3
       shell: bash
     - name: installing cargo-nextest
       run: |-
@@ -2889,20 +2916,23 @@ jobs:
         key: ${{ env.floweyvar2 }}
         path: ${{ env.floweyvar3 }}
       name: 'Restore cache: cargo-nextest'
-    - name: install Rust
+    - name: add default cargo home to path
       run: |-
-        flowey.exe v 17 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 17 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey.exe e 17 flowey_lib_common::cache 2
         flowey.exe e 17 flowey_lib_common::cfg_persistent_dir_cargo_install 0
         flowey.exe e 17 flowey_lib_common::install_rust 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey.exe e 17 flowey_lib_common::install_rust 1
       shell: bash
-    - name: report $CARGO_HOME
+    - name: detect active toolchain
       run: flowey.exe e 17 flowey_lib_common::install_rust 2
+      shell: bash
+    - name: report $CARGO_HOME
+      run: flowey.exe e 17 flowey_lib_common::install_rust 3
       shell: bash
     - name: installing cargo-nextest
       run: flowey.exe e 17 flowey_lib_common::download_cargo_nextest 1
@@ -2949,7 +2979,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey.exe v 17 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 17 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__5.outputs.cache-hit }}
         EOF
         flowey.exe e 17 flowey_lib_common::cache 6
@@ -3019,8 +3049,10 @@ jobs:
     name: run vmm-tests [x64-windows-intel]
     runs-on:
     - self-hosted
-    - 1ES.Pool=OpenVMM-GitHub-Win-Pool-Intel-WestUS3
-    - 1ES.ImageOverride=HvLite-CI-Win-Ge-Image-256GB
+    - Windows
+    - X64
+    - TDX
+    - Baremetal
     permissions:
       contents: read
       id-token: write
@@ -3107,13 +3139,26 @@ jobs:
         key: ${{ env.floweyvar7 }}
         path: ${{ env.floweyvar8 }}
       name: 'Restore cache: cargo-nextest'
-    - name: installing cargo-nextest
+    - name: add default cargo home to path
       run: |-
-        flowey.exe v 18 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 18 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__5.outputs.cache-hit }}
         EOF
         flowey.exe e 18 flowey_lib_common::cache 6
-        flowey.exe e 18 flowey_lib_common::download_cargo_nextest 1
+        flowey.exe e 18 flowey_lib_common::cfg_persistent_dir_cargo_install 0
+        flowey.exe e 18 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey.exe e 18 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: detect active toolchain
+      run: flowey.exe e 18 flowey_lib_common::install_rust 2
+      shell: bash
+    - name: report $CARGO_HOME
+      run: flowey.exe e 18 flowey_lib_common::install_rust 3
+      shell: bash
+    - name: installing cargo-nextest
+      run: flowey.exe e 18 flowey_lib_common::download_cargo_nextest 1
       shell: bash
     - name: create gh-release-download cache dir
       run: flowey.exe e 18 flowey_lib_common::download_gh_release 0
@@ -3132,7 +3177,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey.exe v 18 'flowey_lib_common::cache:20:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 18 'flowey_lib_common::cache:20:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__9.outputs.cache-hit }}
         EOF
         flowey.exe e 18 flowey_lib_common::cache 10
@@ -3207,7 +3252,7 @@ jobs:
       name: 'Restore cache: azcopy'
     - name: installing azcopy
       run: |-
-        flowey.exe v 18 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 18 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey.exe e 18 flowey_lib_common::cache 2
@@ -3286,14 +3331,14 @@ jobs:
     - name: report test results to overall pipeline status
       run: flowey.exe e 18 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 2
       shell: bash
-    - name: 'validate cache entry: gh-release-download'
-      run: flowey.exe e 18 flowey_lib_common::cache 11
-      shell: bash
     - name: 'validate cache entry: azcopy'
       run: flowey.exe e 18 flowey_lib_common::cache 3
       shell: bash
     - name: 'validate cache entry: cargo-nextest'
       run: flowey.exe e 18 flowey_lib_common::cache 7
+      shell: bash
+    - name: 'validate cache entry: gh-release-download'
+      run: flowey.exe e 18 flowey_lib_common::cache 11
       shell: bash
   job19:
     name: run vmm-tests [x64-windows-amd]
@@ -3387,13 +3432,26 @@ jobs:
         key: ${{ env.floweyvar7 }}
         path: ${{ env.floweyvar8 }}
       name: 'Restore cache: cargo-nextest'
-    - name: installing cargo-nextest
+    - name: add default cargo home to path
       run: |-
-        flowey.exe v 19 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 19 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__5.outputs.cache-hit }}
         EOF
         flowey.exe e 19 flowey_lib_common::cache 6
-        flowey.exe e 19 flowey_lib_common::download_cargo_nextest 1
+        flowey.exe e 19 flowey_lib_common::cfg_persistent_dir_cargo_install 0
+        flowey.exe e 19 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey.exe e 19 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: detect active toolchain
+      run: flowey.exe e 19 flowey_lib_common::install_rust 2
+      shell: bash
+    - name: report $CARGO_HOME
+      run: flowey.exe e 19 flowey_lib_common::install_rust 3
+      shell: bash
+    - name: installing cargo-nextest
+      run: flowey.exe e 19 flowey_lib_common::download_cargo_nextest 1
       shell: bash
     - name: create gh-release-download cache dir
       run: flowey.exe e 19 flowey_lib_common::download_gh_release 0
@@ -3412,7 +3470,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey.exe v 19 'flowey_lib_common::cache:20:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 19 'flowey_lib_common::cache:20:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__9.outputs.cache-hit }}
         EOF
         flowey.exe e 19 flowey_lib_common::cache 10
@@ -3487,7 +3545,7 @@ jobs:
       name: 'Restore cache: azcopy'
     - name: installing azcopy
       run: |-
-        flowey.exe v 19 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 19 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey.exe e 19 flowey_lib_common::cache 2
@@ -3566,14 +3624,14 @@ jobs:
     - name: report test results to overall pipeline status
       run: flowey.exe e 19 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 2
       shell: bash
-    - name: 'validate cache entry: gh-release-download'
-      run: flowey.exe e 19 flowey_lib_common::cache 11
-      shell: bash
     - name: 'validate cache entry: azcopy'
       run: flowey.exe e 19 flowey_lib_common::cache 3
       shell: bash
     - name: 'validate cache entry: cargo-nextest'
       run: flowey.exe e 19 flowey_lib_common::cache 7
+      shell: bash
+    - name: 'validate cache entry: gh-release-download'
+      run: flowey.exe e 19 flowey_lib_common::cache 11
       shell: bash
   job2:
     name: build and check docs [x64-linux]
@@ -3712,7 +3770,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey v 2 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey v 2 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey e 2 flowey_lib_common::cache 2
@@ -3732,8 +3790,11 @@ jobs:
     - name: symlink protoc
       run: flowey e 2 flowey_lib_hvlite::init_openvmm_magicpath_protoc 0
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 2 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey e 2 flowey_lib_common::install_rust 1
       shell: bash
     - name: unpack Microsoft.WSL.LxUtil.x64.zip
       run: flowey e 2 flowey_lib_hvlite::download_lxutil 0
@@ -3743,7 +3804,7 @@ jobs:
       shell: bash
     - name: detect active toolchain
       run: |-
-        flowey e 2 flowey_lib_common::install_rust 1
+        flowey e 2 flowey_lib_common::install_rust 2
         flowey e 2 flowey_lib_common::cfg_cargo_common_flags 0
       shell: bash
     - name: construct cargo doc command
@@ -3864,13 +3925,26 @@ jobs:
         key: ${{ env.floweyvar7 }}
         path: ${{ env.floweyvar8 }}
       name: 'Restore cache: cargo-nextest'
-    - name: installing cargo-nextest
+    - name: add default cargo home to path
       run: |-
-        flowey v 20 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey v 20 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__5.outputs.cache-hit }}
         EOF
         flowey e 20 flowey_lib_common::cache 6
-        flowey e 20 flowey_lib_common::download_cargo_nextest 1
+        flowey e 20 flowey_lib_common::cfg_persistent_dir_cargo_install 0
+        flowey e 20 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey e 20 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: detect active toolchain
+      run: flowey e 20 flowey_lib_common::install_rust 2
+      shell: bash
+    - name: report $CARGO_HOME
+      run: flowey e 20 flowey_lib_common::install_rust 3
+      shell: bash
+    - name: installing cargo-nextest
+      run: flowey e 20 flowey_lib_common::download_cargo_nextest 1
       shell: bash
     - name: checking if packages need to be installed
       run: flowey e 20 flowey_lib_common::install_dist_pkg 0
@@ -3895,7 +3969,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey v 20 'flowey_lib_common::cache:20:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey v 20 'flowey_lib_common::cache:20:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__9.outputs.cache-hit }}
         EOF
         flowey e 20 flowey_lib_common::cache 10
@@ -3964,7 +4038,7 @@ jobs:
       name: 'Restore cache: azcopy'
     - name: installing azcopy
       run: |-
-        flowey v 20 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey v 20 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey e 20 flowey_lib_common::cache 2
@@ -4043,14 +4117,14 @@ jobs:
     - name: report test results to overall pipeline status
       run: flowey e 20 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 2
       shell: bash
-    - name: 'validate cache entry: gh-release-download'
-      run: flowey e 20 flowey_lib_common::cache 11
-      shell: bash
     - name: 'validate cache entry: azcopy'
       run: flowey e 20 flowey_lib_common::cache 3
       shell: bash
     - name: 'validate cache entry: cargo-nextest'
       run: flowey e 20 flowey_lib_common::cache 7
+      shell: bash
+    - name: 'validate cache entry: gh-release-download'
+      run: flowey e 20 flowey_lib_common::cache 11
       shell: bash
   job21:
     name: run vmm-tests [aarch64-windows]
@@ -4204,13 +4278,26 @@ jobs:
         key: ${{ env.floweyvar7 }}
         path: ${{ env.floweyvar8 }}
       name: 'Restore cache: cargo-nextest'
-    - name: installing cargo-nextest
+    - name: add default cargo home to path
       run: |-
-        flowey.exe v 21 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 21 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__5.outputs.cache-hit }}
         EOF
         flowey.exe e 21 flowey_lib_common::cache 6
-        flowey.exe e 21 flowey_lib_common::download_cargo_nextest 1
+        flowey.exe e 21 flowey_lib_common::cfg_persistent_dir_cargo_install 0
+        flowey.exe e 21 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey.exe e 21 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: detect active toolchain
+      run: flowey.exe e 21 flowey_lib_common::install_rust 2
+      shell: bash
+    - name: report $CARGO_HOME
+      run: flowey.exe e 21 flowey_lib_common::install_rust 3
+      shell: bash
+    - name: installing cargo-nextest
+      run: flowey.exe e 21 flowey_lib_common::download_cargo_nextest 1
       shell: bash
     - name: create gh-release-download cache dir
       run: flowey.exe e 21 flowey_lib_common::download_gh_release 0
@@ -4229,7 +4316,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey.exe v 21 'flowey_lib_common::cache:20:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 21 'flowey_lib_common::cache:20:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__9.outputs.cache-hit }}
         EOF
         flowey.exe e 21 flowey_lib_common::cache 10
@@ -4304,7 +4391,7 @@ jobs:
       name: 'Restore cache: azcopy'
     - name: installing azcopy
       run: |-
-        flowey.exe v 21 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 21 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey.exe e 21 flowey_lib_common::cache 2
@@ -4383,14 +4470,14 @@ jobs:
     - name: report test results to overall pipeline status
       run: flowey.exe e 21 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 2
       shell: bash
-    - name: 'validate cache entry: gh-release-download'
-      run: flowey.exe e 21 flowey_lib_common::cache 11
-      shell: bash
     - name: 'validate cache entry: azcopy'
       run: flowey.exe e 21 flowey_lib_common::cache 3
       shell: bash
     - name: 'validate cache entry: cargo-nextest'
       run: flowey.exe e 21 flowey_lib_common::cache 7
+      shell: bash
+    - name: 'validate cache entry: gh-release-download'
+      run: flowey.exe e 21 flowey_lib_common::cache 11
       shell: bash
   job22:
     name: test flowey local backend
@@ -4507,9 +4594,12 @@ jobs:
         flowey e 22 flowey_lib_common::git_checkout 3
         flowey e 22 flowey_lib_hvlite::git_checkout_openvmm_repo 0
       shell: bash
+    - name: add default cargo home to path
+      run: flowey e 22 flowey_lib_common::install_rust 0
+      shell: bash
     - name: install Rust
       run: |-
-        flowey e 22 flowey_lib_common::install_rust 0
+        flowey e 22 flowey_lib_common::install_rust 1
         flowey v 22 'flowey_lib_hvlite::_jobs::test_local_flowey_build_igvm:2:flowey_core/src/node/github_context.rs:42:41' --is-secret --update-from-stdin --is-raw-string <<EOF
         ${{ github.token }}
         EOF
@@ -4708,12 +4798,15 @@ jobs:
         flowey.exe e 4 flowey_lib_common::git_checkout 3
         flowey.exe e 4 flowey_lib_hvlite::git_checkout_openvmm_repo 0
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey.exe e 4 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey.exe e 4 flowey_lib_common::install_rust 1
       shell: bash
     - name: detect active toolchain
       run: |-
-        flowey.exe e 4 flowey_lib_common::install_rust 1
+        flowey.exe e 4 flowey_lib_common::install_rust 2
         flowey.exe e 4 flowey_lib_common::cfg_cargo_common_flags 0
       shell: bash
     - name: set '-Dwarnings' in .cargo/config.toml
@@ -4736,7 +4829,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey.exe v 4 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 4 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey.exe e 4 flowey_lib_common::cache 2
@@ -4879,12 +4972,15 @@ jobs:
         flowey e 5 flowey_lib_common::git_checkout 3
         flowey e 5 flowey_lib_hvlite::git_checkout_openvmm_repo 0
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 5 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey e 5 flowey_lib_common::install_rust 1
       shell: bash
     - name: detect active toolchain
       run: |-
-        flowey e 5 flowey_lib_common::install_rust 1
+        flowey e 5 flowey_lib_common::install_rust 2
         flowey e 5 flowey_lib_common::cfg_cargo_common_flags 0
       shell: bash
     - name: set '-Dwarnings' in .cargo/config.toml
@@ -4907,7 +5003,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey v 5 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey v 5 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey e 5 flowey_lib_common::cache 2
@@ -5050,12 +5146,15 @@ jobs:
         mkdir -p "$AgentTempDirNormal/publish_artifacts/aarch64-windows-vmgstool"
         echo "${{ runner.temp }}\\publish_artifacts\\aarch64-windows-vmgstool" | flowey.exe v 6 'artifact_publish_from_aarch64-windows-vmgstool' --update-from-stdin --is-raw-string
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey.exe e 6 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey.exe e 6 flowey_lib_common::install_rust 1
       shell: bash
     - name: detect active toolchain
       run: |-
-        flowey.exe e 6 flowey_lib_common::install_rust 1
+        flowey.exe e 6 flowey_lib_common::install_rust 2
         flowey.exe e 6 flowey_lib_common::cfg_cargo_common_flags 0
       shell: bash
     - name: check if openvmm needs to be cloned
@@ -5100,7 +5199,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey.exe v 6 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 6 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey.exe e 6 flowey_lib_common::cache 2
@@ -5302,12 +5401,15 @@ jobs:
         mkdir -p "$AgentTempDirNormal/publish_artifacts/aarch64-windows-vmm-tests-archive"
         echo "${{ runner.temp }}\\publish_artifacts\\aarch64-windows-vmm-tests-archive" | flowey.exe v 7 'artifact_publish_from_aarch64-windows-vmm-tests-archive' --update-from-stdin --is-raw-string
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey.exe e 7 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey.exe e 7 flowey_lib_common::install_rust 1
       shell: bash
     - name: detect active toolchain
       run: |-
-        flowey.exe e 7 flowey_lib_common::install_rust 1
+        flowey.exe e 7 flowey_lib_common::install_rust 2
         flowey.exe e 7 flowey_lib_common::cfg_cargo_common_flags 0
       shell: bash
     - name: create gh-release-download cache dir
@@ -5327,7 +5429,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey.exe v 7 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 7 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__5.outputs.cache-hit }}
         EOF
         flowey.exe e 7 flowey_lib_common::cache 6
@@ -5411,12 +5513,12 @@ jobs:
       name: 'Restore cache: cargo-nextest'
     - name: report $CARGO_HOME
       run: |-
-        flowey.exe v 7 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 7 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey.exe e 7 flowey_lib_common::cache 2
         flowey.exe e 7 flowey_lib_common::cfg_persistent_dir_cargo_install 0
-        flowey.exe e 7 flowey_lib_common::install_rust 2
+        flowey.exe e 7 flowey_lib_common::install_rust 3
       shell: bash
     - name: installing cargo-nextest
       run: |-
@@ -5555,12 +5657,15 @@ jobs:
         mkdir -p "$AgentTempDirNormal/publish_artifacts/x64-windows-vmgstool"
         echo "${{ runner.temp }}\\publish_artifacts\\x64-windows-vmgstool" | flowey.exe v 8 'artifact_publish_from_x64-windows-vmgstool' --update-from-stdin --is-raw-string
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey.exe e 8 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey.exe e 8 flowey_lib_common::install_rust 1
       shell: bash
     - name: detect active toolchain
       run: |-
-        flowey.exe e 8 flowey_lib_common::install_rust 1
+        flowey.exe e 8 flowey_lib_common::install_rust 2
         flowey.exe e 8 flowey_lib_common::cfg_cargo_common_flags 0
       shell: bash
     - name: check if openvmm needs to be cloned
@@ -5605,7 +5710,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey.exe v 8 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 8 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey.exe e 8 flowey_lib_common::cache 2
@@ -5810,12 +5915,15 @@ jobs:
         mkdir -p "$AgentTempDirNormal/publish_artifacts/x64-windows-vmm-tests-archive"
         echo "${{ runner.temp }}\\publish_artifacts\\x64-windows-vmm-tests-archive" | flowey.exe v 9 'artifact_publish_from_x64-windows-vmm-tests-archive' --update-from-stdin --is-raw-string
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey.exe e 9 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey.exe e 9 flowey_lib_common::install_rust 1
       shell: bash
     - name: detect active toolchain
       run: |-
-        flowey.exe e 9 flowey_lib_common::install_rust 1
+        flowey.exe e 9 flowey_lib_common::install_rust 2
         flowey.exe e 9 flowey_lib_common::cfg_cargo_common_flags 0
       shell: bash
     - name: create gh-release-download cache dir
@@ -5835,7 +5943,7 @@ jobs:
       name: 'Restore cache: gh-release-download'
     - name: download artifacts from github releases
       run: |-
-        flowey.exe v 9 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 9 'flowey_lib_common::cache:12:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__5.outputs.cache-hit }}
         EOF
         flowey.exe e 9 flowey_lib_common::cache 6
@@ -5919,12 +6027,12 @@ jobs:
       name: 'Restore cache: cargo-nextest'
     - name: report $CARGO_HOME
       run: |-
-        flowey.exe v 9 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:510:46' --update-from-stdin --is-raw-string <<EOF
+        flowey.exe v 9 'flowey_lib_common::cache:4:flowey_lib_common/src/cache.rs:515:46' --update-from-stdin --is-raw-string <<EOF
         ${{ steps.flowey_lib_common__cache__1.outputs.cache-hit }}
         EOF
         flowey.exe e 9 flowey_lib_common::cache 2
         flowey.exe e 9 flowey_lib_common::cfg_persistent_dir_cargo_install 0
-        flowey.exe e 9 flowey_lib_common::install_rust 2
+        flowey.exe e 9 flowey_lib_common::install_rust 3
       shell: bash
     - name: installing cargo-nextest
       run: |-
