@@ -3576,11 +3576,14 @@ jobs:
     - name: report cargo install persistent dir
       run: flowey.exe e 18 flowey_lib_common::cfg_persistent_dir_cargo_install 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey.exe e 18 flowey_lib_common::install_rust 0
       shell: bash
-    - name: report $CARGO_HOME
+    - name: detect active toolchain
       run: flowey.exe e 18 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: report $CARGO_HOME
+      run: flowey.exe e 18 flowey_lib_common::install_rust 2
       shell: bash
     - name: installing cargo-nextest
       run: flowey.exe e 18 flowey_lib_common::download_cargo_nextest 1
@@ -3925,11 +3928,14 @@ jobs:
     - name: report cargo install persistent dir
       run: flowey.exe e 19 flowey_lib_common::cfg_persistent_dir_cargo_install 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey.exe e 19 flowey_lib_common::install_rust 0
       shell: bash
-    - name: report $CARGO_HOME
+    - name: detect active toolchain
       run: flowey.exe e 19 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: report $CARGO_HOME
+      run: flowey.exe e 19 flowey_lib_common::install_rust 2
       shell: bash
     - name: installing cargo-nextest
       run: flowey.exe e 19 flowey_lib_common::download_cargo_nextest 1
@@ -4479,11 +4485,14 @@ jobs:
     - name: report cargo install persistent dir
       run: flowey e 20 flowey_lib_common::cfg_persistent_dir_cargo_install 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey e 20 flowey_lib_common::install_rust 0
       shell: bash
-    - name: report $CARGO_HOME
+    - name: detect active toolchain
       run: flowey e 20 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: report $CARGO_HOME
+      run: flowey e 20 flowey_lib_common::install_rust 2
       shell: bash
     - name: installing cargo-nextest
       run: flowey e 20 flowey_lib_common::download_cargo_nextest 1
@@ -4888,11 +4897,14 @@ jobs:
     - name: report cargo install persistent dir
       run: flowey.exe e 21 flowey_lib_common::cfg_persistent_dir_cargo_install 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey.exe e 21 flowey_lib_common::install_rust 0
       shell: bash
-    - name: report $CARGO_HOME
+    - name: detect active toolchain
       run: flowey.exe e 21 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: report $CARGO_HOME
+      run: flowey.exe e 21 flowey_lib_common::install_rust 2
       shell: bash
     - name: installing cargo-nextest
       run: flowey.exe e 21 flowey_lib_common::download_cargo_nextest 1
@@ -6017,7 +6029,12 @@ jobs:
         path: ${{ runner.temp }}/publish_artifacts/aarch64-windows-vmgstool/
   job6:
     name: build artifacts (for VMM tests) [aarch64-windows]
-    runs-on: windows-latest
+    runs-on:
+    - self-hosted
+    - Windows
+    - X64
+    - TDX
+    - Baremetal
     permissions:
       contents: read
       id-token: write
@@ -6607,7 +6624,12 @@ jobs:
         path: ${{ runner.temp }}/publish_artifacts/x64-windows-vmgstool/
   job8:
     name: build artifacts (for VMM tests) [x64-windows]
-    runs-on: windows-latest
+    runs-on:
+    - self-hosted
+    - Windows
+    - X64
+    - TDX
+    - Baremetal
     permissions:
       contents: read
       id-token: write

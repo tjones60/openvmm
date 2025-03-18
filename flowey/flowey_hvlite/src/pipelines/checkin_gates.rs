@@ -418,9 +418,7 @@ impl IntoPipeline for CheckinGatesCli {
                     FlowArch::X86_64,
                     format!("build artifacts (for VMM tests) [{arch_tag}-windows]"),
                 )
-                .gh_set_pool(crate::pipelines_shared::gh_pools::default_gh_hosted(
-                    FlowPlatform::Windows,
-                ))
+                .gh_set_pool(crate::pipelines_shared::gh_pools::windows_tdx_self_hosted_baremetal())
                 .dep_on(|ctx| {
                     flowey_lib_hvlite::_jobs::build_and_publish_openvmm::Params {
                         target: CommonTriple::Common {
