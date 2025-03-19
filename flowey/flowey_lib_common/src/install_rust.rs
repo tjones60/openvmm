@@ -178,13 +178,16 @@ impl FlowNode for Node {
             if write_cargo_bin.is_some() || !ensure_installed.is_empty() {
                 if auto_install || matches!(ctx.backend(), FlowBackend::Github) {
                     let added_to_path = if matches!(ctx.backend(), FlowBackend::Github) {
-                        const DEFAULT_CARGO_HOME: &str = "$USERPROFILE\\.cargo\\bin\n";
+                        const DEFAULT_CARGO_HOME: &str = ".cargo\\bin";
                         Some(ctx.emit_rust_step("add default cargo home to path", |_| {
                             |_| {
+                                let user_profile = std::env::var("USERPROFILE")?;
+                                let default_cargo_home =
+                                    format!("{user_profile}\\{DEFAULT_CARGO_HOME}");
                                 let github_path = std::env::var("GITHUB_PATH")?;
                                 let mut github_path =
                                     fs_err::File::options().append(true).open(github_path)?;
-                                github_path.write_all(DEFAULT_CARGO_HOME.as_bytes())?;
+                                github_path.write_all(default_cargo_home.as_bytes())?;
 
                                 Ok(())
                             }

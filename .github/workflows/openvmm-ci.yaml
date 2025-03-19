@@ -2275,10 +2275,7 @@ jobs:
     name: clippy [windows], unit tests [x64-windows]
     runs-on:
     - self-hosted
-    - Windows
-    - X64
-    - TDX
-    - Baremetal
+    - 1ES.Pool=OpenVMM-GitHub-Win-Pool-WestUS3
     permissions:
       contents: read
       id-token: write
@@ -6251,12 +6248,7 @@ jobs:
         path: ${{ runner.temp }}/publish_artifacts/aarch64-windows-vmgstool/
   job7:
     name: build artifacts (for VMM tests) [aarch64-windows]
-    runs-on:
-    - self-hosted
-    - Windows
-    - X64
-    - TDX
-    - Baremetal
+    runs-on: windows-latest
     permissions:
       contents: read
       id-token: write
@@ -6852,12 +6844,7 @@ jobs:
         path: ${{ runner.temp }}/publish_artifacts/x64-windows-vmgstool/
   job9:
     name: build artifacts (for VMM tests) [x64-windows]
-    runs-on:
-    - self-hosted
-    - Windows
-    - X64
-    - TDX
-    - Baremetal
+    runs-on: windows-latest
     permissions:
       contents: read
       id-token: write
