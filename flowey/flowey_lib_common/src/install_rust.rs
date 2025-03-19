@@ -6,7 +6,6 @@
 
 use flowey::node::prelude::*;
 use std::collections::BTreeSet;
-use std::io::Read;
 use std::io::Write;
 
 new_flow_node!(struct Node);
@@ -183,19 +182,9 @@ impl FlowNode for Node {
                         Some(ctx.emit_rust_step("add default cargo home to path", |_| {
                             |_| {
                                 let github_path = std::env::var("GITHUB_PATH")?;
-                                log::info!("{}", github_path);
                                 let mut github_path =
                                     fs_err::File::options().append(true).open(github_path)?;
-                                let mut path_contents = String::new();
-                                github_path.read_to_string(&mut path_contents)?;
-                                log::info!("{}", path_contents);
-
-                                if path_contents.contains(DEFAULT_CARGO_HOME) {
-                                    log::info!("Already in PATH")
-                                } else {
-                                    github_path.write_all(DEFAULT_CARGO_HOME.as_bytes())?;
-                                    log::info!("Added to PATH");
-                                }
+                                github_path.write_all(DEFAULT_CARGO_HOME.as_bytes())?;
 
                                 Ok(())
                             }
