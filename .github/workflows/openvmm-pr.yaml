@@ -192,8 +192,11 @@ jobs:
     - name: 🌼 write_into Var
       run: flowey e 0 flowey_lib_hvlite::build_guide 0
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 0 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey e 0 flowey_lib_common::install_rust 1
       shell: bash
     - name: build OpenVMM guide (mdbook)
       run: flowey e 0 flowey_lib_hvlite::build_guide 1
@@ -376,8 +379,11 @@ jobs:
     - name: symlink protoc
       run: flowey.exe e 1 flowey_lib_hvlite::init_openvmm_magicpath_protoc 0
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey.exe e 1 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey.exe e 1 flowey_lib_common::install_rust 1
       shell: bash
     - name: unpack Microsoft.WSL.LxUtil.x64.zip
       run: flowey.exe e 1 flowey_lib_hvlite::download_lxutil 0
@@ -386,7 +392,7 @@ jobs:
       run: flowey.exe e 1 flowey_lib_hvlite::init_openvmm_magicpath_lxutil 0
       shell: bash
     - name: detect active toolchain
-      run: flowey.exe e 1 flowey_lib_common::install_rust 1
+      run: flowey.exe e 1 flowey_lib_common::install_rust 2
       shell: bash
     - name: report common cargo flags
       run: flowey.exe e 1 flowey_lib_common::cfg_cargo_common_flags 0
@@ -521,11 +527,14 @@ jobs:
         mkdir -p "$AgentTempDirNormal/publish_artifacts/x64-linux-vmm-tests-archive"
         echo "$AgentTempDirNormal/publish_artifacts/x64-linux-vmm-tests-archive" | flowey v 10 'artifact_publish_from_x64-linux-vmm-tests-archive' --update-from-stdin --is-raw-string
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 10 flowey_lib_common::install_rust 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey e 10 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: detect active toolchain
+      run: flowey e 10 flowey_lib_common::install_rust 2
       shell: bash
     - name: report common cargo flags
       run: flowey e 10 flowey_lib_common::cfg_cargo_common_flags 0
@@ -777,7 +786,7 @@ jobs:
       run: flowey e 10 flowey_lib_common::cfg_persistent_dir_cargo_install 0
       shell: bash
     - name: report $CARGO_HOME
-      run: flowey e 10 flowey_lib_common::install_rust 2
+      run: flowey e 10 flowey_lib_common::install_rust 3
       shell: bash
     - name: installing cargo-nextest
       run: flowey e 10 flowey_lib_common::download_cargo_nextest 1
@@ -975,11 +984,14 @@ jobs:
     - name: unpack mu_msvm package (aarch64)
       run: flowey e 11 flowey_lib_hvlite::download_uefi_mu_msvm 0
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 11 flowey_lib_common::install_rust 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey e 11 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: detect active toolchain
+      run: flowey e 11 flowey_lib_common::install_rust 2
       shell: bash
     - name: report common cargo flags
       run: flowey e 11 flowey_lib_common::cfg_cargo_common_flags 0
@@ -1390,11 +1402,14 @@ jobs:
     - name: unpack mu_msvm package (x64)
       run: flowey e 12 flowey_lib_hvlite::download_uefi_mu_msvm 0
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 12 flowey_lib_common::install_rust 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey e 12 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: detect active toolchain
+      run: flowey e 12 flowey_lib_common::install_rust 2
       shell: bash
     - name: report common cargo flags
       run: flowey e 12 flowey_lib_common::cfg_cargo_common_flags 0
@@ -1934,11 +1949,14 @@ jobs:
         ${{ inputs.verbose != '' && inputs.verbose || 'false' }}
         EOF
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 13 flowey_lib_common::install_rust 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey e 13 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: detect active toolchain
+      run: flowey e 13 flowey_lib_common::install_rust 2
       shell: bash
     - name: report common cargo flags
       run: flowey e 13 flowey_lib_common::cfg_cargo_common_flags 0
@@ -2212,11 +2230,14 @@ jobs:
         ${{ inputs.verbose != '' && inputs.verbose || 'false' }}
         EOF
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey.exe e 14 flowey_lib_common::install_rust 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey.exe e 14 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: detect active toolchain
+      run: flowey.exe e 14 flowey_lib_common::install_rust 2
       shell: bash
     - name: report common cargo flags
       run: flowey.exe e 14 flowey_lib_common::cfg_cargo_common_flags 0
@@ -2372,7 +2393,7 @@ jobs:
       run: flowey.exe e 14 flowey_lib_common::cfg_persistent_dir_cargo_install 0
       shell: bash
     - name: report $CARGO_HOME
-      run: flowey.exe e 14 flowey_lib_common::install_rust 2
+      run: flowey.exe e 14 flowey_lib_common::install_rust 3
       shell: bash
     - name: installing cargo-nextest
       run: flowey.exe e 14 flowey_lib_common::download_cargo_nextest 1
@@ -2537,11 +2558,14 @@ jobs:
         ${{ inputs.verbose != '' && inputs.verbose || 'false' }}
         EOF
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 15 flowey_lib_common::install_rust 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey e 15 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: detect active toolchain
+      run: flowey e 15 flowey_lib_common::install_rust 2
       shell: bash
     - name: report common cargo flags
       run: flowey e 15 flowey_lib_common::cfg_cargo_common_flags 0
@@ -2739,7 +2763,7 @@ jobs:
       run: flowey e 15 flowey_lib_common::cfg_persistent_dir_cargo_install 0
       shell: bash
     - name: report $CARGO_HOME
-      run: flowey e 15 flowey_lib_common::install_rust 2
+      run: flowey e 15 flowey_lib_common::install_rust 3
       shell: bash
     - name: installing cargo-nextest
       run: flowey e 15 flowey_lib_common::download_cargo_nextest 1
@@ -2910,11 +2934,14 @@ jobs:
         ${{ inputs.verbose != '' && inputs.verbose || 'false' }}
         EOF
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 16 flowey_lib_common::install_rust 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey e 16 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: detect active toolchain
+      run: flowey e 16 flowey_lib_common::install_rust 2
       shell: bash
     - name: report common cargo flags
       run: flowey e 16 flowey_lib_common::cfg_cargo_common_flags 0
@@ -3109,7 +3136,7 @@ jobs:
       run: flowey e 16 flowey_lib_common::cfg_persistent_dir_cargo_install 0
       shell: bash
     - name: report $CARGO_HOME
-      run: flowey e 16 flowey_lib_common::install_rust 2
+      run: flowey e 16 flowey_lib_common::install_rust 3
       shell: bash
     - name: installing cargo-nextest
       run: flowey e 16 flowey_lib_common::download_cargo_nextest 1
@@ -3313,14 +3340,17 @@ jobs:
     - name: report cargo install persistent dir
       run: flowey.exe e 17 flowey_lib_common::cfg_persistent_dir_cargo_install 0
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey.exe e 17 flowey_lib_common::install_rust 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey.exe e 17 flowey_lib_common::install_rust 1
       shell: bash
-    - name: report $CARGO_HOME
+    - name: detect active toolchain
       run: flowey.exe e 17 flowey_lib_common::install_rust 2
+      shell: bash
+    - name: report $CARGO_HOME
+      run: flowey.exe e 17 flowey_lib_common::install_rust 3
       shell: bash
     - name: installing cargo-nextest
       run: flowey.exe e 17 flowey_lib_common::download_cargo_nextest 1
@@ -3576,14 +3606,17 @@ jobs:
     - name: report cargo install persistent dir
       run: flowey.exe e 18 flowey_lib_common::cfg_persistent_dir_cargo_install 0
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey.exe e 18 flowey_lib_common::install_rust 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey.exe e 18 flowey_lib_common::install_rust 1
       shell: bash
-    - name: report $CARGO_HOME
+    - name: detect active toolchain
       run: flowey.exe e 18 flowey_lib_common::install_rust 2
+      shell: bash
+    - name: report $CARGO_HOME
+      run: flowey.exe e 18 flowey_lib_common::install_rust 3
       shell: bash
     - name: installing cargo-nextest
       run: flowey.exe e 18 flowey_lib_common::download_cargo_nextest 1
@@ -3928,14 +3961,17 @@ jobs:
     - name: report cargo install persistent dir
       run: flowey.exe e 19 flowey_lib_common::cfg_persistent_dir_cargo_install 0
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey.exe e 19 flowey_lib_common::install_rust 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey.exe e 19 flowey_lib_common::install_rust 1
       shell: bash
-    - name: report $CARGO_HOME
+    - name: detect active toolchain
       run: flowey.exe e 19 flowey_lib_common::install_rust 2
+      shell: bash
+    - name: report $CARGO_HOME
+      run: flowey.exe e 19 flowey_lib_common::install_rust 3
       shell: bash
     - name: installing cargo-nextest
       run: flowey.exe e 19 flowey_lib_common::download_cargo_nextest 1
@@ -4345,8 +4381,11 @@ jobs:
     - name: symlink protoc
       run: flowey e 2 flowey_lib_hvlite::init_openvmm_magicpath_protoc 0
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 2 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey e 2 flowey_lib_common::install_rust 1
       shell: bash
     - name: unpack Microsoft.WSL.LxUtil.x64.zip
       run: flowey e 2 flowey_lib_hvlite::download_lxutil 0
@@ -4355,7 +4394,7 @@ jobs:
       run: flowey e 2 flowey_lib_hvlite::init_openvmm_magicpath_lxutil 0
       shell: bash
     - name: detect active toolchain
-      run: flowey e 2 flowey_lib_common::install_rust 1
+      run: flowey e 2 flowey_lib_common::install_rust 2
       shell: bash
     - name: report common cargo flags
       run: flowey e 2 flowey_lib_common::cfg_cargo_common_flags 0
@@ -4485,14 +4524,17 @@ jobs:
     - name: report cargo install persistent dir
       run: flowey e 20 flowey_lib_common::cfg_persistent_dir_cargo_install 0
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 20 flowey_lib_common::install_rust 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey e 20 flowey_lib_common::install_rust 1
       shell: bash
-    - name: report $CARGO_HOME
+    - name: detect active toolchain
       run: flowey e 20 flowey_lib_common::install_rust 2
+      shell: bash
+    - name: report $CARGO_HOME
+      run: flowey e 20 flowey_lib_common::install_rust 3
       shell: bash
     - name: installing cargo-nextest
       run: flowey e 20 flowey_lib_common::download_cargo_nextest 1
@@ -4897,14 +4939,17 @@ jobs:
     - name: report cargo install persistent dir
       run: flowey.exe e 21 flowey_lib_common::cfg_persistent_dir_cargo_install 0
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey.exe e 21 flowey_lib_common::install_rust 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey.exe e 21 flowey_lib_common::install_rust 1
       shell: bash
-    - name: report $CARGO_HOME
+    - name: detect active toolchain
       run: flowey.exe e 21 flowey_lib_common::install_rust 2
+      shell: bash
+    - name: report $CARGO_HOME
+      run: flowey.exe e 21 flowey_lib_common::install_rust 3
       shell: bash
     - name: installing cargo-nextest
       run: flowey.exe e 21 flowey_lib_common::download_cargo_nextest 1
@@ -5265,8 +5310,11 @@ jobs:
     - name: resolve OpenVMM repo requests
       run: flowey e 22 flowey_lib_hvlite::git_checkout_openvmm_repo 0
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 22 flowey_lib_common::install_rust 0
+      shell: bash
+    - name: install Rust
+      run: flowey e 22 flowey_lib_common::install_rust 1
       shell: bash
     - run: ${{ github.token }}
       shell: flowey v 22 'flowey_lib_hvlite::_jobs::test_local_flowey_build_igvm:2:flowey_core/src/node/github_context.rs:42:41' --is-secret --update-from-file {0} --is-raw-string
@@ -5455,11 +5503,14 @@ jobs:
     - name: resolve OpenVMM repo requests
       run: flowey.exe e 3 flowey_lib_hvlite::git_checkout_openvmm_repo 0
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey.exe e 3 flowey_lib_common::install_rust 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey.exe e 3 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: detect active toolchain
+      run: flowey.exe e 3 flowey_lib_common::install_rust 2
       shell: bash
     - name: report common cargo flags
       run: flowey.exe e 3 flowey_lib_common::cfg_cargo_common_flags 0
@@ -5645,11 +5696,14 @@ jobs:
     - name: resolve OpenVMM repo requests
       run: flowey e 4 flowey_lib_hvlite::git_checkout_openvmm_repo 0
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 4 flowey_lib_common::install_rust 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey e 4 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: detect active toolchain
+      run: flowey e 4 flowey_lib_common::install_rust 2
       shell: bash
     - name: report common cargo flags
       run: flowey e 4 flowey_lib_common::cfg_cargo_common_flags 0
@@ -5827,11 +5881,14 @@ jobs:
         mkdir -p "$AgentTempDirNormal/publish_artifacts/aarch64-windows-vmgstool"
         echo "${{ runner.temp }}\\publish_artifacts\\aarch64-windows-vmgstool" | flowey.exe v 5 'artifact_publish_from_aarch64-windows-vmgstool' --update-from-stdin --is-raw-string
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey.exe e 5 flowey_lib_common::install_rust 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey.exe e 5 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: detect active toolchain
+      run: flowey.exe e 5 flowey_lib_common::install_rust 2
       shell: bash
     - name: report common cargo flags
       run: flowey.exe e 5 flowey_lib_common::cfg_cargo_common_flags 0
@@ -6128,11 +6185,14 @@ jobs:
         mkdir -p "$AgentTempDirNormal/publish_artifacts/aarch64-windows-vmm-tests-archive"
         echo "${{ runner.temp }}\\publish_artifacts\\aarch64-windows-vmm-tests-archive" | flowey.exe v 6 'artifact_publish_from_aarch64-windows-vmm-tests-archive' --update-from-stdin --is-raw-string
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey.exe e 6 flowey_lib_common::install_rust 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey.exe e 6 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: detect active toolchain
+      run: flowey.exe e 6 flowey_lib_common::install_rust 2
       shell: bash
     - name: report common cargo flags
       run: flowey.exe e 6 flowey_lib_common::cfg_cargo_common_flags 0
@@ -6276,7 +6336,7 @@ jobs:
       run: flowey.exe e 6 flowey_lib_common::cfg_persistent_dir_cargo_install 0
       shell: bash
     - name: report $CARGO_HOME
-      run: flowey.exe e 6 flowey_lib_common::install_rust 2
+      run: flowey.exe e 6 flowey_lib_common::install_rust 3
       shell: bash
     - name: installing cargo-nextest
       run: flowey.exe e 6 flowey_lib_common::download_cargo_nextest 1
@@ -6419,11 +6479,14 @@ jobs:
         mkdir -p "$AgentTempDirNormal/publish_artifacts/x64-windows-vmgstool"
         echo "${{ runner.temp }}\\publish_artifacts\\x64-windows-vmgstool" | flowey.exe v 7 'artifact_publish_from_x64-windows-vmgstool' --update-from-stdin --is-raw-string
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey.exe e 7 flowey_lib_common::install_rust 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey.exe e 7 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: detect active toolchain
+      run: flowey.exe e 7 flowey_lib_common::install_rust 2
       shell: bash
     - name: report common cargo flags
       run: flowey.exe e 7 flowey_lib_common::cfg_cargo_common_flags 0
@@ -6723,11 +6786,14 @@ jobs:
         mkdir -p "$AgentTempDirNormal/publish_artifacts/x64-windows-vmm-tests-archive"
         echo "${{ runner.temp }}\\publish_artifacts\\x64-windows-vmm-tests-archive" | flowey.exe v 8 'artifact_publish_from_x64-windows-vmm-tests-archive' --update-from-stdin --is-raw-string
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey.exe e 8 flowey_lib_common::install_rust 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey.exe e 8 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: detect active toolchain
+      run: flowey.exe e 8 flowey_lib_common::install_rust 2
       shell: bash
     - name: report common cargo flags
       run: flowey.exe e 8 flowey_lib_common::cfg_cargo_common_flags 0
@@ -6871,7 +6937,7 @@ jobs:
       run: flowey.exe e 8 flowey_lib_common::cfg_persistent_dir_cargo_install 0
       shell: bash
     - name: report $CARGO_HOME
-      run: flowey.exe e 8 flowey_lib_common::install_rust 2
+      run: flowey.exe e 8 flowey_lib_common::install_rust 3
       shell: bash
     - name: installing cargo-nextest
       run: flowey.exe e 8 flowey_lib_common::download_cargo_nextest 1
@@ -7025,11 +7091,14 @@ jobs:
         mkdir -p "$AgentTempDirNormal/publish_artifacts/aarch64-linux-vmgstool"
         echo "$AgentTempDirNormal/publish_artifacts/aarch64-linux-vmgstool" | flowey v 9 'artifact_publish_from_aarch64-linux-vmgstool' --update-from-stdin --is-raw-string
       shell: bash
-    - name: install Rust
+    - name: add default cargo home to path
       run: flowey e 9 flowey_lib_common::install_rust 0
       shell: bash
-    - name: detect active toolchain
+    - name: install Rust
       run: flowey e 9 flowey_lib_common::install_rust 1
+      shell: bash
+    - name: detect active toolchain
+      run: flowey e 9 flowey_lib_common::install_rust 2
       shell: bash
     - name: report common cargo flags
       run: flowey e 9 flowey_lib_common::cfg_cargo_common_flags 0
