@@ -189,7 +189,7 @@ impl FlowNode for Node {
                                     fs_err::File::options().append(true).open(github_path)?;
                                 github_path
                                     .write_all(default_cargo_home.as_os_str().as_encoded_bytes())?;
-
+                                log::info!("Added {} to PATH", default_cargo_home.display());
                                 Ok(())
                             }
                         }))

@@ -6,11 +6,8 @@
 use anyhow::Context;
 use anyhow::Ok;
 use guid::Guid;
-use pal_async::DefaultDriver;
-use pal_async::timer::PolledTimer;
 use std::ffi::OsStr;
 use std::process::Stdio;
-use std::time::Duration;
 
 pub fn hvc_start(vmid: &Guid) -> anyhow::Result<()> {
     hvc_output(|cmd| cmd.arg("start").arg(vmid.to_string()))
@@ -18,10 +15,28 @@ pub fn hvc_start(vmid: &Guid) -> anyhow::Result<()> {
         .context("hvc_start")
 }
 
+pub fn hvc_stop(vmid: &Guid) -> anyhow::Result<()> {
+    hvc_output(|cmd| cmd.arg("stop").arg(vmid.to_string()))
+        .map(|_| ())
+        .context("hvc_stop")
+}
+
 pub fn hvc_kill(vmid: &Guid) -> anyhow::Result<()> {
     hvc_output(|cmd| cmd.arg("kill").arg(vmid.to_string()))
         .map(|_| ())
         .context("hvc_kill")
+}
+
+pub fn hvc_restart(vmid: &Guid) -> anyhow::Result<()> {
+    hvc_output(|cmd| cmd.arg("restart").arg(vmid.to_string()))
+        .map(|_| ())
+        .context("hvc_restart")
+}
+
+pub fn hvc_reset(vmid: &Guid) -> anyhow::Result<()> {
+    hvc_output(|cmd| cmd.arg("reset").arg(vmid.to_string()))
+        .map(|_| ())
+        .context("hvc_reset")
 }
 
 /// HyperV VM state as reported by hvc
@@ -66,20 +81,6 @@ pub fn hvc_state(vmid: &Guid) -> anyhow::Result<VmState> {
             _ => VmState::Unknown,
         })
         .context("hvc_state")
-}
-
-pub async fn hvc_wait_for_power_off(driver: &DefaultDriver, vmid: &Guid) -> anyhow::Result<()> {
-    const SHUTDOWN_TIMEOUT: usize = 20;
-    let mut attempts = 0;
-    while !matches!(hvc_state(vmid)?, VmState::Off) {
-        if attempts >= SHUTDOWN_TIMEOUT {
-            anyhow::bail!("VM shutdown timed out")
-        }
-        attempts += 1;
-        PolledTimer::new(driver).sleep(Duration::from_secs(1)).await;
-    }
-
-    Ok(())
 }
 
 pub fn hvc_ensure_off(vmid: &Guid) -> anyhow::Result<()> {

@@ -344,10 +344,44 @@ pub struct WinEvent {
     /// Event level (see winmeta.h)
     pub level: u8,
     /// Event ID
-    pub id: u64,
+    pub id: u32,
     /// Message content
     pub message: String,
 }
+
+pub enum EventLogId {
+    InvalidId = 0,
+    BootSuccess = 1,
+    BootSuccessSecureBootFailed = 2,
+    BootFailure = 3,
+    BootFailureSecureBootFailed = 4,
+    NoBootDevice = 5,
+    AttestationFailed = 6,
+    VmgsFileClear = 7,
+    VmgsInitFailed = 8,
+    VmgsInvalidFormat = 9,
+    VmgsCorruptFormat = 10,
+    KeyNotReleased = 11,
+    DekDecryptionFailed = 12,
+    WatchdogTimeoutReset = 13,
+    BootAttempt = 14,
+}
+
+const EVENT_ID_BOOT_SUCCESS: u32 = 18601;
+const EVENT_ID_BOOT_SUCCESS_SECURE_BOOT_FAILED: u32 = 18602;
+const EVENT_ID_BOOT_FAILURE: u32 = 18603;
+const EVENT_ID_BOOT_FAILURE_SECURE_BOOT_FAILED: u32 = 18604;
+const EVENT_ID_NO_BOOT_DEVICE: u32 = 18605;
+const EVENT_ID_BOOT_ATTEMPT: u32 = 18614;
+
+const BOOT_EVENT_IDS: [u32; 6] = [
+    EVENT_ID_BOOT_SUCCESS,
+    EVENT_ID_BOOT_SUCCESS_SECURE_BOOT_FAILED,
+    EVENT_ID_BOOT_FAILURE,
+    EVENT_ID_BOOT_FAILURE_SECURE_BOOT_FAILED,
+    EVENT_ID_NO_BOOT_DEVICE,
+    EVENT_ID_BOOT_ATTEMPT,
+];
 
 /// Get event logs
 pub fn run_get_winevent(

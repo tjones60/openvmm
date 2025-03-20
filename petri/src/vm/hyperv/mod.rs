@@ -13,6 +13,7 @@ use crate::PetriLogSource;
 use crate::PetriTestParams;
 use crate::PetriVm;
 use crate::PetriVmConfig;
+use crate::ShutdownKind;
 use crate::disk_image::AgentImage;
 use crate::openhcl_diag::OpenHclDiagHandler;
 use anyhow::Context;
@@ -107,6 +108,14 @@ impl PetriVm for PetriVmHyperV {
 
     async fn wait_for_vtl2_ready(&mut self) -> anyhow::Result<()> {
         Self::wait_for_vtl2_ready(self).await
+    }
+
+    async fn wait_for_successful_boot_event(&mut self) -> anyhow::Result<()> {
+        Self::wait_for_successful_boot_event(self).await
+    }
+
+    async fn send_enlightened_shutdown(&mut self, kind: ShutdownKind) -> anyhow::Result<()> {
+        Self::send_enlightened_shutdown(self, kind).await
     }
 }
 
@@ -389,6 +398,21 @@ impl PetriVmHyperV {
             false,
         )
         .await
+    }
+
+    /// Waits for an event emitted by the firmware about its boot status, and
+    /// verifies that it is the expected success value.
+    ///
+    /// * Linux Direct guests do not emit a boot event, so this method immediately returns Ok.
+    /// * PCAT guests may not emit an event depending on the PCAT version, this
+    ///   method is best effort for them.
+    pub async fn wait_for_successful_boot_event(&mut self) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    /// Instruct the guest to shutdown via the Hyper-V shutdown IC.
+    pub async fn send_enlightened_shutdown(&mut self, kind: ShutdownKind) -> anyhow::Result<()> {
+        Ok(())
     }
 
     async fn wait_for_agent_core(

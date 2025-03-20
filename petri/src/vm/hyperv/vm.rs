@@ -10,9 +10,11 @@ use anyhow::Context;
 use guid::Guid;
 use jiff::Timestamp;
 use pal_async::DefaultDriver;
+use pal_async::timer::PolledTimer;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
+use std::time::Duration;
 use tempfile::TempDir;
 use tracing::Level;
 
@@ -107,6 +109,27 @@ impl HyperVVM {
         Ok(())
     }
 
+    /// Waits for an event emitted by the firmware about its boot status, and
+    /// verifies that it is the expected success value.
+    pub async fn wait_for_successful_boot_event(&mut self) -> anyhow::Result<()> {
+        const SHUTDOWN_TIMEOUT: usize = 20;
+        let mut attempts = 0;
+        loop {
+            for event in powershell::hyperv_event_logs(&self.vmid, &self.create_time)? {
+                if event.id in 
+            }
+        }
+        while !matches!(hvc::hvc_state(&self.vmid)?, hvc::VmState::Off) {
+            if attempts >= SHUTDOWN_TIMEOUT {
+                anyhow::bail!("VM shutdown timed out")
+            }
+            attempts += 1;
+            PolledTimer::new(driver).sleep(Duration::from_secs(1)).await;
+        }
+
+        Ok(())
+    }
+
     /// Set the OpenHCL firmware file
     pub fn set_openhcl_firmware(
         &mut self,
@@ -162,6 +185,26 @@ impl HyperVVM {
         hvc::hvc_start(&self.vmid)
     }
 
+    /// Attempt to gracefully shut down the VM
+    pub fn stop(&self) -> anyhow::Result<()> {
+        hvc::hvc_stop(&self.vmid)
+    }
+
+    /// Kill the VM
+    pub fn kill(&self) -> anyhow::Result<()> {
+        hvc::hvc_kill(&self.vmid)
+    }
+
+    /// Attempt to gracefully restart the VM
+    pub fn restart(&self) -> anyhow::Result<()> {
+        hvc::hvc_restart(&self.vmid)
+    }
+
+    /// Issue a hard reset to the VM
+    pub fn reset(&self) -> anyhow::Result<()> {
+        hvc::hvc_reset(&self.vmid)
+    }
+
     /// Enable serial output and return the named pipe path
     pub fn set_vm_com_port(&mut self, port: u8) -> anyhow::Result<String> {
         let pipe_path = format!(r#"\\.\pipe\{}-{}"#, self.vmid, port);
@@ -171,7 +214,17 @@ impl HyperVVM {
 
     /// Wait for the VM to turn off
     pub async fn wait_for_power_off(&self, driver: &DefaultDriver) -> anyhow::Result<()> {
-        hvc::hvc_wait_for_power_off(driver, &self.vmid).await
+        const SHUTDOWN_TIMEOUT: usize = 20;
+        let mut attempts = 0;
+        while !matches!(hvc::hvc_state(&self.vmid)?, hvc::VmState::Off) {
+            if attempts >= SHUTDOWN_TIMEOUT {
+                anyhow::bail!("VM shutdown timed out")
+            }
+            attempts += 1;
+            PolledTimer::new(driver).sleep(Duration::from_secs(1)).await;
+        }
+
+        Ok(())
     }
 
     /// Remove the VM
