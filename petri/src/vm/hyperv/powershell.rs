@@ -15,6 +15,7 @@ use std::path::Path;
 use std::process::Command;
 use std::process::Stdio;
 use std::str::FromStr;
+use thiserror::Error;
 
 /// Hyper-V VM Generation
 #[derive(Clone, Copy)]
@@ -381,8 +382,10 @@ pub fn run_get_winevent(
     }
     let filter = filter.join("; ");
 
+    const OUTPUT_VARNAME: &str = "events";
+
     let mut builder = PowerShellBuilder::new()
-        .cmdlet("Get-WinEvent")
+        .cmdlet_to_var("Get-WinEvent", OUTPUT_VARNAME)
         .flag("Oldest")
         .arg("FilterHashtable", format!("@{{ {filter} }}"))
         .pipeline();
@@ -395,14 +398,27 @@ pub fn run_get_winevent(
             .pipeline();
     }
 
-    let logs = builder.cmdlet("Select-Object")
+    let output = builder.cmdlet("Select-Object")
         .positional(r#"@{label="TimeCreated";expression={Get-Date $_.TimeCreated -Format o}}, ProviderName, Level, Id, Message"#)
-        .pipeline()
+        .next()
         .cmdlet("ConvertTo-Json")
+        .arg_var("InputObject", OUTPUT_VARNAME, true)
         .finish()
-        .output(false).context("run_get_winevent")?;
+        .output(false);
 
-    serde_json::from_str(&logs).context("parsing winevents")
+    match output {
+        Ok(logs) => serde_json::from_str(&logs).context("parsing winevents"),
+        Err(e) => match e {
+            PowershellError::Script(_, err_output)
+                if err_output.contains(
+                    "No events were found that match the specified selection criteria.",
+                ) =>
+            {
+                Ok(Vec::new())
+            }
+            e => Err(e).context("run_get_winevent"),
+        },
+    }
 }
 
 const HYPERV_WORKER_TABLE: &str = "Microsoft-Windows-Hyper-V-Worker-Admin";
@@ -473,40 +489,63 @@ pub fn vm_id_from_name(name: &str) -> anyhow::Result<Vec<Guid>> {
     Ok(vmids)
 }
 
+/// Error running powershell script
+#[derive(Error, Debug)]
+pub enum PowershellError {
+    /// failed to launch powershell
+    #[error("failed to launch powershell")]
+    Launch(#[from] std::io::Error),
+    /// powershell script non-zero exit status
+    #[error("powershell script non-zero exit status")]
+    Script(std::process::ExitStatus, String),
+    /// powershell output is not utf-8
+    #[error("powershell output is not utf-8")]
+    Utf8(#[from] std::string::FromUtf8Error),
+}
+
 /// A PowerShell script builder
 pub struct PowerShellBuilder(Command);
 
 impl PowerShellBuilder {
     /// Create a new PowerShell command
     pub fn new() -> Self {
-        let mut cmd = Command::new("powershell.exe");
-        cmd.arg("-NoProfile");
-        Self(cmd)
+        PowerShellCmdletBuilder(Command::new("powershell.exe"))
+            .flag("NoProfile")
+            .finish()
     }
 
     /// Start a new Cmdlet
-    pub fn cmdlet<S: AsRef<OsStr>>(mut self, cmdlet: S) -> PowerShellCmdletBuilder {
-        self.0.arg(cmdlet);
+    pub fn cmdlet<S: AsRef<OsStr>>(self, cmdlet: S) -> PowerShellCmdletBuilder {
+        PowerShellCmdletBuilder(self.0).positional(cmdlet)
+    }
+
+    /// Assign the output of the cmdlet to a variable
+    pub fn cmdlet_to_var<S: AsRef<OsStr>, T: AsRef<OsStr>>(
+        self,
+        cmdlet: S,
+        varname: T,
+    ) -> PowerShellCmdletBuilder {
         PowerShellCmdletBuilder(self.0)
+            .positional_var(varname, false)
+            .positional("=")
+            .finish()
+            .cmdlet(cmdlet)
     }
 
     /// Run the PowerShell script and return the output
-    pub fn output(mut self, log_stdout: bool) -> anyhow::Result<String> {
+    pub fn output(mut self, log_stdout: bool) -> Result<String, PowershellError> {
         self.0.stderr(Stdio::piped()).stdin(Stdio::null());
-        let output = self.0.output().context("failed to launch powershell")?;
+        let output = self.0.output()?;
 
         let ps_stdout = (log_stdout || !output.status.success())
             .then(|| String::from_utf8_lossy(&output.stdout).to_string());
         let ps_stderr = String::from_utf8_lossy(&output.stderr).to_string();
         tracing::debug!(ps_cmd = self.cmd(), ps_stdout, ps_stderr);
         if !output.status.success() {
-            anyhow::bail!("powershell script failed with exit code: {}", output.status);
+            return Err(PowershellError::Script(output.status, ps_stderr));
         }
 
-        Ok(String::from_utf8(output.stdout)
-            .context("powershell output is not utf-8")?
-            .trim()
-            .to_owned())
+        Ok(String::from_utf8(output.stdout)?.trim().to_owned())
     }
 
     /// Get the command to be run
@@ -569,17 +608,31 @@ impl PowerShellCmdletBuilder {
         self.positional_opt(positional.map(|x| x.to_string()))
     }
 
-    /// Add an argument to the cmdlet
+    /// Add a PowerShell variable as a positional argument to the cmdlet
+    pub fn positional_var<S: AsRef<OsStr>>(self, varname: S, as_array: bool) -> Self {
+        let mut ps_var = OsString::new();
+        if as_array {
+            ps_var.push("@(");
+        }
+        ps_var.push("$");
+        ps_var.push(varname);
+        if as_array {
+            ps_var.push(")");
+        }
+        self.positional(ps_var)
+    }
+
+    /// Add a named argument to the cmdlet
     pub fn arg<S: AsRef<OsStr>, T: AsRef<OsStr>>(self, name: S, value: T) -> Self {
         self.flag(name).positional(value)
     }
 
-    /// Add an argument to the cmdlet
+    /// Add a named argument to the cmdlet
     pub fn arg_string<S: AsRef<OsStr>, T: ToString>(self, name: S, value: T) -> Self {
         self.arg(name, value.to_string())
     }
 
-    /// Optionally add an argument to the cmdlet
+    /// Optionally add a named argument to the cmdlet
     pub fn arg_opt<S: AsRef<OsStr>, T: AsRef<OsStr>>(self, name: S, value: Option<T>) -> Self {
         if let Some(value) = value {
             self.arg(name, value)
@@ -588,9 +641,19 @@ impl PowerShellCmdletBuilder {
         }
     }
 
-    /// Optionally add an argument to the cmdlet
+    /// Optionally add a named argument to the cmdlet
     pub fn arg_opt_string<S: AsRef<OsStr>, T: ToString>(self, name: S, value: Option<T>) -> Self {
         self.arg_opt(name, value.map(|x| x.to_string()))
+    }
+
+    /// Add a PowerShell variable as a named argument to the cmdlet
+    pub fn arg_var<S: AsRef<OsStr>, T: AsRef<OsStr>>(
+        self,
+        name: S,
+        varname: T,
+        as_array: bool,
+    ) -> Self {
+        self.flag(name).positional_var(varname, as_array)
     }
 
     /// Finish the cmdlet
