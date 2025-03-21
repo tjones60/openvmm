@@ -130,16 +130,16 @@ impl HyperVVM {
             let boot_timeout = 30.seconds();
             let start = Timestamp::now();
             loop {
-                let events = powershell::hyperv_boot_events(&self.vmid, &self.create_time)?;
-                // let ids = events.iter().map(|e| e.id).collect::<Vec<_>>();
-                if events.len() > 1 {
-                    anyhow::bail!("Got more than one boot event");
-                }
-                if let Some(event) = events.last() {
-                    if event.id == expected_id {
-                        break;
-                    } else {
-                        anyhow::bail!("VM boot failed ({}): {}", event.id, event.message)
+                if let Ok(events) = powershell::hyperv_boot_events(&self.vmid, &self.create_time) {
+                    if events.len() > 1 {
+                        anyhow::bail!("Got more than one boot event");
+                    }
+                    if let Some(event) = events.last() {
+                        if event.id == expected_id {
+                            break;
+                        } else {
+                            anyhow::bail!("VM boot failed ({}): {}", event.id, event.message)
+                        }
                     }
                 }
 
