@@ -4,6 +4,7 @@
 //! Provides an interface for creating and managing Hyper-V VMs
 
 use super::hvc;
+use super::hvc::VmState;
 use super::powershell;
 use crate::PetriLogFile;
 use anyhow::Context;
@@ -207,14 +208,26 @@ impl HyperVVM {
         powershell::run_set_initial_machine_configuration(&self.vmid, &self.ps_mod, imc_hive)
     }
 
+    fn check_state(&self, expected: VmState) -> anyhow::Result<()> {
+        let state = hvc::hvc_state(&self.vmid)?;
+        if state != expected {
+            anyhow::bail!("unexpected VM state {state:?}, should be {expected:?}");
+        }
+        Ok(())
+    }
+
     /// Start the VM
-    pub fn start(&self) -> anyhow::Result<()> {
-        hvc::hvc_start(&self.vmid)
+    pub async fn start(&self) -> anyhow::Result<()> {
+        self.check_state(VmState::Off)?;
+        hvc::hvc_start(&self.vmid)?;
+        self.wait_for_state(VmState::On).await
     }
 
     /// Attempt to gracefully shut down the VM
-    pub fn stop(&self) -> anyhow::Result<()> {
-        hvc::hvc_stop(&self.vmid)
+    pub async fn stop(&self) -> anyhow::Result<()> {
+        self.check_state(VmState::On)?;
+        hvc::hvc_stop(&self.vmid)?;
+        self.wait_for_state(VmState::Off).await
     }
 
     /// Kill the VM
@@ -223,7 +236,9 @@ impl HyperVVM {
     }
 
     /// Attempt to gracefully restart the VM
-    pub fn restart(&self) -> anyhow::Result<()> {
+    // TODO: Wait for the VM to restart
+    pub async fn restart(&self) -> anyhow::Result<()> {
+        self.check_state(VmState::On)?;
         hvc::hvc_restart(&self.vmid)
     }
 
@@ -239,13 +254,18 @@ impl HyperVVM {
         Ok(pipe_path)
     }
 
-    /// Wait for the VM to turn off
-    pub async fn wait_for_power_off(&self) -> anyhow::Result<()> {
+    /// Wait for the VM to reach the given state.
+    /// Optionally fails if the vm enters a different state.
+    pub async fn wait_for_state(&self, target: VmState) -> anyhow::Result<()> {
         let shutdown_timeout = 30.seconds();
         let start = Timestamp::now();
-        while !matches!(hvc::hvc_state(&self.vmid)?, hvc::VmState::Off) {
+        loop {
+            let state = hvc::hvc_state(&self.vmid)?;
+            if state == target {
+                break;
+            }
             if shutdown_timeout.compare(Timestamp::now() - start)? == std::cmp::Ordering::Less {
-                anyhow::bail!("VM shutdown timed out")
+                anyhow::bail!("timed out waiting for state {target:?}. current state: {state:?}");
             }
             PolledTimer::new(&self.driver)
                 .sleep(Duration::from_secs(1))

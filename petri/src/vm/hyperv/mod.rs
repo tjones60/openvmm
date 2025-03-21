@@ -117,7 +117,7 @@ impl PetriVm for PetriVmHyperV {
     }
 
     async fn send_enlightened_shutdown(&mut self, kind: ShutdownKind) -> anyhow::Result<()> {
-        Self::send_enlightened_shutdown(self, kind)
+        Self::send_enlightened_shutdown(self, kind).await
     }
 }
 
@@ -350,7 +350,7 @@ impl PetriVmConfigHyperV {
             None
         };
 
-        vm.start()?;
+        vm.start().await?;
 
         Ok(PetriVmHyperV {
             config: self,
@@ -364,7 +364,7 @@ impl PetriVmConfigHyperV {
 impl PetriVmHyperV {
     /// Wait for the VM to halt, returning the reason for the halt.
     pub async fn wait_for_halt(&mut self) -> anyhow::Result<HaltReason> {
-        self.vm.wait_for_power_off().await?;
+        self.vm.wait_for_state(hvc::VmState::Off).await?;
         Ok(HaltReason::PowerOff) // TODO: Get actual halt reason
     }
 
@@ -384,17 +384,17 @@ impl PetriVmHyperV {
         self.openhcl_diag()?.test_inspect().await
     }
 
-    /// Wait for a connection from a pipette agent running in the guest.
-    /// Useful if you've rebooted the vm or are otherwise expecting a fresh connection.
-    pub async fn wait_for_vtl2_ready(&mut self) -> anyhow::Result<()> {
-        self.openhcl_diag()?.wait_for_vtl2().await
-    }
-
     /// Wait for VTL 2 to report that it is ready to respond to commands.
     /// Will fail if the VM is not running OpenHCL.
     ///
     /// This should only be necessary if you're doing something manual. All
     /// Petri-provided methods will wait for VTL 2 to be ready automatically.
+    pub async fn wait_for_vtl2_ready(&mut self) -> anyhow::Result<()> {
+        self.openhcl_diag()?.wait_for_vtl2().await
+    }
+
+    /// Wait for a connection from a pipette agent running in the guest.
+    /// Useful if you've rebooted the vm or are otherwise expecting a fresh connection.
     pub async fn wait_for_agent(&mut self) -> anyhow::Result<PipetteClient> {
         Self::wait_for_agent_core(
             &self.config.driver,
@@ -416,10 +416,10 @@ impl PetriVmHyperV {
     }
 
     /// Instruct the guest to shutdown via the Hyper-V shutdown IC.
-    pub fn send_enlightened_shutdown(&mut self, kind: ShutdownKind) -> anyhow::Result<()> {
+    pub async fn send_enlightened_shutdown(&mut self, kind: ShutdownKind) -> anyhow::Result<()> {
         match kind {
-            ShutdownKind::Shutdown => self.vm.stop()?,
-            ShutdownKind::Reboot => self.vm.restart()?,
+            ShutdownKind::Shutdown => self.vm.stop().await?,
+            ShutdownKind::Reboot => self.vm.restart().await?,
         }
 
         Ok(())
