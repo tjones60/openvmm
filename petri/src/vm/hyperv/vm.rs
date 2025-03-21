@@ -131,10 +131,11 @@ impl HyperVVM {
             let start = Timestamp::now();
             loop {
                 if let Ok(events) = powershell::hyperv_boot_events(&self.vmid, &self.create_time) {
+                    tracing::debug!("{:?}", events);
                     if events.len() > 1 {
                         anyhow::bail!("Got more than one boot event");
                     }
-                    if let Some(event) = events.last() {
+                    if let Some(event) = events.first() {
                         if event.id == expected_id {
                             break;
                         } else {

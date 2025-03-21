@@ -334,7 +334,7 @@ pub fn run_set_vm_com_port(vmid: &Guid, port: u8, path: &Path) -> anyhow::Result
 }
 
 /// Windows event log as retrieved by `run_get_winevent`
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct WinEvent {
     /// Time of event
