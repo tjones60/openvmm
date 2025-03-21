@@ -3,6 +3,7 @@
 
 //! Provides an interface for creating and managing Hyper-V VMs
 
+use super::CommandError;
 use super::hvc;
 use super::hvc::VmState;
 use super::powershell;
@@ -226,25 +227,35 @@ impl HyperVVM {
     /// Attempt to gracefully shut down the VM
     pub async fn stop(&self) -> anyhow::Result<()> {
         self.check_state(VmState::Running)?;
-        hvc::hvc_stop(&self.vmid)?;
+        while let Err(e) = hvc::hvc_stop(&self.vmid) {
+            if !matches!(&e, CommandError::Command(_, msg) if msg.contains("The device is not ready."))
+            {
+                Err(e).context("hvc_stop")?;
+            }
+        }
         self.wait_for_state(VmState::Off).await
     }
 
     /// Kill the VM
     pub fn kill(&self) -> anyhow::Result<()> {
-        hvc::hvc_kill(&self.vmid)
+        hvc::hvc_kill(&self.vmid).context("hvc_kill")
     }
 
     /// Attempt to gracefully restart the VM
-    // TODO: Wait for the VM to restart
     pub async fn restart(&self) -> anyhow::Result<()> {
         self.check_state(VmState::Running)?;
-        hvc::hvc_restart(&self.vmid)
+        while let Err(e) = hvc::hvc_restart(&self.vmid) {
+            if !matches!(&e, CommandError::Command(_, msg) if msg.contains("The device is not ready."))
+            {
+                Err(e).context("hvc_restart")?;
+            }
+        }
+        self.wait_for_state(VmState::Running).await
     }
 
     /// Issue a hard reset to the VM
     pub fn reset(&self) -> anyhow::Result<()> {
-        hvc::hvc_reset(&self.vmid)
+        hvc::hvc_reset(&self.vmid).context("hvc_reset")
     }
 
     /// Enable serial output and return the named pipe path

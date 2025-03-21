@@ -3,6 +3,7 @@
 
 //! Wrappers for Hyper-V Powershell Cmdlets
 
+use super::CommandError;
 use anyhow::Context;
 use core::str;
 use guid::Guid;
@@ -15,7 +16,6 @@ use std::path::Path;
 use std::process::Command;
 use std::process::Stdio;
 use std::str::FromStr;
-use thiserror::Error;
 
 /// Hyper-V VM Generation
 #[derive(Clone, Copy)]
@@ -409,7 +409,7 @@ pub fn run_get_winevent(
     match output {
         Ok(logs) => serde_json::from_str(&logs).context("parsing winevents"),
         Err(e) => match e {
-            PowershellError::Script(_, err_output)
+            CommandError::Command(_, err_output)
                 if err_output.contains(
                     "No events were found that match the specified selection criteria.",
                 ) =>
@@ -489,20 +489,6 @@ pub fn vm_id_from_name(name: &str) -> anyhow::Result<Vec<Guid>> {
     Ok(vmids)
 }
 
-/// Error running powershell script
-#[derive(Error, Debug)]
-pub enum PowershellError {
-    /// failed to launch powershell
-    #[error("failed to launch powershell")]
-    Launch(#[from] std::io::Error),
-    /// powershell script non-zero exit status
-    #[error("powershell script non-zero exit status")]
-    Script(std::process::ExitStatus, String),
-    /// powershell output is not utf-8
-    #[error("powershell output is not utf-8")]
-    Utf8(#[from] std::string::FromUtf8Error),
-}
-
 /// A PowerShell script builder
 pub struct PowerShellBuilder(Command);
 
@@ -533,7 +519,7 @@ impl PowerShellBuilder {
     }
 
     /// Run the PowerShell script and return the output
-    pub fn output(mut self, log_stdout: bool) -> Result<String, PowershellError> {
+    pub fn output(mut self, log_stdout: bool) -> Result<String, CommandError> {
         self.0.stderr(Stdio::piped()).stdin(Stdio::null());
         let output = self.0.output()?;
 
@@ -542,7 +528,7 @@ impl PowerShellBuilder {
         let ps_stderr = String::from_utf8_lossy(&output.stderr).to_string();
         tracing::debug!(ps_cmd = self.cmd(), ps_stdout, ps_stderr);
         if !output.status.success() {
-            return Err(PowershellError::Script(output.status, ps_stderr));
+            return Err(CommandError::Command(output.status, ps_stderr));
         }
 
         Ok(String::from_utf8(output.stdout)?.trim().to_owned())

@@ -3,40 +3,30 @@
 
 //! Functions for interacting with Hyper-V VMs.
 
+use super::CommandError;
 use anyhow::Context;
-use anyhow::Ok;
 use guid::Guid;
 use std::ffi::OsStr;
 use std::process::Stdio;
 
-pub fn hvc_start(vmid: &Guid) -> anyhow::Result<()> {
-    hvc_output(|cmd| cmd.arg("start").arg(vmid.to_string()))
-        .map(|_| ())
-        .context("hvc_start")
+pub fn hvc_start(vmid: &Guid) -> Result<(), CommandError> {
+    hvc_output(|cmd| cmd.arg("start").arg(vmid.to_string())).map(|_| ())
 }
 
-pub fn hvc_stop(vmid: &Guid) -> anyhow::Result<()> {
-    hvc_output(|cmd| cmd.arg("stop").arg(vmid.to_string()))
-        .map(|_| ())
-        .context("hvc_stop")
+pub fn hvc_stop(vmid: &Guid) -> Result<(), CommandError> {
+    hvc_output(|cmd| cmd.arg("stop").arg(vmid.to_string())).map(|_| ())
 }
 
-pub fn hvc_kill(vmid: &Guid) -> anyhow::Result<()> {
-    hvc_output(|cmd| cmd.arg("kill").arg(vmid.to_string()))
-        .map(|_| ())
-        .context("hvc_kill")
+pub fn hvc_kill(vmid: &Guid) -> Result<(), CommandError> {
+    hvc_output(|cmd| cmd.arg("kill").arg(vmid.to_string())).map(|_| ())
 }
 
-pub fn hvc_restart(vmid: &Guid) -> anyhow::Result<()> {
-    hvc_output(|cmd| cmd.arg("restart").arg(vmid.to_string()))
-        .map(|_| ())
-        .context("hvc_restart")
+pub fn hvc_restart(vmid: &Guid) -> Result<(), CommandError> {
+    hvc_output(|cmd| cmd.arg("restart").arg(vmid.to_string())).map(|_| ())
 }
 
-pub fn hvc_reset(vmid: &Guid) -> anyhow::Result<()> {
-    hvc_output(|cmd| cmd.arg("reset").arg(vmid.to_string()))
-        .map(|_| ())
-        .context("hvc_reset")
+pub fn hvc_reset(vmid: &Guid) -> Result<(), CommandError> {
+    hvc_output(|cmd| cmd.arg("reset").arg(vmid.to_string())).map(|_| ())
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -68,7 +58,7 @@ pub fn hvc_state(vmid: &Guid) -> anyhow::Result<VmState> {
     Ok(
         match hvc_output(|cmd| cmd.arg("state").arg(vmid.to_string()))
             .context("hvc_state")?
-            .trim_end()
+            .as_str()
         {
             "off" => VmState::Off,
             "running" => VmState::Running,
@@ -96,12 +86,12 @@ pub fn hvc_ensure_off(vmid: &Guid) -> anyhow::Result<()> {
 /// Runs hvc with the given arguments and returns the output.
 fn hvc_output(
     f: impl FnOnce(&mut std::process::Command) -> &mut std::process::Command,
-) -> anyhow::Result<String> {
+) -> Result<String, CommandError> {
     let mut cmd = std::process::Command::new("hvc.exe");
     cmd.stderr(Stdio::piped()).stdin(Stdio::null());
     f(&mut cmd);
 
-    let output = cmd.output().expect("failed to launch hvc");
+    let output = cmd.output()?;
 
     let hvc_cmd = format!(
         "{} {}",
@@ -116,7 +106,8 @@ fn hvc_output(
 
     tracing::debug!(hvc_cmd, hvc_stdout, hvc_stderr);
     if !output.status.success() {
-        anyhow::bail!("hvc failed with exit code: {}", output.status);
+        return Err(CommandError::Command(output.status, hvc_stderr));
     }
-    String::from_utf8(output.stdout).context("output is not utf-8")
+
+    Ok(String::from_utf8(output.stdout)?.trim().to_owned())
 }
