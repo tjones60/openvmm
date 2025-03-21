@@ -220,12 +220,12 @@ impl HyperVVM {
     pub async fn start(&self) -> anyhow::Result<()> {
         self.check_state(VmState::Off)?;
         hvc::hvc_start(&self.vmid)?;
-        self.wait_for_state(VmState::On).await
+        self.wait_for_state(VmState::Running).await
     }
 
     /// Attempt to gracefully shut down the VM
     pub async fn stop(&self) -> anyhow::Result<()> {
-        self.check_state(VmState::On)?;
+        self.check_state(VmState::Running)?;
         hvc::hvc_stop(&self.vmid)?;
         self.wait_for_state(VmState::Off).await
     }
@@ -238,7 +238,7 @@ impl HyperVVM {
     /// Attempt to gracefully restart the VM
     // TODO: Wait for the VM to restart
     pub async fn restart(&self) -> anyhow::Result<()> {
-        self.check_state(VmState::On)?;
+        self.check_state(VmState::Running)?;
         hvc::hvc_restart(&self.vmid)
     }
 

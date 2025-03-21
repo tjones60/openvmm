@@ -45,7 +45,7 @@ pub enum VmState {
     /// The VM is powered off.
     Off,
     /// The VM is powered on.
-    On,
+    Running,
     /// The VM is powering on.
     Starting,
     /// The VM is powering off.
@@ -71,7 +71,7 @@ pub fn hvc_state(vmid: &Guid) -> anyhow::Result<VmState> {
             .trim_end()
         {
             "off" => VmState::Off,
-            "on" => VmState::On,
+            "running" => VmState::Running,
             "starting" => VmState::Starting,
             "stopping" => VmState::Stopping,
             "saved" => VmState::Saved,
