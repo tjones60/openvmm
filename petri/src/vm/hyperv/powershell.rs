@@ -349,30 +349,88 @@ pub struct WinEvent {
     pub message: String,
 }
 
-pub enum EventLogId {
-    InvalidId = 0,
-    BootSuccess = 1,
-    BootSuccessSecureBootFailed = 2,
-    BootFailure = 3,
-    BootFailureSecureBootFailed = 4,
-    NoBootDevice = 5,
-    AttestationFailed = 6,
-    VmgsFileClear = 7,
-    VmgsInitFailed = 8,
-    VmgsInvalidFormat = 9,
-    VmgsCorruptFormat = 10,
-    KeyNotReleased = 11,
-    DekDecryptionFailed = 12,
-    WatchdogTimeoutReset = 13,
-    BootAttempt = 14,
+/// Get event logs
+pub fn run_get_winevent(
+    log_name: &[&str],
+    start_time: Option<&Timestamp>,
+    find: Option<&str>,
+    ids: &[u32],
+) -> anyhow::Result<Vec<WinEvent>> {
+    let mut filter = Vec::new();
+    if !log_name.is_empty() {
+        filter.push(format!(
+            "LogName={}",
+            log_name
+                .iter()
+                .map(|x| format!("'{x}'"))
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
+    }
+    if let Some(start_time) = start_time {
+        filter.push(format!("StartTime=\"{start_time}\""));
+    }
+    if !ids.is_empty() {
+        filter.push(format!(
+            "Id={}",
+            ids.iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
+    }
+    let filter = filter.join("; ");
+
+    let mut builder = PowerShellBuilder::new()
+        .cmdlet("Get-WinEvent")
+        .flag("Oldest")
+        .arg("FilterHashtable", format!("@{{ {filter} }}"))
+        .pipeline();
+
+    if let Some(find) = find {
+        builder = builder
+            .cmdlet("where")
+            .positional("message")
+            .arg("Match", find)
+            .pipeline();
+    }
+
+    let logs = builder.cmdlet("Select-Object")
+        .positional(r#"@{label="TimeCreated";expression={Get-Date $_.TimeCreated -Format o}}, ProviderName, Level, Id, Message"#)
+        .pipeline()
+        .cmdlet("ConvertTo-Json")
+        .finish()
+        .output(false).context("run_get_winevent")?;
+
+    serde_json::from_str(&logs).context("parsing winevents")
 }
 
-const EVENT_ID_BOOT_SUCCESS: u32 = 18601;
-const EVENT_ID_BOOT_SUCCESS_SECURE_BOOT_FAILED: u32 = 18602;
-const EVENT_ID_BOOT_FAILURE: u32 = 18603;
-const EVENT_ID_BOOT_FAILURE_SECURE_BOOT_FAILED: u32 = 18604;
-const EVENT_ID_NO_BOOT_DEVICE: u32 = 18605;
-const EVENT_ID_BOOT_ATTEMPT: u32 = 18614;
+const HYPERV_WORKER_TABLE: &str = "Microsoft-Windows-Hyper-V-Worker-Admin";
+const HYPERV_VMMS_TABLE: &str = "Microsoft-Windows-Hyper-V-VMMS-Admin";
+
+/// Get Hyper-V event logs for a VM
+pub fn hyperv_event_logs(vmid: &Guid, start_time: &Timestamp) -> anyhow::Result<Vec<WinEvent>> {
+    let vmid = vmid.to_string();
+    run_get_winevent(
+        &[HYPERV_WORKER_TABLE, HYPERV_VMMS_TABLE],
+        Some(start_time),
+        Some(&vmid),
+        &[],
+    )
+}
+
+/// boot succeeded
+pub const EVENT_ID_BOOT_SUCCESS: u32 = 18601;
+/// boot succeeded, secure boot failed
+pub const EVENT_ID_BOOT_SUCCESS_SECURE_BOOT_FAILED: u32 = 18602;
+/// boot failed
+pub const EVENT_ID_BOOT_FAILURE: u32 = 18603;
+/// boot failed due to secure boot failure
+pub const EVENT_ID_BOOT_FAILURE_SECURE_BOOT_FAILED: u32 = 18604;
+/// boot failed because there was no boot device
+pub const EVENT_ID_NO_BOOT_DEVICE: u32 = 18605;
+/// boot attempted (pcat only)
+pub const EVENT_ID_BOOT_ATTEMPT: u32 = 18606;
 
 const BOOT_EVENT_IDS: [u32; 6] = [
     EVENT_ID_BOOT_SUCCESS,
@@ -383,46 +441,15 @@ const BOOT_EVENT_IDS: [u32; 6] = [
     EVENT_ID_BOOT_ATTEMPT,
 ];
 
-/// Get event logs
-pub fn run_get_winevent(
-    log_name: &str,
-    start_time: &Timestamp,
-    find: &str,
-) -> anyhow::Result<Vec<WinEvent>> {
-    let logs = PowerShellBuilder::new()
-        .cmdlet("Get-WinEvent")
-        .flag("Oldest")
-        .arg("FilterHashtable",
-            format!(
-                "@{{ LogName=\"{log_name}\"; StartTime=\"{start_time}\" }}"
-            ),
-        )
-        .pipeline()
-        .cmdlet("where")
-        .positional("message")
-        .arg("Match", find)
-        .pipeline()
-        .cmdlet("Select-Object")
-        .positional(r#"@{label="TimeCreated";expression={Get-Date $_.TimeCreated -Format o}}, ProviderName, Level, Id, Message"#)
-        .pipeline()
-        .cmdlet("ConvertTo-Json")
-        .finish()
-        .output(false).context("run_get_winevent")?;
-
-    serde_json::from_str(&logs).context("parsing winevents")
-}
-
 /// Get Hyper-V event logs for a VM
-pub fn hyperv_event_logs(vmid: &Guid, start_time: &Timestamp) -> anyhow::Result<Vec<WinEvent>> {
+pub fn hyperv_boot_events(vmid: &Guid, start_time: &Timestamp) -> anyhow::Result<Vec<WinEvent>> {
     let vmid = vmid.to_string();
-    let mut logs = Vec::new();
-    for log_name in [
-        "Microsoft-Windows-Hyper-V-Worker-Admin",
-        "Microsoft-Windows-Hyper-V-VMMS-Admin",
-    ] {
-        logs.append(&mut run_get_winevent(log_name, start_time, &vmid)?);
-    }
-    Ok(logs)
+    run_get_winevent(
+        &[HYPERV_WORKER_TABLE],
+        Some(start_time),
+        Some(&vmid),
+        &BOOT_EVENT_IDS,
+    )
 }
 
 /// Get the IDs of the VM(s) with the specified name

@@ -9,6 +9,7 @@ pub mod openvmm;
 
 use crate::ShutdownKind;
 use async_trait::async_trait;
+use get_resources::ged::FirmwareEvent;
 use petri_artifacts_common::tags::GuestQuirks;
 use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_common::tags::OsFlavor;
@@ -263,6 +264,27 @@ impl Firmware {
                 ..
             } => cfg.quirks,
             _ => Default::default(),
+        }
+    }
+
+    fn expected_boot_event(&self) -> Option<FirmwareEvent> {
+        match self {
+            Firmware::LinuxDirect { .. } | Firmware::OpenhclLinuxDirect { .. } => None,
+            Firmware::Pcat { .. } => {
+                // TODO: Handle older PCAT versions that don't fire the event
+                Some(FirmwareEvent::BootAttempt)
+            }
+            Firmware::Uefi {
+                guest: UefiGuest::None,
+                ..
+            }
+            | Firmware::OpenhclUefi {
+                guest: UefiGuest::None,
+                ..
+            } => Some(FirmwareEvent::NoBootDevice),
+            Firmware::Uefi { .. } | Firmware::OpenhclUefi { .. } => {
+                Some(FirmwareEvent::BootSuccess)
+            }
         }
     }
 }

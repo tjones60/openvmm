@@ -7,8 +7,10 @@ use super::hvc;
 use super::powershell;
 use crate::PetriLogFile;
 use anyhow::Context;
+use get_resources::ged::FirmwareEvent;
 use guid::Guid;
 use jiff::Timestamp;
+use jiff::ToSpan;
 use pal_async::DefaultDriver;
 use pal_async::timer::PolledTimer;
 use std::io::Write;
@@ -27,6 +29,8 @@ pub struct HyperVVM {
     ps_mod: PathBuf,
     create_time: Timestamp,
     log_file: PetriLogFile,
+    expected_boot_event: Option<FirmwareEvent>,
+    driver: DefaultDriver,
 }
 
 impl HyperVVM {
@@ -37,6 +41,8 @@ impl HyperVVM {
         guest_state_isolation_type: powershell::HyperVGuestStateIsolationType,
         memory: u64,
         log_file: PetriLogFile,
+        expected_boot_event: Option<FirmwareEvent>,
+        driver: DefaultDriver,
     ) -> anyhow::Result<Self> {
         let create_time = Timestamp::now();
         let name = name.to_owned();
@@ -76,6 +82,8 @@ impl HyperVVM {
             ps_mod,
             create_time,
             log_file,
+            expected_boot_event,
+            driver,
         })
     }
 
@@ -112,19 +120,38 @@ impl HyperVVM {
     /// Waits for an event emitted by the firmware about its boot status, and
     /// verifies that it is the expected success value.
     pub async fn wait_for_successful_boot_event(&mut self) -> anyhow::Result<()> {
-        const SHUTDOWN_TIMEOUT: usize = 20;
-        let mut attempts = 0;
-        loop {
-            for event in powershell::hyperv_event_logs(&self.vmid, &self.create_time)? {
-                if event.id in 
+        if let Some(expected_boot_event) = self.expected_boot_event {
+            let expected_id = match expected_boot_event {
+                FirmwareEvent::BootSuccess => powershell::EVENT_ID_BOOT_SUCCESS,
+                FirmwareEvent::BootFailed => powershell::EVENT_ID_BOOT_FAILURE,
+                FirmwareEvent::NoBootDevice => powershell::EVENT_ID_NO_BOOT_DEVICE,
+                FirmwareEvent::BootAttempt => powershell::EVENT_ID_BOOT_ATTEMPT,
+            };
+            let boot_timeout = 30.seconds();
+            let start = Timestamp::now();
+            loop {
+                let events = powershell::hyperv_boot_events(&self.vmid, &self.create_time)?;
+                // let ids = events.iter().map(|e| e.id).collect::<Vec<_>>();
+                if events.len() > 1 {
+                    anyhow::bail!("Got more than one boot event");
+                }
+                if let Some(event) = events.last() {
+                    if event.id == expected_id {
+                        break;
+                    } else {
+                        anyhow::bail!("VM boot failed ({}): {}", event.id, event.message)
+                    }
+                }
+
+                if boot_timeout.compare(Timestamp::now() - start)? == std::cmp::Ordering::Less {
+                    anyhow::bail!("VM shutdown timed out")
+                }
+                PolledTimer::new(&self.driver)
+                    .sleep(Duration::from_secs(1))
+                    .await;
             }
-        }
-        while !matches!(hvc::hvc_state(&self.vmid)?, hvc::VmState::Off) {
-            if attempts >= SHUTDOWN_TIMEOUT {
-                anyhow::bail!("VM shutdown timed out")
-            }
-            attempts += 1;
-            PolledTimer::new(driver).sleep(Duration::from_secs(1)).await;
+        } else {
+            tracing::warn!("Configured firmware does not emit a boot event, skipping");
         }
 
         Ok(())
@@ -213,15 +240,16 @@ impl HyperVVM {
     }
 
     /// Wait for the VM to turn off
-    pub async fn wait_for_power_off(&self, driver: &DefaultDriver) -> anyhow::Result<()> {
-        const SHUTDOWN_TIMEOUT: usize = 20;
-        let mut attempts = 0;
+    pub async fn wait_for_power_off(&self) -> anyhow::Result<()> {
+        let shutdown_timeout = 30.seconds();
+        let start = Timestamp::now();
         while !matches!(hvc::hvc_state(&self.vmid)?, hvc::VmState::Off) {
-            if attempts >= SHUTDOWN_TIMEOUT {
+            if shutdown_timeout.compare(Timestamp::now() - start)? == std::cmp::Ordering::Less {
                 anyhow::bail!("VM shutdown timed out")
             }
-            attempts += 1;
-            PolledTimer::new(driver).sleep(Duration::from_secs(1)).await;
+            PolledTimer::new(&self.driver)
+                .sleep(Duration::from_secs(1))
+                .await;
         }
 
         Ok(())

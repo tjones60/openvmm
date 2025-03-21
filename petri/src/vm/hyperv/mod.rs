@@ -18,6 +18,7 @@ use crate::disk_image::AgentImage;
 use crate::openhcl_diag::OpenHclDiagHandler;
 use anyhow::Context;
 use async_trait::async_trait;
+use get_resources::ged::FirmwareEvent;
 use pal_async::DefaultDriver;
 use pal_async::pipe::PolledPipe;
 use pal_async::socket::PolledSocket;
@@ -57,6 +58,7 @@ pub struct PetriVmConfigHyperV {
     agent_image: AgentImage,
 
     os_flavor: OsFlavor,
+    expected_boot_event: Option<FirmwareEvent>,
 
     // Folder to store temporary data for this test
     temp_dir: tempfile::TempDir,
@@ -115,7 +117,7 @@ impl PetriVm for PetriVmHyperV {
     }
 
     async fn send_enlightened_shutdown(&mut self, kind: ShutdownKind) -> anyhow::Result<()> {
-        Self::send_enlightened_shutdown(self, kind).await
+        Self::send_enlightened_shutdown(self, kind)
     }
 }
 
@@ -207,6 +209,7 @@ impl PetriVmConfigHyperV {
             agent_image,
             driver: driver.clone(),
             os_flavor: firmware.os_flavor(),
+            expected_boot_event: firmware.expected_boot_event(),
             temp_dir,
             log_source: params.logger.clone(),
         })
@@ -240,6 +243,8 @@ impl PetriVmConfigHyperV {
             self.guest_state_isolation_type,
             self.memory,
             self.log_source.log_file("hyperv")?,
+            self.expected_boot_event,
+            self.driver.clone(),
         )?;
 
         if let Some(igvm_file) = &self.openhcl_igvm {
@@ -359,7 +364,7 @@ impl PetriVmConfigHyperV {
 impl PetriVmHyperV {
     /// Wait for the VM to halt, returning the reason for the halt.
     pub async fn wait_for_halt(&mut self) -> anyhow::Result<HaltReason> {
-        self.vm.wait_for_power_off(&self.config.driver).await?;
+        self.vm.wait_for_power_off().await?;
         Ok(HaltReason::PowerOff) // TODO: Get actual halt reason
     }
 
@@ -407,11 +412,16 @@ impl PetriVmHyperV {
     /// * PCAT guests may not emit an event depending on the PCAT version, this
     ///   method is best effort for them.
     pub async fn wait_for_successful_boot_event(&mut self) -> anyhow::Result<()> {
-        Ok(())
+        self.vm.wait_for_successful_boot_event().await
     }
 
     /// Instruct the guest to shutdown via the Hyper-V shutdown IC.
-    pub async fn send_enlightened_shutdown(&mut self, kind: ShutdownKind) -> anyhow::Result<()> {
+    pub fn send_enlightened_shutdown(&mut self, kind: ShutdownKind) -> anyhow::Result<()> {
+        match kind {
+            ShutdownKind::Shutdown => self.vm.stop()?,
+            ShutdownKind::Reboot => self.vm.restart()?,
+        }
+
         Ok(())
     }
 

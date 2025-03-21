@@ -112,7 +112,9 @@ async fn vbs_boot(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
 /// Basic VBS boot test.
 #[vmm_test(
     openvmm_openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2022_x64)),
-    openvmm_openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64))
+    openvmm_openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64)),
+    hyperv_openhcl_uefi_x64[tdx](vhd(windows_datacenter_core_2022_x64)),
+    hyperv_openhcl_uefi_x64[tdx](vhd(ubuntu_2204_server_x64))
 )]
 async fn cvm_boot(config: Box<dyn PetriVmConfig>) -> anyhow::Result<()> {
     let mut vm = config.run_without_agent().await?;
