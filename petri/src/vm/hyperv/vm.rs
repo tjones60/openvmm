@@ -8,6 +8,7 @@ use super::hvc;
 use super::hvc::VmState;
 use super::powershell;
 use crate::PetriLogFile;
+use crate::ShutdownKind;
 use anyhow::Context;
 use get_resources::ged::FirmwareEvent;
 use guid::Guid;
@@ -224,33 +225,46 @@ impl HyperVVM {
         self.wait_for_state(VmState::Running).await
     }
 
-    /// Attempt to gracefully shut down the VM
-    pub async fn stop(&self) -> anyhow::Result<()> {
+    /// Attempt to gracefully shut down/restart the VM
+    pub async fn shutdown(&self, kind: ShutdownKind) -> anyhow::Result<()> {
         self.check_state(VmState::Running)?;
-        while let Err(e) = hvc::hvc_stop(&self.vmid) {
+
+        let shutdown_timeout = 30.seconds();
+        let start = Timestamp::now();
+
+        let action = match kind {
+            ShutdownKind::Shutdown => hvc::hvc_stop,
+            ShutdownKind::Reboot => hvc::hvc_restart,
+        };
+
+        while let Err(e) = action(&self.vmid) {
             if !matches!(&e, CommandError::Command(_, msg) if msg.contains("The device is not ready."))
             {
-                Err(e).context("hvc_stop")?;
+                Err(e).context(match kind {
+                    ShutdownKind::Shutdown => "hvc_stop",
+                    ShutdownKind::Reboot => "hvc_restart",
+                })?;
+            } else if shutdown_timeout.compare(Timestamp::now() - start)?
+                == std::cmp::Ordering::Less
+            {
+                Err(e).context("timed out waiting for shutdown ic")?;
             }
+
+            PolledTimer::new(&self.driver)
+                .sleep(Duration::from_secs(1))
+                .await;
         }
-        self.wait_for_state(VmState::Off).await
+
+        self.wait_for_state(match kind {
+            ShutdownKind::Shutdown => VmState::Off,
+            ShutdownKind::Reboot => VmState::Running,
+        })
+        .await
     }
 
     /// Kill the VM
     pub fn kill(&self) -> anyhow::Result<()> {
         hvc::hvc_kill(&self.vmid).context("hvc_kill")
-    }
-
-    /// Attempt to gracefully restart the VM
-    pub async fn restart(&self) -> anyhow::Result<()> {
-        self.check_state(VmState::Running)?;
-        while let Err(e) = hvc::hvc_restart(&self.vmid) {
-            if !matches!(&e, CommandError::Command(_, msg) if msg.contains("The device is not ready."))
-            {
-                Err(e).context("hvc_restart")?;
-            }
-        }
-        self.wait_for_state(VmState::Running).await
     }
 
     /// Issue a hard reset to the VM

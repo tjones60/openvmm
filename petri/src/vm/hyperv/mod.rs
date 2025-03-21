@@ -418,12 +418,7 @@ impl PetriVmHyperV {
 
     /// Instruct the guest to shutdown via the Hyper-V shutdown IC.
     pub async fn send_enlightened_shutdown(&mut self, kind: ShutdownKind) -> anyhow::Result<()> {
-        match kind {
-            ShutdownKind::Shutdown => self.vm.stop().await?,
-            ShutdownKind::Reboot => self.vm.restart().await?,
-        }
-
-        Ok(())
+        self.vm.shutdown(kind).await
     }
 
     async fn wait_for_agent_core(
