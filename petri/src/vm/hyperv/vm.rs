@@ -3,12 +3,10 @@
 
 //! Provides an interface for creating and managing Hyper-V VMs
 
-use super::CommandError;
 use super::hvc;
 use super::hvc::VmState;
 use super::powershell;
 use crate::PetriLogFile;
-use crate::ShutdownKind;
 use anyhow::Context;
 use get_resources::ged::FirmwareEvent;
 use guid::Guid;
@@ -225,41 +223,19 @@ impl HyperVVM {
         self.wait_for_state(VmState::Running).await
     }
 
-    /// Attempt to gracefully shut down/restart the VM
-    pub async fn shutdown(&self, kind: ShutdownKind) -> anyhow::Result<()> {
+    /// Attempt to gracefully shut down the VM
+    pub async fn stop(&self) -> anyhow::Result<()> {
         self.check_state(VmState::Running)?;
+        hvc::hvc_stop(&self.vmid)?;
+        self.wait_for_state(VmState::Off).await
+    }
 
-        let shutdown_timeout = 30.seconds();
-        let start = Timestamp::now();
-
-        let action = match kind {
-            ShutdownKind::Shutdown => hvc::hvc_stop,
-            ShutdownKind::Reboot => hvc::hvc_restart,
-        };
-
-        while let Err(e) = action(&self.vmid) {
-            if !matches!(&e, CommandError::Command(_, msg) if msg.contains("The device is not ready."))
-            {
-                Err(e).context(match kind {
-                    ShutdownKind::Shutdown => "hvc_stop",
-                    ShutdownKind::Reboot => "hvc_restart",
-                })?;
-            } else if shutdown_timeout.compare(Timestamp::now() - start)?
-                == std::cmp::Ordering::Less
-            {
-                Err(e).context("timed out waiting for shutdown ic")?;
-            }
-
-            PolledTimer::new(&self.driver)
-                .sleep(Duration::from_secs(1))
-                .await;
-        }
-
-        self.wait_for_state(match kind {
-            ShutdownKind::Shutdown => VmState::Off,
-            ShutdownKind::Reboot => VmState::Running,
-        })
-        .await
+    /// Attempt to gracefully restart the VM
+    pub async fn restart(&self) -> anyhow::Result<()> {
+        self.check_state(VmState::Running)?;
+        hvc::hvc_restart(&self.vmid)?;
+        tracing::warn!("end state checking not yet implemented for hyper-v vms");
+        Ok(())
     }
 
     /// Kill the VM
@@ -300,6 +276,11 @@ impl HyperVVM {
         Ok(())
     }
 
+    /// Wait for the VM heartbeat
+    pub fn wait_for_heartbeat(&self) -> anyhow::Result<()> {
+        powershell::run_wait_vm_for_heartbeat(&self.vmid)
+    }
+
     /// Remove the VM
     pub fn remove(mut self) -> anyhow::Result<()> {
         self.remove_inner()
@@ -307,9 +288,13 @@ impl HyperVVM {
 
     fn remove_inner(&mut self) -> anyhow::Result<()> {
         if !self.destroyed {
-            hvc::hvc_ensure_off(&self.vmid)?;
-            powershell::run_remove_vm(&self.vmid)?;
+            let res_off = hvc::hvc_ensure_off(&self.vmid);
+            let res_remove = powershell::run_remove_vm(&self.vmid);
+
             self.flush_logs()?;
+
+            res_off?;
+            res_remove?;
             self.destroyed = true;
         }
 

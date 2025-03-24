@@ -76,11 +76,17 @@ pub fn hvc_state(vmid: &Guid) -> anyhow::Result<VmState> {
 }
 
 pub fn hvc_ensure_off(vmid: &Guid) -> anyhow::Result<()> {
-    if !matches!(hvc_state(vmid)?, VmState::Off) {
-        hvc_kill(vmid)?;
+    for _ in 0..5 {
+        if matches!(hvc_state(vmid)?, VmState::Off) {
+            return Ok(());
+        }
+        if let Err(e) = hvc_kill(vmid) {
+            tracing::warn!("hvc_kill attempt failed: {e}")
+        }
+        std::thread::sleep(std::time::Duration::from_secs(1));
     }
 
-    Ok(())
+    anyhow::bail!("Failed to stop VM")
 }
 
 /// Runs hvc with the given arguments and returns the output.

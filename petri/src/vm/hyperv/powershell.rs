@@ -489,6 +489,20 @@ pub fn vm_id_from_name(name: &str) -> anyhow::Result<Vec<Guid>> {
     Ok(vmids)
 }
 
+/// Wait for VM heartbeat
+pub fn run_wait_vm_for_heartbeat(vmid: &Guid) -> anyhow::Result<()> {
+    PowerShellBuilder::new()
+        .cmdlet("Get-VM")
+        .arg_string("Id", vmid)
+        .pipeline()
+        .cmdlet("Wait-VM")
+        .arg("For", "Heartbeat")
+        .finish()
+        .output(true)
+        .map(|_| ())
+        .context("run_wait_vm_for_heartbeat")
+}
+
 /// A PowerShell script builder
 pub struct PowerShellBuilder(Command);
 
