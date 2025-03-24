@@ -19,6 +19,8 @@ use crate::openhcl_diag::OpenHclDiagHandler;
 use anyhow::Context;
 use async_trait::async_trait;
 use get_resources::ged::FirmwareEvent;
+use jiff::Timestamp;
+use jiff::ToSpan;
 use pal_async::DefaultDriver;
 use pal_async::pipe::PolledPipe;
 use pal_async::socket::PolledSocket;
@@ -250,7 +252,15 @@ impl PetriVmConfigHyperV {
 
         if let Some(igvm_file) = &self.openhcl_igvm {
             // TODO: only increase VTL2 memory on debug builds
-            vm.set_openhcl_firmware(igvm_file.as_ref(), true)?;
+            vm.set_openhcl_firmware(
+                igvm_file.as_ref(),
+                !matches!(
+                    self.guest_state_isolation_type,
+                    powershell::HyperVGuestStateIsolationType::Vbs
+                        | powershell::HyperVGuestStateIsolationType::Snp
+                        | powershell::HyperVGuestStateIsolationType::Tdx
+                ),
+            )?;
         }
 
         if let Some(secure_boot_template) = self.secure_boot_template {
@@ -448,24 +458,18 @@ impl PetriVmHyperV {
         //
         // Allow for the slowest test (hyperv_pcat_x64_ubuntu_2204_server_x64_boot)
         // but fail before the nextest timeout. (~1 attempt for second)
-        const PIPETTE_CONNECT_ATTEMPTS: u32 = 240;
-        let mut attempts = 0;
+        let connect_timeout = 30.seconds();
+        let start = Timestamp::now();
+
         let mut socket = PolledSocket::new(driver, socket)?.convert();
-        loop {
-            match socket
-                .connect(&VmAddress::hyperv_vsock(vm_id, pipette_client::PIPETTE_VSOCK_PORT).into())
-                .await
-            {
-                Ok(_) => break,
-                Err(_) => {
-                    if attempts >= PIPETTE_CONNECT_ATTEMPTS {
-                        anyhow::bail!("Pipette connection timed out")
-                    }
-                    attempts += 1;
-                    PolledTimer::new(driver).sleep(Duration::from_secs(1)).await;
-                    continue;
-                }
+        while let Err(e) = socket
+            .connect(&VmAddress::hyperv_vsock(vm_id, pipette_client::PIPETTE_VSOCK_PORT).into())
+            .await
+        {
+            if connect_timeout.compare(Timestamp::now() - start)? == std::cmp::Ordering::Less {
+                anyhow::bail!("Pipette connection timed out: {e}")
             }
+            PolledTimer::new(driver).sleep(Duration::from_secs(1)).await;
         }
 
         PipetteClient::new(driver, socket, output_dir)
