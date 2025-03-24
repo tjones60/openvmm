@@ -25,6 +25,7 @@ async fn frontpage(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
     openvmm_openhcl_linux_direct_x64,
     openvmm_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     hyperv_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
+    hyperv_openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2022_x64)),
     openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     hyperv_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     openvmm_pcat_x64(vhd(windows_datacenter_core_2022_x64)),

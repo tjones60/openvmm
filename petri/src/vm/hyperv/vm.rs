@@ -234,7 +234,7 @@ impl HyperVVM {
     pub async fn restart(&self) -> anyhow::Result<()> {
         self.check_state(VmState::Running)?;
         hvc::hvc_restart(&self.vmid)?;
-        tracing::warn!("end state checking not yet implemented for hyper-v vms");
+        tracing::warn!("end state checking on restart not yet implemented for hyper-v vms");
         Ok(())
     }
 
@@ -256,7 +256,6 @@ impl HyperVVM {
     }
 
     /// Wait for the VM to reach the given state.
-    /// Optionally fails if the vm enters a different state.
     pub async fn wait_for_state(&self, target: VmState) -> anyhow::Result<()> {
         let shutdown_timeout = 30.seconds();
         let start = Timestamp::now();
