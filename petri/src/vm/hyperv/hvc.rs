@@ -29,8 +29,8 @@ pub fn hvc_reset(vmid: &Guid) -> Result<(), CommandError> {
     hvc_output(|cmd| cmd.arg("reset").arg(vmid.to_string())).map(|_| ())
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
 /// HyperV VM state as reported by hvc
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum VmState {
     /// The VM is powered off.
     Off,
@@ -70,7 +70,7 @@ pub fn hvc_state(vmid: &Guid) -> anyhow::Result<VmState> {
             "saving" => VmState::Saving,
             "pausing" => VmState::Pausing,
             "resuming" => VmState::Resuming,
-            _ => anyhow::bail!("unknown vm state"),
+            s => anyhow::bail!("unknown vm state: {s}"),
         },
     )
 }

@@ -375,7 +375,7 @@ impl PetriVmConfigHyperV {
 impl PetriVmHyperV {
     /// Wait for the VM to halt, returning the reason for the halt.
     pub async fn wait_for_halt(&mut self) -> anyhow::Result<HaltReason> {
-        self.vm.wait_for_state(hvc::VmState::Off).await?;
+        self.vm.wait_for_halt().await?;
         Ok(HaltReason::PowerOff) // TODO: Get actual halt reason
     }
 
@@ -428,7 +428,7 @@ impl PetriVmHyperV {
 
     /// Instruct the guest to shutdown via the Hyper-V shutdown IC.
     pub async fn send_enlightened_shutdown(&mut self, kind: ShutdownKind) -> anyhow::Result<()> {
-        self.vm.wait_for_heartbeat()?;
+        self.vm.wait_for_heartbeat().await?;
 
         match kind {
             ShutdownKind::Shutdown => self.vm.stop().await?,
@@ -458,7 +458,7 @@ impl PetriVmHyperV {
         //
         // Allow for the slowest test (hyperv_pcat_x64_ubuntu_2204_server_x64_boot)
         // but fail before the nextest timeout. (~1 attempt for second)
-        let connect_timeout = 30.seconds();
+        let connect_timeout = 240.seconds();
         let start = Timestamp::now();
 
         let mut socket = PolledSocket::new(driver, socket)?.convert();

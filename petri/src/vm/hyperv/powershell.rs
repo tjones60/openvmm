@@ -489,18 +489,38 @@ pub fn vm_id_from_name(name: &str) -> anyhow::Result<Vec<Guid>> {
     Ok(vmids)
 }
 
+/// Hyper-V VM Heartbeat Status
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum VmHeartbeatStatus {
+    /// The VM is off
+    Off,
+    /// No VM Heartbeat
+    NoContact,
+    /// VM Hearbeat OK
+    Ok,
+}
+
 /// Wait for VM heartbeat
-pub fn run_wait_vm_for_heartbeat(vmid: &Guid) -> anyhow::Result<()> {
-    PowerShellBuilder::new()
+pub fn vm_heartbeat(vmid: &Guid) -> anyhow::Result<VmHeartbeatStatus> {
+    let status = PowerShellBuilder::new()
         .cmdlet("Get-VM")
         .arg_string("Id", vmid)
         .pipeline()
-        .cmdlet("Wait-VM")
-        .arg("For", "Heartbeat")
+        .cmdlet("Get-VMIntegrationService")
+        .arg("Name", "Heartbeat")
+        .pipeline()
+        .cmdlet("Select-Object")
+        .arg("ExpandProperty", "PrimaryStatusDescription")
         .finish()
         .output(true)
-        .map(|_| ())
-        .context("run_wait_vm_for_heartbeat")
+        .context("vm_heartbeat")?;
+
+    Ok(match status.as_str() {
+        "" => VmHeartbeatStatus::Off,
+        "No Contact" => VmHeartbeatStatus::NoContact,
+        "OK" => VmHeartbeatStatus::Ok,
+        s => anyhow::bail!("Unknown VM heartbeat status: {s}"),
+    })
 }
 
 /// A PowerShell script builder

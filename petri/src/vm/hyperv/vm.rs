@@ -208,8 +208,12 @@ impl HyperVVM {
         powershell::run_set_initial_machine_configuration(&self.vmid, &self.ps_mod, imc_hive)
     }
 
+    fn state(&self) -> anyhow::Result<VmState> {
+        hvc::hvc_state(&self.vmid)
+    }
+
     fn check_state(&self, expected: VmState) -> anyhow::Result<()> {
-        let state = hvc::hvc_state(&self.vmid)?;
+        let state = self.state()?;
         if state != expected {
             anyhow::bail!("unexpected VM state {state:?}, should be {expected:?}");
         }
@@ -255,17 +259,46 @@ impl HyperVVM {
         Ok(pipe_path)
     }
 
-    /// Wait for the VM to reach the given state.
-    pub async fn wait_for_state(&self, target: VmState) -> anyhow::Result<()> {
-        let shutdown_timeout = 30.seconds();
+    /// Wait for the VM to stop
+    pub async fn wait_for_halt(&self) -> anyhow::Result<()> {
+        self.wait_for_state(VmState::Off).await
+    }
+
+    async fn wait_for_state(&self, target: VmState) -> anyhow::Result<()> {
+        self.wait_for(Self::state, target, 30.seconds())
+            .await
+            .context("wait_for_state")
+    }
+
+    /// Wait for the VM heartbeat
+    pub async fn wait_for_heartbeat(&self) -> anyhow::Result<()> {
+        self.wait_for(
+            Self::heartbeat,
+            powershell::VmHeartbeatStatus::Ok,
+            30.seconds(),
+        )
+        .await
+        .context("wait_for_heartbeat")
+    }
+
+    fn heartbeat(&self) -> anyhow::Result<powershell::VmHeartbeatStatus> {
+        powershell::vm_heartbeat(&self.vmid)
+    }
+
+    async fn wait_for<T: std::fmt::Debug + PartialEq>(
+        &self,
+        f: fn(&Self) -> anyhow::Result<T>,
+        target: T,
+        timeout: jiff::Span,
+    ) -> anyhow::Result<()> {
         let start = Timestamp::now();
         loop {
-            let state = hvc::hvc_state(&self.vmid)?;
+            let state = f(self)?;
             if state == target {
                 break;
             }
-            if shutdown_timeout.compare(Timestamp::now() - start)? == std::cmp::Ordering::Less {
-                anyhow::bail!("timed out waiting for state {target:?}. current state: {state:?}");
+            if timeout.compare(Timestamp::now() - start)? == std::cmp::Ordering::Less {
+                anyhow::bail!("timed out waiting for {target:?}. current: {state:?}");
             }
             PolledTimer::new(&self.driver)
                 .sleep(Duration::from_secs(1))
@@ -273,11 +306,6 @@ impl HyperVVM {
         }
 
         Ok(())
-    }
-
-    /// Wait for the VM heartbeat
-    pub fn wait_for_heartbeat(&self) -> anyhow::Result<()> {
-        powershell::run_wait_vm_for_heartbeat(&self.vmid)
     }
 
     /// Remove the VM
