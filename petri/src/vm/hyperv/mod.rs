@@ -493,7 +493,7 @@ pub enum CommandError {
     #[error("failed to launch command")]
     Launch(#[from] std::io::Error),
     /// command exited with non-zero status
-    #[error("command exited with non-zero status")]
+    #[error("command exited with non-zero status ({0}): {1}")]
     Command(std::process::ExitStatus, String),
     /// command output is not utf-8
     #[error("command output is not utf-8")]
