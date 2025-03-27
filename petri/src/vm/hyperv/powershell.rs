@@ -489,37 +489,47 @@ pub fn vm_id_from_name(name: &str) -> anyhow::Result<Vec<Guid>> {
     Ok(vmids)
 }
 
-/// Hyper-V VM Heartbeat Status
+/// Hyper-V VM Shutdown Integration Component Status
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub enum VmHeartbeatStatus {
+pub enum VmShutdownIcStatus {
     /// The VM is off
     Off,
-    /// No VM Heartbeat
-    NoContact,
-    /// VM Hearbeat OK
+    /// The component is operating normally.
     Ok,
+    /// The component is operating normally but the guest component negotiated
+    /// a compatiable communications protocol version.
+    Degraded,
+    /// The guest does not support a compatible protocol version.
+    NonRecoverableError,
+    /// The guest component is not installed or has not yet been contacted.
+    NoContact,
+    /// The guest component is no longer responding normally.
+    LostCommunication,
 }
 
-/// Wait for VM heartbeat
-pub fn vm_heartbeat(vmid: &Guid) -> anyhow::Result<VmHeartbeatStatus> {
+/// Get the VM's shutdown IC status
+pub fn vm_shutdown_ic_status(vmid: &Guid) -> anyhow::Result<VmShutdownIcStatus> {
     let status = PowerShellBuilder::new()
         .cmdlet("Get-VM")
         .arg_string("Id", vmid)
         .pipeline()
         .cmdlet("Get-VMIntegrationService")
-        .arg("Name", "Heartbeat")
+        .arg("Name", "Shutdown")
         .pipeline()
         .cmdlet("Select-Object")
         .arg("ExpandProperty", "PrimaryStatusDescription")
         .finish()
         .output(true)
-        .context("vm_heartbeat")?;
+        .context("vm_shutdown_ic_status")?;
 
     Ok(match status.as_str() {
-        "" => VmHeartbeatStatus::Off,
-        "No Contact" => VmHeartbeatStatus::NoContact,
-        "OK" => VmHeartbeatStatus::Ok,
-        s => anyhow::bail!("Unknown VM heartbeat status: {s}"),
+        "" => VmShutdownIcStatus::Off,
+        "OK" => VmShutdownIcStatus::Ok,
+        "Degraded" => VmShutdownIcStatus::Degraded,
+        "Non-Recoverable Error" => VmShutdownIcStatus::NonRecoverableError,
+        "No Contact" => VmShutdownIcStatus::NoContact,
+        "Lost Communication" => VmShutdownIcStatus::LostCommunication,
+        s => anyhow::bail!("Unknown VM shutdown status: {s}"),
     })
 }
 

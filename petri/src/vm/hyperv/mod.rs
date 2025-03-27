@@ -254,6 +254,7 @@ impl PetriVmConfigHyperV {
             // TODO: only increase VTL2 memory on debug builds
             vm.set_openhcl_firmware(
                 igvm_file.as_ref(),
+                // don't increase VTL2 memory on CVMs
                 !matches!(
                     self.guest_state_isolation_type,
                     powershell::HyperVGuestStateIsolationType::Vbs
@@ -428,8 +429,6 @@ impl PetriVmHyperV {
 
     /// Instruct the guest to shutdown via the Hyper-V shutdown IC.
     pub async fn send_enlightened_shutdown(&mut self, kind: ShutdownKind) -> anyhow::Result<()> {
-        self.vm.wait_for_heartbeat().await?;
-
         match kind {
             ShutdownKind::Shutdown => self.vm.stop().await?,
             ShutdownKind::Reboot => self.vm.restart().await?,

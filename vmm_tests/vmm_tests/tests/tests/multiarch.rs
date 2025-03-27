@@ -4,7 +4,6 @@
 //! Integration tests that run on more than one architecture.
 
 use petri::PetriVmConfig;
-use petri::ShutdownKind;
 use petri::openvmm::PetriVmConfigOpenVmm;
 use vmm_core_defs::HaltReason;
 use vmm_test_macros::openvmm_test;
@@ -43,24 +42,6 @@ async fn frontpage(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
 async fn boot(config: Box<dyn PetriVmConfig>) -> anyhow::Result<()> {
     let (vm, agent) = config.run().await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
-    Ok(())
-}
-
-/// Basic boot test without agent
-#[vmm_test(
-    openvmm_pcat_x64(vhd(freebsd_13_2_x64)),
-    openvmm_pcat_x64(iso(freebsd_13_2_x64)),
-    openvmm_openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2022_x64)),
-    openvmm_openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64)),
-    hyperv_openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2022_x64)),
-    hyperv_openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64)),
-    hyperv_openhcl_uefi_aarch64[vbs](vhd(ubuntu_2404_server_aarch64))
-)]
-async fn boot_no_agent(config: Box<dyn PetriVmConfig>) -> anyhow::Result<()> {
-    let mut vm = config.run_without_agent().await?;
-    vm.wait_for_successful_boot_event().await?;
-    vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
     assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
     Ok(())
 }

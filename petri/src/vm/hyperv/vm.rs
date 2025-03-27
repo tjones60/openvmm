@@ -229,6 +229,7 @@ impl HyperVVM {
 
     /// Attempt to gracefully shut down the VM
     pub async fn stop(&self) -> anyhow::Result<()> {
+        self.wait_for_shutdown_ic().await?;
         self.check_state(VmState::Running)?;
         hvc::hvc_stop(&self.vmid)?;
         self.wait_for_state(VmState::Off).await
@@ -236,6 +237,7 @@ impl HyperVVM {
 
     /// Attempt to gracefully restart the VM
     pub async fn restart(&self) -> anyhow::Result<()> {
+        self.wait_for_shutdown_ic().await?;
         self.check_state(VmState::Running)?;
         hvc::hvc_restart(&self.vmid)?;
         tracing::warn!("end state checking on restart not yet implemented for hyper-v vms");
@@ -270,19 +272,19 @@ impl HyperVVM {
             .context("wait_for_state")
     }
 
-    /// Wait for the VM heartbeat
-    pub async fn wait_for_heartbeat(&self) -> anyhow::Result<()> {
+    /// Wait for the VM shutdown ic
+    async fn wait_for_shutdown_ic(&self) -> anyhow::Result<()> {
         self.wait_for(
-            Self::heartbeat,
-            powershell::VmHeartbeatStatus::Ok,
+            Self::shutdown_ic_status,
+            powershell::VmShutdownIcStatus::Ok,
             30.seconds(),
         )
         .await
-        .context("wait_for_heartbeat")
+        .context("wait_for_shutdown_ic")
     }
 
-    fn heartbeat(&self) -> anyhow::Result<powershell::VmHeartbeatStatus> {
-        powershell::vm_heartbeat(&self.vmid)
+    fn shutdown_ic_status(&self) -> anyhow::Result<powershell::VmShutdownIcStatus> {
+        powershell::vm_shutdown_ic_status(&self.vmid)
     }
 
     async fn wait_for<T: std::fmt::Debug + PartialEq>(
