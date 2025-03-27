@@ -138,7 +138,7 @@ impl SimpleFlowNode for Node {
                         crate::download_openvmm_vmm_tests_vhds::Request::DownloadVhds(vec![
                             vmm_test_images::KnownVhd::FreeBsd13_2,
                             vmm_test_images::KnownVhd::Gen1WindowsDataCenterCore2022,
-                            vmm_test_images::KnownVhd::Gen2WindowsDataCenterCore2022,
+                            vmm_test_images::KnownVhd::Gen2WindowsDataCenterCore2025,
                             vmm_test_images::KnownVhd::Ubuntu2204Server,
                         ]),
                     ]);

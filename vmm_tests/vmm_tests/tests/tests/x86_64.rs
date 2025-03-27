@@ -22,10 +22,11 @@ use vmm_test_macros::vmm_test;
 #[vmm_test(
     openvmm_pcat_x64(vhd(freebsd_13_2_x64)),
     openvmm_pcat_x64(iso(freebsd_13_2_x64)),
-    openvmm_openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2022_x64)),
+    openvmm_openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2025_x64)),
     openvmm_openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64)),
-    hyperv_openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2022_x64)),
-    hyperv_openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64))
+    hyperv_openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2025_x64)),
+    hyperv_openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64)),
+    hyperv_openhcl_uefi_x64[tdx](vhd(windows_datacenter_core_2025_x64))
 )]
 async fn boot_no_agent(config: Box<dyn PetriVmConfig>) -> anyhow::Result<()> {
     let mut vm = config.run_without_agent().await?;
@@ -39,7 +40,7 @@ async fn boot_no_agent(config: Box<dyn PetriVmConfig>) -> anyhow::Result<()> {
 // TODO: Remove once #912 is fixed.
 #[openvmm_test(
     openhcl_linux_direct_x64,
-    openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
+    openhcl_uefi_x64(vhd(windows_datacenter_core_2025_x64)),
     openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))
 )]
 async fn boot_alias_map(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
@@ -51,7 +52,7 @@ async fn boot_alias_map(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
 
 /// Basic boot tests with TPM enabled.
 #[openvmm_test(
-    openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
+    openhcl_uefi_x64(vhd(windows_datacenter_core_2025_x64)),
     openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))
 )]
 async fn boot_with_tpm(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
@@ -142,8 +143,8 @@ async fn vbs_boot_with_tpm(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
 #[openvmm_test(
     linux_direct_x64,
     openhcl_linux_direct_x64,
-    // openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
-    // uefi_x64(vhd(windows_datacenter_core_2022_x64)),
+    // openhcl_uefi_x64(vhd(windows_datacenter_core_2025_x64)),
+    // uefi_x64(vhd(windows_datacenter_core_2025_x64)),
     // pcat_x64(vhd(windows_datacenter_core_2022_x64)),
     // openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)),
     // uefi_x64(vhd(ubuntu_2204_server_x64)),
@@ -259,8 +260,8 @@ async fn five_gb(config: PetriVmConfigOpenVmm) -> Result<(), anyhow::Error> {
 #[openvmm_test(
     linux_direct_x64,
     openhcl_linux_direct_x64,
-    openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
-    uefi_x64(vhd(windows_datacenter_core_2022_x64)),
+    openhcl_uefi_x64(vhd(windows_datacenter_core_2025_x64)),
+    uefi_x64(vhd(windows_datacenter_core_2025_x64)),
     openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)),
     uefi_x64(vhd(ubuntu_2204_server_x64))
 )]
@@ -339,9 +340,9 @@ async fn vmbus_redirect(config: PetriVmConfigOpenVmm) -> Result<(), anyhow::Erro
 /// Boot with a battery and check the OS-reported capacity.
 #[openvmm_test(
     openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)),
-    openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
+    openhcl_uefi_x64(vhd(windows_datacenter_core_2025_x64)),
     uefi_x64(vhd(ubuntu_2204_server_x64)),
-    uefi_x64(vhd(windows_datacenter_core_2022_x64))
+    uefi_x64(vhd(windows_datacenter_core_2025_x64))
 )]
 async fn battery_capacity(config: PetriVmConfigOpenVmm) -> Result<(), anyhow::Error> {
     let os_flavor = config.os_flavor();
