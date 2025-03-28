@@ -370,7 +370,7 @@ impl FlowNode for Node {
 
                     if let Some(nextest_filter_expr) = nextest_filter_expr {
                         args.push("--filter-expr".into());
-                        args.push(nextest_filter_expr.into());
+                        args.push(format!("'{nextest_filter_expr}'").into());
                     }
 
                     if run_ignored {

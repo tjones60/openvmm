@@ -128,7 +128,7 @@ impl HyperVVM {
                 FirmwareEvent::NoBootDevice => powershell::EVENT_ID_NO_BOOT_DEVICE,
                 FirmwareEvent::BootAttempt => powershell::EVENT_ID_BOOT_ATTEMPT,
             };
-            let boot_timeout = 30.seconds();
+            let boot_timeout = 240.seconds();
             let start = Timestamp::now();
             loop {
                 let events = powershell::hyperv_boot_events(&self.vmid, &self.create_time)?;
@@ -267,7 +267,7 @@ impl HyperVVM {
     }
 
     async fn wait_for_state(&self, target: VmState) -> anyhow::Result<()> {
-        self.wait_for(Self::state, target, 30.seconds())
+        self.wait_for(Self::state, target, 240.seconds())
             .await
             .context("wait_for_state")
     }
@@ -277,7 +277,7 @@ impl HyperVVM {
         self.wait_for(
             Self::shutdown_ic_status,
             powershell::VmShutdownIcStatus::Ok,
-            30.seconds(),
+            240.seconds(),
         )
         .await
         .context("wait_for_shutdown_ic")

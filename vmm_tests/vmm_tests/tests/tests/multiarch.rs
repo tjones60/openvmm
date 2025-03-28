@@ -25,18 +25,18 @@ async fn frontpage(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
     openvmm_pcat_x64(vhd(windows_datacenter_core_2022_x64)),
     openvmm_pcat_x64(vhd(ubuntu_2204_server_x64)),
     openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
-    openvmm_uefi_x64(vhd(windows_datacenter_core_2025_x64)),
+    openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     openvmm_uefi_x64(vhd(ubuntu_2204_server_x64)),
-    openvmm_openhcl_uefi_x64(vhd(windows_datacenter_core_2025_x64)),
+    openvmm_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     openvmm_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)),
     hyperv_pcat_x64(vhd(windows_datacenter_core_2022_x64)),
     hyperv_pcat_x64(vhd(ubuntu_2204_server_x64)),
     hyperv_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
-    hyperv_uefi_x64(vhd(windows_datacenter_core_2025_x64)),
+    hyperv_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     hyperv_uefi_x64(vhd(ubuntu_2204_server_x64)),
     hyperv_openhcl_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
     hyperv_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)),
-    hyperv_openhcl_uefi_x64(vhd(windows_datacenter_core_2025_x64))
+    hyperv_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64))
 )]
 async fn boot(config: Box<dyn PetriVmConfig>) -> anyhow::Result<()> {
     let (vm, agent) = config.run().await?;
