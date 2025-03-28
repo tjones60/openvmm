@@ -992,7 +992,7 @@ impl IntoPipeline for CheckinGatesCli {
                 // Run TDX and VBS tests only when using a TDX test runner
                 let mut expr = if matches!(&gh_pool, GhRunner::SelfHosted(labels) if labels.iter().any(|s| s.as_str() == "TDX"))
                 {
-                    "test(tdx) and test(vbs)".to_string()
+                    "test(tdx) + test(vbs)".to_string()
                 } else {
                     // start with `all()` to allow easy `and`-based refinements
                     "all() and not test(tdx) and not test(vbs)".to_string()
