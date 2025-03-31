@@ -988,26 +988,49 @@ impl IntoPipeline for CheckinGatesCli {
                 None
             };
 
-            let nextest_filter_expr = {
+            let nextest_filter_expr = Some(
                 // Run TDX and VBS tests only when using a TDX test runner
-                let mut expr = if matches!(&gh_pool, GhRunner::SelfHosted(labels) if labels.iter().any(|s| s.as_str() == "TDX"))
-                {
-                    "test(tdx) + test(vbs)".to_string()
+                if gh_pool.is_self_hosted_with_label("TDX") {
+                    "test(tdx) + (test(vbs) & test(hyperv))".to_string()
                 } else {
                     // start with `all()` to allow easy `and`-based refinements
-                    "all() and not test(tdx) and not test(vbs)".to_string()
-                };
+                    let mut expr = "all() & !test(tdx) & !(test(vbs) & test(hyperv))".to_string();
 
-                if matches!(
-                    target.as_triple().operating_system,
-                    target_lexicon::OperatingSystem::Linux
-                ) {
-                    // - OpenHCL is not supported on KVM
-                    // - No legal way to obtain gen1 pcat blobs on non-msft linux machines
-                    expr = format!("{expr} and not test(openhcl) and not test(pcat_x64)")
+                    if matches!(
+                        target.as_triple().operating_system,
+                        target_lexicon::OperatingSystem::Linux
+                    ) {
+                        // - OpenHCL is not supported on KVM
+                        // - No legal way to obtain gen1 pcat blobs on non-msft linux machines
+                        expr = format!("{expr} & !test(openhcl) & !test(pcat_x64)")
+                    }
+
+                    expr
+                },
+            );
+
+            let (vhds, isos) = if gh_pool.is_self_hosted_with_label("TDX") {
+                (
+                    vec![vmm_test_images::KnownVhd::Gen2WindowsDataCenterCore2025],
+                    vec![],
+                )
+            } else {
+                match target.as_triple().architecture {
+                    target_lexicon::Architecture::X86_64 => (
+                        vec![
+                            vmm_test_images::KnownVhd::FreeBsd13_2,
+                            vmm_test_images::KnownVhd::Gen1WindowsDataCenterCore2022,
+                            vmm_test_images::KnownVhd::Gen2WindowsDataCenterCore2022,
+                            vmm_test_images::KnownVhd::Ubuntu2204Server,
+                        ],
+                        vec![vmm_test_images::KnownIso::FreeBsd13_2],
+                    ),
+                    target_lexicon::Architecture::Aarch64(_) => (
+                        vec![vmm_test_images::KnownVhd::Ubuntu2404ServerAarch64],
+                        vec![],
+                    ),
+                    arch => anyhow::bail!("unsupported arch {arch}"),
                 }
-
-                Some(expr)
             };
 
             let use_vmm_tests_archive = match target {
@@ -1029,6 +1052,8 @@ impl IntoPipeline for CheckinGatesCli {
                             flowey_lib_hvlite::run_cargo_nextest_run::NextestProfile::Ci,
                         nextest_filter_expr: nextest_filter_expr.clone(),
                         dep_artifact_dirs: resolve_vmm_tests_artifacts(ctx),
+                        vhds,
+                        isos,
                         fail_job_on_test_fail: true,
                         artifact_dir: pub_vmm_tests_results.map(|x| ctx.publish_artifact(x)),
                         done: ctx.new_done_handle(),

@@ -296,6 +296,12 @@ pub enum GhRunner {
     RunnerGroup { group: String, labels: Vec<String> },
 }
 
+impl GhRunner {
+    pub fn is_self_hosted_with_label(&self, label: &str) -> bool {
+        matches!(self, GhRunner::SelfHosted(labels) if labels.iter().any(|s| s.as_str() == label))
+    }
+}
+
 /// Parameter type (unstable / stable).
 #[derive(Debug, Clone)]
 pub enum ParameterKind {

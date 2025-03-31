@@ -252,7 +252,7 @@ pub fn try_init_tracing(root_path: &Path) -> anyhow::Result<PetriLogSource> {
         if let Ok(var) = std::env::var("OPENVMM_LOG").or_else(|_| std::env::var("HVLITE_LOG")) {
             var.parse().unwrap()
         } else {
-            Targets::new().with_default(LevelFilter::INFO)
+            Targets::new().with_default(LevelFilter::DEBUG)
         };
 
     // Canonicalize so that printed attachment paths are most likely to work.

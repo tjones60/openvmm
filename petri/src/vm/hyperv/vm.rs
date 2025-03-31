@@ -287,6 +287,8 @@ impl HyperVVM {
         powershell::vm_shutdown_ic_status(&self.vmid)
     }
 
+    // TODO: replace timeouts throughout the hyper-v petri infrastructure
+    // with a watchdog
     async fn wait_for<T: std::fmt::Debug + PartialEq>(
         &self,
         f: fn(&Self) -> anyhow::Result<T>,

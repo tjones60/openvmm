@@ -26,8 +26,7 @@ use vmm_test_macros::vmm_test;
     openvmm_pcat_x64(iso(freebsd_13_2_x64)),
     openvmm_openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2022_x64)),
     openvmm_openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64)),
-    hyperv_openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2022_x64)),
-    hyperv_openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64)),
+    hyperv_openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2025_x64)),
     hyperv_openhcl_uefi_x64[tdx](vhd(windows_datacenter_core_2025_x64))
 )]
 async fn boot_no_agent(config: Box<dyn PetriVmConfig>) -> anyhow::Result<()> {
