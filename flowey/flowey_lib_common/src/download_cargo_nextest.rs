@@ -3,7 +3,7 @@
 
 //! Download (and optionally, install) a copy of `cargo-nextest`.
 
-// use crate::cache::CacheHit;
+use crate::cache::CacheHit;
 use crate::cache::CacheResult;
 use flowey::node::prelude::*;
 
@@ -86,7 +86,7 @@ impl FlowNode for Node {
 
             let install_standalone = install_standalone.claim(ctx);
             let cache_dir = cache_dir.claim(ctx);
-            let _hitvar = hitvar.claim(ctx);
+            let hitvar = hitvar.claim(ctx);
             let cargo_install_persistent_dir = cargo_install_persistent_dir.claim(ctx);
             let rust_toolchain = rust_toolchain.claim(ctx);
             let cargo_home = cargo_home.claim(ctx);
@@ -99,14 +99,12 @@ impl FlowNode for Node {
                 let cargo_home = rt.read(cargo_home);
 
                 let cached_bin_path = cache_dir.join(&cargo_nextest_bin);
-                // TODO: testing cargo install, remove before merge
-                let cached = None;
-                // let cached = if matches!(rt.read(hitvar), CacheHit::Hit) {
-                //     assert!(cached_bin_path.exists());
-                //     Some(cached_bin_path.clone())
-                // } else {
-                //     None
-                // };
+                let cached = if matches!(rt.read(hitvar), CacheHit::Hit) {
+                    assert!(cached_bin_path.exists());
+                    Some(cached_bin_path.clone())
+                } else {
+                    None
+                };
 
                 let (cargo_home, path_to_cargo_nextest) = if let Some(cached) = cached {
                     (cargo_home, cached)
