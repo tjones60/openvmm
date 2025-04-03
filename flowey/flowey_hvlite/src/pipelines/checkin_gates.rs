@@ -18,6 +18,8 @@ use flowey_lib_hvlite::run_cargo_build::common::CommonProfile;
 use flowey_lib_hvlite::run_cargo_build::common::CommonTriple;
 use std::path::PathBuf;
 use target_lexicon::Triple;
+use vmm_test_images::KnownIso;
+use vmm_test_images::KnownVhd;
 
 #[derive(Copy, Clone, clap::ValueEnum)]
 enum PipelineConfig {
@@ -929,7 +931,19 @@ impl IntoPipeline for CheckinGatesCli {
             label: &'a str,
             target: CommonTriple,
             resolve_vmm_tests_artifacts: vmm_tests_artifact_builders::ResolveVmmTestsDepArtifacts,
+            nextest_filter_expr: String,
+            vhds: Vec<KnownVhd>,
+            isos: Vec<KnownIso>,
         }
+
+        let standard_filter = "all() & !test(tdx) & !(test(vbs) & test(hyperv))";
+        let standard_x64_vhds = &[
+            KnownVhd::FreeBsd13_2,
+            KnownVhd::Gen1WindowsDataCenterCore2022,
+            KnownVhd::Gen2WindowsDataCenterCore2022,
+            KnownVhd::Ubuntu2204Server,
+        ];
+        let standard_x64_isos = &[KnownIso::FreeBsd13_2];
 
         for VmmTestJobParams {
             platform,
@@ -938,6 +952,9 @@ impl IntoPipeline for CheckinGatesCli {
             label,
             target,
             resolve_vmm_tests_artifacts,
+            nextest_filter_expr,
+            vhds,
+            isos,
         } in [
             VmmTestJobParams {
                 platform: FlowPlatform::Windows,
@@ -946,6 +963,9 @@ impl IntoPipeline for CheckinGatesCli {
                 label: "x64-windows-intel",
                 target: CommonTriple::X86_64_WINDOWS_MSVC,
                 resolve_vmm_tests_artifacts: vmm_tests_artifacts_windows_intel_x86,
+                nextest_filter_expr: standard_filter.to_string(),
+                vhds: standard_x64_vhds.to_vec(),
+                isos: standard_x64_isos.to_vec(),
             },
             VmmTestJobParams {
                 platform: FlowPlatform::Windows,
@@ -954,6 +974,9 @@ impl IntoPipeline for CheckinGatesCli {
                 label: "x64-windows-intel-tdx",
                 target: CommonTriple::X86_64_WINDOWS_MSVC,
                 resolve_vmm_tests_artifacts: vmm_tests_artifacts_windows_intel_tdx_x86,
+                nextest_filter_expr: "test(tdx) + (test(vbs) & test(hyperv))".to_string(),
+                vhds: vec![KnownVhd::Gen2WindowsDataCenterCore2025],
+                isos: vec![],
             },
             VmmTestJobParams {
                 platform: FlowPlatform::Windows,
@@ -962,6 +985,9 @@ impl IntoPipeline for CheckinGatesCli {
                 label: "x64-windows-amd",
                 target: CommonTriple::X86_64_WINDOWS_MSVC,
                 resolve_vmm_tests_artifacts: vmm_tests_artifacts_windows_amd_x86,
+                nextest_filter_expr: standard_filter.to_string(),
+                vhds: standard_x64_vhds.to_vec(),
+                isos: standard_x64_isos.to_vec(),
             },
             VmmTestJobParams {
                 platform: FlowPlatform::Linux(FlowPlatformLinuxDistro::Ubuntu),
@@ -970,6 +996,11 @@ impl IntoPipeline for CheckinGatesCli {
                 label: "x64-linux",
                 target: CommonTriple::X86_64_LINUX_GNU,
                 resolve_vmm_tests_artifacts: vmm_tests_artifacts_linux_x86,
+                nextest_filter_expr: format!(
+                    "{standard_filter} & !test(openhcl) & !test(pcat_x64)"
+                ),
+                vhds: standard_x64_vhds.to_vec(),
+                isos: standard_x64_isos.to_vec(),
             },
             VmmTestJobParams {
                 platform: FlowPlatform::Windows,
@@ -978,6 +1009,9 @@ impl IntoPipeline for CheckinGatesCli {
                 label: "aarch64-windows",
                 target: CommonTriple::AARCH64_WINDOWS_MSVC,
                 resolve_vmm_tests_artifacts: vmm_tests_artifacts_windows_aarch64,
+                nextest_filter_expr: standard_filter.to_string(),
+                vhds: vec![KnownVhd::Ubuntu2404ServerAarch64],
+                isos: vec![],
             },
         ] {
             let test_label = format!("{label}-vmm-tests");
@@ -986,51 +1020,6 @@ impl IntoPipeline for CheckinGatesCli {
                 Some(pipeline.new_artifact(&test_label).0)
             } else {
                 None
-            };
-
-            let nextest_filter_expr = Some(
-                // Run TDX and VBS tests only when using a TDX test runner
-                if gh_pool.is_self_hosted_with_label("TDX") {
-                    "test(tdx) + (test(vbs) & test(hyperv))".to_string()
-                } else {
-                    // start with `all()` to allow easy `and`-based refinements
-                    let mut expr = "all() & !test(tdx) & !(test(vbs) & test(hyperv))".to_string();
-
-                    if matches!(
-                        target.as_triple().operating_system,
-                        target_lexicon::OperatingSystem::Linux
-                    ) {
-                        // - OpenHCL is not supported on KVM
-                        // - No legal way to obtain gen1 pcat blobs on non-msft linux machines
-                        expr = format!("{expr} & !test(openhcl) & !test(pcat_x64)")
-                    }
-
-                    expr
-                },
-            );
-
-            let (vhds, isos) = if gh_pool.is_self_hosted_with_label("TDX") {
-                (
-                    vec![vmm_test_images::KnownVhd::Gen2WindowsDataCenterCore2025],
-                    vec![],
-                )
-            } else {
-                match target.as_triple().architecture {
-                    target_lexicon::Architecture::X86_64 => (
-                        vec![
-                            vmm_test_images::KnownVhd::FreeBsd13_2,
-                            vmm_test_images::KnownVhd::Gen1WindowsDataCenterCore2022,
-                            vmm_test_images::KnownVhd::Gen2WindowsDataCenterCore2022,
-                            vmm_test_images::KnownVhd::Ubuntu2204Server,
-                        ],
-                        vec![vmm_test_images::KnownIso::FreeBsd13_2],
-                    ),
-                    target_lexicon::Architecture::Aarch64(_) => (
-                        vec![vmm_test_images::KnownVhd::Ubuntu2404ServerAarch64],
-                        vec![],
-                    ),
-                    arch => anyhow::bail!("unsupported arch {arch}"),
-                }
             };
 
             let use_vmm_tests_archive = match target {
@@ -1050,7 +1039,7 @@ impl IntoPipeline for CheckinGatesCli {
                         target: target.as_triple(),
                         nextest_profile:
                             flowey_lib_hvlite::run_cargo_nextest_run::NextestProfile::Ci,
-                        nextest_filter_expr: nextest_filter_expr.clone(),
+                        nextest_filter_expr: Some(nextest_filter_expr),
                         dep_artifact_dirs: resolve_vmm_tests_artifacts(ctx),
                         vhds,
                         isos,
