@@ -936,14 +936,17 @@ impl IntoPipeline for CheckinGatesCli {
             isos: Vec<KnownIso>,
         }
 
-        let standard_filter = "all() & !test(tdx) & !(test(vbs) & test(hyperv))";
-        let standard_x64_vhds = &[
+        // standard VM-based CI machines should be able to run all tests except
+        // those that require special hardware features (tdx) or need to be run
+        // on a baremetal host (hyper-v vbs doesn't seem to work nested)
+        let standard_filter = "all() & !test(tdx) & !(test(vbs) & test(hyperv))".to_string();
+        let standard_x64_vhds = vec![
             KnownVhd::FreeBsd13_2,
             KnownVhd::Gen1WindowsDataCenterCore2022,
             KnownVhd::Gen2WindowsDataCenterCore2022,
             KnownVhd::Ubuntu2204Server,
         ];
-        let standard_x64_isos = &[KnownIso::FreeBsd13_2];
+        let standard_x64_isos = vec![KnownIso::FreeBsd13_2];
 
         for VmmTestJobParams {
             platform,
@@ -963,9 +966,9 @@ impl IntoPipeline for CheckinGatesCli {
                 label: "x64-windows-intel",
                 target: CommonTriple::X86_64_WINDOWS_MSVC,
                 resolve_vmm_tests_artifacts: vmm_tests_artifacts_windows_intel_x86,
-                nextest_filter_expr: standard_filter.to_string(),
-                vhds: standard_x64_vhds.to_vec(),
-                isos: standard_x64_isos.to_vec(),
+                nextest_filter_expr: standard_filter.clone(),
+                vhds: standard_x64_vhds.clone(),
+                isos: standard_x64_isos.clone(),
             },
             VmmTestJobParams {
                 platform: FlowPlatform::Windows,
@@ -985,9 +988,9 @@ impl IntoPipeline for CheckinGatesCli {
                 label: "x64-windows-amd",
                 target: CommonTriple::X86_64_WINDOWS_MSVC,
                 resolve_vmm_tests_artifacts: vmm_tests_artifacts_windows_amd_x86,
-                nextest_filter_expr: standard_filter.to_string(),
-                vhds: standard_x64_vhds.to_vec(),
-                isos: standard_x64_isos.to_vec(),
+                nextest_filter_expr: standard_filter.clone(),
+                vhds: standard_x64_vhds.clone(),
+                isos: standard_x64_isos.clone(),
             },
             VmmTestJobParams {
                 platform: FlowPlatform::Linux(FlowPlatformLinuxDistro::Ubuntu),
@@ -996,11 +999,13 @@ impl IntoPipeline for CheckinGatesCli {
                 label: "x64-linux",
                 target: CommonTriple::X86_64_LINUX_GNU,
                 resolve_vmm_tests_artifacts: vmm_tests_artifacts_linux_x86,
+                // - OpenHCL is not supported on KVM
+                // - No legal way to obtain gen1 pcat blobs on non-msft linux machines
                 nextest_filter_expr: format!(
                     "{standard_filter} & !test(openhcl) & !test(pcat_x64)"
                 ),
-                vhds: standard_x64_vhds.to_vec(),
-                isos: standard_x64_isos.to_vec(),
+                vhds: standard_x64_vhds,
+                isos: standard_x64_isos,
             },
             VmmTestJobParams {
                 platform: FlowPlatform::Windows,
@@ -1009,7 +1014,7 @@ impl IntoPipeline for CheckinGatesCli {
                 label: "aarch64-windows",
                 target: CommonTriple::AARCH64_WINDOWS_MSVC,
                 resolve_vmm_tests_artifacts: vmm_tests_artifacts_windows_aarch64,
-                nextest_filter_expr: standard_filter.to_string(),
+                nextest_filter_expr: "all()".to_string(),
                 vhds: vec![KnownVhd::Ubuntu2404ServerAarch64],
                 isos: vec![],
             },
