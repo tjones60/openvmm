@@ -7,6 +7,7 @@ use anyhow::Context as _;
 use hyperv_ic_resources::kvp::KvpRpc;
 use mesh::rpc::RpcSend as _;
 use petri::PetriVmConfig;
+use petri::ShutdownKind;
 use petri::openvmm::NIC_MAC_ADDRESS;
 use petri::openvmm::PetriVmConfigOpenVmm;
 use vmm_core_defs::HaltReason;
@@ -39,8 +40,8 @@ async fn frontpage(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
     hyperv_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     hyperv_uefi_x64(vhd(ubuntu_2204_server_x64)),
     hyperv_openhcl_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
-    hyperv_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)),
-    hyperv_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64))
+    hyperv_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
+    hyperv_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))
 )]
 async fn boot(config: Box<dyn PetriVmConfig>) -> anyhow::Result<()> {
     let (vm, agent) = config.run().await?;
@@ -126,6 +127,27 @@ async fn kvp_ic(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
     assert_eq!(gateway.to_string(), "10.0.0.1");
 
     agent.power_off().await?;
+    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    Ok(())
+}
+
+/// Basic boot test without agent
+#[vmm_test(
+    openvmm_pcat_x64(vhd(freebsd_13_2_x64)),
+    openvmm_pcat_x64(iso(freebsd_13_2_x64)),
+    openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
+    openvmm_openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2022_x64)),
+    openvmm_openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64)),
+    hyperv_openhcl_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
+    hyperv_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
+    hyperv_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)),
+    hyperv_openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2025_x64)),
+    hyperv_openhcl_uefi_x64[tdx](vhd(windows_datacenter_core_2025_x64))
+)]
+async fn boot_no_agent(config: Box<dyn PetriVmConfig>) -> anyhow::Result<()> {
+    let mut vm = config.run_without_agent().await?;
+    vm.wait_for_successful_boot_event().await?;
+    vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
     assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
     Ok(())
 }

@@ -57,10 +57,23 @@ impl HyperVVM {
         }
 
         // Delete the VM if it already exists
+        let cleanup = |vmid: &Guid| -> anyhow::Result<()> {
+            hvc::hvc_ensure_off(vmid)?;
+            powershell::run_remove_vm(vmid)
+        };
+
         if let Ok(vmids) = powershell::vm_id_from_name(&name) {
             for vmid in vmids {
-                hvc::hvc_ensure_off(&vmid)?;
-                powershell::run_remove_vm(&vmid)?;
+                match cleanup(&vmid) {
+                    Ok(_) => {
+                        tracing::info!("Successfully cleaned up VM from previous test run ({vmid})")
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            "Failed to clean up VM from previous test run ({vmid}): {e:?}"
+                        )
+                    }
+                }
             }
         }
 
@@ -288,7 +301,13 @@ impl HyperVVM {
             240.seconds(),
         )
         .await
-        .context("wait_for_shutdown_ic")
+        .context("wait_for_shutdown_ic")?;
+
+        // Wait an extra second for the shutdown IC to *really* be ready
+        PolledTimer::new(&self.driver)
+            .sleep(Duration::from_secs(5))
+            .await;
+        Ok(())
     }
 
     fn shutdown_ic_status(&self) -> anyhow::Result<powershell::VmShutdownIcStatus> {

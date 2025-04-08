@@ -345,10 +345,9 @@ impl PetriVmConfigHyperV {
             let openhcl_log_file = self.log_source.log_file("openhcl")?;
             log_tasks.push(self.driver.spawn("openhcl-log", {
                 let driver = self.driver.clone();
-                let name = self.name.clone();
+                let vmid = *vm.vmid();
                 async move {
-                    let diag_client =
-                        diag_client::DiagClient::from_hyperv_name(driver.clone(), &name)?;
+                    let diag_client = diag_client::DiagClient::from_hyperv_id(driver.clone(), vmid);
                     loop {
                         diag_client.wait_for_server().await?;
                         crate::kmsg_log_task(
@@ -360,7 +359,7 @@ impl PetriVmConfigHyperV {
                 }
             }));
             Some(OpenHclDiagHandler::new(
-                diag_client::DiagClient::from_hyperv_name(self.driver.clone(), &self.name)?,
+                diag_client::DiagClient::from_hyperv_id(self.driver.clone(), *vm.vmid()),
             ))
         } else {
             None
