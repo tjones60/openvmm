@@ -151,3 +151,26 @@ async fn boot_no_agent(config: Box<dyn PetriVmConfig>) -> anyhow::Result<()> {
     assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
     Ok(())
 }
+
+/// Boot our guest-test UEFI image, which will run some tests,
+/// and then purposefully triple fault itself via an expiring
+/// watchdog timer.
+#[vmm_test(
+    openvmm_uefi_x64(guest_test_uefi_x64),
+    openvmm_uefi_aarch64(guest_test_uefi_aarch64),
+    openvmm_openhcl_uefi_x64(guest_test_uefi_x64)
+)]
+async fn guest_test_uefi(config: Box<dyn PetriVmConfig>) -> anyhow::Result<()> {
+    let vm = config
+        .with_windows_secure_boot_template()
+        .run_without_agent()
+        .await?;
+    // No boot event check, UEFI watchdog gets fired before ExitBootServices
+    let halt_reason = vm.wait_for_teardown().await?;
+    tracing::debug!("vm halt reason: {halt_reason:?}");
+    #[cfg(guest_arch = "x86_64")]
+    assert!(matches!(halt_reason, HaltReason::TripleFault { .. }));
+    #[cfg(guest_arch = "aarch64")]
+    assert!(matches!(halt_reason, HaltReason::Reset));
+    Ok(())
+}
