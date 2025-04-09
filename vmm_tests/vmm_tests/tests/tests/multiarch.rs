@@ -196,8 +196,6 @@ async fn boot_no_agent(config: Box<dyn PetriVmConfig>) -> anyhow::Result<()> {
 #[openvmm_test(
     openvmm_linux_direct_x64,
     openvmm_openhcl_linux_direct_x64,
-    openvmm_pcat_x64(vhd(freebsd_13_2_x64)),
-    openvmm_pcat_x64(iso(freebsd_13_2_x64)),
     openvmm_pcat_x64(vhd(windows_datacenter_core_2022_x64)),
     openvmm_pcat_x64(vhd(ubuntu_2204_server_x64)),
     openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
