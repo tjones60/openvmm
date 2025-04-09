@@ -18,7 +18,7 @@ use vmm_core_defs::HaltReason;
 use vmm_test_macros::openvmm_test;
 
 /// Basic boot test with the VTL 0 alias map.
-// TODO: Remove once #912 is fixed.
+// TODO: Remove once #73 is fixed.
 #[openvmm_test(
     openhcl_linux_direct_x64,
     openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),

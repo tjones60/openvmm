@@ -133,16 +133,17 @@ async fn kvp_ic(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
 }
 
 /// Validate we can reboot a VM and reconnect to pipette.
+// TODO: Reenable guests that use the framebuffer once #74 is fixed.
 #[openvmm_test(
     openvmm_linux_direct_x64,
     openvmm_openhcl_linux_direct_x64,
-    openvmm_pcat_x64(vhd(windows_datacenter_core_2022_x64)),
-    openvmm_pcat_x64(vhd(ubuntu_2204_server_x64)),
-    openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
-    openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
-    openvmm_uefi_x64(vhd(ubuntu_2204_server_x64)),
-    openvmm_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
-    openvmm_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))
+    // openvmm_pcat_x64(vhd(windows_datacenter_core_2022_x64)),
+    // openvmm_pcat_x64(vhd(ubuntu_2204_server_x64)),
+    // openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
+    // openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
+    // openvmm_uefi_x64(vhd(ubuntu_2204_server_x64)),
+    // openvmm_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
+    // openvmm_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))
 )]
 async fn reboot(config: PetriVmConfigOpenVmm) -> Result<(), anyhow::Error> {
     let (mut vm, agent) = config.run().await?;
@@ -193,16 +194,17 @@ async fn boot_no_agent(config: Box<dyn PetriVmConfig>) -> anyhow::Result<()> {
 }
 
 /// Basic reboot test without agent
+// TODO: Reenable guests that use the framebuffer once #74 is fixed.
 #[openvmm_test(
     openvmm_linux_direct_x64,
     openvmm_openhcl_linux_direct_x64,
-    openvmm_pcat_x64(vhd(windows_datacenter_core_2022_x64)),
-    openvmm_pcat_x64(vhd(ubuntu_2204_server_x64)),
-    openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
-    openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
-    openvmm_uefi_x64(vhd(ubuntu_2204_server_x64)),
-    openvmm_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
-    openvmm_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)),
+    // openvmm_pcat_x64(vhd(windows_datacenter_core_2022_x64)),
+    // openvmm_pcat_x64(vhd(ubuntu_2204_server_x64)),
+    // openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
+    // openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
+    // openvmm_uefi_x64(vhd(ubuntu_2204_server_x64)),
+    // openvmm_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
+    // openvmm_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)),
     openvmm_openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2022_x64)),
     openvmm_openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64)),
 )]

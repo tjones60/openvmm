@@ -303,9 +303,9 @@ impl HyperVVM {
         .await
         .context("wait_for_shutdown_ic")?;
 
-        // Wait an extra second for the shutdown IC to *really* be ready
+        // Wait a bit longer for the shutdown IC to *really* be ready
         PolledTimer::new(&self.driver)
-            .sleep(Duration::from_secs(5))
+            .sleep(Duration::from_secs(10))
             .await;
         Ok(())
     }
