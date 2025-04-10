@@ -51,6 +51,8 @@ pub struct PetriVmConfigHyperV {
     guest_state_isolation_type: powershell::HyperVGuestStateIsolationType,
     // Specifies the amount of memory, in bytes, to assign to the virtual machine.
     memory: u64,
+    // Specifies the number of virtual processors to assign to the virtual machine.
+    proc_count: u32,
     // Specifies the path to a virtual hard disk file(s) to attach to the
     // virtual machine as SCSI (Gen2) or IDE (Gen1) drives.
     vhd_paths: Vec<Vec<PathBuf>>,
@@ -201,6 +203,7 @@ impl PetriVmConfigHyperV {
             generation,
             guest_state_isolation_type,
             memory: 0x1_0000_0000,
+            proc_count: 2,
             vhd_paths: vec![vec![reference_disk_path.clone().into()]],
             secure_boot_template: matches!(generation, powershell::HyperVGeneration::Two)
                 .then_some(match firmware.os_flavor() {
@@ -220,6 +223,12 @@ impl PetriVmConfigHyperV {
             temp_dir,
             log_source: params.logger.clone(),
         })
+    }
+
+    /// Set the VM to use the specified number of virtual processors
+    pub fn with_processors(mut self, count: u32) -> Self {
+        self.proc_count = count;
+        self
     }
 
     /// Build and boot the requested VM. Does not configure and start pipette.
@@ -254,9 +263,7 @@ impl PetriVmConfigHyperV {
             self.driver.clone(),
         )?;
 
-        // Hard code the processor count to 2 for now, to match the openvmm
-        // configuration.
-        vm.set_processor_count(2)?;
+        vm.set_processor_count(self.proc_count)?;
 
         if let Some(igvm_file) = &self.openhcl_igvm {
             // TODO: only increase VTL2 memory on debug builds
