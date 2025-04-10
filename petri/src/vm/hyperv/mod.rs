@@ -89,6 +89,10 @@ impl PetriVmConfig for PetriVmConfigHyperV {
     fn with_windows_secure_boot_template(self: Box<Self>) -> Box<dyn PetriVmConfig> {
         Box::new(Self::with_windows_secure_boot_template(*self))
     }
+
+    fn with_processors(self: Box<Self>, count: u32) -> Box<dyn PetriVmConfig> {
+        Box::new(Self::with_processors(*self, count))
+    }
 }
 
 /// A running VM that tests can interact with.
@@ -223,12 +227,6 @@ impl PetriVmConfigHyperV {
             temp_dir,
             log_source: params.logger.clone(),
         })
-    }
-
-    /// Set the VM to use the specified number of virtual processors
-    pub fn with_processors(mut self, count: u32) -> Self {
-        self.proc_count = count;
-        self
     }
 
     /// Build and boot the requested VM. Does not configure and start pipette.
@@ -384,6 +382,12 @@ impl PetriVmConfigHyperV {
             openhcl_diag_handler,
             log_tasks,
         })
+    }
+
+    /// Set the VM to use the specified number of virtual processors.
+    pub fn with_processors(mut self, count: u32) -> Self {
+        self.proc_count = count;
+        self
     }
 
     /// Inject Windows secure boot templates into the VM's UEFI.
