@@ -301,7 +301,15 @@ impl HyperVVM {
             240.seconds(),
         )
         .await
-        .context("wait_for_shutdown_ic")
+        .context("wait_for_shutdown_ic")?;
+
+        // Wait an extra second for the shutdown IC to *really* be ready
+        // Otherwise, the VM can get into a state where it cannot be stopped
+        // or deleted. This has been observed with Ubuntu VMs.
+        PolledTimer::new(&self.driver)
+            .sleep(Duration::from_secs(1))
+            .await;
+        Ok(())
     }
 
     fn shutdown_ic_status(&self) -> anyhow::Result<powershell::VmShutdownIcStatus> {
