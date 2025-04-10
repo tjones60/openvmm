@@ -2014,21 +2014,27 @@ async fn new_underhill_vm(
                 },
             };
 
+            let no_persistent_uefi_nvram = dps.general.suppress_attestation.unwrap_or(false);
+
             deps_hyperv_firmware_uefi = Some(dev::HyperVFirmwareUefi {
                 config,
                 logger: Box::new(UnderhillLogger {
                     get: get_client.clone(),
                 }),
-                nvram_storage: Box::new(HclCompatNvram::new(
-                    VmgsStorageBackendAdapter(
-                        vmgs_client
-                            .as_non_volatile_store(vmgs::FileId::BIOS_NVRAM, true)
-                            .context("failed to instantiate UEFI NVRAM store")?,
-                    ),
-                    Some(HclCompatNvramQuirks {
-                        skip_corrupt_vars_with_missing_null_term: true,
-                    }),
-                )),
+                nvram_storage: if no_persistent_uefi_nvram {
+                    Box::new(uefi_nvram_storage::in_memory::InMemoryNvram::new())
+                } else {
+                    Box::new(HclCompatNvram::new(
+                        VmgsStorageBackendAdapter(
+                            vmgs_client
+                                .as_non_volatile_store(vmgs::FileId::BIOS_NVRAM, true)
+                                .context("failed to instantiate UEFI NVRAM store")?,
+                        ),
+                        Some(HclCompatNvramQuirks {
+                            skip_corrupt_vars_with_missing_null_term: true,
+                        }),
+                    ))
+                },
                 generation_id_recv: get_client
                     .take_generation_id_recv()
                     .await
