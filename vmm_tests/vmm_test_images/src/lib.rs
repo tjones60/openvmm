@@ -30,6 +30,7 @@ pub enum KnownVhd {
     FreeBsd13_2,
     Ubuntu2204Server,
     Ubuntu2404ServerAarch64,
+    SampleVmgs,
 }
 
 struct KnownVhdMeta {
@@ -79,6 +80,11 @@ const KNOWN_VHD_METADATA: &[KnownVhdMeta] = &[
         KnownVhd::Ubuntu2404ServerAarch64,
         petri_artifacts_vmm_test::artifacts::test_vhd::UBUNTU_2404_SERVER_AARCH64::FILENAME,
         petri_artifacts_vmm_test::artifacts::test_vhd::UBUNTU_2404_SERVER_AARCH64::SIZE,
+    ),
+    KnownVhdMeta::new(
+        KnownVhd::SampleVmgs,
+        petri_artifacts_vmm_test::artifacts::test_vmgs::SAMPLE_VMGS::FILENAME,
+        petri_artifacts_vmm_test::artifacts::test_vmgs::SAMPLE_VMGS::SIZE,
     ),
 ];
 

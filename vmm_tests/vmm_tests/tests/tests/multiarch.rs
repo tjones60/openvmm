@@ -8,10 +8,12 @@ use hyperv_ic_resources::kvp::KvpRpc;
 use jiff::SignedDuration;
 use mesh::rpc::RpcSend;
 use petri::PetriVmConfig;
+use petri::ResolvedArtifact;
 use petri::SIZE_1_GB;
 use petri::ShutdownKind;
 use petri::openvmm::NIC_MAC_ADDRESS;
 use petri::openvmm::PetriVmConfigOpenVmm;
+use petri_artifacts_vmm_test::artifacts::test_vmgs::SAMPLE_VMGS;
 use std::time::Duration;
 use vmm_core_defs::HaltReason;
 use vmm_test_macros::openvmm_test;
@@ -362,6 +364,37 @@ async fn five_gb(config: PetriVmConfigOpenVmm) -> Result<(), anyhow::Error> {
         size_kb * 1024,
         expected_size
     );
+
+    agent.power_off().await?;
+    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+
+    Ok(())
+}
+
+/// Verify that UEFI default boots even if invalid boot entries exist
+#[openvmm_test(
+    openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64))[SAMPLE_VMGS],
+    openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64))[SAMPLE_VMGS],
+    openvmm_uefi_x64(vhd(ubuntu_2204_server_x64))[SAMPLE_VMGS],
+    openvmm_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64))[SAMPLE_VMGS],
+    openvmm_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))[SAMPLE_VMGS]
+)]
+async fn default_boot(
+    config: PetriVmConfigOpenVmm,
+    (sample_vmgs,): (ResolvedArtifact<SAMPLE_VMGS>,),
+) -> Result<(), anyhow::Error> {
+    let vmgs_file = {
+        let mut sample_vmgs = std::fs::File::open(sample_vmgs)?;
+        let mut vmgs_file = tempfile::tempfile()?;
+        std::io::copy(&mut sample_vmgs, &mut vmgs_file)?;
+        vmgs_file
+    };
+
+    let (vm, agent) = config
+        .with_vmgs(vmgs_file)
+        .with_default_boot_always_attempt(true)
+        .run()
+        .await?;
 
     agent.power_off().await?;
     assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
