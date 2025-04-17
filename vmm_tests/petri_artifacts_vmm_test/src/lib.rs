@@ -360,6 +360,22 @@ pub mod artifacts {
             const SIZE: u64 = 4245487616;
         }
     }
+
+    /// Test VMGS artifacts
+    pub mod test_vmgs {
+        use crate::tags::IsHostedOnHvliteAzureBlobStore;
+        use petri_artifacts_core::declare_artifacts;
+
+        declare_artifacts! {
+            /// Sample VMGS for use in tests
+            SAMPLE_VMGS,
+        }
+
+        impl IsHostedOnHvliteAzureBlobStore for SAMPLE_VMGS {
+            const FILENAME: &'static str = "sample-vmgs.vhd";
+            const SIZE: u64 = 4194816;
+        }
+    }
 }
 
 /// Artifact tag trait declarations
