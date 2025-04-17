@@ -262,8 +262,12 @@ impl PetriVmConfigOpenVmm {
 
     /// Specifies an existing VMGS file to use
     pub fn with_vmgs(mut self, vmgs_file: std::fs::File) -> Self {
-        self.config.vmgs_disk =
-            Some(disk_backend_resources::FixedVhd1DiskHandle(vmgs_file).into_resource());
+        let vmgs_disk = disk_backend_resources::FixedVhd1DiskHandle(vmgs_file).into_resource();
+        if self.firmware.is_openhcl() {
+            self.ged.as_mut().unwrap().vmgs_disk = Some(vmgs_disk);
+        } else {
+            self.config.vmgs_disk = Some(vmgs_disk);
+        }
         self
     }
 
