@@ -368,10 +368,10 @@ pub mod artifacts {
 
         declare_artifacts! {
             /// Sample VMGS for use in tests
-            SAMPLE_VMGS,
+            VMGS_WITH_BOOT_ENTRY,
         }
 
-        impl IsHostedOnHvliteAzureBlobStore for SAMPLE_VMGS {
+        impl IsHostedOnHvliteAzureBlobStore for VMGS_WITH_BOOT_ENTRY {
             const FILENAME: &'static str = "sample-vmgs.vhd";
             const SIZE: u64 = 4194816;
         }
