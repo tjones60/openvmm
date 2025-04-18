@@ -14,7 +14,6 @@ use disk_backend_resources::layer::RamDiskLayerHandle;
 use fs_err::File;
 use gdma_resources::GdmaDeviceHandle;
 use gdma_resources::VportDefinition;
-use get_resources::ged::FirmwareEvent;
 use hvlite_defs::config::Config;
 use hvlite_defs::config::DeviceVtl;
 use hvlite_defs::config::LoadMode;
@@ -286,12 +285,6 @@ impl PetriVmConfigOpenVmm {
         } else {
             self.config.vmgs_disk = Some(vmgs_disk);
         }
-        self
-    }
-
-    /// Specifies the expected boot event for the VM
-    pub fn with_expected_boot_event(mut self, event: FirmwareEvent) -> Self {
-        self.resources.expected_boot_event = Some(event);
         self
     }
 

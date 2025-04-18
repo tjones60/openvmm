@@ -14,7 +14,7 @@ use petri::SIZE_1_GB;
 use petri::ShutdownKind;
 use petri::openvmm::NIC_MAC_ADDRESS;
 use petri::openvmm::PetriVmConfigOpenVmm;
-use petri_artifacts_vmm_test::artifacts::test_vmgs::SAMPLE_VMGS;
+use petri_artifacts_vmm_test::artifacts::test_vmgs::VMGS_WITH_BOOT_ENTRY;
 use std::time::Duration;
 use vmm_core_defs::HaltReason;
 use vmm_test_macros::openvmm_test;
@@ -373,19 +373,20 @@ async fn five_gb(config: PetriVmConfigOpenVmm) -> Result<(), anyhow::Error> {
 }
 
 /// Verify that UEFI default boots even if invalid boot entries exist
+/// when `default_boot_always_attempt` is enabled.
 #[openvmm_test(
-    openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64))[SAMPLE_VMGS],
-    openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64))[SAMPLE_VMGS],
-    openvmm_uefi_x64(vhd(ubuntu_2204_server_x64))[SAMPLE_VMGS],
-    openvmm_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64))[SAMPLE_VMGS],
-    openvmm_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))[SAMPLE_VMGS]
+    openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64))[VMGS_WITH_BOOT_ENTRY],
+    openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64))[VMGS_WITH_BOOT_ENTRY],
+    openvmm_uefi_x64(vhd(ubuntu_2204_server_x64))[VMGS_WITH_BOOT_ENTRY],
+    openvmm_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64))[VMGS_WITH_BOOT_ENTRY],
+    openvmm_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))[VMGS_WITH_BOOT_ENTRY]
 )]
 async fn default_boot(
     config: PetriVmConfigOpenVmm,
-    (sample_vmgs,): (ResolvedArtifact<SAMPLE_VMGS>,),
+    (initial_vmgs,): (ResolvedArtifact<VMGS_WITH_BOOT_ENTRY>,),
 ) -> Result<(), anyhow::Error> {
     let (vm, agent) = config
-        .with_vmgs(sample_vmgs)
+        .with_vmgs(initial_vmgs)
         .with_default_boot_always_attempt(true)
         .run()
         .await?;
@@ -397,24 +398,23 @@ async fn default_boot(
 }
 
 /// Verify that UEFI fails to boot if invalid boot entries exist
+///
+/// This test exists to ensure we are not getting a false positive for
+/// the `default_boot` test above.
 #[openvmm_test(
-    openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64))[SAMPLE_VMGS],
-    openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64))[SAMPLE_VMGS],
-    openvmm_uefi_x64(vhd(ubuntu_2204_server_x64))[SAMPLE_VMGS],
-    openvmm_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64))[SAMPLE_VMGS],
-    openvmm_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))[SAMPLE_VMGS]
+    openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64))[VMGS_WITH_BOOT_ENTRY],
+    openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64))[VMGS_WITH_BOOT_ENTRY],
+    openvmm_uefi_x64(vhd(ubuntu_2204_server_x64))[VMGS_WITH_BOOT_ENTRY],
+    openvmm_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64))[VMGS_WITH_BOOT_ENTRY],
+    openvmm_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))[VMGS_WITH_BOOT_ENTRY]
 )]
 async fn no_default_boot(
     config: PetriVmConfigOpenVmm,
-    (sample_vmgs,): (ResolvedArtifact<SAMPLE_VMGS>,),
+    (initial_vmgs,): (ResolvedArtifact<VMGS_WITH_BOOT_ENTRY>,),
 ) -> Result<(), anyhow::Error> {
-    let mut vm = config
-        .with_vmgs(sample_vmgs)
-        .with_expected_boot_event(FirmwareEvent::BootFailed)
-        .run_without_agent()
-        .await?;
+    let mut vm = config.with_vmgs(initial_vmgs).run_without_agent().await?;
 
-    vm.wait_for_successful_boot_event().await?;
+    assert_eq!(vm.wait_for_boot_event().await?, FirmwareEvent::BootFailed);
     assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
 
     Ok(())
