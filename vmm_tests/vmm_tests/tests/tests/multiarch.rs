@@ -4,6 +4,7 @@
 //! Integration tests that run on more than one architecture.
 
 use anyhow::Context;
+use get_resources::ged::FirmwareEvent;
 use hyperv_ic_resources::kvp::KvpRpc;
 use jiff::SignedDuration;
 use mesh::rpc::RpcSend;
@@ -383,20 +384,37 @@ async fn default_boot(
     config: PetriVmConfigOpenVmm,
     (sample_vmgs,): (ResolvedArtifact<SAMPLE_VMGS>,),
 ) -> Result<(), anyhow::Error> {
-    let vmgs_file = {
-        let mut sample_vmgs = std::fs::File::open(sample_vmgs)?;
-        let mut vmgs_file = tempfile::tempfile()?;
-        std::io::copy(&mut sample_vmgs, &mut vmgs_file)?;
-        vmgs_file
-    };
-
     let (vm, agent) = config
-        .with_vmgs(vmgs_file)
+        .with_vmgs(sample_vmgs)
         .with_default_boot_always_attempt(true)
         .run()
         .await?;
 
     agent.power_off().await?;
+    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+
+    Ok(())
+}
+
+/// Verify that UEFI fails to boot if invalid boot entries exist
+#[openvmm_test(
+    openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64))[SAMPLE_VMGS],
+    openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64))[SAMPLE_VMGS],
+    openvmm_uefi_x64(vhd(ubuntu_2204_server_x64))[SAMPLE_VMGS],
+    openvmm_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64))[SAMPLE_VMGS],
+    openvmm_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))[SAMPLE_VMGS]
+)]
+async fn no_default_boot(
+    config: PetriVmConfigOpenVmm,
+    (sample_vmgs,): (ResolvedArtifact<SAMPLE_VMGS>,),
+) -> Result<(), anyhow::Error> {
+    let mut vm = config
+        .with_vmgs(sample_vmgs)
+        .with_expected_boot_event(FirmwareEvent::BootFailed)
+        .run_without_agent()
+        .await?;
+
+    vm.wait_for_successful_boot_event().await?;
     assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
 
     Ok(())
