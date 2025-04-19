@@ -67,6 +67,7 @@ impl petri_artifacts_core::ResolveTestArtifact for OpenvmmKnownPathsTestArtifact
             _ if id == test_vhd::FREE_BSD_13_2_X64 => get_test_artifact_path(KnownTestArtifacts::FreeBsd13_2X64Vhd),
             _ if id == test_vhd::UBUNTU_2204_SERVER_X64 => get_test_artifact_path(KnownTestArtifacts::Ubuntu2204ServerX64Vhd),
             _ if id == test_vhd::UBUNTU_2404_SERVER_AARCH64 => get_test_artifact_path(KnownTestArtifacts::Ubuntu2404ServerAarch64Vhd),
+            _ if id == test_vhd::WINDOWS_11_AARCH64 => get_test_artifact_path(KnownTestArtifacts::Windows11Aarch64Vhdx),
 
             _ if id == test_iso::FREE_BSD_13_2_X64 => get_test_artifact_path(KnownTestArtifacts::FreeBsd13_2X64Iso),
 
@@ -118,7 +119,7 @@ fn get_test_artifact_path(vhd: KnownTestArtifacts) -> Result<PathBuf, anyhow::Er
         full_path,
         vhd.filename(),
         MissingCommand::Xtask {
-            xtask_args: &["guest-test", "download-image", "--vhds", &vhd.name()],
+            xtask_args: &["guest-test", "download-image", "--artifacts", &vhd.name()],
             description: "guest vhd image",
         },
     )
