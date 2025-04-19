@@ -31,6 +31,7 @@ pub enum KnownTestArtifacts {
     FreeBsd13_2X64Iso,
     Ubuntu2204ServerX64Vhd,
     Ubuntu2404ServerAarch64Vhd,
+    Windows11Aarch64Vhdx,
     VmgsWithBootEntry,
 }
 
@@ -88,10 +89,16 @@ const KNOWN_TEST_ARTIFACT_METADATA: &[KnownTestArtifactMeta] = &[
         petri_artifacts_vmm_test::artifacts::test_vhd::UBUNTU_2404_SERVER_AARCH64::SIZE,
     ),
     KnownTestArtifactMeta::new(
+        KnownTestArtifacts::Windows11Aarch64Vhdx,
+        petri_artifacts_vmm_test::artifacts::test_vhd::WINDOWS_11_AARCH64::FILENAME,
+        petri_artifacts_vmm_test::artifacts::test_vhd::WINDOWS_11_AARCH64::SIZE
+    ),
+    KnownTestArtifactMeta::new(
         KnownTestArtifacts::VmgsWithBootEntry,
         petri_artifacts_vmm_test::artifacts::test_vmgs::VMGS_WITH_BOOT_ENTRY::FILENAME,
         petri_artifacts_vmm_test::artifacts::test_vmgs::VMGS_WITH_BOOT_ENTRY::SIZE,
     ),
+
 ];
 
 impl KnownTestArtifacts {
