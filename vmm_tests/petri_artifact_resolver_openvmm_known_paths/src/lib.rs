@@ -116,16 +116,21 @@ fn target_arch_path(arch: MachineArch) -> &'static str {
     }
 }
 
-fn get_test_artifact_path(vhd: KnownTestArtifacts) -> Result<PathBuf, anyhow::Error> {
+fn get_test_artifact_path(artifact: KnownTestArtifacts) -> Result<PathBuf, anyhow::Error> {
     let images_dir = std::env::var("VMM_TEST_IMAGES");
     let full_path = Path::new(images_dir.as_deref().unwrap_or("images"));
 
     get_path(
         full_path,
-        vhd.filename(),
+        artifact.filename(),
         MissingCommand::Xtask {
-            xtask_args: &["guest-test", "download-image", "--vhds", &vhd.name()],
-            description: "guest vhd image",
+            xtask_args: &[
+                "guest-test",
+                "download-image",
+                "--artifacts",
+                &artifact.name(),
+            ],
+            description: "test artifact",
         },
     )
 }
