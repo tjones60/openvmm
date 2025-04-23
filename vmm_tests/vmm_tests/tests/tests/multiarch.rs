@@ -74,9 +74,10 @@ async fn boot(config: Box<dyn PetriVmConfig>) -> anyhow::Result<()> {
 // Hyper-V VMs work for now since we don't notice that they reboot
 #[openvmm_test(openvmm_uefi_aarch64(vhd(windows_11_aarch64)))]
 async fn boot_reset_expected(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
-    let (mut vm, agent) = config.run().await?;
+    let mut vm = config.run_with_lazy_pipette().await?;
     assert_eq!(vm.wait_for_halt().await?, HaltReason::Reset);
     vm.reset().await?;
+    let agent = vm.wait_for_agent().await?;
     agent.power_off().await?;
     assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
     Ok(())
