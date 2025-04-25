@@ -325,16 +325,16 @@ pub mod artifacts {
         }
 
         declare_artifacts! {
-            /// Ubuntu 24.04 Server Aarch64
-            WINDOWS_11_AARCH64
+            /// Windows 11 Enterprise ARM64 24H2
+            WINDOWS_11_ENTERPRISE_AARCH64
         }
 
-        impl IsTestVhd for WINDOWS_11_AARCH64 {
+        impl IsTestVhd for WINDOWS_11_ENTERPRISE_AARCH64 {
             const OS_FLAVOR: OsFlavor = OsFlavor::Windows;
             const ARCH: MachineArch = MachineArch::Aarch64;
         }
 
-        impl IsHostedOnHvliteAzureBlobStore for WINDOWS_11_AARCH64 {
+        impl IsHostedOnHvliteAzureBlobStore for WINDOWS_11_ENTERPRISE_AARCH64 {
             const FILENAME: &'static str =
                 "windows11preview-arm64-win11-24h2-ent-26100.3775.250406-1.vhdx";
             const SIZE: u64 = 24398266368;

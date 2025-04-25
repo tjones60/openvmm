@@ -43,7 +43,7 @@ async fn frontpage(config: Box<dyn PetriVmConfig>) -> anyhow::Result<()> {
     openvmm_openhcl_linux_direct_x64,
     openvmm_pcat_x64(vhd(windows_datacenter_core_2022_x64)),
     openvmm_pcat_x64(vhd(ubuntu_2204_server_x64)),
-    // openvmm_uefi_aarch64(vhd(windows_11_aarch64)),
+    // openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
     openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     openvmm_uefi_x64(vhd(ubuntu_2204_server_x64)),
@@ -51,11 +51,11 @@ async fn frontpage(config: Box<dyn PetriVmConfig>) -> anyhow::Result<()> {
     openvmm_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)),
     hyperv_pcat_x64(vhd(windows_datacenter_core_2022_x64)),
     hyperv_pcat_x64(vhd(ubuntu_2204_server_x64)),
-    hyperv_uefi_aarch64(vhd(windows_11_aarch64)),
+    hyperv_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     hyperv_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
     hyperv_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     hyperv_uefi_x64(vhd(ubuntu_2204_server_x64)),
-    hyperv_openhcl_uefi_aarch64(vhd(windows_11_aarch64)),
+    hyperv_openhcl_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     hyperv_openhcl_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
     hyperv_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     hyperv_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))
@@ -72,7 +72,7 @@ async fn boot(config: Box<dyn PetriVmConfig>) -> anyhow::Result<()> {
 // once we figure out how to get the guest to not reboot via IMC or other
 // means. At that point, we can also use Windows Server 2025 for x64 tests.
 // Hyper-V VMs work for now since we don't notice that they reboot
-#[openvmm_test(openvmm_uefi_aarch64(vhd(windows_11_aarch64)))]
+#[openvmm_test(openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64)))]
 async fn boot_reset_expected(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
     let mut vm = config.run_with_lazy_pipette().await?;
     assert_eq!(vm.wait_for_halt().await?, HaltReason::Reset);
@@ -168,7 +168,7 @@ async fn kvp_ic(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
 #[openvmm_test(
     uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     uefi_x64(vhd(ubuntu_2204_server_x64)),
-    // uefi_aarch64(vhd(windows_11_aarch64)),
+    // uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
     linux_direct_x64
 )]
@@ -213,7 +213,7 @@ async fn timesync_ic(config: PetriVmConfigOpenVmm) -> anyhow::Result<()> {
     openvmm_openhcl_linux_direct_x64,
     // openvmm_pcat_x64(vhd(windows_datacenter_core_2022_x64)),
     // openvmm_pcat_x64(vhd(ubuntu_2204_server_x64)),
-    // openvmm_uefi_aarch64(vhd(windows_11_aarch64)),
+    // openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     // openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
     // openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     // openvmm_uefi_x64(vhd(ubuntu_2204_server_x64)),
@@ -249,7 +249,7 @@ async fn reboot(config: PetriVmConfigOpenVmm) -> Result<(), anyhow::Error> {
     openvmm_pcat_x64(iso(freebsd_13_2_x64)),
     openvmm_pcat_x64(vhd(windows_datacenter_core_2022_x64)),
     openvmm_pcat_x64(vhd(ubuntu_2204_server_x64)),
-    // openvmm_uefi_aarch64(vhd(windows_11_aarch64)),
+    // openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
     openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     openvmm_uefi_x64(vhd(ubuntu_2204_server_x64)),
@@ -257,7 +257,7 @@ async fn reboot(config: PetriVmConfigOpenVmm) -> Result<(), anyhow::Error> {
     openvmm_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)),
     openvmm_openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2022_x64)),
     openvmm_openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64)),
-    hyperv_openhcl_uefi_aarch64(vhd(windows_11_aarch64)),
+    hyperv_openhcl_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     // hyperv_openhcl_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
     hyperv_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     // hyperv_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)),
@@ -300,7 +300,7 @@ async fn boot_no_agent_single_proc(config: Box<dyn PetriVmConfig>) -> anyhow::Re
     openvmm_openhcl_linux_direct_x64,
     // openvmm_pcat_x64(vhd(windows_datacenter_core_2022_x64)),
     // openvmm_pcat_x64(vhd(ubuntu_2204_server_x64)),
-    // openvmm_uefi_aarch64(vhd(windows_11_aarch64)),
+    // openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     // openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
     // openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     // openvmm_uefi_x64(vhd(ubuntu_2204_server_x64)),
@@ -349,13 +349,13 @@ async fn guest_test_uefi(config: Box<dyn PetriVmConfig>) -> anyhow::Result<()> {
 #[vmm_test(
     openvmm_linux_direct_x64,
     openvmm_openhcl_linux_direct_x64,
-    // openvmm_uefi_aarch64(vhd(windows_11_aarch64)),
+    // openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
     openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     openvmm_uefi_x64(vhd(ubuntu_2204_server_x64)),
     openvmm_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     openvmm_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)),
-    hyperv_openhcl_uefi_aarch64(vhd(windows_11_aarch64)),
+    hyperv_openhcl_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     hyperv_openhcl_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
     hyperv_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     hyperv_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))
@@ -416,7 +416,7 @@ async fn five_gb(config: PetriVmConfigOpenVmm) -> Result<(), anyhow::Error> {
 /// Verify that UEFI default boots even if invalid boot entries exist
 /// when `default_boot_always_attempt` is enabled.
 #[openvmm_test(
-    // openvmm_uefi_aarch64(vhd(windows_11_aarch64))[VMGS_WITH_BOOT_ENTRY],
+    // openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64))[VMGS_WITH_BOOT_ENTRY],
     openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64))[VMGS_WITH_BOOT_ENTRY],
     openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64))[VMGS_WITH_BOOT_ENTRY],
     openvmm_uefi_x64(vhd(ubuntu_2204_server_x64))[VMGS_WITH_BOOT_ENTRY],
@@ -444,7 +444,7 @@ async fn default_boot(
 /// This test exists to ensure we are not getting a false positive for
 /// the `default_boot` test above.
 #[openvmm_test(
-    // openvmm_uefi_aarch64(vhd(windows_11_aarch64))[VMGS_WITH_BOOT_ENTRY],
+    // openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64))[VMGS_WITH_BOOT_ENTRY],
     openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64))[VMGS_WITH_BOOT_ENTRY],
     openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64))[VMGS_WITH_BOOT_ENTRY],
     openvmm_uefi_x64(vhd(ubuntu_2204_server_x64))[VMGS_WITH_BOOT_ENTRY],
