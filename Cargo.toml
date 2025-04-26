@@ -384,6 +384,9 @@ vnc_worker_defs = { path = "workers/vnc_worker_defs" }
 vnc = { path = "workers/vnc_worker/vnc" }
 profiler_worker = { path = "openhcl/profiler_worker" }
 
+# hyperv
+hyperv_lib = { path = "hyperv/hyperv_lib" }
+
 # crates.io
 anyhow = "1.0"
 arbitrary = "1.3"

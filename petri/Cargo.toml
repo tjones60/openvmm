@@ -9,6 +9,8 @@ rust-version.workspace = true
 [dependencies]
 pipette_client.workspace = true
 
+hyperv_lib.workspace = true
+
 petri_artifacts_common.workspace = true
 petri_artifacts_core.workspace = true
 petri_artifacts_vmm_test.workspace = true

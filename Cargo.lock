@@ -3211,6 +3211,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperv_lib"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "get_resources",
+ "guid",
+ "jiff",
+ "pal_async",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.12",
+ "tracing",
+]
+
+[[package]]
 name = "hyperv_secure_boot_templates"
 version = "0.0.0"
 dependencies = [
@@ -5367,6 +5384,7 @@ dependencies = [
  "hvlite_helpers",
  "hvlite_pcat_locator",
  "hyperv_ic_resources",
+ "hyperv_lib",
  "hyperv_secure_boot_templates",
  "ide_resources",
  "image",
