@@ -8,7 +8,9 @@
 // FUTURE: probably the tmk_tests package should own this crate, rather than
 // reuse vmm_tests. But this creates a bunch of work for CI. Revisit this once
 // CI is a little less cumbersome to modify.
-use tmk_tests as _;
+//
+// TODO: re-enable TMK tests once #1257 is resolved
+// use tmk_tests as _;
 
 fn main() {
     petri::test_main(|name, requirements| {
