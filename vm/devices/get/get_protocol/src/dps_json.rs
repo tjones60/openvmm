@@ -104,6 +104,11 @@ pub struct HclDevicePlatformSettingsV2Static {
     pub memory_protection_mode: u8,
     #[serde(default)]
     pub default_boot_always_attempt: bool,
+    pub watchdog_enabled: bool,
+    #[serde(default)]
+    pub imc_enabled: bool,
+    #[serde(default)]
+    pub cxl_memory_enabled: bool,
 
     // UEFI info
     pub vpci_boot_enabled: bool,
@@ -126,18 +131,19 @@ pub struct HclDevicePlatformSettingsV2Static {
     pub vtl2_settings: Option<Vec<u8>>,
 
     pub vmbus_redirection_enabled: bool,
-    pub no_persistent_secrets: bool,
-    pub watchdog_enabled: bool,
+
     // this `#[serde(default)]` shouldn't have been necessary, but we let a
     // `[OmitEmpty]` marker slip past in code review...
     #[serde(default)]
     pub firmware_mode_is_pcat: bool,
+
     #[serde(default)]
     pub always_relay_host_mmio: bool,
+
+    // guest state settings
+    pub no_persistent_secrets: bool,
     #[serde(default)]
-    pub imc_enabled: bool,
-    #[serde(default)]
-    pub cxl_memory_enabled: bool,
+    pub reformat_vmgs: bool,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]

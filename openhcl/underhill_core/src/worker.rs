@@ -1362,7 +1362,9 @@ async fn new_underhill_vm(
             let meta = disk.save_meta();
             let disk = Disk::new(disk).context("invalid vmgs disk")?;
 
-            let vmgs = if !env_cfg.reformat_vmgs {
+            let reformat_vmgs = env_cfg.reformat_vmgs || dps.general.reformat_vmgs;
+
+            let vmgs = if !reformat_vmgs {
                 match Vmgs::open(
                     disk.clone(),
                     Some(Arc::new(GetVmgsLogger::new(get_client.clone()))),
@@ -3064,6 +3066,7 @@ fn validate_isolated_configuration(dps: &DevicePlatformSettings) -> Result<(), a
         watchdog_enabled: _,
         vtl2_settings: _,
         cxl_memory_enabled: _,
+        reformat_vmgs: _,
     } = &dps.general;
 
     if *hibernation_enabled {

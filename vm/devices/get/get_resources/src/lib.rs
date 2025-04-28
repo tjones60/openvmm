@@ -88,6 +88,8 @@ pub mod ged {
         pub enable_battery: bool,
         /// Suppress attestation and disable TPM state persistence.
         pub no_persistent_secrets: bool,
+        /// Clear the VMGS file on launch.
+        pub reformat_vmgs: bool,
     }
 
     /// The firmware and chipset configuration for the guest.

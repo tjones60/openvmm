@@ -119,6 +119,8 @@ pub mod platform_settings {
         pub firmware_mode_is_pcat: bool,
         pub imc_enabled: bool,
         pub cxl_memory_enabled: bool,
+
+        pub reformat_vmgs: bool,
     }
 
     #[derive(Copy, Clone, Debug, Inspect)]

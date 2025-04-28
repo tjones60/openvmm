@@ -145,6 +145,7 @@ impl AsyncResolveResource<VmbusDeviceHandleKind, GuestEmulationDeviceHandle>
                 },
                 enable_battery: resource.enable_battery,
                 no_persistent_secrets: resource.no_persistent_secrets,
+                reformat_vmgs: resource.reformat_vmgs,
             },
             halt,
             resource.firmware_event_send,

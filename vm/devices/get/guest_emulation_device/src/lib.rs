@@ -143,6 +143,8 @@ pub struct GuestConfig {
     pub enable_battery: bool,
     /// Suppress attestation.
     pub no_persistent_secrets: bool,
+    /// Clear the VMGS file on launch.
+    pub reformat_vmgs: bool,
 }
 
 #[derive(Debug, Clone, Inspect)]
@@ -1241,7 +1243,7 @@ impl<T: RingMem + Unpin> GedChannel<T> {
         &mut self,
         state: &mut GuestEmulationDevice,
     ) -> Result<(), Error> {
-        let vpci_boot_enabled;
+        let vpci_boot_enabled: bool;
         let enable_firmware_debugging;
         let disable_frontpage;
         let firmware_mode_is_pcat;
@@ -1328,6 +1330,7 @@ impl<T: RingMem + Unpin> GedChannel<T> {
                     always_relay_host_mmio: false,
                     imc_enabled: false,
                     cxl_memory_enabled: false,
+                    reformat_vmgs: state.config.reformat_vmgs,
                 },
                 dynamic: get_protocol::dps_json::HclDevicePlatformSettingsV2Dynamic {
                     is_servicing_scenario: state.save_restore_buf.is_some(),
