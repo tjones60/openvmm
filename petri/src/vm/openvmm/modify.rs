@@ -299,13 +299,24 @@ impl PetriVmConfigOpenVmm {
         self
     }
 
+    /// Specifies whether the UEFI will always attempt a default boot
+    pub fn with_reformat_vmgs(mut self, val: bool) -> Self {
+        if self.firmware.is_openhcl() {
+            self.ged.as_mut().unwrap().reformat_vmgs = val;
+        } else {
+            self.config.reformat_vmgs = val;
+        }
+        self
+    }
+
     /// Specifies an existing VMGS file to use
     pub fn with_vmgs(mut self, vmgs_path: impl AsRef<Path>) -> Self {
         let vmgs_disk = LayeredDiskHandle {
             layers: vec![
                 RamDiskLayerHandle { len: None }.into_resource().into(),
                 DiskLayerHandle(
-                    open_disk_type(vmgs_path.as_ref(), true).expect("failed to open VMGS file"),
+                    open_disk_type(vmgs_path.as_ref(), true, None)
+                        .expect("failed to open VMGS file"),
                 )
                 .into_resource()
                 .into(),

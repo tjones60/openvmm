@@ -178,7 +178,7 @@ impl Manifest {
             vtl2_vmbus: config.vtl2_vmbus,
             #[cfg(all(windows, feature = "virt_whp"))]
             vpci_resources: config.vpci_resources,
-            format_vmgs: config.format_vmgs,
+            reformat_vmgs: config.reformat_vmgs,
             vmgs_disk: config.vmgs_disk,
             secure_boot_enabled: config.secure_boot_enabled,
             custom_uefi_vars: config.custom_uefi_vars,
@@ -219,7 +219,7 @@ pub struct Manifest {
     vtl2_vmbus: Option<VmbusConfig>,
     #[cfg(all(windows, feature = "virt_whp"))]
     vpci_resources: Vec<virt_whp::device::DeviceHandle>,
-    format_vmgs: bool,
+    reformat_vmgs: bool,
     vmgs_disk: Option<Resource<DiskHandleKind>>,
     secure_boot_enabled: bool,
     custom_uefi_vars: firmware_uefi_custom_vars::CustomVars,
@@ -968,7 +968,7 @@ impl InitializedVm {
 
         let (vmgs_client, vmgs_task) = if let Some(vmgs_file) = cfg.vmgs_disk {
             let disk = open_simple_disk(&resolver, vmgs_file, false).await?;
-            let vmgs = if cfg.format_vmgs {
+            let vmgs = if cfg.reformat_vmgs {
                 vmgs::Vmgs::format_new(disk, None)
                     .await
                     .context("failed to format vmgs file")?
@@ -2854,7 +2854,7 @@ impl LoadedVm {
             #[cfg(all(windows, feature = "virt_whp"))]
             vpci_resources: vec![], // TODO
             vmgs_disk: None,        // TODO
-            format_vmgs: false,     // TODO
+            reformat_vmgs: false,   // TODO
             secure_boot_enabled: false, // TODO
             custom_uefi_vars: Default::default(), // TODO
             firmware_event_send: self.inner.firmware_event_send,

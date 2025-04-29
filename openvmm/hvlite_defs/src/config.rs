@@ -43,7 +43,7 @@ pub struct Config {
     pub virtio_devices: Vec<(VirtioBus, Resource<VirtioDeviceHandle>)>,
     #[cfg(windows)]
     pub vpci_resources: Vec<virt_whp::device::DeviceHandle>,
-    pub format_vmgs: bool,
+    pub reformat_vmgs: bool,
     pub vmgs_disk: Option<Resource<DiskHandleKind>>,
     pub secure_boot_enabled: bool,
     pub custom_uefi_vars: firmware_uefi_custom_vars::CustomVars,
