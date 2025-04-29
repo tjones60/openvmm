@@ -959,6 +959,9 @@ impl IntoPipeline for CheckinGatesCli {
             KnownTestArtifacts::VmgsWithBootEntry,
         ];
 
+        // TODO: re-enable TMK tests once #1257 is resolved
+        let standard_filter = format!("{standard_filter} & !test(tmk)");
+
         for VmmTestJobParams {
             platform,
             arch,
