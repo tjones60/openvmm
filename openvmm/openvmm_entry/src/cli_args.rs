@@ -655,7 +655,7 @@ pub enum DiskCliKind {
     },
     // prwrap:<kind>
     PersistentReservationsWrapper(Box<DiskCliKind>),
-    // file:<path>
+    // file:<path>[;create=<len>]
     File {
         path: PathBuf,
         create_with_len: Option<u64>,

@@ -740,7 +740,7 @@ fn make_disk_config(disk: vmservice::ScsiDisk) -> anyhow::Result<ScsiDeviceAndPa
             lun: disk.lun.try_into().ok().context("lun value out of range")?,
         },
         device: SimpleScsiDiskHandle {
-            disk: open_disk_type(disk.host_path.as_ref(), disk.read_only, None)
+            disk: open_disk_type(disk.host_path.as_ref(), disk.read_only)
                 .with_context(|| format!("failed to open {}", disk.host_path))?,
             read_only: disk.read_only,
             parameters: Default::default(),

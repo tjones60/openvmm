@@ -299,7 +299,7 @@ impl PetriVmConfigOpenVmm {
         self
     }
 
-    /// Specifies whether the UEFI will always attempt a default boot
+    /// Specifies whether to reformat the VMGS file at boot
     pub fn with_reformat_vmgs(mut self, val: bool) -> Self {
         if self.firmware.is_openhcl() {
             self.ged.as_mut().unwrap().reformat_vmgs = val;
@@ -315,8 +315,7 @@ impl PetriVmConfigOpenVmm {
             layers: vec![
                 RamDiskLayerHandle { len: None }.into_resource().into(),
                 DiskLayerHandle(
-                    open_disk_type(vmgs_path.as_ref(), true, None)
-                        .expect("failed to open VMGS file"),
+                    open_disk_type(vmgs_path.as_ref(), true).expect("failed to open VMGS file"),
                 )
                 .into_resource()
                 .into(),

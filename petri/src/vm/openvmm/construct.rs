@@ -649,7 +649,7 @@ impl PetriVmConfigSetupCore<'_> {
             }
             Firmware::Pcat { guest, .. } => {
                 let disk_path = guest.artifact();
-                let inner_disk = open_disk_type(disk_path.as_ref(), true, None)?;
+                let inner_disk = open_disk_type(disk_path.as_ref(), true)?;
                 let guest_media = match guest {
                     PcatGuest::Vhd(_) => GuestMedia::Disk {
                         read_only: false,
@@ -706,7 +706,6 @@ impl PetriVmConfigSetupCore<'_> {
                                         DiskLayerHandle(open_disk_type(
                                             disk_path.expect("not uefi guest none").as_ref(),
                                             true,
-                                            None,
                                         )?)
                                         .into_resource()
                                         .into(),
@@ -742,7 +741,6 @@ impl PetriVmConfigSetupCore<'_> {
                                     DiskLayerHandle(open_disk_type(
                                         disk_path.expect("not uefi guest none").as_ref(),
                                         true,
-                                        None,
                                     )?)
                                     .into_resource()
                                     .into(),

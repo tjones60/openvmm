@@ -76,6 +76,7 @@ use hvlite_defs::rpc::PulseSaveRestoreError;
 use hvlite_defs::rpc::VmRpc;
 use hvlite_defs::worker::VM_WORKER;
 use hvlite_defs::worker::VmWorkerParameters;
+use hvlite_helpers::disk::create_disk_type;
 use hvlite_helpers::disk::open_disk_type;
 use input_core::MultiplexedInputHandle;
 use inspect::InspectMut;
@@ -1521,10 +1522,13 @@ fn disk_open_inner(
         DiskCliKind::File {
             path,
             create_with_len,
-        } => layers.push(LayerOrDisk::Disk(
-            open_disk_type(path, read_only, *create_with_len)
-                .with_context(|| format!("failed to open {}", path.display()))?,
-        )),
+        } => layers.push(LayerOrDisk::Disk(if let Some(size) = create_with_len {
+            create_disk_type(path, *size)
+                .with_context(|| format!("failed to create {}", path.display()))?
+        } else {
+            open_disk_type(path, read_only)
+                .with_context(|| format!("failed to open {}", path.display()))?
+        })),
         DiskCliKind::Blob { kind, url } => {
             layers.push(disk(disk_backend_resources::BlobDiskHandle {
                 url: url.to_owned(),
@@ -1758,8 +1762,8 @@ enum InteractiveCommand {
         path: u8,
         #[clap(long, default_value_t)]
         lun: u8,
-        #[clap(long)]
-        ram: Option<u64>,
+        #[clap(long = "create")]
+        create_with_len: Option<u64>,
         file_path: Option<PathBuf>,
     },
 
@@ -2538,23 +2542,23 @@ async fn run_control(driver: &DefaultDriver, mesh: &VmmMesh, opt: Options) -> an
                 target,
                 path,
                 lun,
-                ram,
+                create_with_len,
                 file_path,
                 is_dvd,
             } => {
                 let action = async {
                     let scsi = resources.scsi_rpc.as_ref().context("no scsi controller")?;
-                    let disk_type = match ram {
-                        None => {
-                            let path = file_path.context("no filename passed")?;
-                            open_disk_type(path.as_ref(), read_only, None)
-                                .with_context(|| format!("failed to open {}", path.display()))?
-                        }
-                        Some(size) => {
+                    let disk_type = match (file_path, create_with_len) {
+                        (Some(path), None) => open_disk_type(path.as_ref(), read_only)
+                            .with_context(|| format!("failed to open {}", path.display()))?,
+                        (None, Some(size)) => {
                             Resource::new(disk_backend_resources::LayeredDiskHandle::single_layer(
                                 RamDiskLayerHandle { len: Some(size) },
                             ))
                         }
+                        (Some(path), Some(size)) => create_disk_type(path.as_ref(), size)
+                            .with_context(|| format!("failed to create {}", path.display()))?,
+                        (None, None) => anyhow::bail!("no filename or size passed"),
                     };
 
                     let device = if is_dvd {

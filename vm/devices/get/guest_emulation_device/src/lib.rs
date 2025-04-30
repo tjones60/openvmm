@@ -1243,7 +1243,7 @@ impl<T: RingMem + Unpin> GedChannel<T> {
         &mut self,
         state: &mut GuestEmulationDevice,
     ) -> Result<(), Error> {
-        let vpci_boot_enabled: bool;
+        let vpci_boot_enabled;
         let enable_firmware_debugging;
         let disable_frontpage;
         let firmware_mode_is_pcat;
