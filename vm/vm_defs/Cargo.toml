@@ -1,0 +1,16 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+[package]
+name = "vm_defs"
+edition.workspace = true
+rust-version.workspace = true
+
+[features]
+mesh = ["mesh_protobuf"]
+
+[dependencies]
+mesh_protobuf = { workspace = true, optional = true }
+
+[lints]
+workspace = true
