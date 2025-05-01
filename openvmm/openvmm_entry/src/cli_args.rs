@@ -390,11 +390,7 @@ flags:
     ///
     /// If this is not provided, then fallback to using in-memory VMGS storage.
     #[clap(long)]
-    pub vmgs: Option<DiskCliKind>,
-
-    /// Reformat the VMGS disk
-    #[clap(long)]
-    pub reformat_vmgs: bool,
+    pub vmgs: Option<VmgsCli>,
 
     /// VGA firmware file
     #[clap(long, requires("pcat"), value_name = "FILE")]
@@ -965,6 +961,54 @@ impl FromStr for FloppyDiskCli {
         }
 
         Ok(FloppyDiskCli { kind, read_only })
+    }
+}
+
+// <kind>[,clear]
+#[derive(Clone)]
+pub struct VmgsCli {
+    pub kind: DiskCliKind,
+    pub clear: ClearVmgs,
+}
+
+#[derive(Copy, Clone)]
+pub enum ClearVmgs {
+    False,
+    OnFailure,
+    True,
+}
+
+impl FromStr for VmgsCli {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> anyhow::Result<Self> {
+        let mut opts = s.split(',');
+        let kind = opts.next().unwrap().parse()?;
+
+        let mut clear = ClearVmgs::False;
+        for opt in opts {
+            let mut s = opt.split('=');
+            let opt = s.next().unwrap();
+            match opt {
+                "ro" => read_only = true,
+                "dvd" => {
+                    is_dvd = true;
+                    read_only = true;
+                }
+                "vtl2" => {
+                    vtl = DeviceVtl::Vtl2;
+                }
+                "uh" => underhill = Some(UnderhillDiskSource::Scsi),
+                "uh-nvme" => underhill = Some(UnderhillDiskSource::Nvme),
+                opt => anyhow::bail!("unknown option: '{opt}'"),
+            }
+        }
+
+        if underhill.is_some() && vtl != DeviceVtl::Vtl0 {
+            anyhow::bail!("`uh` is incompatible with `vtl2`");
+        }
+
+        Ok(VmgsCli { kind })
     }
 }
 
