@@ -61,6 +61,7 @@ vmbus_serial_resources.workspace = true
 vmcore.workspace = true
 vmgs_format.workspace = true
 vmgs_resources.workspace = true
+vm_defs.workspace = true
 vm_manifest_builder.workspace = true
 vm_resource.workspace = true
 vtl2_settings_proto.workspace = true

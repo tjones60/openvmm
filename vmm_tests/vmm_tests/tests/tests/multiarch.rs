@@ -4,7 +4,6 @@
 //! Integration tests that run on more than one architecture.
 
 use anyhow::Context;
-use get_resources::ged::FirmwareEvent;
 use hyperv_ic_resources::kvp::KvpRpc;
 use jiff::SignedDuration;
 use mesh::rpc::RpcSend;
@@ -18,6 +17,7 @@ use petri::openvmm::PetriVmConfigOpenVmm;
 use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_vmm_test::artifacts::test_vmgs::VMGS_WITH_BOOT_ENTRY;
 use std::time::Duration;
+use vm_defs::FirmwareEvent;
 use vmm_core_defs::HaltReason;
 use vmm_test_macros::openvmm_test;
 use vmm_test_macros::vmm_test;
@@ -455,7 +455,7 @@ async fn clear_vmgs(
 ) -> Result<(), anyhow::Error> {
     let (vm, agent) = config
         .with_vmgs(initial_vmgs)
-        .with_reformat_vmgs(true)
+        .with_guest_state_lifetime(vm_defs::GuestStateLifetime::Clear)
         .run()
         .await?;
 

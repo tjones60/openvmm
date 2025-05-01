@@ -26,7 +26,6 @@ use crate::linux_direct_serial_agent::LinuxDirectSerialAgent;
 use crate::openhcl_diag::OpenHclDiagHandler;
 use async_trait::async_trait;
 use framebuffer::FramebufferAccess;
-use get_resources::ged::FirmwareEvent;
 use guid::Guid;
 use hvlite_defs::config::Config;
 use hyperv_ic_resources::shutdown::ShutdownRpc;
@@ -44,6 +43,7 @@ use pipette_client::PipetteClient;
 use std::path::PathBuf;
 use tempfile::TempPath;
 use unix_socket::UnixListener;
+use vm_defs::FirmwareEvent;
 use vtl2_settings_proto::Vtl2Settings;
 
 /// The instance guid used for all of our SCSI drives.

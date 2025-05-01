@@ -90,6 +90,16 @@ pub enum PcatBootDevice {
     Network,
 }
 
+/// Boot device order entry used by the PCAT Bios.
+#[derive(Debug, Copy, Clone, Deserialize, Serialize, Default)]
+pub enum HclGuestStateLifetime {
+    #[default]
+    Default,
+    ClearOnFailure,
+    Clear,
+    Ephemeral,
+}
+
 #[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct HclDevicePlatformSettingsV2Static {
@@ -143,7 +153,7 @@ pub struct HclDevicePlatformSettingsV2Static {
     // guest state settings
     pub no_persistent_secrets: bool,
     #[serde(default)]
-    pub reformat_vmgs: bool,
+    pub guest_state_lifetime: HclGuestStateLifetime,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]

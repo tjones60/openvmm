@@ -8,7 +8,7 @@ use super::hvc::VmState;
 use super::powershell;
 use crate::PetriLogFile;
 use anyhow::Context;
-use get_resources::ged::FirmwareEvent;
+use vm_defs::FirmwareEvent;
 use guid::Guid;
 use jiff::Timestamp;
 use jiff::ToSpan;

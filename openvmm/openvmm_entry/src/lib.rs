@@ -951,7 +951,7 @@ fn vm_config_from_command_line(
                     },
                     enable_battery: opt.battery,
                     no_persistent_secrets: true,
-                    reformat_vmgs,
+                    guest_state_lifetime: Default::default(),
                 }
                 .into_resource(),
             ),
@@ -1333,7 +1333,7 @@ fn vm_config_from_command_line(
         #[cfg(windows)]
         vpci_resources,
         vmgs_disk,
-        reformat_vmgs,
+        guest_state_lifetime: Default::default(),
         secure_boot_enabled: opt.secure_boot,
         custom_uefi_vars,
         firmware_event_send: None,

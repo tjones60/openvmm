@@ -178,7 +178,7 @@ impl Manifest {
             vtl2_vmbus: config.vtl2_vmbus,
             #[cfg(all(windows, feature = "virt_whp"))]
             vpci_resources: config.vpci_resources,
-            reformat_vmgs: config.reformat_vmgs,
+            guest_state_lifetime: config.guest_state_lifetime,
             vmgs_disk: config.vmgs_disk,
             secure_boot_enabled: config.secure_boot_enabled,
             custom_uefi_vars: config.custom_uefi_vars,
@@ -219,11 +219,11 @@ pub struct Manifest {
     vtl2_vmbus: Option<VmbusConfig>,
     #[cfg(all(windows, feature = "virt_whp"))]
     vpci_resources: Vec<virt_whp::device::DeviceHandle>,
-    reformat_vmgs: bool,
+    guest_state_lifetime: vm_defs::GuestStateLifetime,
     vmgs_disk: Option<Resource<DiskHandleKind>>,
     secure_boot_enabled: bool,
     custom_uefi_vars: firmware_uefi_custom_vars::CustomVars,
-    firmware_event_send: Option<mesh::Sender<get_resources::ged::FirmwareEvent>>,
+    firmware_event_send: Option<mesh::Sender<vm_defs::FirmwareEvent>>,
     debugger_rpc: Option<mesh::Receiver<vmm_core_defs::debug_rpc::DebugRequest>>,
     vmbus_devices: Vec<(DeviceVtl, Resource<VmbusDeviceHandleKind>)>,
     chipset_devices: Vec<ChipsetDeviceHandle>,
@@ -534,7 +534,7 @@ struct LoadedVmInner {
     /// ((device, function), interrupt)
     #[cfg_attr(not(guest_arch = "x86_64"), expect(dead_code))]
     pci_legacy_interrupts: Vec<((u8, Option<u8>), u32)>,
-    firmware_event_send: Option<mesh::Sender<get_resources::ged::FirmwareEvent>>,
+    firmware_event_send: Option<mesh::Sender<vm_defs::FirmwareEvent>>,
 
     load_mode: LoadMode,
     igvm_file: Option<IgvmFile>,
@@ -2854,7 +2854,7 @@ impl LoadedVm {
             #[cfg(all(windows, feature = "virt_whp"))]
             vpci_resources: vec![], // TODO
             vmgs_disk: None,        // TODO
-            reformat_vmgs: false,   // TODO
+            guest_state_lifetime: Default::default(), // TODO
             secure_boot_enabled: false, // TODO
             custom_uefi_vars: Default::default(), // TODO
             firmware_event_send: self.inner.firmware_event_send,

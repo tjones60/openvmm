@@ -9,7 +9,6 @@ pub mod openvmm;
 
 use crate::ShutdownKind;
 use async_trait::async_trait;
-use get_resources::ged::FirmwareEvent;
 use petri_artifacts_common::tags::GuestQuirks;
 use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_common::tags::OsFlavor;
@@ -17,6 +16,7 @@ use petri_artifacts_core::ArtifactResolver;
 use petri_artifacts_core::ResolvedArtifact;
 use petri_artifacts_core::ResolvedOptionalArtifact;
 use pipette_client::PipetteClient;
+use vm_defs::FirmwareEvent;
 use vmm_core_defs::HaltReason;
 
 /// Configuration state for a test VM.

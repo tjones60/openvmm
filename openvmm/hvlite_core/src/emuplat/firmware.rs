@@ -7,7 +7,7 @@ use firmware_pcat::PcatEvent;
 use firmware_pcat::PcatLogger;
 use firmware_uefi::platform::logger::UefiEvent;
 use firmware_uefi::platform::logger::UefiLogger;
-use get_resources::ged::FirmwareEvent;
+use vm_defs::FirmwareEvent;
 
 /// Forwards UEFI and PCAT events to via the provided [`mesh::Sender`].
 #[derive(Debug)]

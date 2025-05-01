@@ -31,7 +31,6 @@ use framebuffer::FramebufferAccess;
 use fs_err::File;
 use futures::StreamExt;
 use get_resources::crash::GuestCrashDeviceHandle;
-use get_resources::ged::FirmwareEvent;
 use guid::Guid;
 use hvlite_defs::config::Config;
 use hvlite_defs::config::DEFAULT_MMIO_GAPS_AARCH64;
@@ -78,6 +77,8 @@ use uidevices_resources::SynthVideoHandle;
 use unix_socket::UnixListener;
 use unix_socket::UnixStream;
 use video_core::SharedFramebufferHandle;
+use vm_defs::FirmwareEvent;
+use vm_defs::GuestStateLifetime;
 use vm_manifest_builder::VmManifestBuilder;
 use vm_resource::IntoResource;
 use vm_resource::Resource;
@@ -348,7 +349,7 @@ impl PetriVmConfigOpenVmm {
             #[cfg(windows)]
             vpci_resources: vec![],
             vmgs_disk: None,
-            reformat_vmgs: false,
+            guest_state_lifetime: GuestStateLifetime::Default,
             secure_boot_enabled: false,
             debugger_rpc: None,
             generation_id_recv: None,
@@ -859,7 +860,7 @@ impl PetriVmConfigSetupCore<'_> {
             secure_boot_template: get_resources::ged::GuestSecureBootTemplateType::None,
             enable_battery: false,
             no_persistent_secrets: true,
-            reformat_vmgs: false,
+            guest_state_lifetime: GuestStateLifetime::Default,
         };
 
         Ok((ged, guest_request_send))

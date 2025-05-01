@@ -1011,6 +1011,16 @@ open_enum! {
     }
 }
 
+open_enum! {
+    #[derive(IntoBytes, FromBytes, Immutable, KnownLayout)]
+    pub enum GuestStateLifetime: u8 {
+        DEFAULT = 0,
+        CLEAR_ON_FAILURE = 1,
+        CLEAR = 2,
+        EPHEMERAL = 3,
+    }
+}
+
 pub const HCL_DEVICE_PLATFORM_MAX_SMBIOS_LENGTH: usize = 64;
 
 #[repr(C)]

@@ -499,7 +499,7 @@ impl VmService {
             #[cfg(windows)]
             vpci_resources: vec![],
             vmgs_disk: None,
-            reformat_vmgs: false,
+            guest_state_lifetime: Default::default(),
             secure_boot_enabled: false,
             custom_uefi_vars: Default::default(),
             firmware_event_send: None,

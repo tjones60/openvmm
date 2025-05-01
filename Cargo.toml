@@ -327,6 +327,7 @@ vmbus_serial_protocol = { path = "vm/devices/serial/vmbus_serial_protocol" }
 vmbus_serial_resources = { path = "vm/devices/serial/vmbus_serial_resources" }
 vmbus_server = { path = "vm/devices/vmbus/vmbus_server" }
 vmbus_user_channel = { path = "vm/devices/vmbus/vmbus_user_channel" }
+vm_defs = { path = "vm/vm_defs" }
 hv1_emulator = { path = "vm/hv1/hv1_emulator" }
 hv1_hypercall = { path = "vm/hv1/hv1_hypercall" }
 hv1_structs = { path = "vm/hv1/hv1_structs" }

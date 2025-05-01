@@ -43,12 +43,12 @@ pub struct Config {
     pub virtio_devices: Vec<(VirtioBus, Resource<VirtioDeviceHandle>)>,
     #[cfg(windows)]
     pub vpci_resources: Vec<virt_whp::device::DeviceHandle>,
-    pub reformat_vmgs: bool,
+    pub guest_state_lifetime: vm_defs::GuestStateLifetime,
     pub vmgs_disk: Option<Resource<DiskHandleKind>>,
     pub secure_boot_enabled: bool,
     pub custom_uefi_vars: firmware_uefi_custom_vars::CustomVars,
     // TODO: move FirmwareEvent somewhere not GED-specific.
-    pub firmware_event_send: Option<mesh::Sender<get_resources::ged::FirmwareEvent>>,
+    pub firmware_event_send: Option<mesh::Sender<vm_defs::FirmwareEvent>>,
     pub debugger_rpc: Option<mesh::Receiver<vmm_core_defs::debug_rpc::DebugRequest>>,
     pub vmbus_devices: Vec<(DeviceVtl, Resource<VmbusDeviceHandleKind>)>,
     pub chipset_devices: Vec<ChipsetDeviceHandle>,

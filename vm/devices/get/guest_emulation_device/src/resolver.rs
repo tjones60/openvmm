@@ -145,7 +145,18 @@ impl AsyncResolveResource<VmbusDeviceHandleKind, GuestEmulationDeviceHandle>
                 },
                 enable_battery: resource.enable_battery,
                 no_persistent_secrets: resource.no_persistent_secrets,
-                reformat_vmgs: resource.reformat_vmgs,
+                guest_state_lifetime: match resource.guest_state_lifetime {
+                    vm_defs::GuestStateLifetime::Default => {
+                        get_protocol::GuestStateLifetime::DEFAULT
+                    }
+                    vm_defs::GuestStateLifetime::ClearOnFailure => {
+                        get_protocol::GuestStateLifetime::CLEAR_ON_FAILURE
+                    }
+                    vm_defs::GuestStateLifetime::Clear => get_protocol::GuestStateLifetime::CLEAR,
+                    vm_defs::GuestStateLifetime::Ephemeral => {
+                        get_protocol::GuestStateLifetime::EPHEMERAL
+                    }
+                },
             },
             halt,
             resource.firmware_event_send,

@@ -19,7 +19,6 @@ use crate::disk_image::AgentImage;
 use crate::openhcl_diag::OpenHclDiagHandler;
 use anyhow::Context;
 use async_trait::async_trait;
-use get_resources::ged::FirmwareEvent;
 use jiff::Timestamp;
 use jiff::ToSpan;
 use pal_async::DefaultDriver;
@@ -40,6 +39,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 use thiserror::Error;
 use vm::HyperVVM;
+use vm_defs::FirmwareEvent;
 use vmm_core_defs::HaltReason;
 
 /// Hyper-V VM configuration and resources

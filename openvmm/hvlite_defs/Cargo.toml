@@ -11,6 +11,7 @@ hvlite_pcat_locator.workspace = true
 
 # vmcore
 memory_range.workspace = true
+vm_defs.workspace = true
 vm_resource.workspace = true
 
 vmotherboard.workspace = true

@@ -26,6 +26,7 @@ use petri_artifacts_core::ResolvedArtifact;
 use std::path::Path;
 use tpm_resources::TpmDeviceHandle;
 use tpm_resources::TpmRegisterLayout;
+use vm_defs::GuestStateLifetime;
 use vm_resource::IntoResource;
 use vmcore::non_volatile_store::resources::EphemeralNonVolatileStoreHandle;
 use vmotherboard::ChipsetDeviceHandle;
@@ -300,11 +301,11 @@ impl PetriVmConfigOpenVmm {
     }
 
     /// Specifies whether to reformat the VMGS file at boot
-    pub fn with_reformat_vmgs(mut self, val: bool) -> Self {
+    pub fn with_guest_state_lifetime(mut self, val: GuestStateLifetime) -> Self {
         if self.firmware.is_openhcl() {
-            self.ged.as_mut().unwrap().reformat_vmgs = val;
+            self.ged.as_mut().unwrap().guest_state_lifetime = val;
         } else {
-            self.config.reformat_vmgs = val;
+            self.config.guest_state_lifetime = val;
         }
         self
     }

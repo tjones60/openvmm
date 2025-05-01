@@ -14,7 +14,6 @@ use async_trait::async_trait;
 use diag_client::kmsg_stream::KmsgStream;
 use futures::FutureExt;
 use futures_concurrency::future::Race;
-use get_resources::ged::FirmwareEvent;
 use hvlite_defs::rpc::PulseSaveRestoreError;
 use hyperv_ic_resources::shutdown::ShutdownRpc;
 use mesh::CancelContext;
@@ -36,6 +35,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use unix_socket::UnixListener;
+use vm_defs::FirmwareEvent;
 use vmm_core_defs::HaltReason;
 
 /// A running VM that tests can interact with.

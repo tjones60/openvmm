@@ -2423,6 +2423,7 @@ version = "0.0.0"
 dependencies = [
  "mesh",
  "thiserror 2.0.12",
+ "vm_defs",
  "vm_resource",
 ]
 
@@ -2571,6 +2572,7 @@ dependencies = [
  "tracelimit",
  "tracing",
  "video_core",
+ "vm_defs",
  "vm_resource",
  "vmbus_async",
  "vmbus_channel",
@@ -3004,6 +3006,7 @@ dependencies = [
  "virt_whp",
  "virtio",
  "virtio_serial",
+ "vm_defs",
  "vm_loader",
  "vm_resource",
  "vm_topology",
@@ -3044,6 +3047,7 @@ dependencies = [
  "unix_socket",
  "virt",
  "virt_whp",
+ "vm_defs",
  "vm_resource",
  "vmbus_proxy",
  "vmm_core_defs",
@@ -4958,6 +4962,7 @@ dependencies = [
  "video_core",
  "virt_whp",
  "virtio_resources",
+ "vm_defs",
  "vm_manifest_builder",
  "vm_resource",
  "vmbfs_resources",
@@ -5406,6 +5411,7 @@ dependencies = [
  "underhill_confidentiality",
  "unix_socket",
  "video_core",
+ "vm_defs",
  "vm_manifest_builder",
  "vm_resource",
  "vmbfs_resources",
@@ -8213,6 +8219,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "vm_defs"
+version = "0.0.0"
+dependencies = [
+ "mesh_protobuf",
+]
+
+[[package]]
 name = "vm_loader"
 version = "0.0.0"
 dependencies = [
@@ -8843,6 +8856,7 @@ dependencies = [
  "tmk_tests",
  "tracing",
  "unix_socket",
+ "vm_defs",
  "vm_resource",
  "vmm_core_defs",
  "vmm_test_macros",

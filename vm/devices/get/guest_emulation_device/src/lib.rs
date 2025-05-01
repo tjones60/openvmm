@@ -25,6 +25,7 @@ use get_protocol::BatteryStatusFlags;
 use get_protocol::BatteryStatusNotification;
 use get_protocol::GspCleartextContent;
 use get_protocol::GspExtendedStatusFlags;
+use get_protocol::GuestStateLifetime;
 use get_protocol::HeaderGeneric;
 use get_protocol::HostNotifications;
 use get_protocol::HostRequests;
@@ -36,9 +37,9 @@ use get_protocol::SecureBootTemplateType;
 use get_protocol::StartVtl0Status;
 use get_protocol::UefiConsoleMode;
 use get_protocol::VmgsIoStatus;
+use get_protocol::dps_json::HclGuestStateLifetime;
 use get_protocol::dps_json::HclSecureBootTemplateId;
 use get_protocol::dps_json::PcatBootDevice;
-use get_resources::ged::FirmwareEvent;
 use get_resources::ged::GuestEmulationRequest;
 use get_resources::ged::GuestServicingFlags;
 use get_resources::ged::ModifyVtl2SettingsError;
@@ -65,6 +66,7 @@ use std::io::IoSlice;
 use task_control::StopTask;
 use thiserror::Error;
 use video_core::FramebufferControl;
+use vm_defs::FirmwareEvent;
 use vmbus_async::async_dgram::AsyncRecvExt;
 use vmbus_async::pipe::MessagePipe;
 use vmbus_channel::RawAsyncChannel;
@@ -143,8 +145,9 @@ pub struct GuestConfig {
     pub enable_battery: bool,
     /// Suppress attestation.
     pub no_persistent_secrets: bool,
-    /// Clear the VMGS file on launch.
-    pub reformat_vmgs: bool,
+    /// Guest state persistence
+    #[inspect(debug)]
+    pub guest_state_lifetime: GuestStateLifetime,
 }
 
 #[derive(Debug, Clone, Inspect)]
@@ -1330,7 +1333,15 @@ impl<T: RingMem + Unpin> GedChannel<T> {
                     always_relay_host_mmio: false,
                     imc_enabled: false,
                     cxl_memory_enabled: false,
-                    reformat_vmgs: state.config.reformat_vmgs,
+                    guest_state_lifetime: match state.config.guest_state_lifetime {
+                        GuestStateLifetime::DEFAULT => HclGuestStateLifetime::Default,
+                        GuestStateLifetime::CLEAR_ON_FAILURE => {
+                            HclGuestStateLifetime::ClearOnFailure
+                        }
+                        GuestStateLifetime::CLEAR => HclGuestStateLifetime::Clear,
+                        GuestStateLifetime::EPHEMERAL => HclGuestStateLifetime::Ephemeral,
+                        _ => panic!("invalid guest state persistence"),
+                    },
                 },
                 dynamic: get_protocol::dps_json::HclDevicePlatformSettingsV2Dynamic {
                     is_servicing_scenario: state.save_restore_buf.is_some(),
