@@ -24,6 +24,9 @@ impl VmgsLogger for GetVmgsLogger {
     async fn log_event_fatal(&self, event: VmgsLogEvent) {
         let event_id = match event {
             VmgsLogEvent::AccessFailed => EventLogId::VMGS_ACCESS_FAILED,
+            VmgsLogEvent::InvalidFormat => EventLogId::VMGS_INVALID_FORMAT,
+            VmgsLogEvent::CorruptFormat => EventLogId::VMGS_CORRUPT_FORMAT,
+            VmgsLogEvent::InitFailed => EventLogId::VMGS_INIT_FAILED,
         };
 
         self.get_client.event_log_fatal(event_id).await

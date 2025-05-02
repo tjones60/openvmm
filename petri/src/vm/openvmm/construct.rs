@@ -85,6 +85,7 @@ use vm_resource::kind::SerialBackendHandle;
 use vm_resource::kind::VmbusDeviceHandleKind;
 use vmbus_serial_resources::VmbusSerialDeviceHandle;
 use vmbus_serial_resources::VmbusSerialPort;
+use vmgs_resources::VmgsResource;
 use vtl2_settings_proto::Vtl2Settings;
 
 impl PetriVmConfigOpenVmm {
@@ -347,8 +348,11 @@ impl PetriVmConfigOpenVmm {
             virtio_devices: vec![],
             #[cfg(windows)]
             vpci_resources: vec![],
-            vmgs_disk: None,
-            format_vmgs: false,
+            vmgs: if firmware.is_openhcl() {
+                None
+            } else {
+                Some(VmgsResource::Ephemeral)
+            },
             secure_boot_enabled: false,
             debugger_rpc: None,
             generation_id_recv: None,
@@ -845,12 +849,7 @@ impl PetriVmConfigSetupCore<'_> {
             com2: true,
             vmbus_redirection: false,
             vtl2_settings: None, // Will be added at startup to allow tests to modify
-            vmgs_disk: Some(
-                LayeredDiskHandle::single_layer(RamDiskLayerHandle {
-                    len: Some(vmgs_format::VMGS_DEFAULT_CAPACITY),
-                })
-                .into_resource(),
-            ),
+            vmgs: VmgsResource::Ephemeral,
             framebuffer: framebuffer.then(|| SharedFramebufferHandle.into_resource()),
             guest_request_recv,
             enable_tpm: false,

@@ -10,6 +10,12 @@ use std::sync::Arc;
 pub enum VmgsLogEvent {
     /// Data store access failure.
     AccessFailed,
+    /// Invalid VMGS file format.
+    InvalidFormat,
+    /// Corrupt VMGS file format.
+    CorruptFormat,
+    /// VMGS initialization failed.
+    InitFailed,
 }
 
 /// A trait for sending log event to the host.

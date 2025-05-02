@@ -7,6 +7,7 @@ use super::MANA_INSTANCE;
 use super::NIC_MAC_ADDRESS;
 use super::PetriVmConfigOpenVmm;
 use crate::ProcessorTopology;
+use crate::ProvisionVmgs;
 use chipset_resources::battery::BatteryDeviceHandleX64;
 use chipset_resources::battery::HostBatteryUpdate;
 use disk_backend_resources::LayeredDiskHandle;
@@ -29,6 +30,7 @@ use tpm_resources::TpmDeviceHandle;
 use tpm_resources::TpmRegisterLayout;
 use vm_resource::IntoResource;
 use vmcore::non_volatile_store::resources::EphemeralNonVolatileStoreHandle;
+use vmgs_resources::VmgsResource;
 use vmotherboard::ChipsetDeviceHandle;
 use vtl2_settings_proto::Vtl2Settings;
 
@@ -314,8 +316,8 @@ impl PetriVmConfigOpenVmm {
     }
 
     /// Specifies an existing VMGS file to use
-    pub fn with_vmgs(mut self, vmgs_path: impl AsRef<Path>) -> Self {
-        let vmgs_disk = LayeredDiskHandle {
+    pub fn with_vmgs(mut self, vmgs_path: impl AsRef<Path>, provision: ProvisionVmgs) -> Self {
+        let disk = LayeredDiskHandle {
             layers: vec![
                 RamDiskLayerHandle { len: None }.into_resource().into(),
                 DiskLayerHandle(
@@ -327,10 +329,16 @@ impl PetriVmConfigOpenVmm {
         }
         .into_resource();
 
+        let vmgs = match provision {
+            ProvisionVmgs::OnEmpty => VmgsResource::Disk(disk),
+            ProvisionVmgs::OnFailure => VmgsResource::ReprovisionOnFailure(disk),
+            ProvisionVmgs::True => VmgsResource::Reprovision(disk),
+        };
+
         if self.firmware.is_openhcl() {
-            self.ged.as_mut().unwrap().vmgs_disk = Some(vmgs_disk);
+            self.ged.as_mut().unwrap().vmgs = vmgs;
         } else {
-            self.config.vmgs_disk = Some(vmgs_disk);
+            self.config.vmgs = Some(vmgs);
         }
         self
     }

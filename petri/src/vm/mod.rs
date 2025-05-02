@@ -496,3 +496,13 @@ pub struct OpenHclServicingFlags {
     /// Preserve DMA memory for NVMe devices if supported.
     pub enable_nvme_keepalive: bool,
 }
+
+/// When to provision the VMGS file
+pub enum ProvisionVmgs {
+    /// If it is empty
+    OnEmpty,
+    /// If it is corrupt
+    OnFailure,
+    /// Reprovision, regardless
+    True,
+}
