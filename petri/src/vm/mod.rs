@@ -11,6 +11,7 @@ use crate::ShutdownKind;
 use async_trait::async_trait;
 use get_resources::ged::FirmwareEvent;
 use petri_artifacts_common::tags::GuestQuirks;
+use petri_artifacts_common::tags::IsTestVmgs;
 use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_common::tags::OsFlavor;
 use petri_artifacts_core::ArtifactResolver;
@@ -497,12 +498,14 @@ pub struct OpenHclServicingFlags {
     pub enable_nvme_keepalive: bool,
 }
 
-/// When to provision the VMGS file
-pub enum ProvisionVmgs {
-    /// If it is empty
-    OnEmpty,
-    /// If it is corrupt
-    OnFailure,
-    /// Reprovision, regardless
-    True,
+/// Virtual machine guest state resource
+pub enum PetriVmgsResource<T: IsTestVmgs> {
+    /// Use disk to store guest state
+    Disk(ResolvedArtifact<T>),
+    /// Use disk to store guest state, reformatting if corrupted.
+    ReprovisionOnFailure(ResolvedArtifact<T>),
+    /// Format and use disk to store guest state
+    Reprovision(ResolvedArtifact<T>),
+    /// Store guest state in memory
+    Ephemeral,
 }

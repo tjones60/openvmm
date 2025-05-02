@@ -428,7 +428,7 @@ async fn default_boot(
     (initial_vmgs,): (ResolvedArtifact<VMGS_WITH_BOOT_ENTRY>,),
 ) -> Result<(), anyhow::Error> {
     let (vm, agent) = config
-        .with_vmgs(initial_vmgs, petri::ProvisionVmgs::OnEmpty)
+        .with_vmgs(petri::PetriVmgsResource::Disk(initial_vmgs))
         .with_default_boot_always_attempt(true)
         .run()
         .await?;
@@ -454,7 +454,7 @@ async fn clear_vmgs(
     (initial_vmgs,): (ResolvedArtifact<VMGS_WITH_BOOT_ENTRY>,),
 ) -> Result<(), anyhow::Error> {
     let (vm, agent) = config
-        .with_vmgs(initial_vmgs, petri::ProvisionVmgs::True)
+        .with_vmgs(petri::PetriVmgsResource::Reprovision(initial_vmgs))
         .run()
         .await?;
 
@@ -481,7 +481,7 @@ async fn boot_expect_fail(
     (initial_vmgs,): (ResolvedArtifact<VMGS_WITH_BOOT_ENTRY>,),
 ) -> Result<(), anyhow::Error> {
     let mut vm = config
-        .with_vmgs(initial_vmgs, petri::ProvisionVmgs::OnEmpty)
+        .with_vmgs(petri::PetriVmgsResource::Disk(initial_vmgs))
         .run_without_agent()
         .await?;
 

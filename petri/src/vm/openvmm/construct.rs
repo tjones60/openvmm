@@ -11,6 +11,7 @@ use super::PetriVmArtifactsOpenVmm;
 use super::PetriVmConfigOpenVmm;
 use super::PetriVmResourcesOpenVmm;
 use super::SCSI_INSTANCE;
+use super::memdiff_disk_from_artifact;
 use crate::Firmware;
 use crate::IsolationType;
 use crate::PcatGuest;
@@ -23,7 +24,6 @@ use crate::linux_direct_serial_agent::LinuxDirectSerialAgent;
 use crate::openhcl_diag::OpenHclDiagHandler;
 use anyhow::Context;
 use disk_backend_resources::LayeredDiskHandle;
-use disk_backend_resources::layer::DiskLayerHandle;
 use disk_backend_resources::layer::RamDiskLayerHandle;
 use framebuffer::FRAMEBUFFER_SIZE;
 use framebuffer::Framebuffer;
@@ -653,22 +653,15 @@ impl PetriVmConfigSetupCore<'_> {
             }
             Firmware::Pcat { guest, .. } => {
                 let disk_path = guest.artifact();
-                let inner_disk = open_disk_type(disk_path.as_ref(), true)?;
                 let guest_media = match guest {
                     PcatGuest::Vhd(_) => GuestMedia::Disk {
                         read_only: false,
                         disk_parameters: None,
-                        disk_type: LayeredDiskHandle {
-                            layers: vec![
-                                RamDiskLayerHandle { len: None }.into_resource().into(),
-                                DiskLayerHandle(inner_disk).into_resource().into(),
-                            ],
-                        }
-                        .into_resource(),
+                        disk_type: memdiff_disk_from_artifact(disk_path)?,
                     },
                     PcatGuest::Iso(_) => GuestMedia::Dvd(
                         SimpleScsiDvdHandle {
-                            media: Some(inner_disk),
+                            media: Some(open_disk_type(disk_path.as_ref(), true)?),
                             requests: None,
                         }
                         .into_resource(),
@@ -704,18 +697,9 @@ impl PetriVmConfigSetupCore<'_> {
                             device: SimpleScsiDiskHandle {
                                 read_only: false,
                                 parameters: Default::default(),
-                                disk: LayeredDiskHandle {
-                                    layers: vec![
-                                        RamDiskLayerHandle { len: None }.into_resource().into(),
-                                        DiskLayerHandle(open_disk_type(
-                                            disk_path.expect("not uefi guest none").as_ref(),
-                                            true,
-                                        )?)
-                                        .into_resource()
-                                        .into(),
-                                    ],
-                                }
-                                .into_resource(),
+                                disk: memdiff_disk_from_artifact(
+                                    disk_path.expect("not uefi guest none"),
+                                )?,
                             }
                             .into_resource(),
                         }],
@@ -739,18 +723,9 @@ impl PetriVmConfigSetupCore<'_> {
                         msix_count: 64,
                         namespaces: vec![NamespaceDefinition {
                             nsid: BOOT_NVME_NSID,
-                            disk: LayeredDiskHandle {
-                                layers: vec![
-                                    RamDiskLayerHandle { len: None }.into_resource().into(),
-                                    DiskLayerHandle(open_disk_type(
-                                        disk_path.expect("not uefi guest none").as_ref(),
-                                        true,
-                                    )?)
-                                    .into_resource()
-                                    .into(),
-                                ],
-                            }
-                            .into_resource(),
+                            disk: memdiff_disk_from_artifact(
+                                disk_path.expect("not uefi guest none"),
+                            )?,
                             read_only: false,
                         }],
                     }
