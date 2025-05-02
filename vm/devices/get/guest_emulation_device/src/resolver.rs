@@ -78,7 +78,7 @@ impl AsyncResolveResource<VmbusDeviceHandleKind, GuestEmulationDeviceHandle>
                 (Some(disk), GuestStateLifetime::ReprovisionOnFailure)
             }
             VmgsResource::Reprovision(disk) => (Some(disk), GuestStateLifetime::Reprovision),
-            VmgsResource::Ephemeral => (None, GuestStateLifetime::Default),
+            VmgsResource::Ephemeral => (None, GuestStateLifetime::Ephemeral),
         };
 
         let vmgs_disk = if let Some(disk) = vmgs_disk {
