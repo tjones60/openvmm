@@ -87,10 +87,10 @@ pub fn create_disk_type(path: &Path, size: u64) -> anyhow::Result<Resource<DiskH
             Resource::new(disk_backend_resources::FixedVhd1DiskHandle(file))
         }
         Some("vhdx") => {
-            anyhow::bail!("creating vhdx no supported")
+            anyhow::bail!("creating vhdx not supported")
         }
         Some("iso") => {
-            anyhow::bail!("creating iso no supported")
+            anyhow::bail!("creating iso not supported")
         }
         _ => {
             let file = std::fs::OpenOptions::new()
