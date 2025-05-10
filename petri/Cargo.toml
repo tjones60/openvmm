@@ -49,7 +49,8 @@ vmm_core_defs.workspace = true
 vmotherboard.workspace = true
 vmsocket.workspace = true
 
-guid.workspace = true
+cmd_builder.workspace = true
+guid = { workspace = true, features = ["ps_val"] }
 inspect = { workspace = true, features = ["initiate"] }
 kmsg.workspace = true
 mesh_process.workspace = true
