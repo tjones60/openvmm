@@ -5447,7 +5447,6 @@ dependencies = [
  "sparse_mmap",
  "storvsp_resources",
  "tempfile",
- "thiserror 2.0.12",
  "tpm_resources",
  "tracing",
  "tracing-subscriber",
