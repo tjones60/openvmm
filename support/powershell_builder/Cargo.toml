@@ -2,14 +2,13 @@
 # Licensed under the MIT License.
 
 [package]
-name = "cmd_builder"
+name = "powershell_builder"
 edition.workspace = true
 rust-version.workspace = true
 
-[dependencies]
-jiff = { workspace = true, features = ["serde"] }
-thiserror.workspace = true
-tracing.workspace = true
+[target.'cfg(windows)'.dependencies]
+guid.workspace = true
+jiff.workspace = true
 
 [lints]
 workspace = true

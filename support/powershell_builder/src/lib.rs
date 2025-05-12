@@ -1,10 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-//! Powershell Command Builder
+//! PowerShell Command Builder
+//!
+//! Provides a builder for constructing PowerShell commands with various
+//! argument data types and pipelining.
 
-use crate::CommandError;
-use crate::run_cmd;
+#![cfg(windows)]
+#![forbid(unsafe_code)]
+
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::path::Path;
@@ -41,8 +45,8 @@ impl PowerShellBuilder {
     }
 
     /// Run the PowerShell script and return the output
-    pub fn output(self, log_stdout: bool) -> Result<String, CommandError> {
-        run_cmd(self.0, log_stdout)
+    pub fn finish(self) -> Command {
+        self.0
     }
 }
 
@@ -180,7 +184,7 @@ macro_rules! disp_str {
         }
     }
 
-disp_str!(jiff::Timestamp);
+disp_str!(jiff::Timestamp, guid::Guid);
 
 impl AsVal for bool {
     fn as_val(&self) -> impl '_ + AsRef<OsStr> {
