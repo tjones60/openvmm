@@ -49,8 +49,7 @@ vmm_core_defs.workspace = true
 vmotherboard.workspace = true
 vmsocket.workspace = true
 
-cmd_builder.workspace = true
-guid = { workspace = true, features = ["ps_val"] }
+guid.workspace = true
 inspect = { workspace = true, features = ["initiate"] }
 kmsg.workspace = true
 mesh_process.workspace = true
@@ -58,6 +57,7 @@ mesh_worker.workspace = true
 mesh.workspace = true
 pal_async.workspace = true
 pal.workspace = true
+powershell_builder.workspace = true
 unix_socket.workspace = true
 sparse_mmap.workspace = true
 
@@ -80,6 +80,7 @@ prost.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 tempfile.workspace = true
+thiserror.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 

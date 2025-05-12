@@ -3,8 +3,8 @@
 
 //! Functions for interacting with Hyper-V VMs.
 
+use super::vm::CommandError;
 use anyhow::Context;
-use cmd_builder::CommandError;
 use guid::Guid;
 
 pub fn hvc_start(vmid: &Guid) -> Result<(), CommandError> {
@@ -94,5 +94,5 @@ fn hvc_output(
     let mut cmd = std::process::Command::new("hvc.exe");
     f(&mut cmd);
 
-    cmd_builder::run_cmd(cmd, true)
+    super::vm::run_cmd(cmd, true)
 }

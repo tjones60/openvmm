@@ -685,15 +685,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cmd_builder"
-version = "0.0.0"
-dependencies = [
- "jiff",
- "thiserror 2.0.12",
- "tracing",
-]
-
-[[package]]
 name = "cobs"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2682,7 +2673,6 @@ dependencies = [
 name = "guid"
 version = "0.0.0"
 dependencies = [
- "cmd_builder",
  "getrandom 0.3.2",
  "inspect",
  "mesh_protobuf",
@@ -5363,7 +5353,6 @@ dependencies = [
  "async-trait",
  "chipset_resources",
  "clap",
- "cmd_builder",
  "diag_client",
  "disk_backend_resources",
  "disk_vhd1",
@@ -5403,6 +5392,7 @@ dependencies = [
  "petri_artifacts_core",
  "petri_artifacts_vmm_test",
  "pipette_client",
+ "powershell_builder",
  "prost",
  "scsidisk_resources",
  "serde",
@@ -5413,6 +5403,7 @@ dependencies = [
  "sparse_mmap",
  "storvsp_resources",
  "tempfile",
+ "thiserror 2.0.12",
  "tpm_resources",
  "tracing",
  "tracing-subscriber",
@@ -5636,6 +5627,14 @@ name = "powerfmt"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
+
+[[package]]
+name = "powershell_builder"
+version = "0.0.0"
+dependencies = [
+ "guid",
+ "jiff",
+]
 
 [[package]]
 name = "prettyplease"
