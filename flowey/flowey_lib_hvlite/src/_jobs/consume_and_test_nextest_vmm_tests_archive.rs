@@ -14,7 +14,7 @@ use flowey::node::prelude::*;
 use std::collections::BTreeMap;
 use vmm_test_images::KnownTestArtifacts;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct VmmTestsDepArtifacts {
     pub openvmm: Option<ReadVar<OpenvmmOutput>>,
     pub pipette_windows: Option<ReadVar<PipetteOutput>>,
