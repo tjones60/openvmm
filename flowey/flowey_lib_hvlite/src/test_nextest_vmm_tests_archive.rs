@@ -21,6 +21,10 @@ flowey_request! {
         pub nextest_filter_expr: Option<String>,
         /// Nextest profile to use when running the source code
         pub nextest_profile: NextestProfile,
+        /// Nextest working directory (defaults to repo root)
+        pub nextest_working_dir: Option<ReadVar<PathBuf>>,
+        /// Nextest configuration file (defaults to config in repo)
+        pub nextest_config_file: Option<ReadVar<PathBuf>>,
         /// Additional env vars set when executing the tests.
         pub extra_env: ReadVar<BTreeMap<String, String>>,
         /// Wait for specified side-effects to resolve before building / running
@@ -29,6 +33,8 @@ flowey_request! {
         pub pre_run_deps: Vec<ReadVar<SideEffect>>,
         /// Results of running the tests
         pub results: WriteVar<TestResults>,
+        /// Generate the command, but do not run
+        pub dry_run: bool,
     }
 }
 
@@ -46,9 +52,12 @@ impl SimpleFlowNode for Node {
             nextest_archive_file,
             nextest_filter_expr,
             nextest_profile,
+            nextest_working_dir,
+            nextest_config_file,
             extra_env,
             mut pre_run_deps,
             results,
+            dry_run,
         } = request;
 
         if !matches!(ctx.backend(), FlowBackend::Local)
@@ -66,18 +75,23 @@ impl SimpleFlowNode for Node {
         }
 
         let nextest_archive = nextest_archive_file.map(ctx, |x| x.archive_file);
+        let target = nextest_archive_file.map(ctx, |x| x.target);
 
         ctx.req(crate::run_cargo_nextest_run::Request {
             friendly_name: "vmm_tests".into(),
             run_kind: flowey_lib_common::run_cargo_nextest_run::NextestRunKind::RunFromArchive(
                 nextest_archive,
+                target,
             ),
             nextest_profile,
             nextest_filter_expr,
+            nextest_working_dir,
+            nextest_config_file,
             run_ignored: false,
             extra_env: Some(extra_env),
             pre_run_deps,
             results,
+            dry_run,
         });
 
         Ok(())
