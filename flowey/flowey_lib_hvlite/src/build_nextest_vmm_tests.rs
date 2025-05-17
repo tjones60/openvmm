@@ -17,6 +17,7 @@ use std::collections::BTreeMap;
 pub struct NextestVmmTestsArchive {
     #[serde(rename = "vmm_tests.tar.zst")]
     pub archive_file: PathBuf,
+    pub target: target_lexicon::Triple,
 }
 
 impl Artifact for NextestVmmTestsArchive {}
@@ -148,10 +149,13 @@ impl FlowNode for Node {
                             ),
                         nextest_profile,
                         nextest_filter_expr,
+                        nextest_working_dir: None,
+                        nextest_config_file: None,
                         run_ignored: false,
                         extra_env: Some(extra_env),
                         pre_run_deps: ambient_deps,
                         results,
+                        dry_run: false,
                     })
                 }
                 BuildNextestVmmTestsMode::Archive(unit_tests_archive) => {
@@ -172,7 +176,13 @@ impl FlowNode for Node {
                         let unit_tests = unit_tests_archive.claim(ctx);
                         |rt| {
                             let archive_file = rt.read(archive_file);
-                            rt.write(unit_tests, &NextestVmmTestsArchive { archive_file });
+                            rt.write(
+                                unit_tests,
+                                &NextestVmmTestsArchive {
+                                    archive_file,
+                                    target,
+                                },
+                            );
                         }
                     });
                 }

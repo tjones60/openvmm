@@ -62,9 +62,9 @@ pub mod build_params {
         pub no_default_features: bool,
         /// Whether to build tests with unstable `-Zpanic-abort-tests` flag
         pub unstable_panic_abort_tests: Option<PanicAbortTests>,
-        /// Build unit tests for the specified target
+        /// Build tests for the specified target
         pub target: target_lexicon::Triple,
-        /// Build unit tests with the specified cargo profile
+        /// Build tests with the specified cargo profile
         pub profile: CargoBuildProfile,
         /// Additional env vars set when building the tests
         pub extra_env: ReadVar<BTreeMap<String, String>, C>,
@@ -77,7 +77,7 @@ pub enum NextestRunKind {
     /// Build and run tests in a single step.
     BuildAndRun(build_params::NextestBuildParams),
     /// Run tests from pre-built nextest archive file.
-    RunFromArchive(ReadVar<PathBuf>),
+    RunFromArchive(ReadVar<PathBuf>, ReadVar<target_lexicon::Triple>),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -109,6 +109,8 @@ pub struct Run {
     pub pre_run_deps: Vec<ReadVar<SideEffect>>,
     /// Results of running the tests
     pub results: WriteVar<TestResults>,
+    /// Generate the command, but do not run
+    pub dry_run: bool,
 }
 
 flowey_request! {
@@ -133,6 +135,7 @@ enum RunKindDeps<C = VarNotClaimed> {
     RunFromArchive {
         archive_file: ReadVar<PathBuf, C>,
         nextest_bin: ReadVar<PathBuf, C>,
+        target: ReadVar<target_lexicon::Triple, C>,
     },
 }
 
@@ -179,6 +182,7 @@ impl FlowNode for Node {
             run_ignored,
             pre_run_deps,
             results,
+            dry_run,
         } in run
         {
             let run_kind_deps = match run_kind {
@@ -201,13 +205,14 @@ impl FlowNode for Node {
                         cargo_flags,
                     }
                 }
-                NextestRunKind::RunFromArchive(archive_file) => {
+                NextestRunKind::RunFromArchive(archive_file, target) => {
                     let nextest_bin =
                         ctx.reqv(crate::download_cargo_nextest::Request::InstallStandalone);
 
                     RunKindDeps::RunFromArchive {
                         archive_file,
                         nextest_bin,
+                        target,
                     }
                 }
             };
@@ -232,6 +237,28 @@ impl FlowNode for Node {
                     let working_dir = rt.read(working_dir);
                     let config_file = rt.read(config_file);
                     let mut with_env = rt.read(extra_env).unwrap_or_default();
+
+                    let target = match &run_kind_deps {
+                        RunKindDeps::BuildAndRun {
+                            params: build_params::NextestBuildParams { target, .. },
+                            ..
+                        } => target.clone(),
+                        RunKindDeps::RunFromArchive { target, .. } => rt.read(target.clone()),
+                    };
+
+                    let windows_via_wsl2 = crate::_util::running_in_wsl(rt)
+                        && matches!(
+                            target.operating_system,
+                            target_lexicon::OperatingSystem::Windows
+                        );
+
+                    let maybe_convert_path = |path: PathBuf| -> PathBuf {
+                        if windows_via_wsl2 {
+                            crate::_util::wslpath::linux_to_win(path)
+                        } else {
+                            path
+                        }
+                    };
 
                     // first things first - determine if junit is supported by
                     // the profile, and if so, where the output if going to be.
@@ -320,10 +347,13 @@ impl FlowNode for Node {
                         RunKindDeps::RunFromArchive {
                             archive_file,
                             nextest_bin,
+                            target: _,
                         } => {
                             let build_args = vec![
                                 "--archive-file".into(),
-                                rt.read(archive_file).display().to_string(),
+                                maybe_convert_path(rt.read(archive_file))
+                                    .display()
+                                    .to_string(),
                             ];
 
                             let nextest_invocation = NextestInvocation::Standalone {
@@ -354,15 +384,20 @@ impl FlowNode for Node {
                         "--profile".into(),
                         (&nextest_profile).into(),
                         "--config-file".into(),
-                        config_file.into(),
+                        maybe_convert_path(config_file).into(),
                         "--workspace-remap".into(),
-                        (&working_dir).into(),
+                        maybe_convert_path(working_dir.clone()).into(),
                     ]);
 
                     for (tool, config_file) in tool_config_files {
                         args.extend([
                             "--tool-config-file".into(),
-                            format!("{}:{}", tool, rt.read(config_file).display()).into(),
+                            format!(
+                                "{}:{}",
+                                tool,
+                                maybe_convert_path(rt.read(config_file)).display()
+                            )
+                            .into(),
                         ]);
                     }
 
@@ -454,16 +489,30 @@ impl FlowNode for Node {
 
                     let arg_string = || {
                         args.iter()
-                            .map(|v| v.to_string_lossy().to_string())
+                            .map(|v| format!("'{}'", v.to_string_lossy()))
                             .collect::<Vec<_>>()
                             .join(" ")
                     };
 
-                    let env_string = with_env
-                        .iter()
-                        .map(|(k, v)| format!("{k}='{v}'"))
-                        .collect::<Vec<_>>()
-                        .join(" ");
+                    let env_string = match target.operating_system {
+                        target_lexicon::OperatingSystem::Windows => with_env
+                            .iter()
+                            .map(|(k, v)| format!("$env:{k}='{v}'"))
+                            .collect::<Vec<_>>()
+                            .join("; "),
+                        _ => with_env
+                            .iter()
+                            .map(|(k, v)| format!("{k}='{v}'"))
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                    };
+
+                    log::info!(
+                        "$ {} {} {}",
+                        env_string,
+                        argv0.to_string_lossy(),
+                        arg_string()
+                    );
 
                     // nextest has meaningful exit codes that we want to parse.
                     // <https://github.com/nextest-rs/nextest/blob/main/nextest-metadata/src/exit_codes.rs#L12>
@@ -473,94 +522,92 @@ impl FlowNode for Node {
                     // exit code of the process.
                     //
                     // So we have to use the raw process API instead.
-                    log::info!(
-                        "$ {} {} {}",
-                        env_string,
-                        argv0.to_string_lossy(),
-                        arg_string()
-                    );
                     let mut command = std::process::Command::new(&argv0);
                     command.args(&args).envs(with_env).current_dir(&working_dir);
 
-                    let mut child = command.spawn().with_context(|| {
-                        format!(
-                            "failed to spawn '{} {}'",
-                            argv0.to_string_lossy(),
-                            arg_string()
-                        )
-                    })?;
+                    if !dry_run {
+                        let mut child = command.spawn().with_context(|| {
+                            format!(
+                                "failed to spawn '{} {}'",
+                                argv0.to_string_lossy(),
+                                arg_string()
+                            )
+                        })?;
 
-                    let status = child.wait()?;
+                        let status = child.wait()?;
 
-                    #[cfg(unix)]
-                    if let Some((soft, hard)) = old_core_rlimits {
-                        rlimit::setrlimit(rlimit::Resource::CORE, soft, hard)?;
-                    }
+                        #[cfg(unix)]
+                        if let Some((soft, hard)) = old_core_rlimits {
+                            rlimit::setrlimit(rlimit::Resource::CORE, soft, hard)?;
+                        }
 
-                    let all_tests_passed = match (status.success(), status.code()) {
-                        (true, _) => true,
-                        // documented nextest exit code for when a test has failed
-                        (false, Some(100)) => false,
-                        // any other exit code means something has gone disastrously wrong
-                        (false, _) => anyhow::bail!("failed to run nextest"),
-                    };
+                        let all_tests_passed = match (status.success(), status.code()) {
+                            (true, _) => true,
+                            // documented nextest exit code for when a test has failed
+                            (false, Some(100)) => false,
+                            // any other exit code means something has gone disastrously wrong
+                            (false, _) => anyhow::bail!("failed to run nextest"),
+                        };
 
-                    rt.write(all_tests_passed_var, &all_tests_passed);
+                        rt.write(all_tests_passed_var, &all_tests_passed);
 
-                    if !all_tests_passed {
-                        log::warn!("encountered at least one test failure!");
+                        if !all_tests_passed {
+                            log::warn!("encountered at least one test failure!");
 
-                        if terminate_job_on_fail {
-                            anyhow::bail!("terminating job (TerminateJobOnFail = true)")
-                        } else {
-                            // special string on ADO that causes step to show orange (!)
-                            // FUTURE: flowey should prob have a built-in API for this
-                            if matches!(rt.backend(), FlowBackend::Ado) {
-                                eprintln!("##vso[task.complete result=SucceededWithIssues;]")
+                            if terminate_job_on_fail {
+                                anyhow::bail!("terminating job (TerminateJobOnFail = true)")
                             } else {
-                                log::warn!("encountered at least one test failure");
+                                // special string on ADO that causes step to show orange (!)
+                                // FUTURE: flowey should prob have a built-in API for this
+                                if matches!(rt.backend(), FlowBackend::Ado) {
+                                    eprintln!("##vso[task.complete result=SucceededWithIssues;]")
+                                } else {
+                                    log::warn!("encountered at least one test failure");
+                                }
                             }
                         }
+
+                        let junit_xml = if let Some(junit_path) = junit_path {
+                            let emitted_xml = working_dir
+                                .join("target")
+                                .join("nextest")
+                                .join(&nextest_profile)
+                                .join(junit_path);
+                            let final_xml = std::env::current_dir()?.join("junit.xml");
+                            // copy locally to avoid trashing the output between test runs
+                            fs_err::rename(emitted_xml, &final_xml)?;
+                            Some(final_xml.absolute()?)
+                        } else {
+                            None
+                        };
+
+                        rt.write(junit_xml_write, &junit_xml);
                     }
-
-                    let junit_xml = if let Some(junit_path) = junit_path {
-                        let emitted_xml = working_dir
-                            .join("target")
-                            .join("nextest")
-                            .join(&nextest_profile)
-                            .join(junit_path);
-                        let final_xml = std::env::current_dir()?.join("junit.xml");
-                        // copy locally to avoid trashing the output between test runs
-                        fs_err::rename(emitted_xml, &final_xml)?;
-                        Some(final_xml.absolute()?)
-                    } else {
-                        None
-                    };
-
-                    rt.write(junit_xml_write, &junit_xml);
 
                     Ok(())
                 }
             });
 
-            ctx.emit_minor_rust_step("write results", |ctx| {
-                let all_tests_passed = all_tests_passed_read.claim(ctx);
-                let junit_xml = junit_xml_read.claim(ctx);
-                let results = results.claim(ctx);
+            if !dry_run {
+                ctx.emit_minor_rust_step("write results", |ctx| {
+                    let all_tests_passed = all_tests_passed_read.claim(ctx);
+                    let junit_xml = junit_xml_read.claim(ctx);
+                    let results = results.claim(ctx);
 
-                move |rt| {
-                    let all_tests_passed = rt.read(all_tests_passed);
-                    let junit_xml = rt.read(junit_xml);
+                    move |rt| {
+                        let all_tests_passed = rt.read(all_tests_passed);
+                        let junit_xml = rt.read(junit_xml);
 
-                    rt.write(
-                        results,
-                        &TestResults {
-                            all_tests_passed,
-                            junit_xml,
-                        },
-                    );
-                }
-            });
+                        rt.write(
+                            results,
+                            &TestResults {
+                                all_tests_passed,
+                                junit_xml,
+                            },
+                        );
+                    }
+                });
+            }
         }
 
         Ok(())
@@ -704,9 +751,11 @@ impl RunKindDeps {
             RunKindDeps::RunFromArchive {
                 archive_file,
                 nextest_bin,
+                target,
             } => RunKindDeps::RunFromArchive {
                 archive_file: archive_file.claim(ctx),
                 nextest_bin: nextest_bin.claim(ctx),
+                target: target.claim(ctx),
             },
         }
     }
