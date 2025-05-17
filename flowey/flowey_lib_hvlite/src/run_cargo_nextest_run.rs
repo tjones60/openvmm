@@ -28,6 +28,10 @@ flowey_request! {
         pub nextest_profile: NextestProfile,
         /// Nextest test filter expression
         pub nextest_filter_expr: Option<String>,
+        /// Nextest working directory (defaults to repo root)
+        pub nextest_working_dir: Option<ReadVar<PathBuf>>,
+        /// Nextest configuration file (defaults to config in repo)
+        pub nextest_config_file: Option<ReadVar<PathBuf>>,
         /// Whether to run ignored test
         pub run_ignored: bool,
         /// Additional env vars set when executing the tests.
@@ -38,6 +42,8 @@ flowey_request! {
         pub pre_run_deps: Vec<ReadVar<SideEffect>>,
         /// Results of running the tests
         pub results: WriteVar<TestResults>,
+        /// Generate the command, but do not run
+        pub dry_run: bool,
     }
 }
 
@@ -52,10 +58,10 @@ impl FlowNode for Node {
     }
 
     fn emit(requests: Vec<Self::Request>, ctx: &mut NodeCtx<'_>) -> anyhow::Result<()> {
-        let openvmm_repo_path = ctx.reqv(crate::git_checkout_openvmm_repo::req::GetRepoDir);
+        // let openvmm_repo_path = ctx.reqv(crate::git_checkout_openvmm_repo::req::GetRepoDir);
 
-        let nextest_config_file =
-            openvmm_repo_path.map(ctx, |p| p.join(".config").join("nextest.toml"));
+        // let default_nextest_config_file =
+        //     openvmm_repo_path.map(ctx, |p| p.join(".config").join("nextest.toml"));
 
         let base_env = [
             // Used by the test_with_tracing macro in test runners
@@ -72,10 +78,13 @@ impl FlowNode for Node {
             run_kind,
             nextest_profile,
             nextest_filter_expr,
+            nextest_working_dir,
+            nextest_config_file,
             run_ignored,
             pre_run_deps,
             results,
             extra_env,
+            dry_run,
         } in requests
         {
             let extra_env = if let Some(with_env) = extra_env {
@@ -92,8 +101,10 @@ impl FlowNode for Node {
                 flowey_lib_common::run_cargo_nextest_run::Run {
                     friendly_name,
                     run_kind,
-                    working_dir: openvmm_repo_path.clone(),
-                    config_file: nextest_config_file.clone(),
+                    // working_dir: nextest_working_dir.unwrap_or(openvmm_repo_path.clone()),
+                    // config_file: nextest_config_file.unwrap_or(default_nextest_config_file.clone()),
+                    working_dir: nextest_working_dir.unwrap(),
+                    config_file: nextest_config_file.unwrap(),
                     tool_config_files: Vec::new(),
                     nextest_profile: match nextest_profile {
                         NextestProfile::Default => "default".into(),
@@ -105,6 +116,7 @@ impl FlowNode for Node {
                     run_ignored,
                     pre_run_deps,
                     results,
+                    dry_run,
                 },
             ));
         }

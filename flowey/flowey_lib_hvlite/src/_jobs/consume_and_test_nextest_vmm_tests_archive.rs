@@ -14,7 +14,7 @@ use flowey::node::prelude::*;
 use std::collections::BTreeMap;
 use vmm_test_images::KnownTestArtifacts;
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize)]
 pub struct VmmTestsDepArtifacts {
     pub openvmm: Option<ReadVar<OpenvmmOutput>>,
     pub pipette_windows: Option<ReadVar<PipetteOutput>>,
@@ -111,24 +111,7 @@ impl SimpleFlowNode for Node {
         let disk_images_dir =
             ctx.reqv(crate::download_openvmm_vmm_tests_artifacts::Request::GetDownloadFolder);
 
-        // FUTURE: once we move away from the known_paths resolver, this will no
-        // longer be an ambient pre-run dependency.
-        let mu_msvm_arch = match target.architecture {
-            target_lexicon::Architecture::X86_64 => {
-                crate::download_uefi_mu_msvm::MuMsvmArch::X86_64
-            }
-            target_lexicon::Architecture::Aarch64(_) => {
-                crate::download_uefi_mu_msvm::MuMsvmArch::Aarch64
-            }
-            arch => anyhow::bail!("unsupported arch {arch}"),
-        };
-        let pre_run_deps = vec![
-            ctx.reqv(|v| crate::init_openvmm_magicpath_uefi_mu_msvm::Request {
-                arch: mu_msvm_arch,
-                done: v,
-            }),
-            ctx.reqv(crate::init_hyperv_tests::Request),
-        ];
+        let pre_run_deps = vec![ctx.reqv(crate::init_hyperv_tests::Request)];
 
         let (test_log_path, get_test_log_path) = ctx.new_var();
 
@@ -152,8 +135,11 @@ impl SimpleFlowNode for Node {
             nextest_archive_file: nextest_vmm_tests_archive,
             nextest_profile,
             nextest_filter_expr,
+            nextest_working_dir: None,
+            nextest_config_file: None,
             extra_env,
             pre_run_deps,
+            dry_run: false,
             results: v,
         });
 

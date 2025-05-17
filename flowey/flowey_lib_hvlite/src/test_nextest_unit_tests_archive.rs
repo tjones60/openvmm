@@ -40,18 +40,23 @@ impl FlowNode for Node {
         } in requests
         {
             let nextest_archive = nextest_archive_file.map(ctx, |x| x.archive_file);
+            let target = nextest_archive_file.map(ctx, |x| x.target);
 
             ctx.req(crate::run_cargo_nextest_run::Request {
                 friendly_name: "unit-tests".into(),
                 run_kind: flowey_lib_common::run_cargo_nextest_run::NextestRunKind::RunFromArchive(
                     nextest_archive,
+                    target,
                 ),
                 nextest_profile,
                 nextest_filter_expr: None,
+                nextest_working_dir: None,
+                nextest_config_file: None,
                 run_ignored: false,
                 extra_env: None,
                 pre_run_deps: Vec::new(), // FIXME: ensure all deps are installed
                 results,
+                dry_run: false,
             })
         }
 
