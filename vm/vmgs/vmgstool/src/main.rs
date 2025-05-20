@@ -1280,7 +1280,7 @@ mod tests {
         .await
         .unwrap();
 
-        let mut vmgs = test_vmgs_open(path, OpenMode::ReadWrite, Some(&encryption_key), false)
+        let mut vmgs = test_vmgs_open(path, OpenMode::ReadWrite, Some(&encryption_key))
             .await
             .unwrap();
 
@@ -1314,7 +1314,7 @@ mod tests {
 
         test_vmgs_create(&path, None, false, None).await.unwrap();
 
-        let result = test_vmgs_open(path, OpenMode::ReadWrite, Some(&encryption_key), false).await;
+        let result = test_vmgs_open(path, OpenMode::ReadWrite, Some(&encryption_key)).await;
 
         assert!(result.is_err());
     }
@@ -1359,7 +1359,7 @@ mod tests {
         .unwrap();
 
         {
-            let mut vmgs = test_vmgs_open(&path, OpenMode::ReadWrite, Some(&encryption_key), false)
+            let mut vmgs = test_vmgs_open(&path, OpenMode::ReadWrite, Some(&encryption_key))
                 .await
                 .unwrap();
 
@@ -1436,7 +1436,7 @@ mod tests {
         .unwrap();
 
         {
-            let mut vmgs = test_vmgs_open(&path, OpenMode::ReadWrite, Some(&encryption_key), false)
+            let mut vmgs = test_vmgs_open(&path, OpenMode::ReadWrite, Some(&encryption_key))
                 .await
                 .unwrap();
 
@@ -1455,10 +1455,9 @@ mod tests {
         .unwrap();
 
         {
-            let mut vmgs =
-                test_vmgs_open(&path, OpenMode::ReadOnly, Some(&new_encryption_key), false)
-                    .await
-                    .unwrap();
+            let mut vmgs = test_vmgs_open(&path, OpenMode::ReadOnly, Some(&new_encryption_key))
+                .await
+                .unwrap();
 
             let read_buf = vmgs_read(&mut vmgs, FileId::BIOS_NVRAM, true)
                 .await
@@ -1467,7 +1466,7 @@ mod tests {
         }
 
         // Old key should no longer work
-        let result = test_vmgs_open(&path, OpenMode::ReadOnly, Some(&encryption_key), false).await;
+        let result = test_vmgs_open(&path, OpenMode::ReadOnly, Some(&encryption_key)).await;
         assert!(result.is_err());
     }
 
@@ -1484,7 +1483,7 @@ mod tests {
             .await
             .unwrap();
 
-        let mut vmgs = test_vmgs_open(&path, OpenMode::ReadWrite, Some(&encryption_key), false)
+        let mut vmgs = test_vmgs_open(&path, OpenMode::ReadWrite, Some(&encryption_key))
             .await
             .unwrap();
 
