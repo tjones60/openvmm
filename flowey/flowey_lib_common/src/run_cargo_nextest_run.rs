@@ -77,7 +77,11 @@ pub enum NextestRunKind {
     /// Build and run tests in a single step.
     BuildAndRun(build_params::NextestBuildParams),
     /// Run tests from pre-built nextest archive file.
-    RunFromArchive(ReadVar<PathBuf>, ReadVar<target_lexicon::Triple>),
+    RunFromArchive {
+        archive_file: ReadVar<PathBuf>,
+        target: ReadVar<target_lexicon::Triple>,
+        nextest_bin: Option<ReadVar<PathBuf>>,
+    },
 }
 
 #[derive(Serialize, Deserialize)]
@@ -205,9 +209,14 @@ impl FlowNode for Node {
                         cargo_flags,
                     }
                 }
-                NextestRunKind::RunFromArchive(archive_file, target) => {
-                    let nextest_bin = ctx
-                        .reqv(|v| crate::download_cargo_nextest::Request::Get(target.clone(), v));
+                NextestRunKind::RunFromArchive {
+                    archive_file,
+                    target,
+                    nextest_bin,
+                } => {
+                    let nextest_bin = nextest_bin.unwrap_or_else(|| {
+                        ctx.reqv(|v| crate::download_cargo_nextest::Request::Get(target.clone(), v))
+                    });
 
                     RunKindDeps::RunFromArchive {
                         archive_file,

@@ -25,6 +25,8 @@ flowey_request! {
         pub nextest_working_dir: Option<ReadVar<PathBuf>>,
         /// Nextest configuration file (defaults to config in repo)
         pub nextest_config_file: Option<ReadVar<PathBuf>>,
+        /// Optionally provide the nextest bin to use
+        pub nextest_bin: Option<ReadVar<PathBuf>>,
         /// Additional env vars set when executing the tests.
         pub extra_env: ReadVar<BTreeMap<String, String>>,
         /// Wait for specified side-effects to resolve before building / running
@@ -54,6 +56,7 @@ impl SimpleFlowNode for Node {
             nextest_profile,
             nextest_working_dir,
             nextest_config_file,
+            nextest_bin,
             extra_env,
             mut pre_run_deps,
             results,
@@ -79,10 +82,11 @@ impl SimpleFlowNode for Node {
 
         ctx.req(crate::run_cargo_nextest_run::Request {
             friendly_name: "vmm_tests".into(),
-            run_kind: flowey_lib_common::run_cargo_nextest_run::NextestRunKind::RunFromArchive(
-                nextest_archive,
+            run_kind: flowey_lib_common::run_cargo_nextest_run::NextestRunKind::RunFromArchive {
+                archive_file: nextest_archive,
                 target,
-            ),
+                nextest_bin,
+            },
             nextest_profile,
             nextest_filter_expr,
             nextest_working_dir,
