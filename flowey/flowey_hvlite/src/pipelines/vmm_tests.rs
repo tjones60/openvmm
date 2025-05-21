@@ -74,6 +74,7 @@ pub struct VmmTestsCli {
     /// Skip Hyper-V tests
     #[clap(long)]
     no_hyperv: bool,
+
     /// Build only, do not run
     #[clap(long)]
     build_only: bool,

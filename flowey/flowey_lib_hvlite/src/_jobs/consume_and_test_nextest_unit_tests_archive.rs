@@ -48,6 +48,7 @@ impl SimpleFlowNode for Node {
         let results = ctx.reqv(|v| crate::test_nextest_unit_tests_archive::Request {
             nextest_archive_file: nextest_unit_test_archive,
             nextest_profile,
+            nextest_bin: None,
             results: v,
         });
 

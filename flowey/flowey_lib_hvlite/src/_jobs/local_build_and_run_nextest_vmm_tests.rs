@@ -60,6 +60,7 @@ impl SimpleFlowNode for Node {
         ctx.import::<crate::test_nextest_vmm_tests_archive::Node>();
         ctx.import::<flowey_lib_common::publish_test_results::Node>();
         ctx.import::<crate::git_checkout_openvmm_repo::Node>();
+        ctx.import::<flowey_lib_common::download_cargo_nextest::Node>();
     }
 
     fn process_request(request: Self::Request, ctx: &mut NodeCtx<'_>) -> anyhow::Result<()> {
@@ -361,15 +362,47 @@ impl SimpleFlowNode for Node {
                 });
 
         let openvmm_repo_path = ctx.reqv(crate::git_checkout_openvmm_repo::req::GetRepoDir);
-        let nextest_config_file_src =
-            openvmm_repo_path.map(ctx, |p| Some(p.join(".config").join("nextest.toml")));
-        let nextest_config_file = Path::new("nextest.toml").to_owned();
-        copy_to_dir.push((nextest_config_file.clone(), nextest_config_file_src));
-        let nextest_config_file = test_content_dir.map(ctx, |dir| dir.join(nextest_config_file));
+
+        let nextest_config_file = Path::new("nextest.toml");
+        let nextest_config_file_src = openvmm_repo_path.map(ctx, move |p| {
+            Some(p.join(".config").join(nextest_config_file))
+        });
+        copy_to_dir.push((nextest_config_file.to_owned(), nextest_config_file_src));
+        let nextest_config_file =
+            test_content_dir.map(ctx, move |dir| dir.join(nextest_config_file));
+
+        let cargo_toml_file = Path::new("Cargo.toml");
+        let repo_cargo_toml_file_src =
+            openvmm_repo_path.map(ctx, move |p| Some(p.join(cargo_toml_file)));
+        let crate_cargo_toml_file = PathBuf::new()
+            .join("vmm_tests")
+            .join("vmm_tests")
+            .join(cargo_toml_file);
+        let crate_cargo_toml_file_src = crate_cargo_toml_file.clone();
+        let crate_cargo_toml_file_src =
+            openvmm_repo_path.map(ctx, move |p| Some(p.join(crate_cargo_toml_file_src)));
+        copy_to_dir.push((cargo_toml_file.to_owned(), repo_cargo_toml_file_src));
+        copy_to_dir.push((crate_cargo_toml_file, crate_cargo_toml_file_src));
+
+        let target = target.as_triple();
+        let nextest_bin = Path::new(match target.operating_system {
+            target_lexicon::OperatingSystem::Windows => "cargo-nextest.exe",
+            _ => "cargo-nextest",
+        });
+        let nextest_bin_src = ctx
+            .reqv(|v| {
+                flowey_lib_common::download_cargo_nextest::Request::Get(
+                    ReadVar::from_static(target.clone()),
+                    v,
+                )
+            })
+            .map(ctx, Some);
+        copy_to_dir.push((nextest_bin.to_owned(), nextest_bin_src));
+        let nextest_bin = test_content_dir.map(ctx, move |dir| dir.join(nextest_bin));
 
         let extra_env = ctx.reqv(|v| crate::init_vmm_tests_env::Request {
             test_content_dir: test_content_dir.clone(),
-            vmm_tests_target: target.as_triple(),
+            vmm_tests_target: target,
             register_openvmm: Some(register_openvmm),
             register_pipette_windows: Some(register_pipette_windows),
             register_pipette_linux_musl,
@@ -421,6 +454,7 @@ impl SimpleFlowNode for Node {
             nextest_filter_expr,
             nextest_working_dir: Some(test_content_dir.clone()),
             nextest_config_file: Some(nextest_config_file),
+            nextest_bin: Some(nextest_bin),
             extra_env,
             pre_run_deps: vec![copied_files],
             dry_run: build_only,

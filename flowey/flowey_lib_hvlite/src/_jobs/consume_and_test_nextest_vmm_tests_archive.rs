@@ -137,6 +137,7 @@ impl SimpleFlowNode for Node {
             nextest_filter_expr,
             nextest_working_dir: None,
             nextest_config_file: None,
+            nextest_bin: None,
             extra_env,
             pre_run_deps,
             dry_run: false,
