@@ -61,7 +61,6 @@ impl FlowNode for Node {
                 extra_env: None,
                 pre_run_deps: Vec::new(), // FIXME: ensure all deps are installed
                 results,
-                dry_run: false,
             })
         }
 

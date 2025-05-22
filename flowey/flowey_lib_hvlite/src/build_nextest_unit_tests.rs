@@ -249,7 +249,6 @@ impl FlowNode for Node {
                     extra_env: None,
                     pre_run_deps,
                     results,
-                    dry_run: false,
                 }),
                 BuildNextestUnitTestMode::Archive(unit_tests_archive) => {
                     let archive_file =

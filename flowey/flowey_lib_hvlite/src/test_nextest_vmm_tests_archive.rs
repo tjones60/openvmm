@@ -35,8 +35,6 @@ flowey_request! {
         pub pre_run_deps: Vec<ReadVar<SideEffect>>,
         /// Results of running the tests
         pub results: WriteVar<TestResults>,
-        /// Generate the command, but do not run
-        pub dry_run: bool,
     }
 }
 
@@ -60,7 +58,6 @@ impl SimpleFlowNode for Node {
             extra_env,
             mut pre_run_deps,
             results,
-            dry_run,
         } = request;
 
         if !matches!(ctx.backend(), FlowBackend::Local)
@@ -95,7 +92,6 @@ impl SimpleFlowNode for Node {
             extra_env: Some(extra_env),
             pre_run_deps,
             results,
-            dry_run,
         });
 
         Ok(())

@@ -140,7 +140,6 @@ impl SimpleFlowNode for Node {
             nextest_bin: None,
             extra_env,
             pre_run_deps,
-            dry_run: false,
             results: v,
         });
 
