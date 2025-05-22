@@ -42,8 +42,6 @@ flowey_request! {
         pub pre_run_deps: Vec<ReadVar<SideEffect>>,
         /// Results of running the tests
         pub results: WriteVar<TestResults>,
-        /// Generate the command, but do not run
-        pub dry_run: bool,
     }
 }
 
@@ -84,7 +82,6 @@ impl FlowNode for Node {
             mut pre_run_deps,
             results,
             extra_env,
-            dry_run,
         } in requests
         {
             let extra_env = if let Some(with_env) = extra_env {
@@ -128,7 +125,6 @@ impl FlowNode for Node {
                     run_ignored,
                     pre_run_deps,
                     results,
-                    dry_run,
                 },
             ));
         }

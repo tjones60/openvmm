@@ -113,8 +113,6 @@ pub struct Run {
     pub pre_run_deps: Vec<ReadVar<SideEffect>>,
     /// Results of running the tests
     pub results: WriteVar<TestResults>,
-    /// Generate the command, but do not run
-    pub dry_run: bool,
 }
 
 flowey_request! {
@@ -187,7 +185,6 @@ impl FlowNode for Node {
             run_ignored,
             pre_run_deps,
             results,
-            dry_run,
         } in run
         {
             let run_kind_deps = match run_kind {
@@ -534,89 +531,85 @@ impl FlowNode for Node {
                     let mut command = std::process::Command::new(&argv0);
                     command.args(&args).envs(with_env).current_dir(&working_dir);
 
-                    if !dry_run {
-                        let mut child = command.spawn().with_context(|| {
-                            format!(
-                                "failed to spawn '{} {}'",
-                                argv0.to_string_lossy(),
-                                arg_string()
-                            )
-                        })?;
+                    let mut child = command.spawn().with_context(|| {
+                        format!(
+                            "failed to spawn '{} {}'",
+                            argv0.to_string_lossy(),
+                            arg_string()
+                        )
+                    })?;
 
-                        let status = child.wait()?;
+                    let status = child.wait()?;
 
-                        #[cfg(unix)]
-                        if let Some((soft, hard)) = old_core_rlimits {
-                            rlimit::setrlimit(rlimit::Resource::CORE, soft, hard)?;
-                        }
+                    #[cfg(unix)]
+                    if let Some((soft, hard)) = old_core_rlimits {
+                        rlimit::setrlimit(rlimit::Resource::CORE, soft, hard)?;
+                    }
 
-                        let all_tests_passed = match (status.success(), status.code()) {
-                            (true, _) => true,
-                            // documented nextest exit code for when a test has failed
-                            (false, Some(100)) => false,
-                            // any other exit code means something has gone disastrously wrong
-                            (false, _) => anyhow::bail!("failed to run nextest"),
-                        };
+                    let all_tests_passed = match (status.success(), status.code()) {
+                        (true, _) => true,
+                        // documented nextest exit code for when a test has failed
+                        (false, Some(100)) => false,
+                        // any other exit code means something has gone disastrously wrong
+                        (false, _) => anyhow::bail!("failed to run nextest"),
+                    };
 
-                        rt.write(all_tests_passed_var, &all_tests_passed);
+                    rt.write(all_tests_passed_var, &all_tests_passed);
 
-                        if !all_tests_passed {
-                            log::warn!("encountered at least one test failure!");
+                    if !all_tests_passed {
+                        log::warn!("encountered at least one test failure!");
 
-                            if terminate_job_on_fail {
-                                anyhow::bail!("terminating job (TerminateJobOnFail = true)")
+                        if terminate_job_on_fail {
+                            anyhow::bail!("terminating job (TerminateJobOnFail = true)")
+                        } else {
+                            // special string on ADO that causes step to show orange (!)
+                            // FUTURE: flowey should prob have a built-in API for this
+                            if matches!(rt.backend(), FlowBackend::Ado) {
+                                eprintln!("##vso[task.complete result=SucceededWithIssues;]")
                             } else {
-                                // special string on ADO that causes step to show orange (!)
-                                // FUTURE: flowey should prob have a built-in API for this
-                                if matches!(rt.backend(), FlowBackend::Ado) {
-                                    eprintln!("##vso[task.complete result=SucceededWithIssues;]")
-                                } else {
-                                    log::warn!("encountered at least one test failure");
-                                }
+                                log::warn!("encountered at least one test failure");
                             }
                         }
-
-                        let junit_xml = if let Some(junit_path) = junit_path {
-                            let emitted_xml = working_dir
-                                .join("target")
-                                .join("nextest")
-                                .join(&nextest_profile)
-                                .join(junit_path);
-                            let final_xml = std::env::current_dir()?.join("junit.xml");
-                            // copy locally to avoid trashing the output between test runs
-                            fs_err::rename(emitted_xml, &final_xml)?;
-                            Some(final_xml.absolute()?)
-                        } else {
-                            None
-                        };
-
-                        rt.write(junit_xml_write, &junit_xml);
                     }
+
+                    let junit_xml = if let Some(junit_path) = junit_path {
+                        let emitted_xml = working_dir
+                            .join("target")
+                            .join("nextest")
+                            .join(&nextest_profile)
+                            .join(junit_path);
+                        let final_xml = std::env::current_dir()?.join("junit.xml");
+                        // copy locally to avoid trashing the output between test runs
+                        fs_err::rename(emitted_xml, &final_xml)?;
+                        Some(final_xml.absolute()?)
+                    } else {
+                        None
+                    };
+
+                    rt.write(junit_xml_write, &junit_xml);
 
                     Ok(())
                 }
             });
 
-            if !dry_run {
-                ctx.emit_minor_rust_step("write results", |ctx| {
-                    let all_tests_passed = all_tests_passed_read.claim(ctx);
-                    let junit_xml = junit_xml_read.claim(ctx);
-                    let results = results.claim(ctx);
+            ctx.emit_minor_rust_step("write results", |ctx| {
+                let all_tests_passed = all_tests_passed_read.claim(ctx);
+                let junit_xml = junit_xml_read.claim(ctx);
+                let results = results.claim(ctx);
 
-                    move |rt| {
-                        let all_tests_passed = rt.read(all_tests_passed);
-                        let junit_xml = rt.read(junit_xml);
+                move |rt| {
+                    let all_tests_passed = rt.read(all_tests_passed);
+                    let junit_xml = rt.read(junit_xml);
 
-                        rt.write(
-                            results,
-                            &TestResults {
-                                all_tests_passed,
-                                junit_xml,
-                            },
-                        );
-                    }
-                });
-            }
+                    rt.write(
+                        results,
+                        &TestResults {
+                            all_tests_passed,
+                            junit_xml,
+                        },
+                    );
+                }
+            });
         }
 
         Ok(())

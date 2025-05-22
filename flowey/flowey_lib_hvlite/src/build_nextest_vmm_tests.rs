@@ -155,7 +155,6 @@ impl FlowNode for Node {
                         extra_env: Some(extra_env),
                         pre_run_deps: ambient_deps,
                         results,
-                        dry_run: false,
                     })
                 }
                 BuildNextestVmmTestsMode::Archive(unit_tests_archive) => {
