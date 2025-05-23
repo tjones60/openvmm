@@ -83,6 +83,10 @@ enum Error {
     FileIdExists(FileId),
     #[error("VMGS file is encrypted using GspById")]
     GspByIdEncryption,
+    #[error("VMGS file is encrypted using an unknown encryption scheme")]
+    GspUnknown,
+    #[error("VMGS file is using an unknown encryption algorithm")]
+    EncryptionUnknown,
 }
 
 /// Automation requires certain exit codes to be guaranteed
@@ -101,6 +105,7 @@ enum ExitCode {
     ErrorNotFound = 4,
     ErrorV1 = 5,
     ErrorGspById = 6,
+    ErrorGspUnknown = 7,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -339,6 +344,7 @@ fn main() {
                 Error::Vmgs(VmgsError::FileInfoAllocated) => ExitCode::ErrorNotFound,
                 Error::V1Format => ExitCode::ErrorV1,
                 Error::GspByIdEncryption => ExitCode::ErrorGspById,
+                Error::GspUnknown => ExitCode::ErrorGspUnknown,
                 _ => ExitCode::Error,
             };
 
@@ -994,9 +1000,8 @@ async fn vmgs_file_query_encryption(file_path: impl AsRef<Path>) -> Result<(), E
         vmgs.get_encryption_algorithm(),
         vmgs_get_encryption_scheme(&vmgs),
     ) {
-        (EncryptionAlgorithm::NONE, VmgsEncryptionScheme::None) => {
-            println!("not encrypted");
-            // Returning an error for HA to easily parse
+        (EncryptionAlgorithm::NONE, scheme) => {
+            println!("not encrypted (encryption scheme: {scheme:?})");
             Err(Error::NotEncrypted)
         }
         (EncryptionAlgorithm::AES_GCM, VmgsEncryptionScheme::GspKey) => {
@@ -1007,8 +1012,17 @@ async fn vmgs_file_query_encryption(file_path: impl AsRef<Path>) -> Result<(), E
             println!("encrypted with AES GCM encryption algorithm using GspById");
             Err(Error::GspByIdEncryption)
         }
+        (EncryptionAlgorithm::AES_GCM, VmgsEncryptionScheme::None) => {
+            println!(
+                "encrypted with AES GCM encryption algorithm using an unknown encryption scheme"
+            );
+            Err(Error::GspUnknown)
+        }
         (alg, scheme) => {
-            unreachable!("Invalid encryption algorithm ({alg:?}) / scheme ({scheme:?})");
+            println!(
+                "using an unknown encryption algorithm: {alg:?} (encryption scheme: {scheme:?})"
+            );
+            Err(Error::EncryptionUnknown)
         }
     }
 }
