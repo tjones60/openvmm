@@ -1560,8 +1560,6 @@ jobs:
     - name: create cargo-nextest cache dir
       run: |-
         flowey.exe e 14 flowey_lib_common::download_cargo_nextest 0
-        flowey.exe e 14 flowey_core::pipeline::artifact::resolve 7
-        flowey.exe e 14 flowey_lib_hvlite::test_nextest_vmm_tests_archive 1
         flowey.exe e 14 flowey_lib_common::download_cargo_nextest 1
       shell: bash
     - name: Pre-processing cache vars
@@ -1610,6 +1608,7 @@ jobs:
         flowey.exe e 14 flowey_lib_hvlite::git_checkout_openvmm_repo 0
         flowey.exe e 14 flowey_lib_hvlite::run_cargo_nextest_run 0
         flowey.exe e 14 flowey_lib_hvlite::run_cargo_nextest_run 1
+        flowey.exe e 14 flowey_core::pipeline::artifact::resolve 7
         flowey.exe e 14 flowey_lib_hvlite::test_nextest_vmm_tests_archive 0
       shell: bash
     - name: run 'vmm_tests' nextest tests
@@ -1792,8 +1791,6 @@ jobs:
     - name: create cargo-nextest cache dir
       run: |-
         flowey.exe e 15 flowey_lib_common::download_cargo_nextest 0
-        flowey.exe e 15 flowey_core::pipeline::artifact::resolve 7
-        flowey.exe e 15 flowey_lib_hvlite::test_nextest_vmm_tests_archive 1
         flowey.exe e 15 flowey_lib_common::download_cargo_nextest 1
       shell: bash
     - name: Pre-processing cache vars
@@ -1842,6 +1839,7 @@ jobs:
         flowey.exe e 15 flowey_lib_hvlite::git_checkout_openvmm_repo 0
         flowey.exe e 15 flowey_lib_hvlite::run_cargo_nextest_run 0
         flowey.exe e 15 flowey_lib_hvlite::run_cargo_nextest_run 1
+        flowey.exe e 15 flowey_core::pipeline::artifact::resolve 7
         flowey.exe e 15 flowey_lib_hvlite::test_nextest_vmm_tests_archive 0
       shell: bash
     - name: run 'vmm_tests' nextest tests
@@ -2022,8 +2020,6 @@ jobs:
     - name: create cargo-nextest cache dir
       run: |-
         flowey.exe e 16 flowey_lib_common::download_cargo_nextest 0
-        flowey.exe e 16 flowey_core::pipeline::artifact::resolve 7
-        flowey.exe e 16 flowey_lib_hvlite::test_nextest_vmm_tests_archive 1
         flowey.exe e 16 flowey_lib_common::download_cargo_nextest 1
       shell: bash
     - name: Pre-processing cache vars
@@ -2072,6 +2068,7 @@ jobs:
         flowey.exe e 16 flowey_lib_hvlite::git_checkout_openvmm_repo 0
         flowey.exe e 16 flowey_lib_hvlite::run_cargo_nextest_run 0
         flowey.exe e 16 flowey_lib_hvlite::run_cargo_nextest_run 1
+        flowey.exe e 16 flowey_core::pipeline::artifact::resolve 7
         flowey.exe e 16 flowey_lib_hvlite::test_nextest_vmm_tests_archive 0
       shell: bash
     - name: run 'vmm_tests' nextest tests
@@ -2174,8 +2171,6 @@ jobs:
     - name: create cargo-nextest cache dir
       run: |-
         flowey e 17 flowey_lib_common::download_cargo_nextest 0
-        flowey e 17 flowey_core::pipeline::artifact::resolve 4
-        flowey e 17 flowey_lib_hvlite::test_nextest_vmm_tests_archive 2
         flowey e 17 flowey_lib_common::download_cargo_nextest 1
       shell: bash
     - name: Pre-processing cache vars
@@ -2300,6 +2295,7 @@ jobs:
       run: |-
         flowey e 17 flowey_lib_hvlite::init_vmm_tests_env 0
         flowey e 17 flowey_lib_hvlite::run_cargo_nextest_run 1
+        flowey e 17 flowey_core::pipeline::artifact::resolve 4
         flowey e 17 flowey_lib_hvlite::test_nextest_vmm_tests_archive 1
       shell: bash
     - name: run 'vmm_tests' nextest tests
@@ -2530,8 +2526,6 @@ jobs:
     - name: create cargo-nextest cache dir
       run: |-
         flowey.exe e 18 flowey_lib_common::download_cargo_nextest 0
-        flowey.exe e 18 flowey_core::pipeline::artifact::resolve 7
-        flowey.exe e 18 flowey_lib_hvlite::test_nextest_vmm_tests_archive 1
         flowey.exe e 18 flowey_lib_common::download_cargo_nextest 1
       shell: bash
     - name: Pre-processing cache vars
@@ -2580,6 +2574,7 @@ jobs:
         flowey.exe e 18 flowey_lib_hvlite::git_checkout_openvmm_repo 0
         flowey.exe e 18 flowey_lib_hvlite::run_cargo_nextest_run 0
         flowey.exe e 18 flowey_lib_hvlite::run_cargo_nextest_run 1
+        flowey.exe e 18 flowey_core::pipeline::artifact::resolve 7
         flowey.exe e 18 flowey_lib_hvlite::test_nextest_vmm_tests_archive 0
       shell: bash
     - name: run 'vmm_tests' nextest tests
