@@ -20,6 +20,8 @@ flowey_request! {
         pub nextest_profile: NextestProfile,
         /// Optionally provide the nextest bin to use
         pub nextest_bin: Option<ReadVar<PathBuf>>,
+        /// Target for the tests to run on
+        pub target: Option<ReadVar<target_lexicon::Triple>>,
         /// Results of running the tests
         pub results: WriteVar<TestResults>,
     }
@@ -39,11 +41,11 @@ impl FlowNode for Node {
             nextest_archive_file,
             nextest_profile,
             nextest_bin,
+            target,
             results,
         } in requests
         {
             let nextest_archive = nextest_archive_file.map(ctx, |x| x.archive_file);
-            let target = nextest_archive_file.map(ctx, |x| x.target);
 
             ctx.req(crate::run_cargo_nextest_run::Request {
                 friendly_name: "unit-tests".into(),

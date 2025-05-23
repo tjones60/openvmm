@@ -26,7 +26,6 @@ use flowey_lib_common::run_cargo_nextest_run::build_params::TestPackages;
 pub struct NextestUnitTestArchive {
     #[serde(rename = "unit_tests.tar.zst")]
     pub archive_file: PathBuf,
-    pub target: target_lexicon::Triple,
 }
 
 /// Build mode to use when building the nextest unit tests
@@ -265,13 +264,7 @@ impl FlowNode for Node {
                         let unit_tests = unit_tests_archive.claim(ctx);
                         |rt| {
                             let archive_file = rt.read(archive_file);
-                            rt.write(
-                                unit_tests,
-                                &NextestUnitTestArchive {
-                                    archive_file,
-                                    target,
-                                },
-                            );
+                            rt.write(unit_tests, &NextestUnitTestArchive { archive_file });
                         }
                     });
                 }

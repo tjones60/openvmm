@@ -49,6 +49,7 @@ impl SimpleFlowNode for Node {
             nextest_archive_file: nextest_unit_test_archive,
             nextest_profile,
             nextest_bin: None,
+            target: None,
             results: v,
         });
 
