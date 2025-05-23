@@ -556,13 +556,9 @@ impl SimpleFlowNode for Node {
 
         // use the copied archive file
         let nextest_archive_path = nextest_archive_path.to_owned();
-        let nextest_archive_file =
-            test_content_dir
-                .zip(ctx, nextest_archive_file)
-                .map(ctx, |(dir, archive)| NextestVmmTestsArchive {
-                    archive_file: dir.join(nextest_archive_path),
-                    target: archive.target,
-                });
+        let nextest_archive_file = test_content_dir.map(ctx, |dir| NextestVmmTestsArchive {
+            archive_file: dir.join(nextest_archive_path),
+        });
 
         let openvmm_repo_path = ctx.reqv(crate::git_checkout_openvmm_repo::req::GetRepoDir);
 
@@ -605,7 +601,7 @@ impl SimpleFlowNode for Node {
 
         let extra_env = ctx.reqv(|v| crate::init_vmm_tests_env::Request {
             test_content_dir: test_content_dir.clone(),
-            vmm_tests_target: target,
+            vmm_tests_target: target.clone(),
             register_openvmm,
             register_pipette_windows,
             register_pipette_linux_musl,
@@ -670,6 +666,7 @@ impl SimpleFlowNode for Node {
                 nextest_working_dir: Some(test_content_dir.clone()),
                 nextest_config_file: Some(nextest_config_file),
                 nextest_bin: Some(nextest_bin),
+                target: Some(ReadVar::from_static(target)),
                 extra_env,
                 pre_run_deps: vec![copied_files],
                 results: v,
