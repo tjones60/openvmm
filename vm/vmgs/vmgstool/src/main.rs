@@ -473,6 +473,7 @@ async fn vmgs_update_key(
     unreachable!("encryption requires the encryption feature");
     #[cfg(with_encryption)]
     {
+        eprintln!("Updating encryption key");
         let old_key_index = vmgs.get_active_datastore_key_index();
         vmgs.add_new_encryption_key(new_encryption_key, encryption_alg)
             .await
@@ -573,6 +574,7 @@ async fn vmgs_create(
     let mut vmgs = Vmgs::format_new(disk, None).await?;
 
     if let Some((algorithm, encryption_key)) = encryption_alg_key {
+        eprintln!("Adding encryption key");
         #[cfg(with_encryption)]
         let _key_index = vmgs
             .add_new_encryption_key(encryption_key, algorithm)
@@ -1331,6 +1333,36 @@ mod tests {
         let result = test_vmgs_open(path, OpenMode::ReadWrite, Some(&encryption_key)).await;
 
         assert!(result.is_err());
+    }
+
+    #[cfg(with_encryption)]
+    #[async_test]
+    async fn plain_read_write_encrypted_file() {
+        let (_dir, path) = new_path();
+        let encryption_key = vec![5; 32];
+        let buf_1 = b"123".to_vec();
+
+        test_vmgs_create(
+            &path,
+            None,
+            false,
+            Some((EncryptionAlgorithm::AES_GCM, &encryption_key)),
+        )
+        .await
+        .unwrap();
+
+        let mut vmgs = test_vmgs_open(path, OpenMode::ReadWrite, None)
+            .await
+            .unwrap();
+
+        vmgs_write(&mut vmgs, FileId::VM_UNIQUE_ID, &buf_1, false, false)
+            .await
+            .unwrap();
+        let read_buf = vmgs_read(&mut vmgs, FileId::VM_UNIQUE_ID, false)
+            .await
+            .unwrap();
+
+        assert!(read_buf == buf_1);
     }
 
     #[async_test]
