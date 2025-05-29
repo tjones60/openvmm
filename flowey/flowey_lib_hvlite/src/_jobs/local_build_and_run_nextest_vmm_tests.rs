@@ -13,6 +13,7 @@ use crate::run_cargo_build::common::CommonProfile;
 use crate::run_cargo_build::common::CommonTriple;
 use flowey::node::prelude::*;
 use std::collections::BTreeMap;
+use std::str::FromStr;
 use vmm_test_images::KnownTestArtifacts;
 
 #[derive(Serialize, Deserialize)]
@@ -25,32 +26,71 @@ pub enum VmmTestSelections {
         /// Custom list of artifacts to build
         build: BuildSelections,
     },
-    Flags {
-        /// Enable Hyper-V TDX tests
-        tdx: bool,
-        /// Enable Hyper-V VBS tests
-        hyperv_vbs: bool,
-        /// Skip Windows guest tests
-        no_windows: bool,
-        /// Skip Ubuntu guest tests
-        no_ubuntu: bool,
-        /// Skip FreeBSD guest tests
-        no_freebsd: bool,
-        /// Skip OpenHCL tests
-        no_openhcl: bool,
-        /// Skip OpenVMM tests
-        no_openvmm: bool,
-        /// Skip Hyper-V tests
-        no_hyperv: bool,
-        /// Skip UEFI tests
-        no_uefi: bool,
-        /// Skip PCAT tests
-        no_pcat: bool,
-        /// Skip TMK tests
-        no_tmk: bool,
-        /// Skip guest test uefi tests
-        no_guest_test_uefi: bool,
-    },
+    Flags(VmmTestSelectionFlags),
+}
+
+/// Define VMM test selection flags
+macro_rules! define_vmm_test_selection_flags {
+    {
+        $(
+            $name:ident: $default_value:literal,
+        )*
+    } => {
+        #[derive(Serialize, Deserialize, Clone)]
+        pub struct VmmTestSelectionFlags {
+            $(
+                pub $name: bool,
+            )*
+        }
+
+        impl Default for VmmTestSelectionFlags {
+            fn default() -> Self {
+                Self {
+                    $(
+                        $name: $default_value,
+                    )*
+                }
+            }
+        }
+
+        impl FromStr for VmmTestSelectionFlags {
+            type Err = anyhow::Error;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                let mut flags = Self::default();
+                for flag in s.split(',') {
+                    let (sign, flag) = flag.split_at_checked(1).context("get sign")?;
+                    let val = match sign {
+                        "+" => true,
+                        "-" => false,
+                        s => anyhow::bail!("invalid sign: {s}"),
+                    };
+                    match flag {
+                        $(
+                            stringify!($name) => flags.$name = val,
+                        )*
+                        f => anyhow::bail!("invalid flag: {f}"),
+                    }
+                }
+                Ok(flags)
+            }
+        }
+    };
+}
+
+define_vmm_test_selection_flags! {
+    tdx: false,
+    hyperv_vbs: false,
+    windows: true,
+    ubuntu: true,
+    freebsd: true,
+    openhcl: true,
+    openvmm: true,
+    hyperv: true,
+    uefi: true,
+    pcat: true,
+    tmk: true,
+    guest_test_uefi: true,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -150,11 +190,6 @@ impl SimpleFlowNode for Node {
 
         // Some things can only be built on linux
         let linux_host = matches!(ctx.platform(), FlowPlatform::Linux(_));
-        let build_openhcl = linux_host
-            && matches!(
-                target.as_triple().operating_system,
-                target_lexicon::OperatingSystem::Windows
-            );
 
         let mut copy_to_dir = Vec::new();
         let extras_dir = Path::new("extras");
@@ -165,35 +200,36 @@ impl SimpleFlowNode for Node {
                 artifacts,
                 build,
             } => (filter, artifacts, build),
-            VmmTestSelections::Flags {
+            VmmTestSelections::Flags(VmmTestSelectionFlags {
                 tdx,
                 hyperv_vbs,
-                no_windows,
-                mut no_ubuntu,
-                no_freebsd,
-                mut no_openhcl,
-                no_openvmm,
-                no_hyperv,
-                no_uefi,
-                no_pcat,
-                no_tmk,
-                no_guest_test_uefi,
-            } => {
+                windows,
+                mut ubuntu,
+                freebsd,
+                mut openhcl,
+                openvmm,
+                hyperv,
+                uefi,
+                pcat,
+                tmk,
+                guest_test_uefi,
+            }) => {
                 let mut build = BuildSelections::default();
 
                 if !linux_host {
                     log::warn!(
                         "Cannot build for linux on windows. Skipping all tests that rely on linux artifacts."
                     );
-                    no_ubuntu = true;
-                    no_openhcl = true;
+                    ubuntu = false;
+                    openhcl = false;
                 }
 
+                // VTL2 not supported on Linux
                 if !matches!(
                     target.as_triple().operating_system,
                     target_lexicon::OperatingSystem::Windows
                 ) {
-                    no_openhcl = true;
+                    openhcl = false;
                 }
 
                 let mut filter = "all()".to_string();
@@ -203,41 +239,41 @@ impl SimpleFlowNode for Node {
                 if !hyperv_vbs {
                     filter.push_str(" & !(test(vbs) & test(hyperv))");
                 }
-                if no_ubuntu {
+                if !ubuntu {
                     filter.push_str(" & !test(ubuntu)");
                     build.pipette_linux = false;
                 }
-                if no_windows {
+                if !windows {
                     filter.push_str(" & !test(windows)");
                     build.pipette_windows = false;
                 }
-                if no_freebsd {
+                if !freebsd {
                     filter.push_str(" & !test(freebsd)");
                 }
-                if no_openhcl {
+                if !openhcl {
                     filter.push_str(" & !test(openhcl)");
                     build.openhcl = false;
                 }
-                if no_openvmm {
+                if !openvmm {
                     filter.push_str(" & !test(openvmm)");
                     build.openvmm = false;
                 }
-                if no_hyperv {
+                if !hyperv {
                     filter.push_str(" & !test(hyperv)");
                 }
-                if no_uefi {
+                if !uefi {
                     filter.push_str(" & !test(uefi)");
                 }
-                if no_pcat {
+                if !pcat {
                     filter.push_str(" & !test(pcat)");
                 }
-                if no_tmk {
+                if !tmk {
                     filter.push_str(" & !test(tmk)");
                     build.tmks = false;
                     build.tmk_vmm_linux = false;
                     build.tmk_vmm_windows = false;
                 }
-                if no_guest_test_uefi {
+                if !guest_test_uefi {
                     filter.push_str(" & !test(guest_test_uefi)");
                     build.guest_test_uefi = false;
                 }
@@ -246,25 +282,25 @@ impl SimpleFlowNode for Node {
                     CommonArch::X86_64 => {
                         let mut artifacts = Vec::new();
 
-                        if !no_windows && (tdx || hyperv_vbs) {
+                        if windows && (tdx || hyperv_vbs) {
                             artifacts.push(KnownTestArtifacts::Gen2WindowsDataCenterCore2025X64Vhd);
                         }
-                        if !no_ubuntu {
+                        if ubuntu {
                             artifacts.push(KnownTestArtifacts::Ubuntu2204ServerX64Vhd);
                         }
-                        if !no_windows {
+                        if windows {
                             artifacts.extend_from_slice(&[
                                 KnownTestArtifacts::Gen1WindowsDataCenterCore2022X64Vhd,
                                 KnownTestArtifacts::Gen2WindowsDataCenterCore2022X64Vhd,
                             ]);
                         }
-                        if !no_freebsd {
+                        if freebsd {
                             artifacts.extend_from_slice(&[
                                 KnownTestArtifacts::FreeBsd13_2X64Vhd,
                                 KnownTestArtifacts::FreeBsd13_2X64Iso,
                             ]);
                         }
-                        if !(no_windows && no_ubuntu) {
+                        if windows || ubuntu {
                             artifacts.push(KnownTestArtifacts::VmgsWithBootEntry);
                         }
 
@@ -273,13 +309,13 @@ impl SimpleFlowNode for Node {
                     CommonArch::Aarch64 => {
                         let mut artifacts = Vec::new();
 
-                        if !no_ubuntu {
+                        if ubuntu {
                             artifacts.push(KnownTestArtifacts::Ubuntu2404ServerAarch64Vhd);
                         }
-                        if !no_windows {
+                        if windows {
                             artifacts.push(KnownTestArtifacts::Windows11EnterpriseAarch64Vhdx);
                         }
-                        if !(no_windows && no_ubuntu) {
+                        if windows || ubuntu {
                             artifacts.push(KnownTestArtifacts::VmgsWithBootEntry);
                         }
 
@@ -297,7 +333,7 @@ impl SimpleFlowNode for Node {
             build.tmk_vmm_linux = false;
         }
 
-        let register_openhcl_igvm_files = build_openhcl.then(|| {
+        let register_openhcl_igvm_files = build.openhcl.then(|| {
             let openvmm_hcl_profile = if release {
                 OpenvmmHclBuildProfile::OpenvmmHclShip
             } else {

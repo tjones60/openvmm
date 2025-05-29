@@ -4,6 +4,7 @@
 use flowey::node::prelude::ReadVar;
 use flowey::pipeline::prelude::*;
 use flowey_lib_hvlite::_jobs::local_build_and_run_nextest_vmm_tests::BuildSelections;
+use flowey_lib_hvlite::_jobs::local_build_and_run_nextest_vmm_tests::VmmTestSelectionFlags;
 use flowey_lib_hvlite::_jobs::local_build_and_run_nextest_vmm_tests::VmmTestSelections;
 use flowey_lib_hvlite::run_cargo_build::common::CommonTriple;
 use std::path::PathBuf;
@@ -17,48 +18,6 @@ pub enum VmmTestTargetCli {
     WindowsX64,
     /// Linux X64
     LinuxX64,
-}
-
-/// Flags used to generate the VMM test filter
-#[derive(clap::Args)]
-#[clap(next_help_heading = "Test Selections")]
-pub struct VmmTestSelectionsCli {
-    /// Enable Hyper-V TDX tests
-    #[clap(long, conflicts_with_all(&["filter", "artifacts"]))]
-    tdx: bool,
-    /// Enable Hyper-V VBS tests
-    #[clap(long, conflicts_with_all(&["filter", "artifacts"]))]
-    hyperv_vbs: bool,
-    /// Skip Windows guest tests
-    #[clap(long, conflicts_with_all(&["filter", "artifacts"]))]
-    no_windows: bool,
-    /// Skip Ubuntu guest tests
-    #[clap(long, conflicts_with_all(&["filter", "artifacts"]))]
-    no_ubuntu: bool,
-    /// Skip FreeBSD guest tests
-    #[clap(long, conflicts_with_all(&["filter", "artifacts"]))]
-    no_freebsd: bool,
-    /// Skip OpenHCL tests
-    #[clap(long, conflicts_with_all(&["filter", "artifacts"]))]
-    no_openhcl: bool,
-    /// Skip OpenVMM tests
-    #[clap(long, conflicts_with_all(&["filter", "artifacts"]))]
-    no_openvmm: bool,
-    /// Skip Hyper-V tests
-    #[clap(long, conflicts_with_all(&["filter", "artifacts"]))]
-    no_hyperv: bool,
-    /// Skip UEFI tests
-    #[clap(long, conflicts_with_all(&["filter", "artifacts"]))]
-    no_uefi: bool,
-    /// Skip PCAT tests
-    #[clap(long, conflicts_with_all(&["filter", "artifacts"]))]
-    no_pcat: bool,
-    /// Skip TMK tests
-    #[clap(long, conflicts_with_all(&["filter", "artifacts"]))]
-    no_tmk: bool,
-    /// Skip guest test uefi tests
-    #[clap(long, conflicts_with_all(&["filter", "artifacts"]))]
-    no_guest_test_uefi: bool,
 }
 
 /// Build everything needed and run the VMM tests
@@ -75,11 +34,22 @@ pub struct VmmTestsCli {
     dir: Option<PathBuf>,
 
     /// Custom test filter
-    #[clap(long)]
+    #[clap(long, conflicts_with("flags"))]
     filter: Option<String>,
     /// Custom list of artifacts to download
-    #[clap(long)]
+    #[clap(long, conflicts_with("flags"))]
     artifacts: Vec<KnownTestArtifacts>,
+    /// Flags used to generate the VMM test filter
+    ///
+    /// Syntax: `--flags <+|-><flag>,..`
+    ///
+    /// Available flags with default values:
+    ///
+    /// `-tdx,-hyperv_vbs,+windows,+ubuntu,+freebsd,+openhcl,+openvmm,+hyperv,+uefi,+pcat,+tmk,+guest_test_uefi`
+    // TODO: Automatically generate the list of possible flags
+    #[clap(long)]
+    flags: Option<VmmTestSelectionFlags>,
+
     /// pass `--verbose` to cargo
     #[clap(long)]
     verbose: bool,
@@ -100,9 +70,6 @@ pub struct VmmTestsCli {
     /// Copy extras to output dir (symbols, etc)
     #[clap(long)]
     copy_extras: bool,
-
-    #[clap(flatten)]
-    selections: VmmTestSelectionsCli,
 }
 
 impl IntoPipeline for VmmTestsCli {
@@ -116,27 +83,13 @@ impl IntoPipeline for VmmTestsCli {
             dir,
             filter,
             artifacts,
+            flags,
             verbose,
             install_missing_deps,
             unstable_whp,
             release,
             build_only,
             copy_extras,
-            selections:
-                VmmTestSelectionsCli {
-                    tdx,
-                    hyperv_vbs,
-                    no_windows,
-                    no_ubuntu,
-                    no_freebsd,
-                    no_openhcl,
-                    no_openvmm,
-                    no_hyperv,
-                    no_uefi,
-                    no_pcat,
-                    no_tmk,
-                    no_guest_test_uefi,
-                },
         } = self;
 
         let openvmm_repo = flowey_lib_common::git_checkout::RepoSource::ExistingClone(
@@ -196,20 +149,7 @@ impl IntoPipeline for VmmTestsCli {
                             build: BuildSelections::default(),
                         }
                     } else {
-                        VmmTestSelections::Flags {
-                            tdx,
-                            hyperv_vbs,
-                            no_windows,
-                            no_ubuntu,
-                            no_freebsd,
-                            no_openhcl,
-                            no_openvmm,
-                            no_hyperv,
-                            no_uefi,
-                            no_pcat,
-                            no_tmk,
-                            no_guest_test_uefi,
-                        }
+                        VmmTestSelections::Flags(flags.unwrap())
                     },
                     unstable_whp,
                     release,
