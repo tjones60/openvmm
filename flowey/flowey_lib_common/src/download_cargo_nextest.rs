@@ -52,23 +52,26 @@ impl FlowNode for Node {
         });
 
         for (target, path) in reqs {
-            let cache_dir = cache_dir.clone();
-
-            let hitvar = {
+            let (cache_key, cache_dir) = {
                 let version = version.clone();
                 let cache_key = target.map(ctx, move |target| {
                     format!("cargo-nextest-{version}-{target}")
                 });
-                ctx.reqv(|v| {
-                    crate::cache::Request {
-                        label: "cargo-nextest".into(),
-                        dir: cache_dir.clone(),
-                        key: cache_key,
-                        restore_keys: None, // we want an exact hit
-                        hitvar: v,
-                    }
-                })
+                let cache_dir = cache_dir
+                    .zip(ctx, cache_key.clone())
+                    .map(ctx, |(p, k)| p.join(k));
+                (cache_key, cache_dir)
             };
+
+            let hitvar = ctx.reqv(|v| {
+                crate::cache::Request {
+                    label: "cargo-nextest".into(),
+                    dir: cache_dir.clone(),
+                    key: cache_key,
+                    restore_keys: None, // we want an exact hit
+                    hitvar: v,
+                }
+            });
 
             let version = version.clone();
             ctx.emit_rust_step("downloading cargo-nextest", |ctx| {
@@ -100,6 +103,7 @@ impl FlowNode for Node {
                     }
 
                     let cached_bin_path = cached_bin_path.absolute()?;
+                    log::info!("downloaded to {}", cached_bin_path.to_string_lossy());
                     assert!(cached_bin_path.exists());
                     rt.write(path, &cached_bin_path);
 

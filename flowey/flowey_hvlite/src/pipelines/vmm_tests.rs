@@ -41,7 +41,7 @@ pub struct VmmTestsCli {
     artifacts: Vec<KnownTestArtifacts>,
     /// Flags used to generate the VMM test filter
     ///
-    /// Syntax: `--flags <+|-><flag>,..`
+    /// Syntax: `--flags=<+|-><flag>,..`
     ///
     /// Available flags with default values:
     ///
