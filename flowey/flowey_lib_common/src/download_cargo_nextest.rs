@@ -99,6 +99,7 @@ impl FlowNode for Node {
                         xshell::cmd!(sh, "tar -xf {nextest_archive}").run()?;
 
                         // move the downloaded bin into the cache dir
+                        fs_err::create_dir_all(&cache_dir)?;
                         fs_err::rename(cargo_nextest_bin, &cached_bin_path)?;
                     }
 
