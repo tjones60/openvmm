@@ -1679,8 +1679,9 @@ fn encrypt_metadata_key(
 
         if encrypted_metadata_key.len() != metadata_key.len() {
             return Err(Error::Other(anyhow!(format!(
-                "encrypted metadata key length ({:?}) doesn't match metadata key length ({:?})",
-                encrypted_metadata_key, metadata_key
+                "encrypted metadata key length ({}) doesn't match metadata key length ({})",
+                encrypted_metadata_key.len(),
+                metadata_key.len()
             ))));
         }
         Ok(encrypted_metadata_key)
@@ -1703,8 +1704,9 @@ fn decrypt_metadata_key(
             crate::encrypt::vmgs_decrypt(datastore_key, nonce, metadata_key, authentication_tag)?;
         if decrypted_metadata_key.len() != metadata_key.len() {
             return Err(Error::Other(anyhow!(format!(
-                "decrypted metadata key length ({:?}) doesn't match metadata key length ({:?})",
-                decrypted_metadata_key, metadata_key
+                "decrypted metadata key length ({}) doesn't match metadata key length ({})",
+                decrypted_metadata_key.len(),
+                metadata_key.len()
             ))));
         }
 
