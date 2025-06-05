@@ -62,19 +62,21 @@ impl SimpleFlowNode for Node {
                 let in_bin = rt.read(in_bin);
 
                 let sh = xshell::Shell::new()?;
-                let output = sh.current_dir().join(in_bin.file_name().unwrap());
+                let output = sh.current_dir().join(in_bin.file_name().unwrap()).absolute()?;
+                let output_dbg = output.with_extension("dbg");
                 let objcopy = format!("{}-linux-gnu-objcopy", arch.as_arch());
-                xshell::cmd!(sh, "{objcopy} --only-keep-debug {in_bin} {output}.dbg").run()?;
-                xshell::cmd!(
-                    sh,
-                    "{objcopy} --strip-all --keep-section=.build_info --add-gnu-debuglink={output}.dbg {in_bin} {output}"
-                )
-                .run()?;
 
-                let output = output.absolute()?;
+                if !matches!(rt.backend(), FlowBackend::Local)
+                    || flowey_lib_common::_util::needs_update(rt, [&in_bin], [&output, &output_dbg])?
+                {
+                    xshell::cmd!(sh, "{objcopy} --only-keep-debug {in_bin} {output_dbg}").run()?;
+                    xshell::cmd!(sh, "{objcopy} --strip-all --keep-section=.build_info --add-gnu-debuglink={output_dbg} {in_bin} {output}").run()?;
+                } else {
+                    log::info!("skip splitting debug symbols for {}", in_bin.to_string_lossy());
+                }
 
                 rt.write(out_bin, &output);
-                rt.write(out_dbg_info, &output.with_extension("dbg"));
+                rt.write(out_dbg_info, &output_dbg);
 
                 Ok(())
             }

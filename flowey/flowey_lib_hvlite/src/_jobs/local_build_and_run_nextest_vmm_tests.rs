@@ -675,7 +675,16 @@ impl SimpleFlowNode for Node {
                         };
 
                         fs_err::create_dir_all(dst.parent().context("no parent")?)?;
-                        fs_err::copy(src, dst)?;
+                        if flowey_lib_common::_util::needs_update(rt, [&src], [&dst])? {
+                            log::info!(
+                                "copying {} to {}",
+                                src.to_string_lossy(),
+                                dst.to_string_lossy()
+                            );
+                            fs_err::copy(&src, &dst)?;
+                        } else {
+                            log::info!("skip copying {}", src.to_string_lossy());
+                        }
                     }
                 }
 

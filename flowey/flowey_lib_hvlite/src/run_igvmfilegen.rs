@@ -61,23 +61,31 @@ impl SimpleFlowNode for Node {
 
                 let igvm_file_stem = "igvm";
                 let igvm_path = sh.current_dir().join(format!("{igvm_file_stem}.bin"));
-                let resources_path = sh.current_dir().join("igvm.json");
 
-                let resources = igvmfilegen_config::Resources::new(resources.into_iter().collect())
-                    .context("creating igvm resources")?;
-                std::fs::write(&resources_path, serde_json::to_string_pretty(&resources)?)
-                    .context("writing resources")?;
+                let mut inputs = resources.iter().map(|x| x.1).collect::<Vec<_>>();
+                inputs.push(&manifest);
+                if !matches!(rt.backend(), FlowBackend::Local)
+                    || flowey_lib_common::_util::needs_update(rt, inputs, [&igvm_path])?
+                {
+                    let resources_path = sh.current_dir().join("igvm.json");
 
-                xshell::cmd!(
-                    sh,
-                    "{igvmfilegen} manifest
-                            -m {manifest}
-                            -r {resources_path}
-                            --debug-validation
-                            -o {igvm_path}
-                        "
-                )
-                .run()?;
+                    let resources =
+                        igvmfilegen_config::Resources::new(resources.into_iter().collect())
+                            .context("creating igvm resources")?;
+                    std::fs::write(&resources_path, serde_json::to_string_pretty(&resources)?)
+                        .context("writing resources")?;
+
+                    xshell::cmd!(
+                        sh,
+                        "{igvmfilegen} manifest
+                                -m {manifest}
+                                -r {resources_path}
+                                --debug-validation
+                                -o {igvm_path}
+                            "
+                    )
+                    .run()?;
+                }
 
                 let igvm_map_path = igvm_path.with_extension("bin.map");
                 let igvm_map_path = igvm_map_path.exists().then_some(igvm_map_path);
