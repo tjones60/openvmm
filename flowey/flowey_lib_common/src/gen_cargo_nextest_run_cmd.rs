@@ -4,44 +4,66 @@
 //! Generate a cargo-nextest run command.
 
 use crate::run_cargo_build::CargoBuildProfile;
+use crate::run_cargo_nextest_run::build_params;
 use flowey::node::prelude::*;
 use std::collections::BTreeMap;
 use std::ffi::OsString;
 
-#[derive(Serialize, Deserialize)]
-pub enum NextestInvocation {
-    // when tests are already built and provided via archive
-    Standalone { nextest_bin: PathBuf },
-    // when tests need to be compiled first
-    WithCargo { rust_toolchain: Option<String> },
+flowey_request! {
+    pub struct Request {
+        /// What kind of test run this is (inline build vs. from nextest archive).
+        pub run_kind_deps: RunKindDeps,
+        /// Working directory the test archive was created from.
+        pub working_dir: ReadVar<PathBuf>,
+        /// Path to `.config/nextest.toml`
+        pub config_file: ReadVar<PathBuf>,
+        /// Path to any tool-specific config files
+        pub tool_config_files: Vec<(String, ReadVar<PathBuf>)>,
+        /// Nextest profile to use when running the source code (as defined in the
+        /// `.config.nextest.toml`).
+        pub nextest_profile: String,
+        /// Nextest test filter expression
+        pub nextest_filter_expr: Option<String>,
+        /// Whether to run ignored tests
+        pub run_ignored: bool,
+        /// Override fail fast setting
+        pub fail_fast: Option<bool>,
+        /// Additional env vars set when executing the tests.
+        pub extra_env: Option<ReadVar<BTreeMap<String, String>>>,
+        /// Use paths relative to `test_content_dir` for arguments
+        pub use_relative_paths: bool,
+        /// Command for running the tests
+        pub command: WriteVar<Command>,
+    }
 }
 
-flowey_request! {
-pub struct Request {
-    /// What kind of test run this is (inline build vs. from nextest archive).
-    pub archive_file: ReadVar<PathBuf>,
-    /// Target to run the tests on
-    pub target: ReadVar<target_lexicon::Triple>,
-    /// Use the provided nextest bin or cargo
-    pub nextest_invocation: NextestInvocation,
-    /// Working directory the test archive was created from.
-    pub working_dir: ReadVar<PathBuf>,
-    /// Path to `.config/nextest.toml`
-    pub config_file: ReadVar<PathBuf>,
-    /// Path to any tool-specific config files
-    pub tool_config_files: Vec<(String, ReadVar<PathBuf>)>,
-    /// Nextest profile to use when running the source code (as defined in the
-    /// `.config.nextest.toml`).
-    pub nextest_profile: String,
-    /// Nextest test filter expression
-    pub nextest_filter_expr: Option<String>,
-    /// Whether to run ignored tests
-    pub run_ignored: bool,
-    /// Additional env vars set when executing the tests.
-    pub extra_env: Option<ReadVar<BTreeMap<String, String>>>,
-    /// Command for running the tests
-    pub command: WriteVar<String>,
+#[derive(Serialize, Deserialize)]
+pub enum RunKindDeps<C = VarNotClaimed> {
+    BuildAndRun {
+        params: build_params::NextestBuildParams<C>,
+        nextest_installed: ReadVar<SideEffect, C>,
+        rust_toolchain: ReadVar<Option<String>, C>,
+        cargo_flags: ReadVar<crate::cfg_cargo_common_flags::Flags, C>,
+    },
+    RunFromArchive {
+        archive_file: ReadVar<PathBuf, C>,
+        nextest_bin: ReadVar<PathBuf, C>,
+        target: ReadVar<target_lexicon::Triple, C>,
+    },
 }
+
+#[derive(Serialize, Deserialize)]
+pub enum CommandShell {
+    Powershell,
+    Bash,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Command {
+    pub env: BTreeMap<String, String>,
+    pub argv0: OsString,
+    pub args: Vec<OsString>,
+    pub shell: CommandShell,
 }
 
 new_flow_node!(struct Node);
@@ -58,9 +80,7 @@ impl FlowNode for Node {
 
     fn emit(requests: Vec<Self::Request>, ctx: &mut NodeCtx<'_>) -> anyhow::Result<()> {
         for Request {
-            archive_file,
-            target,
-            nextest_invocation,
+            run_kind_deps,
             working_dir,
             config_file,
             tool_config_files,
@@ -68,10 +88,13 @@ impl FlowNode for Node {
             extra_env,
             nextest_filter_expr,
             run_ignored,
+            fail_fast,
+            use_relative_paths,
             command,
         } in requests
         {
-            ctx.emit_rust_step(format!("generate nextest command"), |ctx| {
+            ctx.emit_rust_step("generate nextest command", |ctx| {
+                let run_kind_deps = run_kind_deps.claim(ctx);
                 let working_dir = working_dir.claim(ctx);
                 let config_file = config_file.claim(ctx);
                 let tool_config_files = tool_config_files
@@ -79,13 +102,20 @@ impl FlowNode for Node {
                     .map(|(a, b)| (a, b.claim(ctx)))
                     .collect::<Vec<_>>();
                 let extra_env = extra_env.claim(ctx);
-                let target = target.claim(ctx);
+                let command = command.claim(ctx);
 
                 move |rt| {
                     let working_dir = rt.read(working_dir);
                     let config_file = rt.read(config_file);
                     let mut with_env = rt.read(extra_env).unwrap_or_default();
-                    let target = rt.read(target);
+
+                    let target = match &run_kind_deps {
+                        RunKindDeps::BuildAndRun {
+                            params: build_params::NextestBuildParams { target, .. },
+                            ..
+                        } => target.clone(),
+                        RunKindDeps::RunFromArchive { target, .. } => rt.read(target.clone()),
+                    };
 
                     let windows_via_wsl2 = crate::_util::running_in_wsl(rt)
                         && matches!(
@@ -93,35 +123,79 @@ impl FlowNode for Node {
                             target_lexicon::OperatingSystem::Windows
                         );
 
-                    let maybe_convert_path = |path: PathBuf| -> PathBuf {
-                        if windows_via_wsl2 {
+                    let working_dir_ref = working_dir.as_path();
+                    let working_dir_win = windows_via_wsl2.then(|| {
+                        crate::_util::wslpath::linux_to_win(working_dir_ref)
+                            .display()
+                            .to_string()
+                    });
+                    let maybe_convert_path = |path: PathBuf| -> anyhow::Result<PathBuf> {
+                        let path = if windows_via_wsl2 {
                             crate::_util::wslpath::linux_to_win(path)
                         } else {
+                            path.absolute()
+                                .with_context(|| format!("invalid path {}", path.display()))?
+                        };
+                        let path = if use_relative_paths {
+                            if windows_via_wsl2 {
+                                let working_dir_trimmed =
+                                    working_dir_win.as_ref().unwrap().trim_end_matches('\\');
+                                let path_win = path.display().to_string();
+                                let path_trimmed = path_win.trim_end_matches('\\');
+                                PathBuf::from(format!(
+                                    ".{}",
+                                    path_trimmed
+                                        .strip_prefix(working_dir_trimmed)
+                                        .with_context(|| format!(
+                                            "{} not in {}",
+                                            path_win, working_dir_trimmed
+                                        ),)?
+                                ))
+                            } else {
+                                path.strip_prefix(working_dir_ref)
+                                    .with_context(|| {
+                                        format!(
+                                            "{} not in {}",
+                                            path.display(),
+                                            working_dir_ref.display()
+                                        )
+                                    })?
+                                    .to_path_buf()
+                            }
+                        } else {
                             path
-                        }
+                        };
+                        Ok(path)
                     };
+
+                    enum NextestInvocation {
+                        // when tests are already built and provided via archive
+                        Standalone { nextest_bin: PathBuf },
+                        // when tests need to be compiled first
+                        WithCargo { rust_toolchain: Option<String> },
+                    }
 
                     // the invocation of `nextest run` is quite different
                     // depending on whether this is an archived run or not, as
                     // archives don't require passing build args (after all -
                     // those were passed when the archive was built), nor do
                     // they require having cargo installed.
-                    let (nextest_invocation, build_args, build_env) = match nextest_invocation {
-                        NextestInvocation::Standalone { nextest_bin } => {
-                            let build_args = vec![
-                                "--archive-file".into(),
-                                maybe_convert_path(rt.read(archive_file))
-                                    .display()
-                                    .to_string(),
-                            ];
-
-                            let nextest_invocation = NextestInvocation::Standalone {
-                                nextest_bin: rt.read(nextest_bin),
-                            };
-
-                            (nextest_invocation, build_args, BTreeMap::default())
-                        }
-                        NextestInvocation::WithCargo { rust_toolchain } => {
+                    let (nextest_invocation, build_args, build_env) = match run_kind_deps {
+                        RunKindDeps::BuildAndRun {
+                            params:
+                                build_params::NextestBuildParams {
+                                    packages,
+                                    features,
+                                    no_default_features,
+                                    unstable_panic_abort_tests,
+                                    target,
+                                    profile,
+                                    extra_env,
+                                },
+                            nextest_installed: _, // side-effect
+                            rust_toolchain,
+                            cargo_flags,
+                        } => {
                             let (mut build_args, build_env) = cargo_nextest_build_args_and_env(
                                 rt.read(cargo_flags),
                                 profile,
@@ -156,12 +230,32 @@ impl FlowNode for Node {
 
                             (nextest_invocation, build_args, build_env)
                         }
+                        RunKindDeps::RunFromArchive {
+                            archive_file,
+                            nextest_bin,
+                            target: _,
+                        } => {
+                            let build_args = vec![
+                                "--archive-file".into(),
+                                maybe_convert_path(rt.read(archive_file))?
+                                    .display()
+                                    .to_string(),
+                            ];
+
+                            let nextest_invocation = NextestInvocation::Standalone {
+                                nextest_bin: rt.read(nextest_bin),
+                            };
+
+                            (nextest_invocation, build_args, BTreeMap::default())
+                        }
                     };
 
                     let mut args: Vec<OsString> = Vec::new();
 
                     let argv0: OsString = match nextest_invocation {
-                        NextestInvocation::Standalone { nextest_bin } => nextest_bin.into(),
+                        NextestInvocation::Standalone { nextest_bin } => {
+                            maybe_convert_path(nextest_bin)?.into()
+                        }
                         NextestInvocation::WithCargo { rust_toolchain } => {
                             if let Some(rust_toolchain) = rust_toolchain {
                                 args.extend(["run".into(), rust_toolchain.into(), "cargo".into()]);
@@ -178,9 +272,9 @@ impl FlowNode for Node {
                         "--profile".into(),
                         (&nextest_profile).into(),
                         "--config-file".into(),
-                        maybe_convert_path(config_file).into(),
+                        maybe_convert_path(config_file)?.into(),
                         "--workspace-remap".into(),
-                        maybe_convert_path(working_dir.clone()).into(),
+                        maybe_convert_path(working_dir.clone())?.into(),
                     ]);
 
                     for (tool, config_file) in tool_config_files {
@@ -189,7 +283,7 @@ impl FlowNode for Node {
                             format!(
                                 "{}:{}",
                                 tool,
-                                maybe_convert_path(rt.read(config_file)).display()
+                                maybe_convert_path(rt.read(config_file))?.display()
                             )
                             .into(),
                         ]);
@@ -245,43 +339,20 @@ impl FlowNode for Node {
                     // run.
                     with_env.extend(build_env);
 
-                    let arg_string = || {
-                        args.iter()
-                            .map(|v| format!("'{}'", v.to_string_lossy()))
-                            .collect::<Vec<_>>()
-                            .join(" ")
-                    };
-
-                    let env_string = match target.operating_system {
-                        target_lexicon::OperatingSystem::Windows => with_env
-                            .iter()
-                            .map(|(k, v)| format!("$env:{k}='{v}'"))
-                            .collect::<Vec<_>>()
-                            .join("; "),
-                        _ => with_env
-                            .iter()
-                            .map(|(k, v)| format!("{k}='{v}'"))
-                            .collect::<Vec<_>>()
-                            .join(" "),
-                    };
-
-                    log::info!(
-                        "{} {} {}",
-                        env_string,
-                        argv0.to_string_lossy(),
-                        arg_string()
+                    rt.write(
+                        command,
+                        &Command {
+                            env: with_env,
+                            argv0,
+                            args,
+                            shell: match target.operating_system {
+                                target_lexicon::OperatingSystem::Windows => {
+                                    CommandShell::Powershell
+                                }
+                                _ => CommandShell::Bash,
+                            },
+                        },
                     );
-
-                    // nextest has meaningful exit codes that we want to parse.
-                    // <https://github.com/nextest-rs/nextest/blob/main/nextest-metadata/src/exit_codes.rs#L12>
-                    //
-                    // unfortunately, xshell doesn't have a mode where it can
-                    // both emit to stdout/stderr, _and_ report the specific
-                    // exit code of the process.
-                    //
-                    // So we have to use the raw process API instead.
-                    let mut command = std::process::Command::new(&argv0);
-                    command.args(&args).envs(with_env).current_dir(&working_dir);
 
                     Ok(())
                 }
@@ -387,31 +458,6 @@ pub(crate) fn cargo_nextest_build_args_and_env(
 }
 
 // FUTURE: this seems like something a proc-macro can help with...
-impl build_params::NextestBuildParams {
-    pub fn claim(self, ctx: &mut StepCtx<'_>) -> build_params::NextestBuildParams<VarClaimed> {
-        let build_params::NextestBuildParams {
-            packages,
-            features,
-            no_default_features,
-            unstable_panic_abort_tests,
-            target,
-            profile,
-            extra_env,
-        } = self;
-
-        build_params::NextestBuildParams {
-            packages: packages.claim(ctx),
-            features,
-            no_default_features,
-            unstable_panic_abort_tests,
-            target,
-            profile,
-            extra_env: extra_env.claim(ctx),
-        }
-    }
-}
-
-// FUTURE: this seems like something a proc-macro can help with...
 impl RunKindDeps {
     pub fn claim(self, ctx: &mut StepCtx<'_>) -> RunKindDeps<VarClaimed> {
         match self {
@@ -436,5 +482,40 @@ impl RunKindDeps {
                 target: target.claim(ctx),
             },
         }
+    }
+}
+
+impl std::fmt::Display for Command {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let arg_string = {
+            self.args
+                .iter()
+                .map(|v| format!("'{}'", v.to_string_lossy()))
+                .collect::<Vec<_>>()
+                .join(" ")
+        };
+
+        let env_string = match self.shell {
+            CommandShell::Powershell => self
+                .env
+                .iter()
+                .map(|(k, v)| format!("$env:{k}='{v}';"))
+                .collect::<Vec<_>>()
+                .join(" "),
+            CommandShell::Bash => self
+                .env
+                .iter()
+                .map(|(k, v)| format!("{k}='{v}'"))
+                .collect::<Vec<_>>()
+                .join(" "),
+        };
+
+        write!(
+            f,
+            "{} {} {}",
+            env_string,
+            self.argv0.to_string_lossy(),
+            arg_string
+        )
     }
 }
