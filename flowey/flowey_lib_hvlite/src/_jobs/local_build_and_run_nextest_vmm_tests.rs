@@ -710,7 +710,7 @@ impl SimpleFlowNode for Node {
                     run_ignored: false,
                     fail_fast: None,
                     extra_env: Some(extra_env),
-                    use_relative_paths: true,
+                    portable: true,
                     command: v,
                 });
 

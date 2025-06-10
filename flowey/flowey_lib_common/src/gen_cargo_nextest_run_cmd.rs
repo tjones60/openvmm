@@ -30,8 +30,8 @@ flowey_request! {
         pub fail_fast: Option<bool>,
         /// Additional env vars set when executing the tests.
         pub extra_env: Option<ReadVar<BTreeMap<String, String>>>,
-        /// Use paths relative to `test_content_dir` for arguments
-        pub use_relative_paths: bool,
+        /// Generate a portable command with paths relative to `test_content_dir`
+        pub portable: bool,
         /// Command for running the tests
         pub command: WriteVar<Command>,
     }
@@ -89,7 +89,7 @@ impl FlowNode for Node {
             nextest_filter_expr,
             run_ignored,
             fail_fast,
-            use_relative_paths,
+            portable,
             command,
         } in requests
         {
@@ -117,11 +117,11 @@ impl FlowNode for Node {
                         RunKindDeps::RunFromArchive { target, .. } => rt.read(target.clone()),
                     };
 
-                    let windows_via_wsl2 = crate::_util::running_in_wsl(rt)
-                        && matches!(
-                            target.operating_system,
-                            target_lexicon::OperatingSystem::Windows
-                        );
+                    let windows_target = matches!(
+                        target.operating_system,
+                        target_lexicon::OperatingSystem::Windows
+                    );
+                    let windows_via_wsl2 = windows_target && crate::_util::running_in_wsl(rt);
 
                     let working_dir_ref = working_dir.as_path();
                     let working_dir_win = windows_via_wsl2.then(|| {
@@ -136,14 +136,14 @@ impl FlowNode for Node {
                             path.absolute()
                                 .with_context(|| format!("invalid path {}", path.display()))?
                         };
-                        let path = if use_relative_paths {
-                            if windows_via_wsl2 {
+                        let path = if portable {
+                            if windows_target {
                                 let working_dir_trimmed =
                                     working_dir_win.as_ref().unwrap().trim_end_matches('\\');
                                 let path_win = path.display().to_string();
                                 let path_trimmed = path_win.trim_end_matches('\\');
                                 PathBuf::from(format!(
-                                    ".{}",
+                                    "$PSScriptRoot{}",
                                     path_trimmed
                                         .strip_prefix(working_dir_trimmed)
                                         .with_context(|| format!(
@@ -253,9 +253,12 @@ impl FlowNode for Node {
                     let mut args: Vec<OsString> = Vec::new();
 
                     let argv0: OsString = match nextest_invocation {
-                        NextestInvocation::Standalone { nextest_bin } => {
-                            maybe_convert_path(nextest_bin)?.into()
+                        NextestInvocation::Standalone { nextest_bin } => if portable {
+                            maybe_convert_path(nextest_bin)?
+                        } else {
+                            nextest_bin
                         }
+                        .into(),
                         NextestInvocation::WithCargo { rust_toolchain } => {
                             if let Some(rust_toolchain) = rust_toolchain {
                                 args.extend(["run".into(), rust_toolchain.into(), "cargo".into()]);
@@ -490,7 +493,7 @@ impl std::fmt::Display for Command {
         let arg_string = {
             self.args
                 .iter()
-                .map(|v| format!("'{}'", v.to_string_lossy()))
+                .map(|v| format!("\"{}\"", v.to_string_lossy()))
                 .collect::<Vec<_>>()
                 .join(" ")
         };
@@ -499,23 +502,23 @@ impl std::fmt::Display for Command {
             CommandShell::Powershell => self
                 .env
                 .iter()
-                .map(|(k, v)| format!("$env:{k}='{v}';"))
+                .map(|(k, v)| format!("$env:{k}=\"{v}\";"))
                 .collect::<Vec<_>>()
                 .join(" "),
             CommandShell::Bash => self
                 .env
                 .iter()
-                .map(|(k, v)| format!("{k}='{v}'"))
+                .map(|(k, v)| format!("{k}=\"{v}\""))
                 .collect::<Vec<_>>()
                 .join(" "),
         };
 
-        write!(
-            f,
-            "{} {} {}",
-            env_string,
-            self.argv0.to_string_lossy(),
-            arg_string
-        )
+        let argv0_string = self.argv0.to_string_lossy();
+        let argv0_string = match self.shell {
+            CommandShell::Powershell => format!("&\"{argv0_string}\""),
+            CommandShell::Bash => format!("\"{argv0_string}\""),
+        };
+
+        write!(f, "{} {} {}", env_string, argv0_string, arg_string)
     }
 }

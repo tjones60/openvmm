@@ -221,7 +221,7 @@ impl FlowNode for Node {
                 run_ignored,
                 fail_fast,
                 extra_env,
-                use_relative_paths: false,
+                portable: false,
                 command: v,
             });
 
