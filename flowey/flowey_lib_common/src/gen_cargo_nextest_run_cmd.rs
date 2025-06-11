@@ -324,7 +324,7 @@ impl FlowNode for Node {
                     }
 
                     // also update WSLENV in cases where we're running windows tests via WSL2
-                    if crate::_util::running_in_wsl(rt) {
+                    if !portable && crate::_util::running_in_wsl(rt) {
                         let old_wslenv = std::env::var("WSLENV");
                         let new_wslenv = with_env.keys().cloned().collect::<Vec<_>>().join(":");
                         with_env.insert(
@@ -348,11 +348,14 @@ impl FlowNode for Node {
                             env: with_env,
                             argv0,
                             args,
-                            shell: match target.operating_system {
-                                target_lexicon::OperatingSystem::Windows => {
-                                    CommandShell::Powershell
-                                }
-                                _ => CommandShell::Bash,
+                            shell: if (portable || !windows_via_wsl2)
+                                && matches!(
+                                    target.operating_system,
+                                    target_lexicon::OperatingSystem::Windows
+                                ) {
+                                CommandShell::Powershell
+                            } else {
+                                CommandShell::Bash
                             },
                         },
                     );
@@ -490,10 +493,14 @@ impl RunKindDeps {
 
 impl std::fmt::Display for Command {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let quote_char = match self.shell {
+            CommandShell::Powershell => "\"",
+            CommandShell::Bash => "'",
+        };
         let arg_string = {
             self.args
                 .iter()
-                .map(|v| format!("\"{}\"", v.to_string_lossy()))
+                .map(|v| format!("{quote_char}{}{quote_char}", v.to_string_lossy()))
                 .collect::<Vec<_>>()
                 .join(" ")
         };
