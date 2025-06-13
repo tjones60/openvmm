@@ -65,7 +65,7 @@ pub struct VmmTestsCli {
     release: bool,
 
     /// Build only, do not run
-    #[clap(long)]
+    #[clap(long, requires("dir"))]
     build_only: bool,
     /// Copy extras to output dir (symbols, etc)
     #[clap(long)]

@@ -179,6 +179,10 @@ impl SimpleFlowNode for Node {
             done,
         } = request;
 
+        if build_only && test_content_dir.is_none() {
+            anyhow::bail!("Cannot build portable command without exporting to dir");
+        }
+
         let arch = target.common_arch().unwrap();
         let arch_tag = match arch {
             CommonArch::X86_64 => "x64",
