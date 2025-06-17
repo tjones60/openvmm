@@ -94,5 +94,5 @@ fn hvc_output(
     let mut cmd = std::process::Command::new("hvc.exe");
     f(&mut cmd);
 
-    super::vm::run_cmd(cmd, true)
+    super::vm::run_cmd(cmd)
 }

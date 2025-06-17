@@ -44,8 +44,8 @@ impl PowerShellBuilder {
             .cmdlet(cmdlet)
     }
 
-    /// Run the PowerShell script and return the output
-    pub fn finish(self) -> Command {
+    /// Finish building the powershell script and return the inner `Command`
+    pub fn build(self) -> Command {
         self.0
     }
 }

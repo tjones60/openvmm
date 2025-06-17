@@ -14,7 +14,6 @@ use jiff::Timestamp;
 use jiff::ToSpan;
 use pal_async::DefaultDriver;
 use pal_async::timer::PolledTimer;
-use std::ffi::OsStr;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
@@ -450,25 +449,23 @@ pub(crate) enum CommandError {
 }
 
 /// Run the PowerShell script and return the output
-pub(crate) fn run_cmd(mut cmd: Command, log_stdout: bool) -> Result<String, CommandError> {
+pub(crate) fn run_cmd(mut cmd: Command) -> Result<String, CommandError> {
     cmd.stderr(Stdio::piped()).stdin(Stdio::null());
 
-    let cmd_str = cmd_to_string(&cmd);
-    tracing::debug!(cmd_str, "executing command");
+    tracing::debug!(?cmd, "executing command");
 
     let start = Timestamp::now();
     let output = cmd.output()?;
     let time_elapsed = Timestamp::now() - start;
 
-    let stdout_str = (log_stdout || !output.status.success())
-        .then(|| String::from_utf8_lossy(&output.stdout).to_string());
+    let stdout_str = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
     tracing::debug!(
-        cmd_str,
+        ?cmd,
         stdout_str,
         stderr_str,
         "command exited in {:.3}s with status {}",
-        time_elapsed.total(jiff::Unit::Second).unwrap_or(-1.0),
+        time_elapsed.total(jiff::Unit::Second).unwrap(),
         output.status
     );
 
@@ -477,16 +474,4 @@ pub(crate) fn run_cmd(mut cmd: Command, log_stdout: bool) -> Result<String, Comm
     }
 
     Ok(String::from_utf8(output.stdout)?.trim().to_owned())
-}
-
-/// Get the command to be run
-pub(crate) fn cmd_to_string(cmd: &Command) -> String {
-    format!(
-        "{} {}",
-        cmd.get_program().to_string_lossy(),
-        cmd.get_args()
-            .collect::<Vec<_>>()
-            .join(OsStr::new(" "))
-            .to_string_lossy()
-    )
 }

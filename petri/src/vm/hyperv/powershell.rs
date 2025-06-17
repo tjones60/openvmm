@@ -123,8 +123,7 @@ pub fn run_new_vm(args: HyperVNewVMArgs<'_>) -> anyhow::Result<Guid> {
             .cmdlet("Select-Object")
             .arg("ExpandProperty", "Guid")
             .finish()
-            .finish(),
-        true,
+            .build(),
     )
     .context("new_vm")?;
 
@@ -141,8 +140,7 @@ pub fn run_remove_vm(vmid: &Guid) -> anyhow::Result<()> {
             .cmdlet("Remove-VM")
             .flag("Force")
             .finish()
-            .finish(),
-        true,
+            .build(),
     )
     .map(|_| ())
     .context("remove_vm")
@@ -199,8 +197,7 @@ pub fn run_set_vm_processor(vmid: &Guid, args: &HyperVSetVMProcessorArgs) -> any
             .arg_opt("HwThreadCountPerCore", args.hw_thread_count_per_core)
             .arg_opt("MaximumCountPerNumaNode", args.maximum_count_per_numa_node)
             .finish()
-            .finish(),
-        true,
+            .build(),
     )
     .map(|_| ())
     .context("set_vm_processor")
@@ -235,8 +232,7 @@ pub fn run_set_vm_memory(vmid: &Guid, args: &HyperVSetVMMemoryArgs) -> anyhow::R
             .arg_opt("MinimumBytes", args.minimum_bytes)
             .arg_opt("StartupBytes", args.startup_bytes)
             .finish()
-            .finish(),
-        true,
+            .build(),
     )
     .map(|_| ())
     .context("set_vm_memory")
@@ -298,8 +294,7 @@ pub fn run_add_vm_hard_disk_drive(args: HyperVAddVMHardDiskDriveArgs<'_>) -> any
             .arg_opt("ControllerNumber", args.controller_number)
             .arg_opt("Path", args.path)
             .finish()
-            .finish(),
-        true,
+            .build(),
     )
     .map(|_| ())
     .context("add_vm_hard_disk_drive")
@@ -334,8 +329,7 @@ pub fn run_add_vm_dvd_drive(args: HyperVAddVMDvdDriveArgs<'_>) -> anyhow::Result
             .arg_opt("ControllerNumber", args.controller_number)
             .arg_opt("Path", args.path)
             .finish()
-            .finish(),
-        true,
+            .build(),
     )
     .map(|_| ())
     .context("add_vm_dvd_drive")
@@ -356,8 +350,7 @@ pub fn run_add_vm_scsi_controller(vmid: &Guid) -> anyhow::Result<u32> {
             .cmdlet("Select-Object")
             .arg("ExpandProperty", "ControllerNumber")
             .finish()
-            .finish(),
-        true,
+            .build(),
     )
     .context("add_vm_scsi_controller")?;
     Ok(output.trim().parse::<u32>()?)
@@ -382,8 +375,7 @@ pub fn run_set_vm_scsi_controller_target_vtl(
             .arg("ControllerNumber", controller_number)
             .arg("TargetVtl", target_vtl)
             .finish()
-            .finish(),
-        true,
+            .build(),
     )
     .map(|_| ())
     .context("set_vm_scsi_controller_target_vtl")
@@ -398,8 +390,7 @@ pub fn create_child_vhd(path: &Path, parent_path: &Path) -> anyhow::Result<()> {
             .arg("ParentPath", parent_path)
             .flag("Differencing")
             .finish()
-            .finish(),
-        true,
+            .build(),
     )
     .map(|_| ())
     .context("create_child_vhd")
@@ -412,8 +403,7 @@ pub fn run_dismount_vhd(path: &Path) -> anyhow::Result<()> {
             .cmdlet("Dismount-VHD")
             .arg("Path", path)
             .finish()
-            .finish(),
-        true,
+            .build(),
     )
     .map(|_| ())
     .context("dismount_vhd")
@@ -449,7 +439,7 @@ pub fn run_set_vm_firmware(args: HyperVSetVMFirmwareArgs<'_>) -> anyhow::Result<
             .finish(),
     };
 
-    run_cmd(builder.finish(), true)
+    run_cmd(builder.build())
         .map(|_| ())
         .context("set_vm_firmware")
 }
@@ -473,8 +463,7 @@ pub fn run_set_openhcl_firmware(
             .arg("IgvmFile", igvm_file)
             .flag_opt(increase_vtl2_memory.then_some("IncreaseVtl2Memory"))
             .finish()
-            .finish(),
-        true,
+            .build(),
     )
     .map(|_| ())
     .context("set_openhcl_firmware")
@@ -497,8 +486,7 @@ pub fn run_set_vm_command_line(
             .cmdlet("Set-VmCommandLine")
             .arg("CommandLine", command_line)
             .finish()
-            .finish(),
-        true,
+            .build(),
     )
     .map(|_| ())
     .context("set_vm_command_line")
@@ -521,8 +509,7 @@ pub fn run_set_initial_machine_configuration(
             .cmdlet("Set-InitialMachineConfiguration")
             .arg("ImcHive", imc_hive)
             .finish()
-            .finish(),
-        true,
+            .build(),
     )
     .map(|_| ())
     .context("set_initial_machine_configuration")
@@ -539,8 +526,7 @@ pub fn run_set_vm_com_port(vmid: &Guid, port: u8, path: &Path) -> anyhow::Result
             .arg("Number", port)
             .arg("Path", path)
             .finish()
-            .finish(),
-        true,
+            .build(),
     )
     .map(|_| ())
     .context("set_vm_com_port")
@@ -619,8 +605,7 @@ pub fn run_get_winevent(
             .cmdlet("ConvertTo-Json")
             .arg("InputObject", ps::Array::new([&output_var]))
             .finish()
-            .finish(),
-        false,
+            .build(),
     );
 
     match output {
@@ -698,8 +683,7 @@ pub fn vm_id_from_name(name: &str) -> anyhow::Result<Vec<Guid>> {
             .cmdlet("Select-Object")
             .arg("ExpandProperty", "Guid")
             .finish()
-            .finish(),
-        true,
+            .build(),
     )
     .context("vm_id_from_name")?;
     let mut vmids = Vec::new();
@@ -740,8 +724,7 @@ pub fn vm_shutdown_ic_status(vmid: &Guid) -> anyhow::Result<VmShutdownIcStatus> 
             .cmdlet("Select-Object")
             .arg("ExpandProperty", "PrimaryStatusDescription")
             .finish()
-            .finish(),
-        true,
+            .build(),
     )
     .context("vm_shutdown_ic_status")?;
 
@@ -765,8 +748,7 @@ pub fn run_remove_vm_network_adapter(vmid: &Guid) -> anyhow::Result<()> {
             .pipeline()
             .cmdlet("Remove-VMNetworkAdapter")
             .finish()
-            .finish(),
-        true,
+            .build(),
     )
     .map(|_| ())
     .context("remove_vm_network_adapters")
@@ -784,8 +766,7 @@ pub fn run_remove_vm_scsi_controller(vmid: &Guid, controller_number: u32) -> any
             .pipeline()
             .cmdlet("Remove-VMScsiController")
             .finish()
-            .finish(),
-        true,
+            .build(),
     )
     .map(|_| ())
     .context("remove_vm_scsi_controller")
