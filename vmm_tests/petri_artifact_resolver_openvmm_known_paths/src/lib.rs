@@ -451,7 +451,6 @@ pub fn get_path(
 
     if let Ok(env_dir) = std::env::var(VMM_TESTS_DIR_ENV_VAR) {
         let full_path = Path::new(&env_dir).join(file_name);
-        eprintln!("trying {:?}", full_path);
         if full_path.try_exists()? {
             return Ok(full_path);
         }

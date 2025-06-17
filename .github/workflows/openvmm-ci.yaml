@@ -1633,8 +1633,8 @@ jobs:
     - name: generate nextest command
       run: flowey.exe e 14 flowey_lib_common::gen_cargo_nextest_run_cmd 0
       shell: bash
-    - name: init hyperv tests
-      run: flowey.exe e 14 flowey_lib_hvlite::init_hyperv_tests 0
+    - name: install vmm tests deps (windows)
+      run: flowey.exe e 14 flowey_lib_hvlite::install_vmm_tests_deps 0
       shell: bash
     - name: run 'vmm_tests' nextest tests
       run: |-
@@ -1869,8 +1869,8 @@ jobs:
     - name: generate nextest command
       run: flowey.exe e 15 flowey_lib_common::gen_cargo_nextest_run_cmd 0
       shell: bash
-    - name: init hyperv tests
-      run: flowey.exe e 15 flowey_lib_hvlite::init_hyperv_tests 0
+    - name: install vmm tests deps (windows)
+      run: flowey.exe e 15 flowey_lib_hvlite::install_vmm_tests_deps 0
       shell: bash
     - name: run 'vmm_tests' nextest tests
       run: |-
@@ -2103,8 +2103,8 @@ jobs:
     - name: generate nextest command
       run: flowey.exe e 16 flowey_lib_common::gen_cargo_nextest_run_cmd 0
       shell: bash
-    - name: init hyperv tests
-      run: flowey.exe e 16 flowey_lib_hvlite::init_hyperv_tests 0
+    - name: install vmm tests deps (windows)
+      run: flowey.exe e 16 flowey_lib_hvlite::install_vmm_tests_deps 0
       shell: bash
     - name: run 'vmm_tests' nextest tests
       run: |-
@@ -2337,6 +2337,9 @@ jobs:
       shell: bash
     - name: generate nextest command
       run: flowey e 17 flowey_lib_common::gen_cargo_nextest_run_cmd 0
+      shell: bash
+    - name: install vmm tests deps (linux)
+      run: flowey e 17 flowey_lib_hvlite::install_vmm_tests_deps 0
       shell: bash
     - name: run 'vmm_tests' nextest tests
       run: |-
@@ -2619,8 +2622,8 @@ jobs:
     - name: generate nextest command
       run: flowey.exe e 18 flowey_lib_common::gen_cargo_nextest_run_cmd 0
       shell: bash
-    - name: init hyperv tests
-      run: flowey.exe e 18 flowey_lib_hvlite::init_hyperv_tests 0
+    - name: install vmm tests deps (windows)
+      run: flowey.exe e 18 flowey_lib_hvlite::install_vmm_tests_deps 0
       shell: bash
     - name: run 'vmm_tests' nextest tests
       run: |-
