@@ -48,11 +48,10 @@ pub const MAX_MESSAGE_LENGTH: u16 = 0x1000; // 4KB
 // These messages are the result of known issues with our UEFI firmware that do
 // not seem to affect the guest.
 // TODO: Fix UEFI to resolve this errors/warnings
-const SUPPRESS_LOGS: [&str; 4] = [
+const SUPPRESS_LOGS: [&str; 3] = [
     "WARNING: There is mismatch of supported HashMask (0x2 - 0x7) between modules",
     "that are linking different HashInstanceLib instances!",
     "ConvertPages: failed to find range",
-    "Dxe.efi",
 ];
 
 /// Represents a processed log entry from the EFI diagnostics buffer
