@@ -45,8 +45,8 @@ pub const MAX_LOG_BUFFER_SIZE: u32 = 0x400000; // 4MB
 pub const MAX_MESSAGE_LENGTH: u16 = 0x1000; // 4KB
 
 // Suppress logs that contain these known error/warning messages.
-// These messages are the result of known issues with out UEFI firmware that do
-// not seem to effect the guest.
+// These messages are the result of known issues with our UEFI firmware that do
+// not seem to affect the guest.
 // TODO: Fix UEFI to resolve this errors/warnings
 const SUPPRESS_LOGS: [&str; 4] = [
     "WARNING: There is mismatch of supported HashMask (0x2 - 0x7) between modules",
