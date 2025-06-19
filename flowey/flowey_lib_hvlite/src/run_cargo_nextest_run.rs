@@ -18,11 +18,11 @@ pub enum NextestProfile {
     Ci,
 }
 
-impl std::fmt::Display for NextestProfile {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl NextestProfile {
+    pub fn as_str(&self) -> &'static str {
         match self {
-            NextestProfile::Default => f.write_str("default"),
-            NextestProfile::Ci => f.write_str("ci"),
+            NextestProfile::Default => "default",
+            NextestProfile::Ci => "ci",
         }
     }
 }
@@ -124,7 +124,7 @@ impl FlowNode for Node {
                     working_dir,
                     config_file,
                     tool_config_files: Vec::new(),
-                    nextest_profile: nextest_profile.to_string(),
+                    nextest_profile: nextest_profile.as_str().to_owned(),
                     extra_env: Some(extra_env),
                     with_rlimit_unlimited_core_size: true,
                     nextest_filter_expr,

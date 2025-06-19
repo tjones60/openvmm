@@ -730,7 +730,7 @@ impl SimpleFlowNode for Node {
             working_dir: ReadVar::from_static(test_content_dir.clone()),
             config_file: ReadVar::from_static(nextest_config_file.clone()),
             tool_config_files: Vec::new(),
-            nextest_profile: nextest_profile.to_string(),
+            nextest_profile: nextest_profile.as_str().to_owned(),
             nextest_filter_expr: Some(nextest_filter_expr.clone()),
             run_ignored: false,
             fail_fast: None,
