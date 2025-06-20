@@ -37,7 +37,7 @@ pub struct VmmTestsCli {
     #[clap(long, conflicts_with("flags"))]
     filter: Option<String>,
     /// Custom list of artifacts to download
-    #[clap(long, conflicts_with("flags"))]
+    #[clap(long, conflicts_with("flags"), requires("filter"))]
     artifacts: Vec<KnownTestArtifacts>,
     /// Flags used to generate the VMM test filter
     ///
@@ -148,6 +148,7 @@ impl IntoPipeline for VmmTestsCli {
                             filter,
                             artifacts,
                             // TODO: add a way to manually specify these
+                            // For now, just build and install everything.
                             build: Default::default(),
                             deps: match target_os {
                                 target_lexicon::OperatingSystem::Windows => {
