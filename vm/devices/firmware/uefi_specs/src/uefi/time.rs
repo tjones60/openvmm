@@ -102,7 +102,6 @@ pub const EFI_UNSPECIFIED_TIMEZONE: EfiTimezone = EfiTimezone(0x07FF);
 #[derive(Copy, Clone, Debug, IntoBytes, FromBytes, Immutable, KnownLayout, PartialEq, Eq)]
 #[repr(transparent)]
 #[cfg_attr(feature = "inspect", derive(inspect::Inspect), inspect(transparent))]
-#[cfg_attr(feature = "mesh", derive(mesh_protobuf::Protobuf), mesh(transparent))]
 pub struct EfiTimezone(pub i16);
 
 impl EfiTimezone {
@@ -116,7 +115,6 @@ impl EfiTimezone {
 #[bitfield(u8)]
 #[derive(IntoBytes, FromBytes, Immutable, KnownLayout, PartialEq, Eq)]
 #[cfg_attr(feature = "inspect", derive(inspect::Inspect), inspect(transparent))]
-#[cfg_attr(feature = "mesh", derive(mesh_protobuf::Protobuf), mesh(transparent))]
 pub struct EfiDaylight {
     /// EFI_TIME_ADJUST_DAYLIGHT
     ///
