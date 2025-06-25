@@ -10,7 +10,7 @@ rust-version.workspace = true
 default = []
 
 inspect = ["dep:inspect", "uefi_nvram_storage/inspect"]
-save_restore = ["dep:mesh_protobuf", "dep:vmcore", "uefi_nvram_storage/save_restore"]
+save_restore = [ "dep:vmcore", "uefi_nvram_storage/save_restore"]
 
 [dependencies]
 uefi_nvram_storage.workspace = true
@@ -19,7 +19,6 @@ vmcore = { workspace = true, optional = true }
 cvm_tracing.workspace = true
 guid.workspace = true
 inspect = { workspace = true, optional = true }
-mesh_protobuf = { workspace = true, optional = true }
 open_enum.workspace = true
 ucs2.workspace = true
 

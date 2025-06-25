@@ -1453,7 +1453,8 @@ mod save_restore {
 
     mod state {
         use mesh::payload::Protobuf;
-        use vmcore::save_restore::SavedStateBlob;
+        use uefi_nvram_storage::in_memory::InMemoryNvram;
+        use vmcore::save_restore::SaveRestore;
 
         #[derive(Protobuf)]
         #[mesh(package = "firmware.uefi.nvram.spec")]
@@ -1472,7 +1473,7 @@ mod save_restore {
             #[mesh(1)]
             pub runtime_state: SavedRuntimeState,
             #[mesh(2)]
-            pub storage: SavedStateBlob,
+            pub storage: <InMemoryNvram as SaveRestore>::SavedState,
         }
     }
 

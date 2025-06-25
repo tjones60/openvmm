@@ -473,32 +473,15 @@ mod save_restore {
     use vmcore::save_restore::SaveError;
     use vmcore::save_restore::SaveRestore;
 
-    mod state {
-        use uefi_nvram_storage::in_memory;
-        use vmcore::save_restore::SaveRestore;
-        use vmcore::save_restore::SavedStateRoot;
-
-        #[derive(mesh_protobuf::Protobuf, SavedStateRoot)]
-        #[mesh(package = "firmware.hcl_compat_nvram")]
-        pub struct SavedState {
-            #[mesh(1)]
-            pub in_memory: <in_memory::InMemoryNvram as SaveRestore>::SavedState,
-        }
-    }
-
     impl<S: StorageBackend> SaveRestore for HclCompatNvram<S> {
-        type SavedState = state::SavedState;
+        type SavedState = <in_memory::InMemoryNvram as SaveRestore>::SavedState;
 
         fn save(&mut self) -> Result<Self::SavedState, SaveError> {
-            Ok(state::SavedState {
-                in_memory: self.in_memory.save()?,
-            })
+            self.in_memory.save()
         }
 
         fn restore(&mut self, state: Self::SavedState) -> Result<(), RestoreError> {
-            let state::SavedState { in_memory } = state;
-            self.in_memory.restore(in_memory)?;
-            Ok(())
+            self.in_memory.restore(state)
         }
     }
 }

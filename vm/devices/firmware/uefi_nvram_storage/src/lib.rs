@@ -174,10 +174,18 @@ impl NvramStorage for Box<dyn NvramStorage> {
 mod save_restore {
     use super::*;
     use inspect::Inspect;
-    use vmcore::save_restore::ProtobufSaveRestore;
+    use vmcore::save_restore::SaveRestore;
 
-    pub trait VmmNvramStorage: NvramStorage + Inspect + ProtobufSaveRestore {}
-    impl<T> VmmNvramStorage for T where T: NvramStorage + Inspect + ProtobufSaveRestore {}
+    type NvramSavedState = <in_memory::InMemoryNvram as SaveRestore>::SavedState;
+
+    pub trait VmmNvramStorage:
+        NvramStorage + Inspect + SaveRestore<SavedState = NvramSavedState>
+    {
+    }
+    impl<T> VmmNvramStorage for T where
+        T: NvramStorage + Inspect + SaveRestore<SavedState = NvramSavedState>
+    {
+    }
 
     #[async_trait::async_trait]
     impl NvramStorage for Box<dyn VmmNvramStorage> {
@@ -230,16 +238,16 @@ mod save_restore {
         }
     }
 
-    impl ProtobufSaveRestore for Box<dyn VmmNvramStorage> {
-        fn save(
-            &mut self,
-        ) -> Result<vmcore::save_restore::SavedStateBlob, vmcore::save_restore::SaveError> {
+    impl SaveRestore for Box<dyn VmmNvramStorage<SavedState = NvramSavedState>> {
+        type SavedState = NvramSavedState;
+
+        fn save(&mut self) -> Result<Self::SavedState, vmcore::save_restore::SaveError> {
             (**self).save()
         }
 
         fn restore(
             &mut self,
-            state: vmcore::save_restore::SavedStateBlob,
+            state: Self::SavedState,
         ) -> Result<(), vmcore::save_restore::RestoreError> {
             (**self).restore(state)
         }
