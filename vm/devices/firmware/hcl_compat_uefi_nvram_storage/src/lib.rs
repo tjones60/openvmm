@@ -141,7 +141,6 @@ impl<S: StorageBackend> HclCompatNvram<S> {
     }
 
     async fn load_from_storage(&mut self) -> Result<(), NvramStorageError> {
-        tracing::info!("loading uefi nvram from storage");
         let res = self.load_from_storage_inner().await;
         if let Err(e) = &res {
             tracing::error!(CVM_ALLOWED, "storage contains corrupt nvram state");
@@ -298,7 +297,6 @@ impl<S: StorageBackend> HclCompatNvram<S> {
 
     /// Dump in-memory nvram to the underlying storage device.
     async fn flush_storage(&mut self) -> Result<(), NvramStorageError> {
-        tracing::info!("flushing uefi nvram to storage");
         self.nvram_buf.clear();
 
         for in_memory::VariableEntry {
@@ -341,8 +339,7 @@ impl<S: StorageBackend> HclCompatNvram<S> {
         Ok(())
     }
 
-    /// Iterate over the NVRAM entries. This function asynchronously loads the
-    /// NVRAM contents into memory from the backing storage if necessary.
+    /// Iterate over the NVRAM entries.
     pub fn iter(&mut self) -> impl Iterator<Item = in_memory::VariableEntry<'_>> {
         self.in_memory.iter()
     }
