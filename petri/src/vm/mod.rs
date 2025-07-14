@@ -74,8 +74,8 @@ pub struct PetriVmBuilder<T: PetriVmmBackend> {
     backend: T,
     /// VM configuration
     config: PetriVmConfig,
-    /// VMM-specific configuration
-    vmm_config: Option<Box<dyn FnOnce(T::VmmConfig) -> T::VmmConfig + Send>>,
+    /// Function to modify the VMM-specific configuration
+    modify_vmm_config: Option<Box<dyn FnOnce(T::VmmConfig) -> T::VmmConfig + Send>>,
     /// VMM-agnostic resources
     resources: PetriVmResources,
 }
@@ -125,7 +125,7 @@ pub trait PetriVmmBackend {
     async fn run(
         self,
         config: PetriVmConfig,
-        vmm_config: Option<impl FnOnce(Self::VmmConfig) -> Self::VmmConfig + Send>,
+        modify_vmm_config: Option<impl FnOnce(Self::VmmConfig) -> Self::VmmConfig + Send>,
         resources: &PetriVmResources,
     ) -> anyhow::Result<Self::VmRuntime>;
 }
@@ -155,7 +155,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
                 agent_image: artifacts.agent_image,
                 openhcl_agent_image: artifacts.openhcl_agent_image,
             },
-            vmm_config: None,
+            modify_vmm_config: None,
             resources: PetriVmResources {
                 driver: driver.clone(),
                 output_dir: params.output_dir.to_owned(),
@@ -192,7 +192,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         let arch = self.config.arch;
         let runtime = self
             .backend
-            .run(self.config, self.vmm_config, &self.resources)
+            .run(self.config, self.modify_vmm_config, &self.resources)
             .await?;
         Ok(PetriVm {
             arch,
@@ -200,8 +200,6 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             runtime,
         })
     }
-
-    // TODO: Make sure all of the below are parsed in openvmm construct
 
     /// Set the VM to enable secure boot and inject the templates per OS flavor.
     pub fn with_secure_boot(mut self) -> Self {
@@ -344,7 +342,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             | Firmware::OpenhclLinuxDirect { .. }
             | Firmware::Pcat { .. }
             | Firmware::OpenhclPcat { .. } => {
-                panic!("VMGS file is only supported for UEFI firmware.")
+                panic!("Custom VMGS file is only supported for UEFI firmware.")
             }
         }
         self
@@ -365,7 +363,10 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         mut self,
         f: impl FnOnce(T::VmmConfig) -> T::VmmConfig + 'static + Send,
     ) -> Self {
-        self.vmm_config = Some(Box::new(f));
+        if self.modify_vmm_config.is_some() {
+            panic!("only one modify_backend allowed");
+        }
+        self.modify_vmm_config = Some(Box::new(f));
         self
     }
 }

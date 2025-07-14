@@ -75,9 +75,13 @@ impl PetriVmmBackend for HyperVPetriBackend {
     async fn run(
         self,
         config: PetriVmConfig,
-        _vmm_config: Option<impl FnOnce(Self::VmmConfig) -> Self::VmmConfig + Send>,
+        modify_vmm_config: Option<impl FnOnce(Self::VmmConfig) -> Self::VmmConfig + Send>,
         resources: &PetriVmResources,
     ) -> anyhow::Result<Self::VmRuntime> {
+        if modify_vmm_config.is_some() {
+            panic!("specified modify_vmm_config, but that is not supported for hyperv");
+        }
+
         let PetriVmConfig {
             name,
             arch,

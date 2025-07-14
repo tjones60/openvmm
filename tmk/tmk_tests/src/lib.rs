@@ -194,7 +194,8 @@ fn resolve_openhcl_tmks<T: PetriVmmBackend>(
 ) -> Option<OpenhclTmkArtifacts<T>> {
     let arch = MachineArch::host();
     if MachineArch::host() != MachineArch::X86_64 {
-        // TODO: aarch64 currently hangs, fix
+        // TODO: aarch64 currently hangs on hyperv, fix
+        // not supported with OpenVMM
         return None;
     }
 

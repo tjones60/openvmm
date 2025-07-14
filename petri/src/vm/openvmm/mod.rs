@@ -100,12 +100,12 @@ impl PetriVmmBackend for OpenVmmPetriBackend {
     async fn run(
         self,
         config: PetriVmConfig,
-        vmm_config: Option<impl FnOnce(PetriVmConfigOpenVmm) -> PetriVmConfigOpenVmm + Send>,
+        modify_vmm_config: Option<impl FnOnce(PetriVmConfigOpenVmm) -> PetriVmConfigOpenVmm + Send>,
         resources: &PetriVmResources,
     ) -> anyhow::Result<Self::VmRuntime> {
         let mut config = PetriVmConfigOpenVmm::new(&self.openvmm_path, config, resources)?;
 
-        if let Some(f) = vmm_config {
+        if let Some(f) = modify_vmm_config {
             config = f(config);
         }
 
