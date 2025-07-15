@@ -90,6 +90,7 @@ impl PetriVmmBackend for HyperVPetriBackend {
             proc_topology,
             agent_image,
             openhcl_agent_image,
+            vmgs: _, // TODO
         } = &config;
 
         let PetriVmResources {
@@ -137,7 +138,6 @@ impl PetriVmmBackend for HyperVPetriBackend {
             Firmware::Uefi {
                 guest,
                 uefi_firmware: _, // TODO
-                vmgs_file: _,     // TODO
                 uefi_config,
             } => (
                 powershell::HyperVGuestStateIsolationType::Disabled,
@@ -150,7 +150,6 @@ impl PetriVmmBackend for HyperVPetriBackend {
                 guest,
                 isolation,
                 igvm_path,
-                vmgs_file: _, // TODO
                 uefi_config,
                 openhcl_config,
             } => (

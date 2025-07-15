@@ -255,7 +255,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
     }
 
     /// Sets a custom OpenHCL IGVM file to use.
-    pub fn with_custom_openhcl<O: IsOpenhclIgvm>(mut self, artifact: ResolvedArtifact<O>) -> Self {
+    pub fn with_custom_openhcl(mut self, artifact: ResolvedArtifact<impl IsOpenhclIgvm>) -> Self {
         match &mut self.config.firmware {
             Firmware::OpenhclLinuxDirect { igvm_path, .. }
             | Firmware::OpenhclPcat { igvm_path, .. }
@@ -363,7 +363,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
     }
 
     /// Use the specified backing VMGS file
-    pub fn with_backing_vmgs<V: IsTestVmgs>(mut self, disk: ResolvedArtifact<V>) -> Self {
+    pub fn with_backing_vmgs(mut self, disk: ResolvedArtifact<impl IsTestVmgs>) -> Self {
         match &mut self.config.vmgs {
             PetriVmgsResource::Disk(installed_disk)
             | PetriVmgsResource::ReprovisionOnFailure(installed_disk)
