@@ -1049,7 +1049,6 @@ impl InitializedVm {
                                             .context("failed to instantiate UEFI NVRAM store")?,
                                     ),
                                     None,
-                                    false,
                                 )
                                 .await?,
                             ),

@@ -144,7 +144,7 @@ async fn dump_nvram(
     truncate: bool,
 ) -> Result<(), Error> {
     let mut printed_one = false;
-    for entry in nvram_storage.iter() {
+    for entry in nvram_storage.iter().await? {
         let meta = NvramEntryMetadata {
             vendor: entry.vendor.to_string(),
             name: entry.name.to_string(),
@@ -350,7 +350,6 @@ async fn open_nvram(
         VmgsStorageBackend::new(vmgs, vmgs::FileId::BIOS_NVRAM, encrypted)
             .map_err(Error::VmgsStorageBackend)?,
         None,
-        false,
     )
     .await?)
 }
