@@ -173,6 +173,11 @@ pub enum RestoreError {
     /// custom saved state corruption error
     #[error("saved state is invalid")]
     InvalidSavedState(#[source] anyhow::Error),
+    /// The saved state for this object was missing, likely because the state
+    /// was saved using a previous vmm version that did not include this field.
+    /// The caller should attempt to initialize the missing data via other means.
+    #[error("saved state is missing")]
+    MissingSavedState,
     /// non-state-related restore failure
     #[error(transparent)]
     Other(anyhow::Error),
