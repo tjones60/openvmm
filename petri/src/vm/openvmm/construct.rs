@@ -19,6 +19,7 @@ use crate::PcatGuest;
 use crate::PetriLogSource;
 use crate::PetriVmConfig;
 use crate::PetriVmResources;
+use crate::PetriVmgsResource;
 use crate::ProcessorTopology;
 use crate::SIZE_1_GB;
 use crate::SecureBootTemplate;
@@ -26,7 +27,7 @@ use crate::UefiConfig;
 use crate::UefiGuest;
 use crate::linux_direct_serial_agent::LinuxDirectSerialAgent;
 use crate::openhcl_diag::OpenHclDiagHandler;
-use crate::openvmm::mem_diff_vmgs_from_artifact;
+use crate::openvmm::memdiff_vmgs_from_artifact;
 use crate::vm::append_cmdline;
 use anyhow::Context;
 use framebuffer::FRAMEBUFFER_SIZE;
@@ -88,7 +89,6 @@ use vm_resource::kind::SerialBackendHandle;
 use vm_resource::kind::VmbusDeviceHandleKind;
 use vmbus_serial_resources::VmbusSerialDeviceHandle;
 use vmbus_serial_resources::VmbusSerialPort;
-use vmgs_resources::VmgsResource;
 use vtl2_settings_proto::Vtl2Settings;
 
 impl PetriVmConfigOpenVmm {
@@ -106,6 +106,7 @@ impl PetriVmConfigOpenVmm {
             proc_topology,
             agent_image: _,
             openhcl_agent_image: _,
+            vmgs,
         } = &petri_vm_config;
 
         let PetriVmResources {
@@ -119,6 +120,7 @@ impl PetriVmConfigOpenVmm {
             firmware,
             driver,
             logger: log_source,
+            vmgs,
         };
 
         let mut chipset = VmManifestBuilder::new(
@@ -371,10 +373,10 @@ impl PetriVmConfigOpenVmm {
             },
         );
 
-        let vmgs = if let Firmware::Uefi { vmgs_file, .. } = firmware {
-            Some(mem_diff_vmgs_from_artifact(vmgs_file)?)
-        } else {
+        let vmgs = if firmware.is_openhcl() {
             None
+        } else {
+            Some(memdiff_vmgs_from_artifact(vmgs)?)
         };
 
         let config = Config {
@@ -501,6 +503,7 @@ struct PetriVmConfigSetupCore<'a> {
     firmware: &'a Firmware,
     driver: &'a DefaultDriver,
     logger: &'a PetriLogSource,
+    vmgs: &'a PetriVmgsResource,
 }
 
 struct SerialData {
@@ -649,8 +652,7 @@ impl PetriVmConfigSetupCore<'_> {
                 _,
                 Firmware::Uefi {
                     uefi_firmware: firmware,
-                    guest: _,     // load_boot_disk
-                    vmgs_file: _, // new
+                    guest: _, // load_boot_disk
                     uefi_config:
                         UefiConfig {
                             secure_boot_enabled: _,  // new
@@ -685,7 +687,6 @@ impl PetriVmConfigSetupCore<'_> {
                     igvm_path,
                     guest: _,       // load_boot_disk
                     isolation: _,   // new via Firmware::isolation
-                    vmgs_file: _,   // config_openhcl_vmbus_devices
                     uefi_config: _, // config_openhcl_vmbus_devices
                     openhcl_config,
                 },
@@ -937,24 +938,16 @@ impl PetriVmConfigSetupCore<'_> {
                 secure_boot_template,
                 disable_frontpage,
             },
-            vmgs,
             OpenHclConfig { vmbus_redirect, .. },
         ) = match self.firmware {
             Firmware::OpenhclUefi {
                 uefi_config,
-                vmgs_file,
                 openhcl_config,
                 ..
-            } => (
-                uefi_config,
-                mem_diff_vmgs_from_artifact(vmgs_file)?,
-                openhcl_config,
-            ),
-            Firmware::OpenhclLinuxDirect { openhcl_config, .. } => (
-                &UefiConfig::default(),  // TODO: does linux direct use this?
-                VmgsResource::Ephemeral, // TODO: does linux direct use this?
-                openhcl_config,
-            ),
+            } => (uefi_config, openhcl_config),
+            Firmware::OpenhclLinuxDirect { openhcl_config, .. } => {
+                (&UefiConfig::default(), openhcl_config)
+            }
             _ => anyhow::bail!("not a supported openhcl firmware config"),
         };
 
@@ -971,7 +964,7 @@ impl PetriVmConfigSetupCore<'_> {
             com2: true,
             vmbus_redirection: *vmbus_redirect,
             vtl2_settings: None, // Will be added at startup to allow tests to modify
-            vmgs,
+            vmgs: memdiff_vmgs_from_artifact(self.vmgs)?,
             framebuffer: framebuffer.then(|| SharedFramebufferHandle.into_resource()),
             guest_request_recv,
             enable_tpm: false,

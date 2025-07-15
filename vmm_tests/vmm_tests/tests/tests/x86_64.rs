@@ -8,6 +8,7 @@ mod openhcl_uefi;
 
 use anyhow::Context;
 use petri::ApicMode;
+use petri::PetriGuestStateLifetime;
 use petri::PetriVmBuilder;
 use petri::PetriVmmBackend;
 use petri::ProcessorTopology;
@@ -15,7 +16,6 @@ use petri::ShutdownKind;
 use petri::openvmm::OpenVmmPetriBackend;
 use petri::pipette::cmd;
 use petri_artifacts_common::tags::OsFlavor;
-use petri_artifacts_vmm_test::artifacts::test_vmgs::VMGS_WITH_BOOT_ENTRY;
 use vmm_core_defs::HaltReason;
 use vmm_test_macros::openvmm_test;
 use vmm_test_macros::vmm_test;
@@ -50,8 +50,7 @@ async fn boot_with_tpm(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::R
         OsFlavor::Windows => config.run().await?,
         OsFlavor::Linux => {
             let mut vm = config
-                // TODO: we shouldn't need to specify a generic here...
-                .with_vmgs::<VMGS_WITH_BOOT_ENTRY>(petri::PetriVmgsResource::TempDisk)
+                .with_guest_state_lifetime(PetriGuestStateLifetime::Disk)
                 .run_with_lazy_pipette()
                 .await?;
             // Workaround to https://github.com/microsoft/openvmm/issues/379
@@ -187,8 +186,7 @@ async fn vbs_boot_with_tpm(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyho
         OsFlavor::Windows => config.run_without_agent().await?,
         OsFlavor::Linux => {
             let mut vm = config
-                // TODO: we shouldn't need to specify a generic here...
-                .with_vmgs::<VMGS_WITH_BOOT_ENTRY>(petri::PetriVmgsResource::TempDisk)
+                .with_guest_state_lifetime(PetriGuestStateLifetime::Disk)
                 .run_without_agent()
                 .await?;
             // Workaround to https://github.com/microsoft/openvmm/issues/379

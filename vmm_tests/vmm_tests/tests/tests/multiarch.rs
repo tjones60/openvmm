@@ -10,6 +10,7 @@ use hyperv_ic_resources::kvp::KvpRpc;
 use jiff::SignedDuration;
 use mesh::rpc::RpcSend;
 use petri::MemoryConfig;
+use petri::PetriGuestStateLifetime;
 use petri::PetriVmBuilder;
 use petri::PetriVmmBackend;
 use petri::ProcessorTopology;
@@ -620,7 +621,8 @@ async fn default_boot(
     (initial_vmgs,): (ResolvedArtifact<VMGS_WITH_BOOT_ENTRY>,),
 ) -> Result<(), anyhow::Error> {
     let (vm, agent) = config
-        .with_vmgs(petri::PetriVmgsResource::Disk(initial_vmgs))
+        .with_guest_state_lifetime(PetriGuestStateLifetime::Disk)
+        .with_backing_vmgs(initial_vmgs)
         .modify_backend(|b| b.with_default_boot_always_attempt(true))
         .run()
         .await?;
@@ -646,7 +648,8 @@ async fn clear_vmgs(
     (initial_vmgs,): (ResolvedArtifact<VMGS_WITH_BOOT_ENTRY>,),
 ) -> Result<(), anyhow::Error> {
     let (vm, agent) = config
-        .with_vmgs(petri::PetriVmgsResource::Reprovision(initial_vmgs))
+        .with_guest_state_lifetime(PetriGuestStateLifetime::Reprovision)
+        .with_backing_vmgs(initial_vmgs)
         .run()
         .await?;
 
@@ -673,7 +676,8 @@ async fn boot_expect_fail(
     (initial_vmgs,): (ResolvedArtifact<VMGS_WITH_BOOT_ENTRY>,),
 ) -> Result<(), anyhow::Error> {
     let mut vm = config
-        .with_vmgs(petri::PetriVmgsResource::Disk(initial_vmgs))
+        .with_guest_state_lifetime(PetriGuestStateLifetime::Disk)
+        .with_backing_vmgs(initial_vmgs)
         .run_without_agent()
         .await?;
 

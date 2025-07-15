@@ -180,21 +180,25 @@ fn memdiff_disk_from_artifact(
     .into_resource())
 }
 
-fn mem_diff_vmgs_from_artifact(vmgs: &PetriVmgsResource) -> anyhow::Result<VmgsResource> {
+fn memdiff_vmgs_from_artifact(vmgs: &PetriVmgsResource) -> anyhow::Result<VmgsResource> {
+    let convert_disk =
+        |disk: &Option<ResolvedArtifact>| -> anyhow::Result<Resource<DiskHandleKind>> {
+            if let Some(disk) = disk {
+                memdiff_disk_from_artifact(disk)
+            } else {
+                Ok(LayeredDiskHandle::single_layer(RamDiskLayerHandle {
+                    len: Some(vmgs_format::VMGS_DEFAULT_CAPACITY),
+                })
+                .into_resource())
+            }
+        };
+
     Ok(match vmgs {
-        PetriVmgsResource::Disk(disk) => VmgsResource::Disk(memdiff_disk_from_artifact(disk)?),
+        PetriVmgsResource::Disk(disk) => VmgsResource::Disk(convert_disk(disk)?),
         PetriVmgsResource::ReprovisionOnFailure(disk) => {
-            VmgsResource::ReprovisionOnFailure(memdiff_disk_from_artifact(disk)?)
+            VmgsResource::ReprovisionOnFailure(convert_disk(disk)?)
         }
-        PetriVmgsResource::Reprovision(disk) => {
-            VmgsResource::Reprovision(memdiff_disk_from_artifact(disk)?)
-        }
+        PetriVmgsResource::Reprovision(disk) => VmgsResource::Reprovision(convert_disk(disk)?),
         PetriVmgsResource::Ephemeral => VmgsResource::Ephemeral,
-        PetriVmgsResource::TempDisk => VmgsResource::Disk(
-            LayeredDiskHandle::single_layer(RamDiskLayerHandle {
-                len: Some(vmgs_format::VMGS_DEFAULT_CAPACITY),
-            })
-            .into_resource(),
-        ),
     })
 }

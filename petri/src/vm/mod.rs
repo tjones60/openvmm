@@ -96,6 +96,8 @@ pub struct PetriVmConfig {
     pub agent_image: Option<AgentImage>,
     /// Agent to run in OpenHCL
     pub openhcl_agent_image: Option<AgentImage>,
+    /// VM guest state
+    pub vmgs: PetriVmgsResource,
 }
 
 /// Resources used by a Petri VM during contruction and runtime
@@ -154,6 +156,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
                 proc_topology: Default::default(),
                 agent_image: artifacts.agent_image,
                 openhcl_agent_image: artifacts.openhcl_agent_image,
+                vmgs: PetriVmgsResource::Ephemeral,
             },
             modify_vmm_config: None,
             resources: PetriVmResources {
@@ -332,17 +335,46 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         self
     }
 
-    /// Use the specified VMGS file
-    pub fn with_vmgs<V: IsTestVmgs>(mut self, vmgs: PetriVmgsResource<V>) -> Self {
-        match &mut self.config.firmware {
-            Firmware::Uefi { vmgs_file, .. } | Firmware::OpenhclUefi { vmgs_file, .. } => {
-                *vmgs_file = vmgs.erase()
+    /// Specify the guest state lifetime for the VM
+    pub fn with_guest_state_lifetime(
+        mut self,
+        guest_state_lifetime: PetriGuestStateLifetime,
+    ) -> Self {
+        let disk = match self.config.vmgs {
+            PetriVmgsResource::Disk(disk)
+            | PetriVmgsResource::ReprovisionOnFailure(disk)
+            | PetriVmgsResource::Reprovision(disk) => disk,
+            PetriVmgsResource::Ephemeral => None,
+        };
+        self.config.vmgs = match guest_state_lifetime {
+            PetriGuestStateLifetime::Disk => PetriVmgsResource::Disk(disk),
+            PetriGuestStateLifetime::ReprovisionOnFailure => {
+                PetriVmgsResource::ReprovisionOnFailure(disk)
             }
-            Firmware::LinuxDirect { .. }
-            | Firmware::OpenhclLinuxDirect { .. }
-            | Firmware::Pcat { .. }
-            | Firmware::OpenhclPcat { .. } => {
-                panic!("Custom VMGS file is only supported for UEFI firmware.")
+            PetriGuestStateLifetime::Reprovision => PetriVmgsResource::Reprovision(disk),
+            PetriGuestStateLifetime::Ephemeral => {
+                if disk.is_some() {
+                    panic!("attempted to use ephemeral guest state after specifying backing vmgs")
+                }
+                PetriVmgsResource::Ephemeral
+            }
+        };
+        self
+    }
+
+    /// Use the specified backing VMGS file
+    pub fn with_backing_vmgs<V: IsTestVmgs>(mut self, disk: ResolvedArtifact<V>) -> Self {
+        match &mut self.config.vmgs {
+            PetriVmgsResource::Disk(installed_disk)
+            | PetriVmgsResource::ReprovisionOnFailure(installed_disk)
+            | PetriVmgsResource::Reprovision(installed_disk) => {
+                if installed_disk.is_some() {
+                    panic!("already specified a backing vmgs file");
+                }
+                *installed_disk = Some(disk.erase());
+            }
+            PetriVmgsResource::Ephemeral => {
+                panic!("attempted to specify a backing vmgs with ephemeral guest state")
             }
         }
         self
@@ -648,8 +680,6 @@ pub enum Firmware {
         guest: UefiGuest,
         /// The firmware to use.
         uefi_firmware: ResolvedArtifact,
-        /// The VMGS file to use
-        vmgs_file: PetriVmgsResource,
         /// UEFI configuration
         uefi_config: UefiConfig,
     },
@@ -661,8 +691,6 @@ pub enum Firmware {
         isolation: Option<IsolationType>,
         /// The path to the IGVM file to use.
         igvm_path: ResolvedArtifact,
-        /// The VMGS file to use
-        vmgs_file: PetriVmgsResource,
         /// UEFI configuration
         uefi_config: UefiConfig,
         /// OpenHCL configuration
@@ -718,7 +746,6 @@ impl Firmware {
         Firmware::Uefi {
             guest,
             uefi_firmware,
-            vmgs_file: PetriVmgsResource::Ephemeral,
             uefi_config: Default::default(),
         }
     }
@@ -741,7 +768,6 @@ impl Firmware {
             guest,
             isolation,
             igvm_path,
-            vmgs_file: PetriVmgsResource::Ephemeral,
             uefi_config: Default::default(),
             openhcl_config: OpenHclConfig {
                 vtl2_nvme_boot,
@@ -1056,33 +1082,31 @@ pub struct OpenHclServicingFlags {
     pub stop_timeout_hint_secs: Option<u16>,
 }
 
-/// Virtual machine guest state resource
+/// Petri VM guest state resource
 #[derive(Debug, Clone)]
-pub enum PetriVmgsResource<T = ()> {
+pub enum PetriVmgsResource {
     /// Use disk to store guest state
-    Disk(ResolvedArtifact<T>),
+    Disk(Option<ResolvedArtifact>),
     /// Use disk to store guest state, reformatting if corrupted.
-    ReprovisionOnFailure(ResolvedArtifact<T>),
+    ReprovisionOnFailure(Option<ResolvedArtifact>),
     /// Format and use disk to store guest state
-    Reprovision(ResolvedArtifact<T>),
+    Reprovision(Option<ResolvedArtifact>),
     /// Store guest state in memory
     Ephemeral,
-    /// Use a temporary disk that preserves guest state across reboots
-    TempDisk,
 }
 
-impl<T> PetriVmgsResource<T> {
-    fn erase(self) -> PetriVmgsResource {
-        match self {
-            PetriVmgsResource::Disk(a) => PetriVmgsResource::Disk(a.erase()),
-            PetriVmgsResource::ReprovisionOnFailure(a) => {
-                PetriVmgsResource::ReprovisionOnFailure(a.erase())
-            }
-            PetriVmgsResource::Reprovision(a) => PetriVmgsResource::Reprovision(a.erase()),
-            PetriVmgsResource::Ephemeral => PetriVmgsResource::Ephemeral,
-            PetriVmgsResource::TempDisk => PetriVmgsResource::TempDisk,
-        }
-    }
+/// Petri VM guest state lifetime
+#[derive(Debug, Clone, Copy)]
+pub enum PetriGuestStateLifetime {
+    /// Use a differencing disk backed by a blank, tempory VMGS file
+    /// or other artifact if one is provided
+    Disk,
+    /// Same as default, except reformat the backing disk if corrupted
+    ReprovisionOnFailure,
+    /// Same as default, except reformat the backing disk
+    Reprovision,
+    /// Store guest state in memory (no backing disk)
+    Ephemeral,
 }
 
 /// UEFI secure boot template
