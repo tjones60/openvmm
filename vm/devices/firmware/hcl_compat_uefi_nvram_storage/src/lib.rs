@@ -94,6 +94,9 @@ pub struct HclCompatNvram<S> {
     // reduced allocator pressure
     #[cfg_attr(feature = "inspect", inspect(skip))] // internal bookkeeping - not worth inspecting
     nvram_buf: Vec<u8>,
+
+    // whether the NVRAM has been loaded, either from storage or saved state
+    loaded: bool,
 }
 
 /// "Quirks" to take into account when loading/storing nvram blob data.
@@ -133,11 +136,20 @@ impl<S: StorageBackend> HclCompatNvram<S> {
             in_memory: in_memory::InMemoryNvram::new(),
 
             nvram_buf: Vec::new(),
+
+            loaded: false,
         };
         if !is_restoring {
             nvram.load_from_storage().await?;
         }
         Ok(nvram)
+    }
+
+    async fn lazy_load_from_storage(&mut self) -> Result<(), NvramStorageError> {
+        if !self.loaded {
+            self.load_from_storage().await?;
+        }
+        Ok(())
     }
 
     async fn load_from_storage(&mut self) -> Result<(), NvramStorageError> {
@@ -293,6 +305,7 @@ impl<S: StorageBackend> HclCompatNvram<S> {
             ));
         }
 
+        self.loaded = true;
         Ok(())
     }
 
@@ -343,8 +356,11 @@ impl<S: StorageBackend> HclCompatNvram<S> {
 
     /// Iterate over the NVRAM entries. This function asynchronously loads the
     /// NVRAM contents into memory from the backing storage if necessary.
-    pub fn iter(&mut self) -> impl Iterator<Item = in_memory::VariableEntry<'_>> {
-        self.in_memory.iter()
+    pub async fn iter(
+        &mut self,
+    ) -> Result<impl Iterator<Item = in_memory::VariableEntry<'_>>, NvramStorageError> {
+        self.lazy_load_from_storage().await?;
+        Ok(self.in_memory.iter())
     }
 }
 
@@ -355,6 +371,8 @@ impl<S: StorageBackend> NvramStorage for HclCompatNvram<S> {
         name: &Ucs2LeSlice,
         vendor: Guid,
     ) -> Result<Option<(u32, Vec<u8>, EFI_TIME)>, NvramStorageError> {
+        self.lazy_load_from_storage().await?;
+
         if name.as_bytes().len() > EFI_MAX_VARIABLE_NAME_SIZE {
             return Err(NvramStorageError::VariableNameTooLong);
         }
@@ -370,6 +388,8 @@ impl<S: StorageBackend> NvramStorage for HclCompatNvram<S> {
         data: Vec<u8>,
         timestamp: EFI_TIME,
     ) -> Result<(), NvramStorageError> {
+        self.lazy_load_from_storage().await?;
+
         if name.as_bytes().len() > EFI_MAX_VARIABLE_NAME_SIZE {
             return Err(NvramStorageError::VariableNameTooLong);
         }
@@ -404,7 +424,6 @@ impl<S: StorageBackend> NvramStorage for HclCompatNvram<S> {
 
         Ok(())
     }
-
     async fn append_variable(
         &mut self,
         name: &Ucs2LeSlice,
@@ -412,6 +431,8 @@ impl<S: StorageBackend> NvramStorage for HclCompatNvram<S> {
         data: Vec<u8>,
         timestamp: EFI_TIME,
     ) -> Result<bool, NvramStorageError> {
+        self.lazy_load_from_storage().await?;
+
         if name.as_bytes().len() > EFI_MAX_VARIABLE_NAME_SIZE {
             return Err(NvramStorageError::VariableNameTooLong);
         }
@@ -442,6 +463,8 @@ impl<S: StorageBackend> NvramStorage for HclCompatNvram<S> {
         name: &Ucs2LeSlice,
         vendor: Guid,
     ) -> Result<bool, NvramStorageError> {
+        self.lazy_load_from_storage().await?;
+
         if name.as_bytes().len() > EFI_MAX_VARIABLE_NAME_SIZE {
             return Err(NvramStorageError::VariableNameTooLong);
         }
@@ -456,6 +479,8 @@ impl<S: StorageBackend> NvramStorage for HclCompatNvram<S> {
         &mut self,
         name_vendor: Option<(&Ucs2LeSlice, Guid)>,
     ) -> Result<NextVariable, NvramStorageError> {
+        self.lazy_load_from_storage().await?;
+
         if let Some((name, _)) = name_vendor {
             if name.as_bytes().len() > EFI_MAX_VARIABLE_NAME_SIZE {
                 return Err(NvramStorageError::VariableNameTooLong);
@@ -481,7 +506,17 @@ mod save_restore {
         }
 
         fn restore(&mut self, state: Self::SavedState) -> Result<(), RestoreError> {
-            self.in_memory.restore(state)
+            match self.in_memory.restore(state) {
+                Ok(_) => {
+                    self.loaded = true;
+                    Ok(())
+                }
+                Err(RestoreError::MissingSavedState) => {
+                    self.loaded = false;
+                    Ok(())
+                }
+                Err(e) => Err(e),
+            }
         }
     }
 }

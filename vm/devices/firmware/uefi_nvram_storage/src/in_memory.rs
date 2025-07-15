@@ -216,7 +216,7 @@ mod save_restore {
         #[mesh(package = "firmware.in_memory_nvram")]
         pub struct SavedState {
             #[mesh(1)]
-            pub nvram: Vec<NvramEntry>,
+            pub nvram: Option<Vec<NvramEntry>>,
         }
     }
 
@@ -225,23 +225,25 @@ mod save_restore {
 
         fn save(&mut self) -> Result<Self::SavedState, SaveError> {
             Ok(state::SavedState {
-                nvram: self
-                    .nvram
-                    .iter()
-                    .map(|(k, v)| state::NvramEntry {
-                        vendor: k.vendor,
-                        name: k.name.clone().into_inner(),
-                        data: v.data.clone(),
-                        timestamp: v.timestamp,
-                        attr: v.attr,
-                    })
-                    .collect(),
+                nvram: Some(
+                    self.nvram
+                        .iter()
+                        .map(|(k, v)| state::NvramEntry {
+                            vendor: k.vendor,
+                            name: k.name.clone().into_inner(),
+                            data: v.data.clone(),
+                            timestamp: v.timestamp,
+                            attr: v.attr,
+                        })
+                        .collect(),
+                ),
             })
         }
 
         fn restore(&mut self, state: Self::SavedState) -> Result<(), RestoreError> {
             let state::SavedState { nvram } = state;
             self.nvram = nvram
+                .ok_or(RestoreError::MissingSavedState)?
                 .into_iter()
                 .map::<Result<(VariableKey, Variable), RestoreError>, _>(|e| {
                     Ok((
