@@ -142,7 +142,7 @@ impl<S: StorageBackend> HclCompatNvram<S> {
     }
 
     async fn lazy_load_from_storage(&mut self) -> Result<(), NvramStorageError> {
-        let res = self.load_from_storage_inner().await;
+        let res = self.lazy_load_from_storage_inner().await;
         if let Err(e) = &res {
             tracing::error!(CVM_ALLOWED, "storage contains corrupt nvram state");
             tracing::error!(
@@ -154,7 +154,7 @@ impl<S: StorageBackend> HclCompatNvram<S> {
         res
     }
 
-    async fn load_from_storage_inner(&mut self) -> Result<(), NvramStorageError> {
+    async fn lazy_load_from_storage_inner(&mut self) -> Result<(), NvramStorageError> {
         if self.loaded {
             return Ok(());
         }
@@ -500,17 +500,11 @@ mod save_restore {
         }
 
         fn restore(&mut self, state: Self::SavedState) -> Result<(), RestoreError> {
-            match self.in_memory.restore(state) {
-                Ok(_) => {
-                    self.loaded = true;
-                    Ok(())
-                }
-                Err(RestoreError::MissingSavedState) => {
-                    self.loaded = false;
-                    Ok(())
-                }
-                Err(e) => Err(e),
+            if state.nvram.is_some() {
+                self.in_memory.restore(state)?;
+                self.loaded = true;
             }
+            Ok(())
         }
     }
 }

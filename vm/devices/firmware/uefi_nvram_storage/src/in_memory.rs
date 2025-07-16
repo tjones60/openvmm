@@ -241,25 +241,25 @@ mod save_restore {
         }
 
         fn restore(&mut self, state: Self::SavedState) -> Result<(), RestoreError> {
-            let state::SavedState { nvram } = state;
-            self.nvram = nvram
-                .ok_or(RestoreError::MissingSavedState)?
-                .into_iter()
-                .map::<Result<(VariableKey, Variable), RestoreError>, _>(|e| {
-                    Ok((
-                        VariableKey {
-                            vendor: e.vendor,
-                            name: Ucs2LeVec::from_vec_with_nul(e.name)
-                                .map_err(|e| RestoreError::InvalidSavedState(e.into()))?,
-                        },
-                        Variable {
-                            data: e.data,
-                            timestamp: e.timestamp,
-                            attr: e.attr,
-                        },
-                    ))
-                })
-                .collect::<Result<BTreeMap<_, _>, _>>()?;
+            if let state::SavedState { nvram: Some(nvram) } = state {
+                self.nvram = nvram
+                    .into_iter()
+                    .map::<Result<(VariableKey, Variable), RestoreError>, _>(|e| {
+                        Ok((
+                            VariableKey {
+                                vendor: e.vendor,
+                                name: Ucs2LeVec::from_vec_with_nul(e.name)
+                                    .map_err(|e| RestoreError::InvalidSavedState(e.into()))?,
+                            },
+                            Variable {
+                                data: e.data,
+                                timestamp: e.timestamp,
+                                attr: e.attr,
+                            },
+                        ))
+                    })
+                    .collect::<Result<BTreeMap<_, _>, _>>()?;
+            }
             Ok(())
         }
     }
