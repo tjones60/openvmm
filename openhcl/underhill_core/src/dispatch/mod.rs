@@ -693,14 +693,51 @@ impl LoadedVm {
         };
 
         let units = self.save_units().await.context("state unit save failed")?;
-        let vmgs = if let Some((vmgs_thin_client, vmgs_disk_metadata, _)) = self.vmgs.as_ref() {
-            Some((
-                vmgs_thin_client.save().await.context("vmgs save failed")?,
-                vmgs_disk_metadata.clone(),
-            ))
-        } else {
-            None
-        };
+        let (vmgs, use_vmgs) =
+            if let Some((vmgs_thin_client, vmgs_disk_metadata, _)) = self.vmgs.as_ref() {
+                (
+                    (
+                        vmgs_thin_client.save().await.context("vmgs save failed")?,
+                        vmgs_disk_metadata.clone(),
+                    ),
+                    true,
+                )
+            } else {
+                (
+                    // To avoid changing the type of the existing vmgs field
+                    // in the servicing state, populate the VMGS saved state
+                    // with obviously-wrong values.
+                    (
+                        vmgs::save_restore::state::SavedVmgsState {
+                            active_header_index: usize::MAX,
+                            active_header_sequence_number: u32::MAX,
+                            version: u32::MAX,
+                            fcbs: Vec::new(),
+                            encryption_algorithm: u16::MAX,
+                            datastore_key_count: u8::MAX,
+                            active_datastore_key_index: None,
+                            datastore_keys: [[u8::MAX; 32]; 2],
+                            metadata_key: [u8::MAX; 32],
+                            encrypted_metadata_keys: std::array::from_fn(|_| {
+                                vmgs::save_restore::state::SavedVmgsEncryptionKey {
+                                    nonce: [u8::MAX; 12],
+                                    authentication_tag: [u8::MAX; 16],
+                                    encryption_key: [u8::MAX; 32],
+                                }
+                            }),
+                        },
+                        disk_get_vmgs::save_restore::SavedBlockStorageMetadata {
+                            capacity: u64::MAX,
+                            logical_sector_size: u32::MAX,
+                            sector_count: u64::MAX,
+                            sector_size: u32::MAX,
+                            physical_sector_size: u32::MAX,
+                            max_transfer_size_bytes: u32::MAX,
+                        },
+                    ),
+                    false,
+                )
+            };
 
         // Only save dma manager state if we are expected to keep VF devices
         // alive across save. Otherwise, don't persist the state at all, as
@@ -731,6 +768,7 @@ impl LoadedVm {
                 nvme_state,
                 dma_manager_state,
                 vmbus_client,
+                use_vmgs,
             },
             units,
         };

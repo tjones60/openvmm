@@ -69,10 +69,10 @@ mod state {
         pub flush_logs_result: Option<FlushLogsResult>,
         /// VMGS related saved state
         #[mesh(6)]
-        pub vmgs: Option<(
+        pub vmgs: (
             vmgs::save_restore::state::SavedVmgsState,
             disk_get_vmgs::save_restore::SavedBlockStorageMetadata,
-        )>,
+        ),
         /// Intercept the host-provided shutdown IC device.
         #[mesh(7)]
         pub overlay_shutdown_device: bool,
@@ -84,6 +84,8 @@ mod state {
         pub dma_manager_state: Option<OpenhclDmaManagerState>,
         #[mesh(10002)]
         pub vmbus_client: Option<vmbus_client::SavedState>,
+        #[mesh(10003)]
+        pub use_vmgs: bool,
     }
 
     #[derive(Protobuf)]
@@ -232,6 +234,7 @@ pub mod transposed {
                     nvme_state,
                     dma_manager_state,
                     vmbus_client,
+                    use_vmgs,
                 } = state;
 
                 OptionServicingInitState {
@@ -243,7 +246,7 @@ pub mod transposed {
                         netvsp_state: Some(netvsp_state),
                     },
                     flush_logs_result: Some(flush_logs_result),
-                    vmgs,
+                    vmgs: use_vmgs.then_some(vmgs),
                     overlay_shutdown_device: Some(overlay_shutdown_device),
                     nvme_state: Some(nvme_state),
                     dma_manager_state: Some(dma_manager_state),
