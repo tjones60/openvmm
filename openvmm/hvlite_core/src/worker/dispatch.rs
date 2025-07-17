@@ -144,6 +144,9 @@ use vmotherboard::options::BaseChipsetDevices;
 use vmotherboard::options::BaseChipsetFoundation;
 use vmotherboard::options::BaseChipsetManifest;
 use vpci::bus::VpciBus;
+use watchdog_core::platform::BaseWatchdogPlatform;
+use watchdog_core::platform::WatchdogCallback;
+use watchdog_core::platform::WatchdogPlatform;
 
 const PM_BASE: u16 = 0x400;
 const SYSTEM_IRQ_ACPI: u32 = 9;
@@ -1044,6 +1047,7 @@ impl InitializedVm {
         let mut deps_hyperv_firmware_uefi = None;
         match &cfg.load_mode {
             LoadMode::Uefi { .. } => {
+                let (watchdog_send, watchdog_recv) = mesh::channel();
                 deps_hyperv_firmware_uefi = Some(dev::HyperVFirmwareUefi {
                     config: firmware_uefi::UefiConfig {
                         custom_uefi_vars: cfg.custom_uefi_vars,
@@ -1079,38 +1083,34 @@ impl InitializedVm {
                     },
                     generation_id_recv,
                     watchdog_platform: {
-                        use emuplat::watchdog::HvLiteWatchdogPlatform;
                         use vmcore::non_volatile_store::EphemeralNonVolatileStore;
 
                         // UEFI watchdog doesn't persist to VMGS at this time
                         let store = EphemeralNonVolatileStore::new_boxed();
 
-                        // Request an NMI on watchdog timeout.
+                        // Create the base watchdog platform
+                        let mut base_watchdog_platform = BaseWatchdogPlatform::new(store).await?;
+
+                        // Inject NMI on watchdog timeout
                         #[cfg(guest_arch = "x86_64")]
-                        let on_timeout = {
-                            let partition = partition.clone();
-                            Box::new(move || {
-                                // Unlike Hyper-V, we only send the NMI to the BSP.
-                                partition.request_msi(
-                                    Vtl::Vtl0,
-                                    virt::irqcon::MsiRequest::new_x86(
-                                        virt::irqcon::DeliveryMode::NMI,
-                                        0,
-                                        false,
-                                        0,
-                                        false,
-                                    ),
-                                );
-                            })
-                        };
-                        #[cfg(guest_arch = "aarch64")]
-                        let on_timeout = {
-                            let halt = halt_vps.clone();
-                            Box::new(move || halt.halt(HaltReason::Reset))
+                        let watchdog_callback = WatchdogTimeoutNmi {
+                            partition: partition.clone(),
+                            watchdog_send: Some(watchdog_send),
                         };
 
-                        Box::new(HvLiteWatchdogPlatform::new(store, on_timeout).await?)
+                        // ARM64 does not have NMI support yet, so halt instead
+                        #[cfg(guest_arch = "aarch64")]
+                        let watchdog_callback = WatchdogTimeoutReset {
+                            halt_vps: halt_vps.clone(),
+                            watchdog_send: Some(watchdog_send),
+                        };
+
+                        // Add callbacks
+                        base_watchdog_platform.add_callback(Box::new(watchdog_callback));
+
+                        Box::new(base_watchdog_platform)
                     },
+                    watchdog_recv,
                     vsm_config: None,
                     // TODO: persist SystemTimeClock time across reboots.
                     time_source: Box::new(local_clock::SystemTimeClock::new(
@@ -1315,7 +1315,6 @@ impl InitializedVm {
             Some(dev::HyperVGuestWatchdogDeps {
                 port_base: WDAT_PORT,
                 watchdog_platform: {
-                    use emuplat::watchdog::HvLiteWatchdogPlatform;
                     use vmcore::non_volatile_store::EphemeralNonVolatileStore;
 
                     let store = match vmgs_client {
@@ -1325,13 +1324,20 @@ impl InitializedVm {
                         None => EphemeralNonVolatileStore::new_boxed(),
                     };
 
-                    // TODO: use a `PowerRequestHandleKind` resource.
-                    let trigger_reset = {
-                        let halt = halt_vps.clone();
-                        Box::new(move || halt.halt(HaltReason::Reset))
+                    // Create the base watchdog platform
+                    let mut base_watchdog_platform = BaseWatchdogPlatform::new(store).await?;
+
+                    // Create callback to reset on watchdog timeout
+                    let watchdog_callback = WatchdogTimeoutReset {
+                        halt_vps: halt_vps.clone(),
+                        watchdog_send: None, // This is not the UEFI watchdog, so no need to send
+                                             // watchdog notifications
                     };
 
-                    Box::new(HvLiteWatchdogPlatform::new(store, trigger_reset).await?)
+                    // Add callbacks
+                    base_watchdog_platform.add_callback(Box::new(watchdog_callback));
+
+                    Box::new(base_watchdog_platform)
                 },
             })
         } else {
@@ -2982,4 +2988,42 @@ fn add_devices_to_dsdt(
 
     dsdt.add_vmbus(cfg.with_generic_pci_bus || cfg.with_i440bx_host_pci_bridge);
     dsdt.add_rtc();
+}
+
+#[cfg(guest_arch = "x86_64")]
+struct WatchdogTimeoutNmi {
+    partition: Arc<dyn HvlitePartition>,
+    watchdog_send: Option<mesh::Sender<()>>,
+}
+
+#[cfg(guest_arch = "x86_64")]
+#[async_trait::async_trait]
+impl WatchdogCallback for WatchdogTimeoutNmi {
+    async fn on_timeout(&mut self) {
+        // Unlike Hyper-V, we only send the NMI to the BSP.
+        self.partition.request_msi(
+            Vtl::Vtl0,
+            virt::irqcon::MsiRequest::new_x86(virt::irqcon::DeliveryMode::NMI, 0, false, 0, false),
+        );
+
+        if let Some(watchdog_send) = &self.watchdog_send {
+            watchdog_send.send(());
+        }
+    }
+}
+
+struct WatchdogTimeoutReset {
+    halt_vps: Arc<Halt>,
+    watchdog_send: Option<mesh::Sender<()>>,
+}
+
+#[async_trait::async_trait]
+impl WatchdogCallback for WatchdogTimeoutReset {
+    async fn on_timeout(&mut self) {
+        self.halt_vps.halt(HaltReason::Reset);
+
+        if let Some(watchdog_send) = &self.watchdog_send {
+            watchdog_send.send(());
+        }
+    }
 }
