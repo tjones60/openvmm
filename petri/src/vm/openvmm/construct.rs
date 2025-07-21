@@ -428,6 +428,9 @@ impl PetriVmConfigOpenVmm {
             custom_uefi_vars,
             vmgs,
 
+            // Don't allow guest resets by default
+            max_guest_resets: Some(0),
+
             // Disabled for VMM tests by default
             #[cfg(windows)]
             kernel_vmnics: vec![],

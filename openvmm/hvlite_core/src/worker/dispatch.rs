@@ -191,6 +191,7 @@ impl Manifest {
             chipset_devices: config.chipset_devices,
             generation_id_recv: config.generation_id_recv,
             rtc_delta_milliseconds: config.rtc_delta_milliseconds,
+            max_guest_resets: config.max_guest_resets,
         }
     }
 }
@@ -231,6 +232,7 @@ pub struct Manifest {
     chipset_devices: Vec<ChipsetDeviceHandle>,
     generation_id_recv: Option<mesh::Receiver<[u8; 16]>>,
     rtc_delta_milliseconds: i64,
+    max_guest_resets: Option<u8>,
 }
 
 #[derive(Protobuf, SavedStateRoot)]
@@ -544,6 +546,13 @@ struct LoadedVmInner {
     next_igvm_file: Option<IgvmFile>,
     _vmgs_task: Option<Task<()>>,
     vmgs_client_inspect_handle: Option<vmgs_broker::VmgsClient>,
+
+    // relay halt messages, intercepting reset if configured.
+    halt_recv: mesh::Receiver<HaltReason>,
+    client_notify_send: mesh::Sender<HaltReason>,
+    /// allow the guest to reset without notifying the client the specified
+    /// number of times. None means unlimited, Some(0) means never.
+    max_guest_resets: Option<u8>,
 }
 
 fn choose_hypervisor() -> anyhow::Result<Hypervisor> {
@@ -2195,6 +2204,9 @@ impl InitializedVm {
         let (chipset, devices) = chipset_builder.build()?;
         let chipset = vmm_core::vmotherboard_adapter::ChipsetPlusSynic::new(synic.clone(), chipset);
 
+        // create a new channel to intercept guest resets
+        let (halt_send, halt_recv) = mesh::channel();
+
         let (partition_unit, vp_runners) = PartitionUnit::new(
             driver_source.simple(),
             state_units
@@ -2206,7 +2218,7 @@ impl InitializedVm {
                 processor_topology: &processor_topology,
                 halt_vps,
                 halt_request_recv,
-                client_notify_send,
+                client_notify_send: halt_send,
                 vtl_guest_memory: [
                     Some(&gm),
                     None,
@@ -2290,6 +2302,9 @@ impl InitializedVm {
                 next_igvm_file: None,
                 _vmgs_task: vmgs_task,
                 vmgs_client_inspect_handle,
+                halt_recv,
+                client_notify_send,
+                max_guest_resets: cfg.max_guest_resets,
             },
         };
 
@@ -2556,6 +2571,7 @@ impl LoadedVm {
         enum Event {
             WorkerRpc(Result<WorkerRpc<RestartState>, mesh::RecvError>),
             VmRpc(Result<VmRpc, mesh::RecvError>),
+            Halt(Result<HaltReason, mesh::RecvError>),
         }
 
         // Start a task to handle state unit inspections by filtering the worker
@@ -2583,7 +2599,8 @@ impl LoadedVm {
             let event: Event = {
                 let a = rpc_recv.recv().map(Event::VmRpc);
                 let b = worker_rpc.recv().map(Event::WorkerRpc);
-                (a, b).race().await
+                let c = self.inner.halt_recv.recv().map(Event::Halt);
+                (a, b, c).race().await
             };
 
             match event {
@@ -2740,6 +2757,24 @@ impl LoadedVm {
                         self.inner.gm.write_at(gpa, bytes.as_slice())
                     }),
                 },
+                Event::Halt(Err(_)) => break,
+                Event::Halt(Ok(reason)) => {
+                    if matches!(reason, HaltReason::Reset)
+                        && !matches!(self.inner.max_guest_resets, Some(0))
+                    {
+                        tracing::info!("guest-initiated reset");
+                        if let Err(err) = self.reset(true).await {
+                            tracing::error!(?err, "failed to reset VM");
+                            break;
+                        }
+
+                        if let Some(remaining_resets) = self.inner.max_guest_resets.as_mut() {
+                            *remaining_resets -= 1;
+                        }
+                    } else {
+                        self.inner.client_notify_send.send(reason);
+                    }
+                }
             }
         }
 
@@ -2892,6 +2927,7 @@ impl LoadedVm {
             chipset_devices: vec![],   // TODO
             generation_id_recv: None,  // TODO
             rtc_delta_milliseconds: 0, // TODO
+            max_guest_resets: self.inner.max_guest_resets,
         };
         RestartState {
             hypervisor: self.inner.hypervisor,
