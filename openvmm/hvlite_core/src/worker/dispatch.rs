@@ -191,7 +191,7 @@ impl Manifest {
             chipset_devices: config.chipset_devices,
             generation_id_recv: config.generation_id_recv,
             rtc_delta_milliseconds: config.rtc_delta_milliseconds,
-            max_guest_resets: config.max_guest_resets,
+            enable_guest_reset: config.enable_guest_reset,
         }
     }
 }
@@ -232,7 +232,7 @@ pub struct Manifest {
     chipset_devices: Vec<ChipsetDeviceHandle>,
     generation_id_recv: Option<mesh::Receiver<[u8; 16]>>,
     rtc_delta_milliseconds: i64,
-    max_guest_resets: Option<u8>,
+    enable_guest_reset: bool,
 }
 
 #[derive(Protobuf, SavedStateRoot)]
@@ -550,9 +550,8 @@ struct LoadedVmInner {
     // relay halt messages, intercepting reset if configured.
     halt_recv: mesh::Receiver<HaltReason>,
     client_notify_send: mesh::Sender<HaltReason>,
-    /// allow the guest to reset without notifying the client the specified
-    /// number of times. None means unlimited, Some(0) means never.
-    max_guest_resets: Option<u8>,
+    /// allow the guest to reset without notifying the client
+    enable_guest_reset: bool,
 }
 
 fn choose_hypervisor() -> anyhow::Result<Hypervisor> {
@@ -2304,7 +2303,7 @@ impl InitializedVm {
                 vmgs_client_inspect_handle,
                 halt_recv,
                 client_notify_send,
-                max_guest_resets: cfg.max_guest_resets,
+                enable_guest_reset: cfg.enable_guest_reset,
             },
         };
 
@@ -2759,17 +2758,11 @@ impl LoadedVm {
                 },
                 Event::Halt(Err(_)) => break,
                 Event::Halt(Ok(reason)) => {
-                    if matches!(reason, HaltReason::Reset)
-                        && !matches!(self.inner.max_guest_resets, Some(0))
-                    {
+                    if matches!(reason, HaltReason::Reset) && self.inner.enable_guest_reset {
                         tracing::info!("guest-initiated reset");
                         if let Err(err) = self.reset(true).await {
                             tracing::error!(?err, "failed to reset VM");
                             break;
-                        }
-
-                        if let Some(remaining_resets) = self.inner.max_guest_resets.as_mut() {
-                            *remaining_resets -= 1;
                         }
                     } else {
                         self.inner.client_notify_send.send(reason);
@@ -2927,7 +2920,7 @@ impl LoadedVm {
             chipset_devices: vec![],   // TODO
             generation_id_recv: None,  // TODO
             rtc_delta_milliseconds: 0, // TODO
-            max_guest_resets: self.inner.max_guest_resets,
+            enable_guest_reset: self.inner.enable_guest_reset,
         };
         RestartState {
             hypervisor: self.inner.hypervisor,

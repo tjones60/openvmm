@@ -506,7 +506,7 @@ impl VmService {
             chipset_devices: chipset.chipset_devices,
             generation_id_recv: None,
             rtc_delta_milliseconds: 0,
-            max_guest_resets: None,
+            enable_guest_reset: true,
         };
 
         let mut scsi_rpc = None;

@@ -429,7 +429,7 @@ impl PetriVmConfigOpenVmm {
             vmgs,
 
             // Don't allow guest resets by default
-            max_guest_resets: Some(0),
+            enable_guest_reset: false,
 
             // Disabled for VMM tests by default
             #[cfg(windows)]
