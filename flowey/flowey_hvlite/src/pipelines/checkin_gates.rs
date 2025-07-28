@@ -586,6 +586,7 @@ impl IntoPipeline for CheckinGatesCli {
                     vmm_tests_artifacts_linux_x86.use_tmk_vmm = Some(use_tmk_vmm.clone());
                     vmm_tests_artifacts_windows_x86.use_tmk_vmm_linux_musl =
                         Some(use_tmk_vmm.clone());
+                    gh_release_artifacts.use_openhcl_igvm_files_x64 = Some(use_openhcl_igvm);
                 }
                 CommonArch::Aarch64 => {
                     vmm_tests_artifacts_windows_aarch64.use_openhcl_igvm_files =
@@ -594,6 +595,7 @@ impl IntoPipeline for CheckinGatesCli {
                         Some(use_pipette_linux_musl.clone());
                     vmm_tests_artifacts_windows_aarch64.use_tmk_vmm_linux_musl =
                         Some(use_tmk_vmm.clone());
+                    gh_release_artifacts.use_openhcl_igvm_files_aarch64 = Some(use_openhcl_igvm);
                 }
             }
             let igvm_recipes = match arch {
@@ -1064,9 +1066,10 @@ impl IntoPipeline for CheckinGatesCli {
                 }
             }
             PipelineConfig::Ci => {
-                let gh_release_artifacts = gh_release_artifacts.finish().map_err(|missing| {
-                    anyhow::anyhow!("missing required gh release artifact: {missing}")
-                })?;
+                let resolve_gh_release_artifacts =
+                    gh_release_artifacts.finish().map_err(|missing| {
+                        anyhow::anyhow!("missing required gh release artifact: {missing}")
+                    })?;
 
                 let publish_job = pipeline
                     .new_job(
@@ -1077,9 +1080,9 @@ impl IntoPipeline for CheckinGatesCli {
                     .gh_set_pool(crate::pipelines_shared::gh_pools::default_gh_hosted(
                         FlowPlatform::Linux(FlowPlatformLinuxDistro::Ubuntu),
                     ))
-                    // always run this job, regardless whether or not any previous jobs failed
                     .dep_on(
                         |ctx| flowey_lib_hvlite::_jobs::publish_openvmm_gh_release::Request {
+                            artifacts: resolve_gh_release_artifacts(ctx),
                             done: ctx.new_done_handle(),
                         },
                     )
@@ -1259,6 +1262,9 @@ mod artifact_builders {
         }
     }
 
+    pub type ResolveOpenvmmGhReleaseArtifacts =
+        Box<dyn Fn(&mut PipelineJobCtx<'_>) -> OpenvmmGhReleaseArtifacts>;
+
     #[derive(Default, Clone)]
     pub struct GhReleaseArtifactsBuilder {
         pub use_openvmm_windows_x64: Option<UseTypedArtifact<OpenvmmOutput>>,
@@ -1269,7 +1275,7 @@ mod artifact_builders {
     }
 
     impl GhReleaseArtifactsBuilder {
-        pub fn finish(self) -> Result<OpenvmmGhReleaseArtifacts, &'static str> {
+        pub fn finish(self) -> Result<ResolveOpenvmmGhReleaseArtifacts, &'static str> {
             let GhReleaseArtifactsBuilder {
                 use_openvmm_windows_x64,
                 use_openvmm_windows_aarch64,
@@ -1291,8 +1297,8 @@ mod artifact_builders {
                 openvmm_windows_x64: ctx.use_typed_artifact(&use_openvmm_windows_x64),
                 openvmm_windows_aarch64: ctx.use_typed_artifact(&use_openvmm_windows_aarch64),
                 openvmm_linux_x64: ctx.use_typed_artifact(&use_openvmm_linux_x64),
-                openhcl_igvm_files_x64: ctx.use_typed_artifact(&use_openhcl_igvm_files_x64),
-                openhcl_igvm_files_aarch64: ctx.use_typed_artifact(&use_openhcl_igvm_files_aarch64),
+                openhcl_igvm_files_x64: ctx.use_artifact(&use_openhcl_igvm_files_x64),
+                openhcl_igvm_files_aarch64: ctx.use_artifact(&use_openhcl_igvm_files_aarch64),
             }))
         }
     }
