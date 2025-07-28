@@ -42,19 +42,18 @@ impl SimpleFlowNode for Node {
         });
         let title = tag.map(ctx, |t| format!("OpenVMM {t}"));
         let target = ctx.get_gh_context_var().global().sha();
-
         let files = artifacts.into_paths(ctx);
+        let gh_token = ctx.get_gh_context_var().global().token();
 
-        ctx.req(flowey_lib_common::publish_gh_release::Request(
-            flowey_lib_common::publish_gh_release::GhReleaseParams {
-                repo,
-                tag,
-                title,
-                target,
-                files,
-                done,
-            },
-        ));
+        ctx.req(flowey_lib_common::publish_gh_release::Request {
+            repo,
+            tag,
+            title,
+            target,
+            files,
+            gh_token,
+            done,
+        });
 
         Ok(())
     }
