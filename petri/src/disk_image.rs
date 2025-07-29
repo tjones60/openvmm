@@ -26,8 +26,17 @@ pub struct AgentImage {
 
 impl AgentImage {
     /// Resolves the artifacts needed to build a disk image for a VM.
-    pub fn new(resolver: &ArtifactResolver<'_>, arch: MachineArch, os_flavor: OsFlavor) -> Self {
-        let pipette = match (os_flavor, arch) {
+    pub fn new(os_flavor: OsFlavor) -> Self {
+        Self {
+            os_flavor,
+            pipette: None,
+            extras: Vec::new(),
+        }
+    }
+
+    /// Adds the appropriate pipette binary to the image
+    pub fn with_pipette(mut self, resolver: &ArtifactResolver<'_>, arch: MachineArch) -> Self {
+        self.pipette = match (self.os_flavor, arch) {
             (OsFlavor::Windows, MachineArch::X86_64) => Some(
                 resolver
                     .require(common_artifacts::PIPETTE_WINDOWS_X64)
@@ -50,11 +59,12 @@ impl AgentImage {
             ),
             (OsFlavor::FreeBsd | OsFlavor::Uefi, _) => None,
         };
-        Self {
-            os_flavor,
-            pipette,
-            extras: Vec::new(),
-        }
+        self
+    }
+
+    /// Check if the image contains pipette
+    pub fn contains_pipette(&self) -> bool {
+        self.pipette.is_some()
     }
 
     /// Adds an extra file to the disk image.
@@ -74,20 +84,18 @@ impl AgentImage {
             OsFlavor::Windows => {
                 // Windows doesn't use cloud-init, so we only need pipette
                 // (which is configured via the IMC hive).
-                files.push((
-                    "pipette.exe",
-                    PathOrBinary::Path(self.pipette.as_ref().unwrap().as_ref()),
-                ));
+                if let Some(pipette) = self.pipette.as_ref() {
+                    files.push(("pipette.exe", PathOrBinary::Path(pipette.as_ref())));
+                }
                 b"pipette    "
             }
             OsFlavor::Linux => {
+                if let Some(pipette) = self.pipette.as_ref() {
+                    files.push(("pipette", PathOrBinary::Path(pipette.as_ref())));
+                }
                 // Linux uses cloud-init, so we need to include the cloud-init
                 // configuration files as well.
                 files.extend([
-                    (
-                        "pipette",
-                        PathOrBinary::Path(self.pipette.as_ref().unwrap().as_ref()),
-                    ),
                     (
                         "meta-data",
                         PathOrBinary::Binary(include_bytes!("../guest-bootstrap/meta-data")),

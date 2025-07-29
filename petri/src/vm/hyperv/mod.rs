@@ -274,7 +274,7 @@ impl PetriVmmBackend for HyperVPetriBackend {
                 agent_disk.persist(&agent_disk_path)?;
             }
 
-            if matches!(firmware.os_flavor(), OsFlavor::Windows) {
+            if agent_image.contains_pipette() && matches!(firmware.os_flavor(), OsFlavor::Windows) {
                 // Make a file for the IMC hive. It's not guaranteed to be at a fixed
                 // location at runtime.
                 let imc_hive = temp_dir.path().join("imc.hiv");
