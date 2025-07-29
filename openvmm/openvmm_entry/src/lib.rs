@@ -1370,7 +1370,7 @@ fn vm_config_from_command_line(
         debugger_rpc: None,
         generation_id_recv: None,
         rtc_delta_milliseconds: 0,
-        enable_guest_reset: !opt.halt_on_reset,
+        automatic_guest_reset: !opt.halt_on_reset,
     };
 
     storage.build_config(&mut cfg, &mut resources, opt.scsi_sub_channels)?;

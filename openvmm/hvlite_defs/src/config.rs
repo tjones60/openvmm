@@ -55,7 +55,7 @@ pub struct Config {
     // This is used for testing. TODO: resourcify, and also store this in VMGS.
     pub rtc_delta_milliseconds: i64,
     /// allow the guest to reset without notifying the client
-    pub enable_guest_reset: bool,
+    pub automatic_guest_reset: bool,
 }
 
 // ARM64 needs a larger low gap.

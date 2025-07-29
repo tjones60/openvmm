@@ -191,7 +191,7 @@ impl Manifest {
             chipset_devices: config.chipset_devices,
             generation_id_recv: config.generation_id_recv,
             rtc_delta_milliseconds: config.rtc_delta_milliseconds,
-            enable_guest_reset: config.enable_guest_reset,
+            automatic_guest_reset: config.automatic_guest_reset,
         }
     }
 }
@@ -232,7 +232,7 @@ pub struct Manifest {
     chipset_devices: Vec<ChipsetDeviceHandle>,
     generation_id_recv: Option<mesh::Receiver<[u8; 16]>>,
     rtc_delta_milliseconds: i64,
-    enable_guest_reset: bool,
+    automatic_guest_reset: bool,
 }
 
 #[derive(Protobuf, SavedStateRoot)]
@@ -551,7 +551,7 @@ struct LoadedVmInner {
     halt_recv: mesh::Receiver<HaltReason>,
     client_notify_send: mesh::Sender<HaltReason>,
     /// allow the guest to reset without notifying the client
-    enable_guest_reset: bool,
+    automatic_guest_reset: bool,
 }
 
 fn choose_hypervisor() -> anyhow::Result<Hypervisor> {
@@ -2303,7 +2303,7 @@ impl InitializedVm {
                 vmgs_client_inspect_handle,
                 halt_recv,
                 client_notify_send,
-                enable_guest_reset: cfg.enable_guest_reset,
+                automatic_guest_reset: cfg.automatic_guest_reset,
             },
         };
 
@@ -2758,7 +2758,7 @@ impl LoadedVm {
                 },
                 Event::Halt(Err(_)) => break,
                 Event::Halt(Ok(reason)) => {
-                    if matches!(reason, HaltReason::Reset) && self.inner.enable_guest_reset {
+                    if matches!(reason, HaltReason::Reset) && self.inner.automatic_guest_reset {
                         tracing::info!("guest-initiated reset");
                         if let Err(err) = self.reset(true).await {
                             tracing::error!(?err, "failed to reset VM");
@@ -2920,7 +2920,7 @@ impl LoadedVm {
             chipset_devices: vec![],   // TODO
             generation_id_recv: None,  // TODO
             rtc_delta_milliseconds: 0, // TODO
-            enable_guest_reset: self.inner.enable_guest_reset,
+            automatic_guest_reset: self.inner.automatic_guest_reset,
         };
         RestartState {
             hypervisor: self.inner.hypervisor,
