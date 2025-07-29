@@ -57,7 +57,9 @@ impl AgentImage {
                     .require(common_artifacts::PIPETTE_LINUX_AARCH64)
                     .erase(),
             ),
-            (OsFlavor::FreeBsd | OsFlavor::Uefi, _) => None,
+            (OsFlavor::FreeBsd | OsFlavor::Uefi, _) => {
+                todo!("No pipette binary yet for os");
+            }
         };
         self
     }
@@ -113,10 +115,8 @@ impl AgentImage {
                 ]);
                 b"cidata     " // cloud-init looks for a volume label of "cidata",
             }
-            OsFlavor::FreeBsd | OsFlavor::Uefi => {
-                // No pipette binary yet.
-                todo!()
-            }
+            // Nothing OS-specific yet for other flavors
+            _ => b"cidata     ",
         };
         build_disk_image(volume_label, &files)
     }
