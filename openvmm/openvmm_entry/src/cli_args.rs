@@ -129,15 +129,15 @@ pub struct Options {
     #[clap(long_help = r#"
 e.g: --disk memdiff:file:/path/to/disk.vhd
 
-syntax: \<path\> | kind:<arg>[,flag,opt=arg,...]
+syntax: <path> | kind:<arg>[,flag,opt=arg,...]
 
 valid disk kinds:
     `mem:<len>`                    memory backed disk
         <len>: length of ramdisk, e.g.: `1G`
     `memdiff:<disk>`               memory backed diff disk
         <disk>: lower disk, e.g.: `file:base.img`
-    `file:\<path\>`                  file-backed disk
-        \<path\>: path to file
+    `file:<path>`                  file-backed disk
+        <path>: path to file
 
 flags:
     `ro`                           open disk as read-only
@@ -152,15 +152,15 @@ flags:
     #[clap(long_help = r#"
 e.g: --nvme memdiff:file:/path/to/disk.vhd
 
-syntax: \<path\> | kind:<arg>[,flag,opt=arg,...]
+syntax: <path> | kind:<arg>[,flag,opt=arg,...]
 
 valid disk kinds:
     `mem:<len>`                    memory backed disk
         <len>: length of ramdisk, e.g.: `1G`
     `memdiff:<disk>`               memory backed diff disk
         <disk>: lower disk, e.g.: `file:base.img`
-    `file:\<path\>`                  file-backed disk
-        \<path\>: path to file
+    `file:<path>`                  file-backed disk
+        <path>: path to file
 
 flags:
     `ro`                           open disk as read-only
@@ -392,19 +392,19 @@ flags:
     #[clap(long_help = r#"
 e.g: --vmgs memdiff:file:/path/to/file.vmgs
 
-syntax: \<path\> | kind:<arg>[,flag]
+syntax: <path> | kind:<arg>[,flag]
 
 valid disk kinds:
-    `mem:<len>`                    memory backed disk
-        <len>: length of ramdisk, e.g.: `1G`
-    `memdiff:<disk>`               memory backed diff disk
+    `mem:<len>`                     memory backed disk
+        <len>: length of ramdisk, e.g.: `1G` or `VMGS_DEFAULT`
+    `memdiff:<disk>[;create=<len>]` memory backed diff disk
         <disk>: lower disk, e.g.: `file:base.img`
-    `file:\<path\>`                  file-backed disk
-        \<path\>: path to file
+    `file:<path>`                   file-backed disk
+        <path>: path to file
 
 flags:
-    `fmt`                          reprovision the VMGS before boot
-    `fmt-on-fail`                  reprovision the VMGS before boot if it is corrupted
+    `fmt`                           reprovision the VMGS before boot
+    `fmt-on-fail`                   reprovision the VMGS before boot if it is corrupted
 "#)]
     #[clap(long)]
     pub vmgs: Option<VmgsCli>,
@@ -472,15 +472,15 @@ flags:
     #[clap(long_help = r#"
 e.g: --ide memdiff:file:/path/to/disk.vhd
 
-syntax: \<path\> | kind:<arg>[,flag,opt=arg,...]
+syntax: <path> | kind:<arg>[,flag,opt=arg,...]
 
 valid disk kinds:
     `mem:<len>`                    memory backed disk
         <len>: length of ramdisk, e.g.: `1G`
     `memdiff:<disk>`               memory backed diff disk
         <disk>: lower disk, e.g.: `file:base.img`
-    `file:\<path\>`                  file-backed disk
-        \<path\>: path to file
+    `file:<path>`                  file-backed disk
+        <path>: path to file
 
 flags:
     `ro`                           open disk as read-only
@@ -495,15 +495,15 @@ flags:
     #[clap(long_help = r#"
 e.g: --floppy memdiff:/path/to/disk.vfd,ro
 
-syntax: \<path\> | kind:<arg>[,flag,opt=arg,...]
+syntax: <path> | kind:<arg>[,flag,opt=arg,...]
 
 valid disk kinds:
     `mem:<len>`                    memory backed disk
         <len>: length of ramdisk, e.g.: `1G`
     `memdiff:<disk>`               memory backed diff disk
         <disk>: lower disk, e.g.: `file:base.img`
-    `file:\<path\>`                  file-backed disk
-        \<path\>: path to file
+    `file:<path>`                  file-backed disk
+        <path>: path to file
 
 flags:
     `ro`                           open disk as read-only
