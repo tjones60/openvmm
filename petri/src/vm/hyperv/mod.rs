@@ -531,7 +531,7 @@ pub async fn create_child_vhd_locking(
 ) -> anyhow::Result<()> {
     let lock_file_path = {
         let mut path = parent_path.to_owned();
-        path.push(".lock");
+        path.as_mut_os_string().push(".lock");
         path
     };
 
@@ -546,6 +546,7 @@ pub async fn create_child_vhd_locking(
         {
             Ok(_) => break,
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                tracing::debug!("vhd lock taken, waiting...");
                 PolledTimer::new(driver).sleep(Duration::from_secs(1)).await;
                 continue;
             }
@@ -560,8 +561,9 @@ pub async fn create_child_vhd_locking(
         lock_file_path.to_string_lossy()
     );
 
-    powershell::create_child_vhd(path, parent_path)?;
+    let res = powershell::create_child_vhd(path, parent_path);
 
     fs_err::remove_file(&lock_file_path)?;
-    Ok(())
+
+    res
 }
