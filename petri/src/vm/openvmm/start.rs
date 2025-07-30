@@ -210,7 +210,7 @@ impl PetriVmConfigOpenVmm {
                 ));
             }
 
-            self.firmware.is_linux_direct()
+            self.firmware.is_linux_direct() && agent_image.contains_pipette()
         } else {
             false
         };
