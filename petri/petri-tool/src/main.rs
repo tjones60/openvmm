@@ -56,7 +56,10 @@ fn main() -> anyhow::Result<()> {
                     )
             })?;
 
-            let disk = image.build().context("failed to build disk image")?;
+            let disk = image
+                .build()
+                .context("failed to build disk image")?
+                .context("no files for the this platform")?;
             disk.persist(output)
                 .context("failed to persist disk image")?;
 

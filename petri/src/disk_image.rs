@@ -76,7 +76,7 @@ impl AgentImage {
 
     /// Builds a disk image containing pipette and any files needed for the guest VM
     /// to run pipette.
-    pub fn build(&self) -> anyhow::Result<tempfile::NamedTempFile> {
+    pub fn build(&self) -> anyhow::Result<Option<tempfile::NamedTempFile>> {
         let mut files = self
             .extras
             .iter()
@@ -104,7 +104,13 @@ impl AgentImage {
                     ),
                     (
                         "user-data",
-                        PathOrBinary::Binary(include_bytes!("../guest-bootstrap/user-data")),
+                        if self.pipette.is_some() {
+                            PathOrBinary::Binary(include_bytes!("../guest-bootstrap/user-data"))
+                        } else {
+                            PathOrBinary::Binary(include_bytes!(
+                                "../guest-bootstrap/user-data-no-agent"
+                            ))
+                        },
                     ),
                     // Specify a non-present NIC to work around https://github.com/canonical/cloud-init/issues/5511
                     // TODO: support dynamically configuring the network based on vm configuration
@@ -118,7 +124,12 @@ impl AgentImage {
             // Nothing OS-specific yet for other flavors
             _ => b"cidata     ",
         };
-        build_disk_image(volume_label, &files)
+
+        if files.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(build_disk_image(volume_label, &files)?))
+        }
     }
 }
 
