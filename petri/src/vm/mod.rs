@@ -482,7 +482,7 @@ impl<T: PetriVmmBackend> PetriVm<T> {
         // ic comes online. give them a little extra time.
         // TODO: use a different method of determining whether the VM has booted
         // or debug and fix the shutdown IC.
-        let mut wait_time = Duration::from_secs(2);
+        let mut wait_time = Duration::from_secs(5);
 
         // some guests need even more time
         if let Some(duration) = self.quirks.hyperv_shutdown_ic_sleep {
