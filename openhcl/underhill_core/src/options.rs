@@ -152,6 +152,10 @@ pub struct Options {
     /// will result in UEFI terminating, shutting down the guest instead of
     /// showing the frontpage.
     pub disable_uefi_frontpage: bool,
+
+    /// (HCL_TRUSTED_LAUNCH_V2=1) Enable TrustedLaunchV2 Features
+    // TODO: Rename to be not azure specific
+    pub trusted_launch_v2: bool,
 }
 
 impl Options {
@@ -252,6 +256,7 @@ impl Options {
         });
         let disable_uefi_frontpage = parse_env_bool("OPENHCL_DISABLE_UEFI_FRONTPAGE");
         let signal_vtl0_started = parse_env_bool("OPENHCL_SIGNAL_VTL0_STARTED");
+        let trusted_launch_v2 = parse_env_bool("HCL_TRUSTED_LAUNCH_V2");
 
         let mut args = std::env::args().chain(extra_args);
         // Skip our own filename.
@@ -308,6 +313,7 @@ impl Options {
             nvme_always_flr,
             test_configuration,
             disable_uefi_frontpage,
+            trusted_launch_v2,
         })
     }
 

@@ -288,6 +288,8 @@ pub struct UnderhillEnvCfg {
     pub test_configuration: Option<TestScenarioConfig>,
     /// Disable the UEFI front page.
     pub disable_uefi_frontpage: bool,
+    /// Use TrustedLaunchV2 features.
+    pub trusted_launch_v2: bool,
 }
 
 /// Bundle of config + runtime objects for hooking into the underhill remote
