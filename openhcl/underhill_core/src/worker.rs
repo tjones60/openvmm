@@ -291,6 +291,10 @@ pub struct UnderhillEnvCfg {
     pub test_configuration: Option<TestScenarioConfig>,
     /// Disable the UEFI front page.
     pub disable_uefi_frontpage: bool,
+    /// Encryption policy
+    pub encryption_policy: Option<crate::options::EncryptionPolicy>,
+    /// Attempt to renew the AK cert.
+    pub attempt_ak_cert_callback: bool,
 }
 
 /// Bundle of config + runtime objects for hooking into the underhill remote
@@ -1648,6 +1652,34 @@ async fn new_underhill_vm(
         }
     };
 
+    let encryption_policy = if let Some(encryption_policy) = env_cfg.encryption_policy {
+        match encryption_policy {
+            crate::options::EncryptionPolicy::Auto => {
+                Some(underhill_attestation::EncryptionPolicy::Auto)
+            }
+            crate::options::EncryptionPolicy::GspById => {
+                Some(underhill_attestation::EncryptionPolicy::GspById)
+            }
+            crate::options::EncryptionPolicy::GspKey => {
+                Some(underhill_attestation::EncryptionPolicy::GspKey)
+            }
+            crate::options::EncryptionPolicy::None => None,
+        }
+    } else {
+        match dps.general.encryption_policy {
+            get_protocol::dps_json::EncryptionPolicy::Auto => {
+                Some(underhill_attestation::EncryptionPolicy::Auto)
+            }
+            get_protocol::dps_json::EncryptionPolicy::GspById => {
+                Some(underhill_attestation::EncryptionPolicy::GspById)
+            }
+            get_protocol::dps_json::EncryptionPolicy::GspKey => {
+                Some(underhill_attestation::EncryptionPolicy::GspKey)
+            }
+            get_protocol::dps_json::EncryptionPolicy::None => None,
+        }
+    };
+
     // Decrypt VMGS state before the VMGS file is used for anything.
     //
     // `refresh_tpm_seeds` is a host side GSP service configuration
@@ -1655,7 +1687,7 @@ async fn new_underhill_vm(
     // `agent_data` and `guest_secret_key` may also be used by vTPM
     // initialization.
     let platform_attestation_data = {
-        if is_restoring || vmgs.is_none() {
+        if is_restoring || vmgs.is_none() || encryption_policy.is_none() {
             // TODO CVM: Save and restore last returned data when live servicing is supported.
             // We also need to revisit what states should be saved and restored.
             //
@@ -1687,6 +1719,7 @@ async fn new_underhill_vm(
                 attestation_type,
                 suppress_attestation,
                 early_init_driver,
+                encryption_policy.unwrap(),
             )
             .instrument(tracing::info_span!(
                 "initialize_platform_security",
@@ -2521,7 +2554,12 @@ async fn new_underhill_vm(
         };
 
         // TODO VBS: Removing the VBS check when VBS TeeCall is implemented.
-        let ak_cert_type = if !matches!(isolation, virt::IsolationType::Vbs) {
+        let ak_cert_type = if matches!(isolation, virt::IsolationType::Vbs)
+            || !env_cfg.attempt_ak_cert_callback
+            || !dps.general.hcl_features.attempt_ak_cert_callback()
+        {
+            TpmAkCertTypeResource::None
+        } else {
             let request_ak_cert = GetTpmRequestAkCertHelperHandle::new(
                 attestation_type,
                 attestation_vm_config,
@@ -2534,8 +2572,6 @@ async fn new_underhill_vm(
             } else {
                 TpmAkCertTypeResource::Trusted(request_ak_cert)
             }
-        } else {
-            TpmAkCertTypeResource::None
         };
 
         let register_layout = if cfg!(guest_arch = "x86_64") {
@@ -3181,6 +3217,9 @@ fn validate_isolated_configuration(dps: &DevicePlatformSettings) -> Result<(), a
         vtl2_settings: _,
         cxl_memory_enabled: _,
         guest_state_lifetime: _,
+        // TODO: do we want to valid this here?
+        encryption_policy: _,
+        hcl_features: _,
     } = &dps.general;
 
     if *hibernation_enabled {

@@ -26,7 +26,9 @@ use guid::Guid;
 pub mod platform_settings {
     pub use get_protocol::dps_json::PcatBootDevice;
 
+    use get_protocol::dps_json::EncryptionPolicy;
     use get_protocol::dps_json::GuestStateLifetime;
+    use get_protocol::dps_json::HclFeatureFlags;
     use guid::Guid;
     use inspect::Inspect;
 
@@ -123,6 +125,10 @@ pub mod platform_settings {
 
         #[inspect(debug)]
         pub guest_state_lifetime: GuestStateLifetime,
+        #[inspect(debug)]
+        pub encryption_policy: EncryptionPolicy,
+        #[inspect(debug)]
+        pub hcl_features: HclFeatureFlags,
     }
 
     #[derive(Copy, Clone, Debug, Inspect)]
@@ -167,6 +173,18 @@ pub struct GuestStateProtection {
     /// Randomized new_gsp sent in the GuestStateProtectionRequest message to
     /// the host
     pub new_gsp: GspCleartextContent,
+}
+
+impl GuestStateProtection {
+    /// Construct a blank instance of `GuestStateProtection`
+    pub fn new_zeroed() -> GuestStateProtection {
+        GuestStateProtection {
+            encrypted_gsp: GspCiphertextContent::new_zeroed(),
+            decrypted_gsp: [GspCleartextContent::new_zeroed(); NUMBER_GSP as usize],
+            extended_status_flags: GspExtendedStatusFlags::new_zeroed(),
+            new_gsp: GspCleartextContent::new_zeroed(),
+        }
+    }
 }
 
 /// Response fields for Guest State Protection by ID from the host

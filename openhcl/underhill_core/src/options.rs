@@ -33,6 +33,28 @@ impl std::str::FromStr for TestScenarioConfig {
     }
 }
 
+#[derive(Clone, Debug, MeshPayload)]
+pub enum EncryptionPolicy {
+    Auto,
+    None,
+    GspById,
+    GspKey,
+}
+
+impl std::str::FromStr for EncryptionPolicy {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<EncryptionPolicy, anyhow::Error> {
+        match s {
+            "AUTO" | "0" => Ok(EncryptionPolicy::Auto),
+            "NONE" | "1" => Ok(EncryptionPolicy::None),
+            "GSP_BY_ID" | "2" => Ok(EncryptionPolicy::GspById),
+            "GSP_KEY" | "3" => Ok(EncryptionPolicy::GspKey),
+            _ => Err(anyhow::anyhow!("Invalid encryption scheme: {}", s)),
+        }
+    }
+}
+
 // We've made our own parser here instead of using something like clap in order
 // to save on compiled file size. We don't need all the features a crate can provide.
 /// underhill core command-line and environment variable options.
@@ -148,7 +170,7 @@ pub struct Options {
     /// even if we would otherwise attempt to use VFIO's NoReset support.
     pub nvme_always_flr: bool,
 
-    /// (OPENHCL_TEST_CONFIG=\<TestScenarioConfig\>)
+    /// (OPENHCL_TEST_CONFIG=\<[`TestScenarioConfig`]\>)
     /// Test configurations are designed to replicate specific behaviors and
     /// conditions in order to simulate various test scenarios.
     pub test_configuration: Option<TestScenarioConfig>,
@@ -157,6 +179,13 @@ pub struct Options {
     /// will result in UEFI terminating, shutting down the guest instead of
     /// showing the frontpage.
     pub disable_uefi_frontpage: bool,
+
+    /// (HCL_ENCRYPTION_POLICY=\<[`EncryptionPolicy`]\>)
+    /// Specify which encryption policy to use.
+    pub encryption_policy: Option<EncryptionPolicy>,
+
+    /// (HCL_ATTEMPT_AK_CERT_CALLBACK=1) Attempt to renew the AK cert.
+    pub attempt_ak_cert_callback: bool,
 }
 
 impl Options {
@@ -259,6 +288,13 @@ impl Options {
         });
         let disable_uefi_frontpage = parse_env_bool("OPENHCL_DISABLE_UEFI_FRONTPAGE");
         let signal_vtl0_started = parse_env_bool("OPENHCL_SIGNAL_VTL0_STARTED");
+        let encryption_policy = parse_env_string("HCL_ENCRYPTION_POLICY").and_then(|x| {
+            x.to_string_lossy()
+                .parse::<EncryptionPolicy>()
+                .map_err(|e| tracing::warn!("failed to parse HCL_ENCRYPTION_POLICY: {}", e))
+                .ok()
+        });
+        let attempt_ak_cert_callback = parse_env_bool("HCL_ATTEMPT_AK_CERT_CALLBACK");
 
         let mut args = std::env::args().chain(extra_args);
         // Skip our own filename.
@@ -316,6 +352,8 @@ impl Options {
             nvme_always_flr,
             test_configuration,
             disable_uefi_frontpage,
+            encryption_policy,
+            attempt_ak_cert_callback,
         })
     }
 

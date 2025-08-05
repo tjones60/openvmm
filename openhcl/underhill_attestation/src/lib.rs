@@ -224,6 +224,17 @@ pub enum AttestationType {
     Host,
 }
 
+/// How to encrypt the VMGS
+#[derive(Debug, Clone, Copy)]
+pub enum EncryptionPolicy {
+    /// Use the best encryption available, allowing fallback
+    Auto,
+    /// Use only GspById
+    GspById,
+    /// Use only GspKey
+    GspKey,
+}
+
 /// If required, attest platform. Gets VMGS datastore key.
 ///
 /// Returns `refresh_tpm_seeds` (the host side GSP service indicating
@@ -237,6 +248,7 @@ pub async fn initialize_platform_security(
     attestation_type: AttestationType,
     suppress_attestation: bool,
     driver: LocalDriver,
+    encryption_policy: EncryptionPolicy,
 ) -> Result<PlatformAttestationData, Error> {
     tracing::info!(CVM_ALLOWED,
         attestation_type=?attestation_type,
@@ -357,6 +369,7 @@ pub async fn initialize_platform_security(
         ingress_rsa_kek.as_ref(),
         wrapped_des_key.as_deref(),
         tcb_version,
+        encryption_policy,
     )
     .await
     .map_err(AttestationErrorInner::GetDerivedKeys)?;
@@ -562,6 +575,7 @@ async fn get_derived_keys(
     ingress_rsa_kek: Option<&Rsa<Private>>,
     wrapped_des_key: Option<&[u8]>,
     tcb_version: Option<u64>,
+    encryption_policy: EncryptionPolicy,
 ) -> Result<DerivedKeyResult, GetDerivedKeysError> {
     let mut key_protector_settings = KeyProtectorSettings {
         should_write_kp: true,
@@ -626,11 +640,12 @@ async fn get_derived_keys(
         };
 
     // Handle various sources of Guest State Protection
+    let is_gsp_by_id = key_protector_by_id.found_id && key_protector_by_id.inner.ported != 1;
     let mut requires_gsp_by_id =
-        key_protector_by_id.found_id && key_protector_by_id.inner.ported != 1;
+        is_gsp_by_id || matches!(encryption_policy, EncryptionPolicy::GspById);
 
     // Attempt GSP
-    let (gsp_response, no_gsp, requires_gsp) = {
+    let (gsp_response, no_gsp, requires_gsp) = if !requires_gsp_by_id {
         let found_kp = key_protector.gsp[ingress_idx].gsp_length != 0;
 
         let response = get_gsp_data(get, key_protector).await;
@@ -647,7 +662,9 @@ async fn get_derived_keys(
         let no_gsp =
             response.extended_status_flags.no_rpc_server() || response.encrypted_gsp.length == 0;
 
-        let requires_gsp = found_kp || response.extended_status_flags.requires_rpc_server();
+        let requires_gsp = found_kp
+            || response.extended_status_flags.requires_rpc_server()
+            || matches!(encryption_policy, EncryptionPolicy::GspKey);
 
         // If the VMGS is encrypted, but no key protection data is found,
         // assume GspById encryption is enabled, but no ID file was written.
@@ -656,6 +673,8 @@ async fn get_derived_keys(
         }
 
         (response, no_gsp, requires_gsp)
+    } else {
+        (GuestStateProtection::new_zeroed(), true, false)
     };
 
     // Attempt GSP By Id protection if GSP is not available, or when changing schemes.
