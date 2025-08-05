@@ -568,11 +568,7 @@ impl Tpm {
                 .map_err(TpmErrorKind::AllocateGuestAttestationNvIndices)?;
 
             // Initialize `TPM_NV_INDEX_AIK_CERT` and `TPM_NV_INDEX_ATTESTATION_REPORT`
-            //
-            // Only renew AK cert if hardware isolated.
-            if matches!(self.ak_cert_type, TpmAkCertType::HwAttested(_)) {
-                self.renew_ak_cert()?;
-            }
+            self.renew_ak_cert()?;
         }
 
         // If guest secret key is passed in, import the key into TPM.

@@ -4,6 +4,7 @@
 //! The schema defined in this file must match the one defined in
 //! `onecore/vm/schema/mars/Config/Config.Devices.Chipset.mars`.
 
+use bitfield_struct::bitfield;
 use guid::Guid;
 use serde::Deserialize;
 use serde::Serialize;
@@ -100,6 +101,26 @@ pub enum GuestStateLifetime {
     Ephemeral,
 }
 
+/// Encryption policy
+#[derive(Debug, Copy, Clone, Deserialize, Serialize, Default)]
+pub enum EncryptionPolicy {
+    #[default]
+    Auto,
+    None,
+    GspById,
+    GspKey,
+}
+
+/// HCL Feature Flags
+#[bitfield(u64)]
+#[derive(Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct HclFeatureFlags {
+    pub attempt_ak_cert_callback: bool,
+    #[bits(63)]
+    pub reserved: u64,
+}
+
 #[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct HclDevicePlatformSettingsV2Static {
@@ -150,6 +171,10 @@ pub struct HclDevicePlatformSettingsV2Static {
     pub cxl_memory_enabled: bool,
     #[serde(default)]
     pub guest_state_lifetime: GuestStateLifetime,
+    #[serde(default)]
+    pub encryption_policy: EncryptionPolicy,
+    #[serde(default)]
+    pub hcl_features: HclFeatureFlags,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]

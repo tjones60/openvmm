@@ -337,6 +337,8 @@ impl GuestEmulationTransportClient {
                 imc_enabled: json.v2.r#static.imc_enabled,
                 cxl_memory_enabled: json.v2.r#static.cxl_memory_enabled,
                 guest_state_lifetime: json.v2.r#static.guest_state_lifetime,
+                encryption_policy: json.v2.r#static.encryption_policy,
+                hcl_features: json.v2.r#static.hcl_features,
             },
             acpi_tables: json.v2.dynamic.acpi_tables,
         })
