@@ -140,7 +140,8 @@ pub enum GuestStateEncryptionPolicy {
 #[serde(transparent)]
 pub struct ManagementVtlFeatures {
     pub strict_encryption_policy: bool,
-    #[bits(63)]
+    pub attempt_ak_cert_callback: bool,
+    #[bits(62)]
     pub reserved: u64,
 }
 

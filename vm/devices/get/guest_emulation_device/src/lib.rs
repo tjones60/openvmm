@@ -38,6 +38,7 @@ use get_protocol::UefiConsoleMode;
 use get_protocol::VmgsIoStatus;
 use get_protocol::dps_json::GuestStateEncryptionPolicy;
 use get_protocol::dps_json::GuestStateLifetime;
+use get_protocol::dps_json::HclFeatureFlags;
 use get_protocol::dps_json::HclSecureBootTemplateId;
 use get_protocol::dps_json::ManagementVtlFeatures;
 use get_protocol::dps_json::PcatBootDevice;

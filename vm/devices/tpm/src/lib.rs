@@ -543,55 +543,51 @@ impl Tpm {
             }
         }
 
+        // Create auth value for NV index password authorization.
+        // The value needs to be preserved across live servicing.
+        let mut auth_value = 0;
+        getrandom::fill(auth_value.as_mut_bytes()).expect("rng failure");
+        self.auth_value = Some(auth_value);
+
+        // Initialize `TpmKeys`.
+        // The procedure also generates randomized AK based on the TPM seed
+        // and writes the AK into `TPM_AZURE_AIK_HANDLE` NV store.
+        let (ak_pub, can_renew_ak) = self
+            .tpm_engine_helper
+            .create_ak_pub(force_ak_regen)
+            .map_err(TpmErrorKind::CreateAkPublic)?;
+        let ek_pub = self
+            .tpm_engine_helper
+            .create_ek_pub()
+            .map_err(TpmErrorKind::CreateEkPublic)?;
+        self.keys = Some(TpmKeys { ak_pub, ek_pub });
+        tracing::info!(
+            CVM_ALLOWED,
+            can_renew_ak = can_renew_ak,
+            "loaded existing AK from VMGS vTPM state"
+        );
+        self.allow_ak_cert_renewal = can_renew_ak;
+
+        // Conditionally define nv indexes for ak cert and attestation report.
+        // The Nvram size can only be defined with platform hierarchy. Otherwise
+        // `TPM_RC_HIERARCHY` (0c0290285) error code would return.
+        // It means the Nvram index space needs to be allocated before clearing the
+        // tpm hierarchy control. NV index value can be rewritten later.
+        self.tpm_engine_helper
+            .allocate_guest_attestation_nv_indices(
+                auth_value,
+                !self.refresh_tpm_seeds, // Preserve AK cert if TPM seeds are not refreshed
+                matches!(self.ak_cert_type, TpmAkCertType::HwAttested(_)),
+                fixup_16k_ak_cert,
+            )
+            .map_err(TpmErrorKind::AllocateGuestAttestationNvIndices)?;
+
+        // Initialize `TPM_NV_INDEX_AIK_CERT` and `TPM_NV_INDEX_ATTESTATION_REPORT`
         if matches!(
             self.ak_cert_type,
             TpmAkCertType::Trusted(_) | TpmAkCertType::HwAttested(_)
         ) {
-            // Create auth value for NV index password authorization.
-            // The value needs to be preserved across live servicing.
-            let mut auth_value = 0;
-            getrandom::fill(auth_value.as_mut_bytes()).expect("rng failure");
-            self.auth_value = Some(auth_value);
-
-            // Initialize `TpmKeys`.
-            // The procedure also generates randomized AK based on the TPM seed
-            // and writes the AK into `TPM_AZURE_AIK_HANDLE` NV store.
-            let (ak_pub, can_renew_ak) = self
-                .tpm_engine_helper
-                .create_ak_pub(force_ak_regen)
-                .map_err(TpmErrorKind::CreateAkPublic)?;
-            let ek_pub = self
-                .tpm_engine_helper
-                .create_ek_pub()
-                .map_err(TpmErrorKind::CreateEkPublic)?;
-            self.keys = Some(TpmKeys { ak_pub, ek_pub });
-            tracing::info!(
-                CVM_ALLOWED,
-                can_renew_ak = can_renew_ak,
-                "loaded existing AK from VMGS vTPM state"
-            );
-            self.allow_ak_cert_renewal = can_renew_ak;
-
-            // Conditionally define nv indexes for ak cert and attestation report.
-            // The Nvram size can only be defined with platform hierarchy. Otherwise
-            // `TPM_RC_HIERARCHY` (0c0290285) error code would return.
-            // It means the Nvram index space needs to be allocated before clearing the
-            // tpm hierarchy control. NV index value can be rewritten later.
-            self.tpm_engine_helper
-                .allocate_guest_attestation_nv_indices(
-                    auth_value,
-                    !self.refresh_tpm_seeds, // Preserve AK cert if TPM seeds are not refreshed
-                    matches!(self.ak_cert_type, TpmAkCertType::HwAttested(_)),
-                    fixup_16k_ak_cert,
-                )
-                .map_err(TpmErrorKind::AllocateGuestAttestationNvIndices)?;
-
-            // Initialize `TPM_NV_INDEX_AIK_CERT` and `TPM_NV_INDEX_ATTESTATION_REPORT`
-            //
-            // Only renew AK cert if hardware isolated.
-            if matches!(self.ak_cert_type, TpmAkCertType::HwAttested(_)) {
-                self.renew_ak_cert()?;
-            }
+            self.renew_ak_cert()?;
         }
 
         // If guest secret key is passed in, import the key into TPM.
@@ -1301,7 +1297,10 @@ impl MmioIntercept for Tpm {
                         "executing guest tpm cmd",
                     );
 
-                    if matches!(self.ak_cert_type, TpmAkCertType::HwAttested(_)) {
+                    if matches!(
+                        self.ak_cert_type,
+                        TpmAkCertType::Trusted(_) | TpmAkCertType::HwAttested(_)
+                    ) {
                         if let Some(CommandCodeEnum::NV_Read) = cmd_header {
                             self.refresh_device_attestation_data_on_nv_read()
                         }

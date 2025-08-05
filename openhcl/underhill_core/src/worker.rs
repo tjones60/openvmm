@@ -2539,8 +2539,14 @@ async fn new_underhill_vm(
             )
         };
 
-        // TODO VBS: Removing the VBS check when VBS TeeCall is implemented.
-        let ak_cert_type = if !matches!(isolation, virt::IsolationType::Vbs) {
+        // TODO VBS: Enable for VBS when VBS TeeCall is implemented.
+
+        let attempt_ak_cert_callback = dps.general.management_vtl_features.attempt_ak_cert_callback()
+            // Always attempt AK cert callback when hardware isolated
+            // since we don't trust the host to tell us not to
+            || hardware_isolated;
+
+        let ak_cert_type = if attempt_ak_cert_callback {
             let request_ak_cert = GetTpmRequestAkCertHelperHandle::new(
                 attestation_type,
                 attestation_vm_config,
@@ -2548,10 +2554,11 @@ async fn new_underhill_vm(
             )
             .into_resource();
 
-            if !matches!(attestation_type, AttestationType::Host) {
-                TpmAkCertTypeResource::HwAttested(request_ak_cert)
-            } else {
-                TpmAkCertTypeResource::Trusted(request_ak_cert)
+            match attestation_type {
+                AttestationType::Tdx | AttestationType::Snp => {
+                    TpmAkCertTypeResource::HwAttested(request_ak_cert)
+                }
+                AttestationType::Host => TpmAkCertTypeResource::Trusted(request_ak_cert),
             }
         } else {
             TpmAkCertTypeResource::None
