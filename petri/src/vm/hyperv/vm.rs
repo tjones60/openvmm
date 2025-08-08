@@ -32,7 +32,7 @@ pub struct HyperVVM {
     name: String,
     vmid: Guid,
     destroyed: bool,
-    _temp_dir: TempDir,
+    temp_dir: TempDir,
     ps_mod: PathBuf,
     create_time: Timestamp,
     log_file: PetriLogFile,
@@ -100,7 +100,7 @@ impl HyperVVM {
             name,
             vmid,
             destroyed: false,
-            _temp_dir: temp_dir,
+            temp_dir,
             ps_mod,
             create_time,
             log_file,
@@ -448,10 +448,10 @@ impl HyperVVM {
 
     /// Take a screenshot of the VM
     pub fn screenshot(&self, image: &mut Vec<u8>) -> anyhow::Result<VmScreenshotMeta> {
-        let mut temp_bin = tempfile::NamedTempFile::new()?;
+        let temp_bin = self.temp_dir.path().join("screenshot.bin");
         let (width, height) =
-            powershell::run_get_vm_screenshot(&self.vmid, &self.ps_mod, temp_bin.path())?;
-        temp_bin.read_to_end(image)?;
+            powershell::run_get_vm_screenshot(&self.vmid, &self.ps_mod, &temp_bin)?;
+        fs_err::File::open(temp_bin)?.read_to_end(image)?;
         Ok(VmScreenshotMeta {
             color: image::ExtendedColorType::Rgb16,
             width,

@@ -851,7 +851,7 @@ pub fn run_get_vm_screenshot(
             .finish()
             .build(),
     )
-    .context("set_vmbus_redirect")?;
+    .context("get_vm_screenshot")?;
     let (x, y) = output.split_once(',').context("invalid dimensions")?;
     Ok((
         x.parse().context("invalid x dimension")?,

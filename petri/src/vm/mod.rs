@@ -267,7 +267,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             }));
         }
 
-        if let Some(mut framebuffer_access) = runtime.framebuffer_access() {
+        if let Some(mut framebuffer_access) = runtime.take_framebuffer_access() {
             let mut timer = PolledTimer::new(&resources.driver);
             let log_source = resources.log_source.clone();
 
@@ -761,8 +761,9 @@ pub trait PetriVmRuntime {
     fn inspector(&self) -> Option<Self::VmInspector> {
         None
     }
-    /// If the backend supports it, get a screenshot interface
-    fn framebuffer_access(&mut self) -> Option<Self::VmFramebufferAccess> {
+    /// If the backend supports it, take the screenshot interface
+    /// (subsequent calls will return None).
+    fn take_framebuffer_access(&mut self) -> Option<Self::VmFramebufferAccess> {
         None
     }
 }

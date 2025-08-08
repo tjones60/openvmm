@@ -129,7 +129,7 @@ impl PetriVmRuntime for PetriVmOpenVmm {
         })
     }
 
-    fn framebuffer_access(&mut self) -> Option<OpenVmmFramebufferAccess> {
+    fn take_framebuffer_access(&mut self) -> Option<OpenVmmFramebufferAccess> {
         self.inner
             .framebuffer_view
             .take()
@@ -557,12 +557,13 @@ impl PetriVmFramebufferAccess for OpenVmmFramebufferAccess {
         for (i, line) in (0..height).zip(image.chunks_exact_mut(widthsize * BYTES_PER_PIXEL)) {
             self.view.read_line(i, line);
             for pixel in line.chunks_exact_mut(BYTES_PER_PIXEL) {
+                pixel.swap(0, 2);
                 pixel[3] = 0xFF;
             }
         }
 
         Ok(VmScreenshotMeta {
-            color: image::ExtendedColorType::Bgra8,
+            color: image::ExtendedColorType::Rgba8,
             width,
             height,
         })

@@ -491,7 +491,7 @@ impl PetriVmRuntime for HyperVPetriRuntime {
         self.vm.restart_openhcl(flags).await
     }
 
-    fn framebuffer_access(&mut self) -> Option<HyperVFramebufferAccess> {
+    fn take_framebuffer_access(&mut self) -> Option<HyperVFramebufferAccess> {
         Some(HyperVFramebufferAccess {
             vm: Arc::downgrade(&self.vm),
         })
