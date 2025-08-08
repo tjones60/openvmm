@@ -448,12 +448,32 @@ impl HyperVVM {
 
     /// Take a screenshot of the VM
     pub fn screenshot(&self, image: &mut Vec<u8>) -> anyhow::Result<VmScreenshotMeta> {
-        let temp_bin = self.temp_dir.path().join("screenshot.bin");
+        const IN_BYTES_PER_PIXEL: usize = 2;
+        const OUT_BYTES_PER_PIXEL: usize = 3;
+        let temp_bin_path = self.temp_dir.path().join("screenshot.bin");
         let (width, height) =
-            powershell::run_get_vm_screenshot(&self.vmid, &self.ps_mod, &temp_bin)?;
-        fs_err::File::open(temp_bin)?.read_to_end(image)?;
+            powershell::run_get_vm_screenshot(&self.vmid, &self.ps_mod, &temp_bin_path)?;
+        let (widthsize, heightsize) = (width as usize, height as usize);
+        let in_len = widthsize * heightsize * IN_BYTES_PER_PIXEL;
+        let out_len = widthsize * heightsize * OUT_BYTES_PER_PIXEL;
+        let mut image_rgb565 = fs_err::read(temp_bin_path)?;
+        image_rgb565.truncate(in_len);
+        if image_rgb565.len() != in_len {
+            anyhow::bail!("did not get enough bytes for screenshot");
+        }
+
+        image.resize(out_len, 0);
+        for (out_pixel, in_pixel) in image
+            .chunks_exact_mut(OUT_BYTES_PER_PIXEL)
+            .zip(image_rgb565.chunks_exact(IN_BYTES_PER_PIXEL))
+        {
+            out_pixel[0] = in_pixel[0] & 0b11111000;
+            out_pixel[1] = ((in_pixel[0] & 0b00000111) << 5) + ((in_pixel[1] & 0b11100000) >> 3);
+            out_pixel[2] = in_pixel[1] << 3;
+        }
+
         Ok(VmScreenshotMeta {
-            color: image::ExtendedColorType::Rgb16,
+            color: image::ExtendedColorType::Rgb8,
             width,
             height,
         })
