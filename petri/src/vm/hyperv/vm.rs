@@ -8,6 +8,7 @@ use super::hvc::VmState;
 use super::powershell;
 use crate::OpenHclServicingFlags;
 use crate::PetriLogFile;
+use crate::VmScreenshotMeta;
 use anyhow::Context;
 use get_resources::ged::FirmwareEvent;
 use guid::Guid;
@@ -15,6 +16,7 @@ use jiff::Timestamp;
 use jiff::ToSpan;
 use pal_async::DefaultDriver;
 use pal_async::timer::PolledTimer;
+use std::io::Read;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
@@ -167,7 +169,7 @@ impl HyperVVM {
 
     /// Waits for an event emitted by the firmware about its boot status, and
     /// verifies that it is the expected success value.
-    pub async fn wait_for_successful_boot_event(&mut self) -> anyhow::Result<()> {
+    pub async fn wait_for_successful_boot_event(&self) -> anyhow::Result<()> {
         if let Some(expected_boot_event) = self.expected_boot_event {
             self.wait_for(Self::boot_event, Some(expected_boot_event), 240.seconds())
                 .await
@@ -181,7 +183,7 @@ impl HyperVVM {
 
     /// Waits for an event emitted by the firmware about its boot status, and
     /// returns that status.
-    pub async fn wait_for_boot_event(&mut self) -> anyhow::Result<FirmwareEvent> {
+    pub async fn wait_for_boot_event(&self) -> anyhow::Result<FirmwareEvent> {
         self.wait_for_some(Self::boot_event, 240.seconds()).await
     }
 
@@ -436,12 +438,25 @@ impl HyperVVM {
 
     /// Enable VMBusRelay
     pub fn set_vmbus_redirect(&self, enable: bool) -> anyhow::Result<()> {
-        powershell::set_vmbus_redirect(&self.vmid, &self.ps_mod, enable)
+        powershell::run_set_vmbus_redirect(&self.vmid, &self.ps_mod, enable)
     }
 
     /// Perform an OpenHCL servicing operation.
     pub async fn restart_openhcl(&self, flags: OpenHclServicingFlags) -> anyhow::Result<()> {
         powershell::run_restart_openhcl(&self.vmid, &self.ps_mod, flags)
+    }
+
+    /// Take a screenshot of the VM
+    pub fn screenshot(&self, image: &mut Vec<u8>) -> anyhow::Result<VmScreenshotMeta> {
+        let mut temp_bin = tempfile::NamedTempFile::new()?;
+        let (width, height) =
+            powershell::run_get_vm_screenshot(&self.vmid, &self.ps_mod, temp_bin.path())?;
+        temp_bin.read_to_end(image)?;
+        Ok(VmScreenshotMeta {
+            color: image::ExtendedColorType::Rgb16,
+            width,
+            height,
+        })
     }
 }
 
