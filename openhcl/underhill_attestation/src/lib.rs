@@ -95,9 +95,9 @@ enum GetDerivedKeysError {
     #[error("failed to get an ingress key from key protector")]
     GetIngressKeyFromKpFailed,
     #[error("failed to get an ingress key from guest state protection")]
-    GetIngressKeyFromKGspFailed,
+    GetIngressKeyFromGspFailed,
     #[error("failed to get an ingress key from guest state protection by id")]
-    GetIngressKeyFromKGspByIdFailed,
+    GetIngressKeyFromGspByIdFailed,
     #[error("Encryption cannot be disabled if VMGS was previously encrypted")]
     DisableVmgsEncryptionFailed,
     #[error("failed to seal the egress key using hardware derived keys")]
@@ -198,8 +198,8 @@ struct DerivedKeyResult {
     derived_keys: Option<Keys>,
     /// The instance of [`KeyProtectorSettings`].
     key_protector_settings: KeyProtectorSettings,
-    /// The instance of [`GspExtendedStatusFlags`] returned by GSP.
-    gsp_extended_status_flags: GspExtendedStatusFlags,
+    /// Whether the TPM seeds should be refreshed
+    state_refresh_request: bool,
 }
 
 /// The return values of [`initialize_platform_security`].
@@ -393,9 +393,7 @@ pub async fn initialize_platform_security(
         Err(AttestationErrorInner::UnlockVmgsDataStore(e))?
     }
 
-    let state_refresh_request_from_gsp = derived_keys_result
-        .gsp_extended_status_flags
-        .state_refresh_request();
+    let state_refresh_request_from_gsp = derived_keys_result.state_refresh_request;
 
     let host_attestation_settings = HostAttestationSettings {
         refresh_tpm_seeds: { state_refresh_request_from_gsp | vm_id_changed },
@@ -424,10 +422,6 @@ pub async fn initialize_platform_security(
 
 /// Get ingress and egress keys for the VMGS, unlock VMGS,
 /// remove old key if necessary, and update KP.
-/// If key rolling did not complete successfully last time, there may be an
-/// old egress key in the VMGS, whose contents can be controlled by the host.
-/// This key can be used to attempt decryption but must not be used to
-/// re-encrypt the VMGS.
 async fn unlock_vmgs_data_store(
     vmgs: &mut Vmgs,
     vmgs_encrypted: bool,
@@ -582,12 +576,7 @@ async fn get_derived_keys(
         use_gsp_by_id: false,
         use_hardware_unlock: false,
     };
-
-    let mut derived_keys = Keys {
-        ingress: [0u8; AES_GCM_KEY_LENGTH],
-        decrypt_egress: None,
-        encrypt_egress: [0u8; AES_GCM_KEY_LENGTH],
-    };
+    let mut state_refresh_request = false;
 
     // Ingress / Egress seed values depend on what happened previously to the datastore
     let ingress_idx = (key_protector.active_kp % 2) as usize;
@@ -599,45 +588,32 @@ async fn get_derived_keys(
         .all(|&x| x == 0);
 
     // Handle key released via attestation process (tenant key) to get keys from KeyProtector
-    let (ingress_key, mut decrypt_egress_key, encrypt_egress_key, no_kek) =
-        if let Some(ingress_kek) = ingress_rsa_kek {
-            let keys = match key_protector.unwrap_and_rotate_keys(
+    let kek = match ingress_rsa_kek
+        .map(|ingress_kek| {
+            key_protector.unwrap_and_rotate_keys(
                 ingress_kek,
                 wrapped_des_key,
                 ingress_idx,
                 egress_idx,
-            ) {
-                Ok(keys) => keys,
-                Err(e)
-                    if matches!(
-                        e,
-                        GetKeysFromKeyProtectorError::DesKeyRsaUnwrap(_)
-                            | GetKeysFromKeyProtectorError::IngressDekRsaUnwrap(_)
-                    ) =>
-                {
-                    get.event_log_fatal(
-                        guest_emulation_transport::api::EventLogId::DEK_DECRYPTION_FAILED,
-                    )
-                    .await;
+            )
+        })
+        .transpose()
+    {
+        Ok(keys) => keys,
+        Err(e)
+            if matches!(
+                e,
+                GetKeysFromKeyProtectorError::DesKeyRsaUnwrap(_)
+                    | GetKeysFromKeyProtectorError::IngressDekRsaUnwrap(_)
+            ) =>
+        {
+            get.event_log_fatal(guest_emulation_transport::api::EventLogId::DEK_DECRYPTION_FAILED)
+                .await;
 
-                    return Err(GetDerivedKeysError::GetKeysFromKeyProtector(e));
-                }
-                Err(e) => return Err(GetDerivedKeysError::GetKeysFromKeyProtector(e)),
-            };
-            (
-                keys.ingress,
-                keys.decrypt_egress,
-                keys.encrypt_egress,
-                false,
-            )
-        } else {
-            (
-                [0u8; AES_GCM_KEY_LENGTH],
-                None,
-                [0u8; AES_GCM_KEY_LENGTH],
-                true,
-            )
-        };
+            return Err(GetDerivedKeysError::GetKeysFromKeyProtector(e));
+        }
+        Err(e) => return Err(GetDerivedKeysError::GetKeysFromKeyProtector(e)),
+    };
 
     // Handle various sources of Guest State Protection
     let is_gsp_by_id = key_protector_by_id.found_id && key_protector_by_id.inner.ported != 1;
@@ -645,10 +621,11 @@ async fn get_derived_keys(
         is_gsp_by_id || matches!(encryption_policy, EncryptionPolicy::GspById);
 
     // Attempt GSP
-    let (gsp_response, no_gsp, requires_gsp) = if !requires_gsp_by_id {
-        let found_kp = key_protector.gsp[ingress_idx].gsp_length != 0;
+    let (gsp_response, requires_gsp) = if !requires_gsp_by_id {
+        let is_gsp_key = key_protector.gsp[ingress_idx].gsp_length != 0;
 
         let response = get_gsp_data(get, key_protector).await;
+        state_refresh_request = response.extended_status_flags.state_refresh_request();
 
         tracing::info!(
             CVM_ALLOWED,
@@ -659,44 +636,47 @@ async fn get_derived_keys(
             "GSP response"
         );
 
-        let no_gsp =
-            response.extended_status_flags.no_rpc_server() || response.encrypted_gsp.length == 0;
+        let gsp_available =
+            !response.extended_status_flags.no_rpc_server() && response.encrypted_gsp.length != 0;
 
-        let requires_gsp = found_kp
+        let requires_gsp = is_gsp_key
             || response.extended_status_flags.requires_rpc_server()
             || matches!(encryption_policy, EncryptionPolicy::GspKey);
 
         // If the VMGS is encrypted, but no key protection data is found,
         // assume GspById encryption is enabled, but no ID file was written.
-        if is_encrypted && !requires_gsp_by_id && !requires_gsp && !found_dek {
+        if is_encrypted && !requires_gsp && !found_dek {
             requires_gsp_by_id = true;
         }
 
-        (response, no_gsp, requires_gsp)
+        (gsp_available.then_some(response), requires_gsp)
     } else {
-        (GuestStateProtection::new_zeroed(), true, false)
+        (None, false)
     };
 
     // Attempt GSP By Id protection if GSP is not available, or when changing schemes.
-    let (gsp_response_by_id, no_gsp_by_id) = if no_gsp || requires_gsp_by_id {
+    let gsp_response_by_id = if gsp_response.is_none() || requires_gsp_by_id {
         let gsp_response_by_id = get
             .guest_state_protection_data_by_id()
             .await
             .map_err(GetDerivedKeysError::FetchGuestStateProtectionById)?;
 
-        let no_gsp_by_id = gsp_response_by_id.extended_status_flags.no_registry_file();
+        let gsp_by_id_available = !gsp_response_by_id.extended_status_flags.no_registry_file();
 
-        if no_gsp_by_id && requires_gsp_by_id {
+        if !gsp_by_id_available && requires_gsp_by_id {
             Err(GetDerivedKeysError::GspByIdRequiredButNotFound)?
         }
 
-        (gsp_response_by_id, no_gsp_by_id)
+        gsp_by_id_available.then_some(gsp_response_by_id)
     } else {
-        (GuestStateProtectionById::new_zeroed(), true)
+        None
     };
 
     // If sources of encryption used last are missing, attempt to unseal VMGS key with hardware key
-    if (no_kek && found_dek) || (no_gsp && requires_gsp) || (no_gsp_by_id && requires_gsp_by_id) {
+    if (kek.is_none() && found_dek)
+        || (gsp_response.is_none() && requires_gsp)
+        || (gsp_response_by_id.is_none() && requires_gsp_by_id)
+    {
         // If possible, get ingressKey from hardware sealed data
         let (hardware_key_protector, hardware_derived_keys) = if let Some(tee_call) = tee_call {
             let hardware_key_protector = match vmgs::read_hardware_key_protector(vmgs).await {
@@ -743,11 +723,15 @@ async fn get_derived_keys(
         if let (Some(hardware_key_protector), Some(hardware_derived_keys)) =
             (hardware_key_protector, hardware_derived_keys)
         {
-            derived_keys.ingress = hardware_key_protector
+            let ingress_key = hardware_key_protector
                 .unseal_key(&hardware_derived_keys)
                 .map_err(GetDerivedKeysError::UnsealIngressKeyUsingHardwareDerivedKeys)?;
-            derived_keys.decrypt_egress = None;
-            derived_keys.encrypt_egress = derived_keys.ingress;
+
+            let derived_keys = Keys {
+                ingress: ingress_key,
+                decrypt_egress: None,
+                encrypt_egress: ingress_key,
+            };
 
             key_protector_settings.should_write_kp = false;
             key_protector_settings.use_hardware_unlock = true;
@@ -760,30 +744,30 @@ async fn get_derived_keys(
             return Ok(DerivedKeyResult {
                 derived_keys: Some(derived_keys),
                 key_protector_settings,
-                gsp_extended_status_flags: gsp_response.extended_status_flags,
+                state_refresh_request,
             });
         } else {
-            if no_kek && found_dek {
+            if kek.is_none() && found_dek {
                 Err(GetDerivedKeysError::GetIngressKeyFromKpFailed)?
-            } else if no_gsp && requires_gsp {
-                Err(GetDerivedKeysError::GetIngressKeyFromKGspFailed)?
+            } else if gsp_response.is_none() && requires_gsp {
+                Err(GetDerivedKeysError::GetIngressKeyFromGspFailed)?
             } else {
-                // no_gsp_by_id && requires_gsp_by_id
-                Err(GetDerivedKeysError::GetIngressKeyFromKGspByIdFailed)?
+                // gsp_response_by_id.is_none() && requires_gsp_by_id
+                Err(GetDerivedKeysError::GetIngressKeyFromGspByIdFailed)?
             }
         }
     }
 
     tracing::info!(
         CVM_ALLOWED,
-        kek = !no_kek,
-        gsp = !no_gsp,
-        gsp_by_id = !no_gsp_by_id,
+        kek = kek.is_some(),
+        gsp = gsp_response.is_some(),
+        gsp_by_id = gsp_response_by_id.is_some(),
         "Encryption sources"
     );
 
     // Check if sources of encryption are available
-    if no_kek && no_gsp && no_gsp_by_id {
+    if kek.is_none() && gsp_response.is_none() && gsp_response_by_id.is_none() {
         if is_encrypted {
             Err(GetDerivedKeysError::DisableVmgsEncryptionFailed)?
         }
@@ -793,7 +777,7 @@ async fn get_derived_keys(
         return Ok(DerivedKeyResult {
             derived_keys: None,
             key_protector_settings,
-            gsp_extended_status_flags: gsp_response.extended_status_flags,
+            state_refresh_request,
         });
     }
 
@@ -821,19 +805,16 @@ async fn get_derived_keys(
         });
 
     // Use tenant key (KEK only)
-    if no_gsp && no_gsp_by_id {
+    if gsp_response.is_none() && gsp_response_by_id.is_none() {
         tracing::trace!(CVM_ALLOWED, "No GSP used with SKR");
 
-        derived_keys.ingress = ingress_key;
-        derived_keys.decrypt_egress = decrypt_egress_key;
-        derived_keys.encrypt_egress = encrypt_egress_key;
+        // kek must exist at this point due to previous checks
+        let derived_keys = kek.unwrap();
 
         if let Some(hardware_derived_keys) = hardware_derived_keys {
-            let hardware_key_protector = HardwareKeyProtector::seal_key(
-                &hardware_derived_keys,
-                &derived_keys.encrypt_egress,
-            )
-            .map_err(GetDerivedKeysError::SealEgressKeyUsingHardwareDerivedKeys)?;
+            let hardware_key_protector =
+                HardwareKeyProtector::seal_key(&hardware_derived_keys, &derived_keys.egress)
+                    .map_err(GetDerivedKeysError::SealEgressKeyUsingHardwareDerivedKeys)?;
             vmgs::write_hardware_key_protector(&hardware_key_protector, vmgs)
                 .await
                 .map_err(GetDerivedKeysError::VmgsWriteHardwareKeyProtector)?;
@@ -844,18 +825,21 @@ async fn get_derived_keys(
         return Ok(DerivedKeyResult {
             derived_keys: Some(derived_keys),
             key_protector_settings,
-            gsp_extended_status_flags: gsp_response.extended_status_flags,
+            state_refresh_request,
         });
     }
 
     // GSP By Id derives keys differently,
     // because key is shared across VMs different context must be used (Id GUID)
-    if (no_kek && no_gsp) || requires_gsp_by_id {
+    if (kek.is_none() && gsp_response.is_none()) || requires_gsp_by_id {
+        // gsp_response_by_id must exist at this point due to previous checks
+        let gsp_response_by_id = gsp_response_by_id.unwrap();
+
         let derived_keys_by_id =
             get_derived_keys_by_id(key_protector_by_id, bios_guid, gsp_response_by_id)
                 .map_err(GetDerivedKeysError::GetDerivedKeyById)?;
 
-        if no_kek && no_gsp {
+        if kek.is_none() && gsp_response.is_none() {
             tracing::trace!(CVM_ALLOWED, "Using GSP with ID.");
 
             // Not required for Id protection
@@ -865,7 +849,7 @@ async fn get_derived_keys(
             return Ok(DerivedKeyResult {
                 derived_keys: Some(derived_keys_by_id),
                 key_protector_settings,
-                gsp_extended_status_flags: gsp_response.extended_status_flags,
+                state_refresh_request,
             });
         }
 
@@ -882,7 +866,7 @@ async fn get_derived_keys(
     // Covers possible egress combinations:
     // GSP, GSP + KEK, GSP By Id + KEK
 
-    if requires_gsp_by_id || no_gsp {
+    if requires_gsp_by_id || gsp_response.is_none() {
         // If DEK exists, ingress is either KEK or KEK + GSP By Id
         // If no DEK, then ingress was Gsp By Id (derived above)
         if found_dek {
@@ -897,7 +881,7 @@ async fn get_derived_keys(
         }
 
         // Choose best available egress seed
-        if no_gsp {
+        if let Some(gsp_response).is_none() {
             egress_seed =
                 gsp_response_by_id.seed.buffer[..gsp_response_by_id.seed.length as usize].to_vec();
             key_protector_settings.use_gsp_by_id = true;
@@ -906,7 +890,7 @@ async fn get_derived_keys(
                 gsp_response.new_gsp.buffer[..gsp_response.new_gsp.length as usize].to_vec();
         }
     } else {
-        // `no_gsp` is false, using `gsp_response`
+        // `gsp_response` is some, using `gsp_response`
 
         if gsp_response.decrypted_gsp[ingress_idx].length == 0
             && gsp_response.decrypted_gsp[egress_idx].length == 0
@@ -920,7 +904,7 @@ async fn get_derived_keys(
 
             // Ingress key is either zero or tenant only.
             // Only copy in the case where a tenant key was released.
-            if !no_kek {
+            if kek.is_some() {
                 derived_keys.ingress = ingress_key;
             }
         } else {
@@ -945,7 +929,6 @@ async fn get_derived_keys(
                     [..gsp_response.decrypted_gsp[egress_idx].length as usize]
                     .to_vec();
                 key_protector_settings.should_write_kp = false;
-                decrypt_egress_key = Some(encrypt_egress_key);
             }
         }
     }
@@ -957,14 +940,8 @@ async fn get_derived_keys(
     }
 
     // Always derive a new egress key using best available seed
-    derived_keys.decrypt_egress = decrypt_egress_key
-        .map(|key| crypto::derive_key(&key, &egress_seed, VMGS_KEY_DERIVE_LABEL))
-        .transpose()
+    derived_keys.egress = crypto::derive_key(&egress_key, &egress_seed, VMGS_KEY_DERIVE_LABEL)
         .map_err(GetDerivedKeysError::DeriveEgressKey)?;
-
-    derived_keys.encrypt_egress =
-        crypto::derive_key(&encrypt_egress_key, &egress_seed, VMGS_KEY_DERIVE_LABEL)
-            .map_err(GetDerivedKeysError::DeriveEgressKey)?;
 
     if key_protector_settings.should_write_kp {
         // Update with all seeds used, but do not write until data store is unlocked
@@ -974,11 +951,9 @@ async fn get_derived_keys(
         key_protector.gsp[egress_idx].gsp_length = gsp_response.encrypted_gsp.length;
 
         if let Some(hardware_derived_keys) = hardware_derived_keys {
-            let hardware_key_protector = HardwareKeyProtector::seal_key(
-                &hardware_derived_keys,
-                &derived_keys.encrypt_egress,
-            )
-            .map_err(GetDerivedKeysError::SealEgressKeyUsingHardwareDerivedKeys)?;
+            let hardware_key_protector =
+                HardwareKeyProtector::seal_key(&hardware_derived_keys, &derived_keys.egress)
+                    .map_err(GetDerivedKeysError::SealEgressKeyUsingHardwareDerivedKeys)?;
 
             vmgs::write_hardware_key_protector(&hardware_key_protector, vmgs)
                 .await
