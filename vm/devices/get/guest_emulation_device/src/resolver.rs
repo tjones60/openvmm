@@ -158,7 +158,7 @@ impl AsyncResolveResource<VmbusDeviceHandleKind, GuestEmulationDeviceHandle>
                 no_persistent_secrets: resource.no_persistent_secrets,
                 guest_state_lifetime,
                 // TODO: pass these from OpenVMM config/command line
-                encryption_policy: get_protocol::dps_json::EncryptionPolicy::Auto,
+                encryption_policy: get_protocol::dps_json::EncryptionPolicy::default(),
                 hcl_features: get_protocol::dps_json::HclFeatureFlags::default(),
             },
             halt,

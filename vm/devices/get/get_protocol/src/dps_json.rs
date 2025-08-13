@@ -109,6 +109,7 @@ pub enum EncryptionPolicy {
     None,
     GspById,
     GspKey,
+    HardwareSealingOnly,
 }
 
 /// HCL Feature Flags

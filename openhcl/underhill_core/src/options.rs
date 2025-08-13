@@ -50,7 +50,7 @@ impl std::str::FromStr for EncryptionPolicy {
             "NONE" | "1" => Ok(EncryptionPolicy::None),
             "GSP_BY_ID" | "2" => Ok(EncryptionPolicy::GspById),
             "GSP_KEY" | "3" => Ok(EncryptionPolicy::GspKey),
-            _ => Err(anyhow::anyhow!("Invalid encryption scheme: {}", s)),
+            _ => Err(anyhow::anyhow!("Invalid encryption policy: {}", s)),
         }
     }
 }

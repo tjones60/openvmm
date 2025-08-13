@@ -78,13 +78,15 @@ async fn boot_with_tpm(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::R
 // or custom tool.
 #[openvmm_test(openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)))]
 async fn tpm_ak_cert_persisted(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Result<()> {
-    let config = config.modify_backend(|b| {
-        b.with_tpm()
-            .with_tpm_state_persistence()
-            .with_igvm_attest_test_config(
-                get_resources::ged::IgvmAttestTestConfig::AkCertPersistentAcrossBoot,
-            )
-    });
+    let config = config
+        .with_guest_state_lifetime(PetriGuestStateLifetime::Disk)
+        .modify_backend(|b| {
+            b.with_tpm()
+                .with_tpm_state_persistence()
+                .with_igvm_attest_test_config(
+                    get_resources::ged::IgvmAttestTestConfig::AkCertPersistentAcrossBoot,
+                )
+        });
 
     // First boot - AK cert request will be served by GED
     let mut vm = config.run_with_lazy_pipette().await?;
@@ -122,13 +124,15 @@ async fn tpm_ak_cert_persisted(config: PetriVmBuilder<OpenVmmPetriBackend>) -> a
 // or custom tool.
 #[openvmm_test(openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)))]
 async fn tpm_ak_cert_retry(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Result<()> {
-    let config = config.modify_backend(|b| {
-        b.with_tpm()
-            .with_tpm_state_persistence()
-            .with_igvm_attest_test_config(
-                get_resources::ged::IgvmAttestTestConfig::AkCertRequestFailureAndRetry,
-            )
-    });
+    let config = config
+        .with_guest_state_lifetime(PetriGuestStateLifetime::Disk)
+        .modify_backend(|b| {
+            b.with_tpm()
+                .with_tpm_state_persistence()
+                .with_igvm_attest_test_config(
+                    get_resources::ged::IgvmAttestTestConfig::AkCertRequestFailureAndRetry,
+                )
+        });
 
     // First boot - expect no AK cert from GED
     let mut vm = config.run_with_lazy_pipette().await?;

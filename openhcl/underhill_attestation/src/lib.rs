@@ -100,6 +100,8 @@ enum GetDerivedKeysError {
     GetIngressKeyFromKGspByIdFailed,
     #[error("Encryption cannot be disabled if VMGS was previously encrypted")]
     DisableVmgsEncryptionFailed,
+    #[error("VMGS encryption is required, but no encryption sources were found")]
+    EncryptionRequiredButNotFound,
     #[error("failed to seal the egress key using hardware derived keys")]
     SealEgressKeyUsingHardwareDerivedKeys(#[source] hardware_key_sealing::HardwareKeySealingError),
     #[error("failed to write to `FileId::HW_KEY_PROTECTOR` in vmgs")]
@@ -227,11 +229,22 @@ pub enum AttestationType {
 /// How to encrypt the VMGS
 #[derive(Debug, Clone, Copy)]
 pub enum EncryptionPolicy {
-    /// Use the best encryption available, allowing fallback
+    /// Use the best encryption available, allowing fallback.
+    ///
+    /// VMs will be created as or migrated to the best encryption available,
+    /// attempting GspKey, then GspById, and finally leaving the data
+    /// unencrypted if neither are available.
     Auto,
-    /// Use only GspById
+    /// Prefers GspById
+    ///
+    /// This prevents a VM from being created as or migrated to GspKey even
+    /// if it is available. Exisiting GspKey encryption will be used as-is.
+    /// Fails if the data cannot be encrypted.
     GspById,
-    /// Use only GspKey
+    /// Requires GspKey
+    ///
+    /// VMs will be created as or migrated to GspKey. Fails if GspKey is
+    /// not available.
     GspKey,
 }
 
@@ -641,13 +654,13 @@ async fn get_derived_keys(
 
     // Handle various sources of Guest State Protection
     let is_gsp_by_id = key_protector_by_id.found_id && key_protector_by_id.inner.ported != 1;
-    let mut requires_gsp_by_id =
-        is_gsp_by_id || matches!(encryption_policy, EncryptionPolicy::GspById);
+    let is_gsp_key = key_protector.gsp[ingress_idx].gsp_length != 0;
+    // don't attempt GSP key when it is not already in use if the encryption policy prefers GspById
+    let attempt_gsp_key = is_gsp_key || !matches!(encryption_policy, EncryptionPolicy::GspById);
+    let mut requires_gsp_by_id = is_gsp_by_id;
 
     // Attempt GSP
-    let (gsp_response, no_gsp, requires_gsp) = if !requires_gsp_by_id {
-        let found_kp = key_protector.gsp[ingress_idx].gsp_length != 0;
-
+    let (gsp_response, no_gsp, requires_gsp) = if attempt_gsp_key {
         let response = get_gsp_data(get, key_protector).await;
 
         tracing::info!(
@@ -662,7 +675,7 @@ async fn get_derived_keys(
         let no_gsp =
             response.extended_status_flags.no_rpc_server() || response.encrypted_gsp.length == 0;
 
-        let requires_gsp = found_kp
+        let requires_gsp = is_gsp_key
             || response.extended_status_flags.requires_rpc_server()
             || matches!(encryption_policy, EncryptionPolicy::GspKey);
 
@@ -786,6 +799,9 @@ async fn get_derived_keys(
     if no_kek && no_gsp && no_gsp_by_id {
         if is_encrypted {
             Err(GetDerivedKeysError::DisableVmgsEncryptionFailed)?
+        }
+        if !matches!(encryption_policy, EncryptionPolicy::Auto) {
+            Err(GetDerivedKeysError::EncryptionRequiredButNotFound)?
         }
 
         tracing::trace!(CVM_ALLOWED, "No VMGS encryption used.");

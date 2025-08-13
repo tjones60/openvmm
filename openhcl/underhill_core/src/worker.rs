@@ -1677,6 +1677,9 @@ async fn new_underhill_vm(
                 Some(underhill_attestation::EncryptionPolicy::GspKey)
             }
             get_protocol::dps_json::EncryptionPolicy::None => None,
+            get_protocol::dps_json::EncryptionPolicy::HardwareSealingOnly => {
+                todo!("hardware sealing")
+            }
         }
     };
 
@@ -3222,7 +3225,7 @@ fn validate_isolated_configuration(dps: &DevicePlatformSettings) -> Result<(), a
         vtl2_settings: _,
         cxl_memory_enabled: _,
         guest_state_lifetime: _,
-        // TODO: do we want to valid this here?
+        // TODO: do we want to validate this here?
         encryption_policy: _,
         hcl_features: _,
     } = &dps.general;
