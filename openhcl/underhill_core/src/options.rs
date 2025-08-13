@@ -170,7 +170,7 @@ pub struct Options {
     /// even if we would otherwise attempt to use VFIO's NoReset support.
     pub nvme_always_flr: bool,
 
-    /// (OPENHCL_TEST_CONFIG=\<[`TestScenarioConfig`]\>)
+    /// (OPENHCL_TEST_CONFIG=\<TestScenarioConfig\>)
     /// Test configurations are designed to replicate specific behaviors and
     /// conditions in order to simulate various test scenarios.
     pub test_configuration: Option<TestScenarioConfig>,
@@ -180,7 +180,7 @@ pub struct Options {
     /// showing the frontpage.
     pub disable_uefi_frontpage: bool,
 
-    /// (HCL_ENCRYPTION_POLICY=\<[`EncryptionPolicy`]\>)
+    /// (HCL_ENCRYPTION_POLICY=\<EncryptionPolicy\>)
     /// Specify which encryption policy to use.
     pub encryption_policy: Option<EncryptionPolicy>,
 
