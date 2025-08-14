@@ -133,7 +133,7 @@ pub enum GuestStateEncryptionPolicy {
 #[derive(Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct HclFeatureFlags {
-    pub attempt_ak_cert_callback: bool,
+    pub strict_encryption_policy: bool,
     #[bits(63)]
     pub reserved: u64,
 }

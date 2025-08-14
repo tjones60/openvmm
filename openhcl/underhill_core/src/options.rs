@@ -183,9 +183,6 @@ pub struct Options {
     /// (HCL_GUEST_STATE_ENCRYPTION_POLICY=\<GuestStateEncryptionPolicyCli\>)
     /// Specify which guest state encryption policy to use.
     pub guest_state_encryption_policy: Option<GuestStateEncryptionPolicyCli>,
-
-    /// (HCL_ATTEMPT_AK_CERT_CALLBACK=1) Attempt to renew the AK cert.
-    pub attempt_ak_cert_callback: bool,
 }
 
 impl Options {
@@ -297,7 +294,6 @@ impl Options {
                     })
                     .ok()
             });
-        let attempt_ak_cert_callback = parse_env_bool("HCL_ATTEMPT_AK_CERT_CALLBACK");
 
         let mut args = std::env::args().chain(extra_args);
         // Skip our own filename.
@@ -356,7 +352,6 @@ impl Options {
             test_configuration,
             disable_uefi_frontpage,
             guest_state_encryption_policy,
-            attempt_ak_cert_callback,
         })
     }
 

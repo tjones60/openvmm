@@ -660,6 +660,7 @@ async fn get_derived_keys(
 
         let no_gsp = response.extended_status_flags.no_rpc_server()
             || response.encrypted_gsp.length == 0
+            // TODO: Use strict encryption flag
             || (!found_kp
                 && matches!(
                     guest_state_encryption_policy,

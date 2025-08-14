@@ -295,8 +295,6 @@ pub struct UnderhillEnvCfg {
     pub disable_uefi_frontpage: bool,
     /// Guest state encryption policy
     pub guest_state_encryption_policy: Option<GuestStateEncryptionPolicyCli>,
-    /// Attempt to renew the AK cert.
-    pub attempt_ak_cert_callback: bool,
 }
 
 /// Bundle of config + runtime objects for hooking into the underhill remote
@@ -2544,15 +2542,8 @@ async fn new_underhill_vm(
             )
         };
 
-        // TODO VBS: Enable for VBS when VBS TeeCall is implemented.
-
-        let attempt_ak_cert_callback = dps.general.hcl_features.attempt_ak_cert_callback()
-            || env_cfg.attempt_ak_cert_callback
-            // Always attempt AK cert callback when hardware isolated
-            // since we don't trust the host to tell us not to
-            || hardware_isolated;
-
-        let ak_cert_type = if attempt_ak_cert_callback {
+        // TODO VBS: Removing the VBS check when VBS TeeCall is implemented.
+        let ak_cert_type = if !matches!(isolation, virt::IsolationType::Vbs) {
             let request_ak_cert = GetTpmRequestAkCertHelperHandle::new(
                 attestation_type,
                 attestation_vm_config,
@@ -2560,11 +2551,10 @@ async fn new_underhill_vm(
             )
             .into_resource();
 
-            match attestation_type {
-                AttestationType::Tdx | AttestationType::Snp => {
-                    TpmAkCertTypeResource::HwAttested(request_ak_cert)
-                }
-                AttestationType::Host => TpmAkCertTypeResource::Trusted(request_ak_cert),
+            if !matches!(attestation_type, AttestationType::Host) {
+                TpmAkCertTypeResource::HwAttested(request_ak_cert)
+            } else {
+                TpmAkCertTypeResource::Trusted(request_ak_cert)
             }
         } else {
             TpmAkCertTypeResource::None

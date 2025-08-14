@@ -329,7 +329,6 @@ async fn launch_workers(
         test_configuration: opt.test_configuration,
         disable_uefi_frontpage: opt.disable_uefi_frontpage,
         guest_state_encryption_policy: opt.guest_state_encryption_policy,
-        attempt_ak_cert_callback: opt.attempt_ak_cert_callback,
     };
 
     let (mut remote_console_cfg, framebuffer_access) =
