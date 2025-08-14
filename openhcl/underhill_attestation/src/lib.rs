@@ -241,6 +241,7 @@ pub async fn initialize_platform_security(
     suppress_attestation: bool,
     driver: LocalDriver,
     guest_state_encryption_policy: GuestStateEncryptionPolicy,
+    strict_encryption_policy: bool,
 ) -> Result<PlatformAttestationData, Error> {
     tracing::info!(CVM_ALLOWED,
         attestation_type=?attestation_type,
@@ -362,6 +363,7 @@ pub async fn initialize_platform_security(
         wrapped_des_key.as_deref(),
         tcb_version,
         guest_state_encryption_policy,
+        strict_encryption_policy,
     )
     .await
     .map_err(AttestationErrorInner::GetDerivedKeys)?;
@@ -568,7 +570,15 @@ async fn get_derived_keys(
     wrapped_des_key: Option<&[u8]>,
     tcb_version: Option<u64>,
     guest_state_encryption_policy: GuestStateEncryptionPolicy,
+    strict_encryption_policy: bool,
 ) -> Result<DerivedKeyResult, GetDerivedKeysError> {
+    tracing::info!(
+        CVM_ALLOWED,
+        ?guest_state_encryption_policy,
+        strict_encryption_policy,
+        "encryption policy"
+    );
+
     // TODO: implement hardware sealing only
     if matches!(
         guest_state_encryption_policy,
@@ -640,13 +650,19 @@ async fn get_derived_keys(
         };
 
     // Handle various sources of Guest State Protection
-    let mut requires_gsp_by_id =
-        key_protector_by_id.found_id && key_protector_by_id.inner.ported != 1;
+    let is_gsp_by_id = key_protector_by_id.found_id && key_protector_by_id.inner.ported != 1;
+    let is_gsp = key_protector.gsp[ingress_idx].gsp_length != 0;
+    tracing::info!(
+        is_encrypted,
+        is_gsp_by_id,
+        is_gsp,
+        found_dek,
+        "initial vmgs encryption state"
+    );
+    let mut requires_gsp_by_id = is_gsp_by_id;
 
     // Attempt GSP
     let (gsp_response, no_gsp, requires_gsp) = {
-        let found_kp = key_protector.gsp[ingress_idx].gsp_length != 0;
-
         let response = get_gsp_data(get, key_protector).await;
 
         tracing::info!(
@@ -660,14 +676,12 @@ async fn get_derived_keys(
 
         let no_gsp = response.extended_status_flags.no_rpc_server()
             || response.encrypted_gsp.length == 0
-            // TODO: Use strict encryption flag
-            || (!found_kp
-                && matches!(
-                    guest_state_encryption_policy,
-                    GuestStateEncryptionPolicy::GspById | GuestStateEncryptionPolicy::None
-                ));
+            || (matches!(
+                guest_state_encryption_policy,
+                GuestStateEncryptionPolicy::GspById | GuestStateEncryptionPolicy::None
+            ) && (!is_gsp || strict_encryption_policy));
 
-        let requires_gsp = found_kp
+        let requires_gsp = is_gsp
             || response.extended_status_flags.requires_rpc_server()
             || matches!(
                 guest_state_encryption_policy,
@@ -683,7 +697,8 @@ async fn get_derived_keys(
         (response, no_gsp, requires_gsp)
     };
 
-    // Attempt GSP By Id protection if GSP is not available, or when changing schemes.
+    // Attempt GSP By Id protection if GSP is not available, when changing
+    // schemes, or as requested
     let (gsp_response_by_id, no_gsp_by_id) = if no_gsp || requires_gsp_by_id {
         let gsp_response_by_id = get
             .guest_state_protection_data_by_id()
@@ -691,11 +706,10 @@ async fn get_derived_keys(
             .map_err(GetDerivedKeysError::FetchGuestStateProtectionById)?;
 
         let no_gsp_by_id = gsp_response_by_id.extended_status_flags.no_registry_file()
-            || (!requires_gsp_by_id
-                && matches!(
-                    guest_state_encryption_policy,
-                    GuestStateEncryptionPolicy::None
-                ));
+            || (matches!(
+                guest_state_encryption_policy,
+                GuestStateEncryptionPolicy::None
+            ) && (!requires_gsp_by_id || strict_encryption_policy));
 
         if no_gsp_by_id && requires_gsp_by_id {
             Err(GetDerivedKeysError::GspByIdRequiredButNotFound)?
@@ -806,7 +820,7 @@ async fn get_derived_keys(
                 Err(GetDerivedKeysError::EncryptionRequiredButNotFound)?
             }
             GuestStateEncryptionPolicy::Auto | GuestStateEncryptionPolicy::None => {
-                tracing::trace!(CVM_ALLOWED, "No VMGS encryption used.");
+                tracing::info!(CVM_ALLOWED, "No VMGS encryption used.");
 
                 return Ok(DerivedKeyResult {
                     derived_keys: None,
@@ -842,7 +856,7 @@ async fn get_derived_keys(
 
     // Use tenant key (KEK only)
     if no_gsp && no_gsp_by_id {
-        tracing::trace!(CVM_ALLOWED, "No GSP used with SKR");
+        tracing::info!(CVM_ALLOWED, "No GSP used with SKR");
 
         derived_keys.ingress = ingress_key;
         derived_keys.decrypt_egress = decrypt_egress_key;
@@ -876,7 +890,14 @@ async fn get_derived_keys(
                 .map_err(GetDerivedKeysError::GetDerivedKeyById)?;
 
         if no_kek && no_gsp {
-            tracing::trace!(CVM_ALLOWED, "Using GSP with ID.");
+            if matches!(
+                guest_state_encryption_policy,
+                GuestStateEncryptionPolicy::None
+            ) {
+                tracing::warn!(CVM_ALLOWED, "Allowing GspById");
+            } else {
+                tracing::info!(CVM_ALLOWED, "Using GspById");
+            }
 
             // Not required for Id protection
             key_protector_settings.should_write_kp = false;
@@ -891,7 +912,7 @@ async fn get_derived_keys(
 
         derived_keys.ingress = derived_keys_by_id.ingress;
 
-        tracing::trace!(CVM_ALLOWED, "Converting GSP method.");
+        tracing::info!(CVM_ALLOWED, "Converting GSP method.");
     }
 
     let egress_seed;
@@ -1006,6 +1027,15 @@ async fn get_derived_keys(
 
             tracing::info!(CVM_ALLOWED, "hardware key protector updated");
         }
+    }
+
+    if matches!(
+        guest_state_encryption_policy,
+        GuestStateEncryptionPolicy::None | GuestStateEncryptionPolicy::GspById
+    ) {
+        tracing::warn!(CVM_ALLOWED, "Allowing Gsp");
+    } else {
+        tracing::info!(CVM_ALLOWED, "Using Gsp");
     }
 
     Ok(DerivedKeyResult {
