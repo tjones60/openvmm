@@ -34,22 +34,22 @@ impl std::str::FromStr for TestScenarioConfig {
 }
 
 #[derive(Clone, Debug, MeshPayload)]
-pub enum EncryptionPolicy {
+pub enum GuestStateEncryptionPolicyCli {
     Auto,
     None,
     GspById,
     GspKey,
 }
 
-impl std::str::FromStr for EncryptionPolicy {
+impl std::str::FromStr for GuestStateEncryptionPolicyCli {
     type Err = anyhow::Error;
 
-    fn from_str(s: &str) -> Result<EncryptionPolicy, anyhow::Error> {
+    fn from_str(s: &str) -> Result<GuestStateEncryptionPolicyCli, anyhow::Error> {
         match s {
-            "AUTO" | "0" => Ok(EncryptionPolicy::Auto),
-            "NONE" | "1" => Ok(EncryptionPolicy::None),
-            "GSP_BY_ID" | "2" => Ok(EncryptionPolicy::GspById),
-            "GSP_KEY" | "3" => Ok(EncryptionPolicy::GspKey),
+            "AUTO" | "0" => Ok(GuestStateEncryptionPolicyCli::Auto),
+            "NONE" | "1" => Ok(GuestStateEncryptionPolicyCli::None),
+            "GSP_BY_ID" | "2" => Ok(GuestStateEncryptionPolicyCli::GspById),
+            "GSP_KEY" | "3" => Ok(GuestStateEncryptionPolicyCli::GspKey),
             _ => Err(anyhow::anyhow!("Invalid encryption policy: {}", s)),
         }
     }
@@ -180,9 +180,9 @@ pub struct Options {
     /// showing the frontpage.
     pub disable_uefi_frontpage: bool,
 
-    /// (HCL_ENCRYPTION_POLICY=\<EncryptionPolicy\>)
-    /// Specify which encryption policy to use.
-    pub encryption_policy: Option<EncryptionPolicy>,
+    /// (HCL_GUEST_STATE_ENCRYPTION_POLICY=\<GuestStateEncryptionPolicyCli\>)
+    /// Specify which guest state encryption policy to use.
+    pub guest_state_encryption_policy: Option<GuestStateEncryptionPolicyCli>,
 
     /// (HCL_ATTEMPT_AK_CERT_CALLBACK=1) Attempt to renew the AK cert.
     pub attempt_ak_cert_callback: bool,
@@ -288,12 +288,15 @@ impl Options {
         });
         let disable_uefi_frontpage = parse_env_bool("OPENHCL_DISABLE_UEFI_FRONTPAGE");
         let signal_vtl0_started = parse_env_bool("OPENHCL_SIGNAL_VTL0_STARTED");
-        let encryption_policy = parse_env_string("HCL_ENCRYPTION_POLICY").and_then(|x| {
-            x.to_string_lossy()
-                .parse::<EncryptionPolicy>()
-                .map_err(|e| tracing::warn!("failed to parse HCL_ENCRYPTION_POLICY: {}", e))
-                .ok()
-        });
+        let guest_state_encryption_policy = parse_env_string("HCL_GUEST_STATE_ENCRYPTION_POLICY")
+            .and_then(|x| {
+                x.to_string_lossy()
+                    .parse::<GuestStateEncryptionPolicyCli>()
+                    .map_err(|e| {
+                        tracing::warn!("failed to parse HCL_GUEST_STATE_ENCRYPTION_POLICY: {}", e)
+                    })
+                    .ok()
+            });
         let attempt_ak_cert_callback = parse_env_bool("HCL_ATTEMPT_AK_CERT_CALLBACK");
 
         let mut args = std::env::args().chain(extra_args);
@@ -352,7 +355,7 @@ impl Options {
             nvme_always_flr,
             test_configuration,
             disable_uefi_frontpage,
-            encryption_policy,
+            guest_state_encryption_policy,
             attempt_ak_cert_callback,
         })
     }

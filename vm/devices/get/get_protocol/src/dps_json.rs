@@ -101,15 +101,31 @@ pub enum GuestStateLifetime {
     Ephemeral,
 }
 
-/// Encryption policy
+/// Guest state encryption policy
 #[derive(Debug, Copy, Clone, Deserialize, Serialize, Default)]
-pub enum EncryptionPolicy {
+pub enum GuestStateEncryptionPolicy {
+    /// Use the best encryption available, allowing fallback.
+    ///
+    /// VMs will be created as or migrated to the best encryption available,
+    /// attempting GspKey, then GspById, and finally leaving the data
+    /// unencrypted if neither are available.
     #[default]
     Auto,
+    /// Do not encrypt the guest state
     None,
+    /// Prefers GspById
+    ///
+    /// This prevents a VM from being created as or migrated to GspKey even
+    /// if it is available. Exisiting GspKey encryption will be used as-is.
+    /// Fails if the data cannot be encrypted.
     GspById,
+    /// Requires GspKey
+    ///
+    /// VMs will be created as or migrated to GspKey. Fails if GspKey is
+    /// not available.
     GspKey,
-    HardwareSealingOnly,
+    /// Use hardware sealing only
+    HardwareSealing,
 }
 
 /// HCL Feature Flags
@@ -173,7 +189,7 @@ pub struct HclDevicePlatformSettingsV2Static {
     #[serde(default)]
     pub guest_state_lifetime: GuestStateLifetime,
     #[serde(default)]
-    pub encryption_policy: EncryptionPolicy,
+    pub guest_state_encryption_policy: GuestStateEncryptionPolicy,
     #[serde(default)]
     pub hcl_features: HclFeatureFlags,
 }

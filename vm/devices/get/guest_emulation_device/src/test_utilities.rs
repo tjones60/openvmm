@@ -254,7 +254,7 @@ pub fn create_host_channel(
         enable_battery: false,
         no_persistent_secrets: true,
         guest_state_lifetime: Default::default(),
-        encryption_policy: Default::default(),
+        guest_state_encryption_policy: Default::default(),
         hcl_features: Default::default(),
     };
 

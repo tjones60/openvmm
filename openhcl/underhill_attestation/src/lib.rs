@@ -23,6 +23,7 @@ pub use igvm_attest::ak_cert::parse_response as parse_ak_cert_response;
 use ::vmgs::EncryptionAlgorithm;
 use ::vmgs::Vmgs;
 use cvm_tracing::CVM_ALLOWED;
+use get_protocol::dps_json::GuestStateEncryptionPolicy;
 use guest_emulation_transport::GuestEmulationTransportClient;
 use guest_emulation_transport::api::GspExtendedStatusFlags;
 use guest_emulation_transport::api::GuestStateProtection;
@@ -226,28 +227,6 @@ pub enum AttestationType {
     Host,
 }
 
-/// How to encrypt the VMGS
-#[derive(Debug, Clone, Copy)]
-pub enum EncryptionPolicy {
-    /// Use the best encryption available, allowing fallback.
-    ///
-    /// VMs will be created as or migrated to the best encryption available,
-    /// attempting GspKey, then GspById, and finally leaving the data
-    /// unencrypted if neither are available.
-    Auto,
-    /// Prefers GspById
-    ///
-    /// This prevents a VM from being created as or migrated to GspKey even
-    /// if it is available. Exisiting GspKey encryption will be used as-is.
-    /// Fails if the data cannot be encrypted.
-    GspById,
-    /// Requires GspKey
-    ///
-    /// VMs will be created as or migrated to GspKey. Fails if GspKey is
-    /// not available.
-    GspKey,
-}
-
 /// If required, attest platform. Gets VMGS datastore key.
 ///
 /// Returns `refresh_tpm_seeds` (the host side GSP service indicating
@@ -261,7 +240,7 @@ pub async fn initialize_platform_security(
     attestation_type: AttestationType,
     suppress_attestation: bool,
     driver: LocalDriver,
-    encryption_policy: EncryptionPolicy,
+    guest_state_encryption_policy: GuestStateEncryptionPolicy,
 ) -> Result<PlatformAttestationData, Error> {
     tracing::info!(CVM_ALLOWED,
         attestation_type=?attestation_type,
@@ -382,7 +361,7 @@ pub async fn initialize_platform_security(
         ingress_rsa_kek.as_ref(),
         wrapped_des_key.as_deref(),
         tcb_version,
-        encryption_policy,
+        guest_state_encryption_policy,
     )
     .await
     .map_err(AttestationErrorInner::GetDerivedKeys)?;
@@ -588,8 +567,16 @@ async fn get_derived_keys(
     ingress_rsa_kek: Option<&Rsa<Private>>,
     wrapped_des_key: Option<&[u8]>,
     tcb_version: Option<u64>,
-    encryption_policy: EncryptionPolicy,
+    guest_state_encryption_policy: GuestStateEncryptionPolicy,
 ) -> Result<DerivedKeyResult, GetDerivedKeysError> {
+    // TODO: implement hardware sealing only
+    if matches!(
+        guest_state_encryption_policy,
+        GuestStateEncryptionPolicy::HardwareSealing
+    ) {
+        todo!("hardware sealing")
+    }
+
     let mut key_protector_settings = KeyProtectorSettings {
         should_write_kp: true,
         use_gsp_by_id: false,
@@ -653,14 +640,13 @@ async fn get_derived_keys(
         };
 
     // Handle various sources of Guest State Protection
-    let is_gsp_by_id = key_protector_by_id.found_id && key_protector_by_id.inner.ported != 1;
-    let is_gsp_key = key_protector.gsp[ingress_idx].gsp_length != 0;
-    // don't attempt GSP key when it is not already in use if the encryption policy prefers GspById
-    let attempt_gsp_key = is_gsp_key || !matches!(encryption_policy, EncryptionPolicy::GspById);
-    let mut requires_gsp_by_id = is_gsp_by_id;
+    let mut requires_gsp_by_id =
+        key_protector_by_id.found_id && key_protector_by_id.inner.ported != 1;
 
     // Attempt GSP
-    let (gsp_response, no_gsp, requires_gsp) = if attempt_gsp_key {
+    let (gsp_response, no_gsp, requires_gsp) = {
+        let found_kp = key_protector.gsp[ingress_idx].gsp_length != 0;
+
         let response = get_gsp_data(get, key_protector).await;
 
         tracing::info!(
@@ -672,12 +658,20 @@ async fn get_derived_keys(
             "GSP response"
         );
 
-        let no_gsp =
-            response.extended_status_flags.no_rpc_server() || response.encrypted_gsp.length == 0;
+        let no_gsp = response.extended_status_flags.no_rpc_server()
+            || response.encrypted_gsp.length == 0
+            || (!found_kp
+                && matches!(
+                    guest_state_encryption_policy,
+                    GuestStateEncryptionPolicy::GspById | GuestStateEncryptionPolicy::None
+                ));
 
-        let requires_gsp = is_gsp_key
+        let requires_gsp = found_kp
             || response.extended_status_flags.requires_rpc_server()
-            || matches!(encryption_policy, EncryptionPolicy::GspKey);
+            || matches!(
+                guest_state_encryption_policy,
+                GuestStateEncryptionPolicy::GspKey
+            );
 
         // If the VMGS is encrypted, but no key protection data is found,
         // assume GspById encryption is enabled, but no ID file was written.
@@ -686,8 +680,6 @@ async fn get_derived_keys(
         }
 
         (response, no_gsp, requires_gsp)
-    } else {
-        (GuestStateProtection::new_zeroed(), true, false)
     };
 
     // Attempt GSP By Id protection if GSP is not available, or when changing schemes.
@@ -697,7 +689,12 @@ async fn get_derived_keys(
             .await
             .map_err(GetDerivedKeysError::FetchGuestStateProtectionById)?;
 
-        let no_gsp_by_id = gsp_response_by_id.extended_status_flags.no_registry_file();
+        let no_gsp_by_id = gsp_response_by_id.extended_status_flags.no_registry_file()
+            || (!requires_gsp_by_id
+                && matches!(
+                    guest_state_encryption_policy,
+                    GuestStateEncryptionPolicy::None
+                ));
 
         if no_gsp_by_id && requires_gsp_by_id {
             Err(GetDerivedKeysError::GspByIdRequiredButNotFound)?
@@ -800,17 +797,23 @@ async fn get_derived_keys(
         if is_encrypted {
             Err(GetDerivedKeysError::DisableVmgsEncryptionFailed)?
         }
-        if !matches!(encryption_policy, EncryptionPolicy::Auto) {
-            Err(GetDerivedKeysError::EncryptionRequiredButNotFound)?
+        match guest_state_encryption_policy {
+            // fail if some minimum level of encryption was required
+            GuestStateEncryptionPolicy::GspById
+            | GuestStateEncryptionPolicy::GspKey
+            | GuestStateEncryptionPolicy::HardwareSealing => {
+                Err(GetDerivedKeysError::EncryptionRequiredButNotFound)?
+            }
+            GuestStateEncryptionPolicy::Auto | GuestStateEncryptionPolicy::None => {
+                tracing::trace!(CVM_ALLOWED, "No VMGS encryption used.");
+
+                return Ok(DerivedKeyResult {
+                    derived_keys: None,
+                    key_protector_settings,
+                    gsp_extended_status_flags: gsp_response.extended_status_flags,
+                });
+            }
         }
-
-        tracing::trace!(CVM_ALLOWED, "No VMGS encryption used.");
-
-        return Ok(DerivedKeyResult {
-            derived_keys: None,
-            key_protector_settings,
-            gsp_extended_status_flags: gsp_response.extended_status_flags,
-        });
     }
 
     // Attempt to get hardware derived keys

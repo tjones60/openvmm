@@ -45,6 +45,7 @@ use crate::nvme_manager::device::VfioNvmeDriverSpawner;
 use crate::nvme_manager::manager::NvmeDiskConfig;
 use crate::nvme_manager::manager::NvmeDiskResolver;
 use crate::nvme_manager::manager::NvmeManager;
+use crate::options::GuestStateEncryptionPolicyCli;
 use crate::options::TestScenarioConfig;
 use crate::reference_time::ReferenceTime;
 use crate::servicing;
@@ -70,6 +71,7 @@ use futures_concurrency::future::Race;
 use get_protocol::EventLogId;
 use get_protocol::RegisterState;
 use get_protocol::TripleFaultType;
+use get_protocol::dps_json::GuestStateEncryptionPolicy;
 use get_protocol::dps_json::GuestStateLifetime;
 use guest_emulation_transport::GuestEmulationTransportClient;
 use guest_emulation_transport::api::platform_settings::DevicePlatformSettings;
@@ -291,8 +293,8 @@ pub struct UnderhillEnvCfg {
     pub test_configuration: Option<TestScenarioConfig>,
     /// Disable the UEFI front page.
     pub disable_uefi_frontpage: bool,
-    /// Encryption policy
-    pub encryption_policy: Option<crate::options::EncryptionPolicy>,
+    /// Guest state encryption policy
+    pub guest_state_encryption_policy: Option<GuestStateEncryptionPolicyCli>,
     /// Attempt to renew the AK cert.
     pub attempt_ak_cert_callback: bool,
 }
@@ -1652,36 +1654,16 @@ async fn new_underhill_vm(
         }
     };
 
-    let encryption_policy = if let Some(encryption_policy) = env_cfg.encryption_policy {
-        match encryption_policy {
-            crate::options::EncryptionPolicy::Auto => {
-                Some(underhill_attestation::EncryptionPolicy::Auto)
-            }
-            crate::options::EncryptionPolicy::GspById => {
-                Some(underhill_attestation::EncryptionPolicy::GspById)
-            }
-            crate::options::EncryptionPolicy::GspKey => {
-                Some(underhill_attestation::EncryptionPolicy::GspKey)
-            }
-            crate::options::EncryptionPolicy::None => None,
-        }
-    } else {
-        match dps.general.encryption_policy {
-            get_protocol::dps_json::EncryptionPolicy::Auto => {
-                Some(underhill_attestation::EncryptionPolicy::Auto)
-            }
-            get_protocol::dps_json::EncryptionPolicy::GspById => {
-                Some(underhill_attestation::EncryptionPolicy::GspById)
-            }
-            get_protocol::dps_json::EncryptionPolicy::GspKey => {
-                Some(underhill_attestation::EncryptionPolicy::GspKey)
-            }
-            get_protocol::dps_json::EncryptionPolicy::None => None,
-            get_protocol::dps_json::EncryptionPolicy::HardwareSealingOnly => {
-                todo!("hardware sealing")
-            }
-        }
-    };
+    // use the encryption policy from the command line if it is provided
+    let guest_state_encryption_policy = env_cfg
+        .guest_state_encryption_policy
+        .map(|p| match p {
+            GuestStateEncryptionPolicyCli::Auto => GuestStateEncryptionPolicy::Auto,
+            GuestStateEncryptionPolicyCli::GspById => GuestStateEncryptionPolicy::GspById,
+            GuestStateEncryptionPolicyCli::GspKey => GuestStateEncryptionPolicy::GspKey,
+            GuestStateEncryptionPolicyCli::None => GuestStateEncryptionPolicy::None,
+        })
+        .unwrap_or(dps.general.guest_state_encryption_policy);
 
     // Decrypt VMGS state before the VMGS file is used for anything.
     //
@@ -1690,12 +1672,18 @@ async fn new_underhill_vm(
     // `agent_data` and `guest_secret_key` may also be used by vTPM
     // initialization.
     let platform_attestation_data = {
-        if is_restoring || vmgs.is_none() || encryption_policy.is_none() {
+        if is_restoring
+            || vmgs.is_none()
+            || matches!(
+                guest_state_encryption_policy,
+                GuestStateEncryptionPolicy::None
+            )
+        {
             // TODO CVM: Save and restore last returned data when live servicing is supported.
             // We also need to revisit what states should be saved and restored.
             //
-            // This is an Underhill restart, so the VMGS has already been
-            // restored in its unlocked state
+            // If this is an Underhill restart, the VMGS has already been
+            // restored in its unlocked state.
             underhill_attestation::PlatformAttestationData {
                 host_attestation_settings: underhill_attestation::HostAttestationSettings {
                     refresh_tpm_seeds: false,
@@ -1722,7 +1710,7 @@ async fn new_underhill_vm(
                 attestation_type,
                 suppress_attestation,
                 early_init_driver,
-                encryption_policy.unwrap(),
+                guest_state_encryption_policy,
             )
             .instrument(tracing::info_span!(
                 "initialize_platform_security",
@@ -3226,7 +3214,7 @@ fn validate_isolated_configuration(dps: &DevicePlatformSettings) -> Result<(), a
         cxl_memory_enabled: _,
         guest_state_lifetime: _,
         // TODO: do we want to validate this here?
-        encryption_policy: _,
+        guest_state_encryption_policy: _,
         hcl_features: _,
     } = &dps.general;
 
