@@ -3155,7 +3155,7 @@ fn validate_isolated_configuration(dps: &DevicePlatformSettings) -> Result<(), a
         com1_vmbus_redirector: _,
         com2_enabled: _,
         com2_vmbus_redirector: _,
-        suppress_attestation: _,
+        suppress_attestation,
         bios_guid: _,
         vpci_boot_enabled: _,
 
@@ -3171,6 +3171,7 @@ fn validate_isolated_configuration(dps: &DevicePlatformSettings) -> Result<(), a
         firmware_mode_is_pcat,
         psp_enabled,
         default_boot_always_attempt,
+        guest_state_encryption_policy,
 
         // Minimum level enforced by UEFI loader
         memory_protection_mode: _,
@@ -3200,10 +3201,6 @@ fn validate_isolated_configuration(dps: &DevicePlatformSettings) -> Result<(), a
         vtl2_settings: _,
         cxl_memory_enabled: _,
         guest_state_lifetime: _,
-
-        // TODO: we should probably validate these in the future to ensure
-        // CVM data is properly encrypted.
-        guest_state_encryption_policy: _,
         management_vtl_features: _,
     } = &dps.general;
 
@@ -3239,6 +3236,20 @@ fn validate_isolated_configuration(dps: &DevicePlatformSettings) -> Result<(), a
     }
     if *default_boot_always_attempt {
         anyhow::bail!("default_boot_always_attempt is not supported");
+    }
+    // TODO: don't allow auto once all CVMs are configured to require GspKey
+    if !(matches!(
+        guest_state_encryption_policy,
+        GuestStateEncryptionPolicy::GspKey | GuestStateEncryptionPolicy::Auto
+    ) || (matches!(
+        guest_state_encryption_policy,
+        GuestStateEncryptionPolicy::None,
+    ) && suppress_attestation.unwrap_or(false)))
+    {
+        anyhow::bail!(
+            "encryption policy not supported: {:?}",
+            guest_state_encryption_policy
+        );
     }
 
     Ok(())

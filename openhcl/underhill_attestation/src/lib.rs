@@ -653,6 +653,7 @@ async fn get_derived_keys(
     let is_gsp_by_id = key_protector_by_id.found_id && key_protector_by_id.inner.ported != 1;
     let is_gsp = key_protector.gsp[ingress_idx].gsp_length != 0;
     tracing::info!(
+        CVM_ALLOWED,
         is_encrypted,
         is_gsp_by_id,
         is_gsp,
@@ -894,6 +895,12 @@ async fn get_derived_keys(
                 guest_state_encryption_policy,
                 GuestStateEncryptionPolicy::None
             ) {
+                // Log a warning here to indicate that the VMGS state is out of
+                // sync with the VM's configuration.
+                //
+                // This should only happen if the VM is configured to
+                // have no encryption, but it already has GspById encryption
+                // and strict encryption policy is disabled.
                 tracing::warn!(CVM_ALLOWED, "Allowing GspById");
             } else {
                 tracing::info!(CVM_ALLOWED, "Using GspById");
@@ -1033,6 +1040,12 @@ async fn get_derived_keys(
         guest_state_encryption_policy,
         GuestStateEncryptionPolicy::None | GuestStateEncryptionPolicy::GspById
     ) {
+        // Log a warning here to indicate that the VMGS state is out of
+        // sync with the VM's configuration.
+        //
+        // This should only happen if the VM is configured to have no
+        // encryption or GspById encryption, but it already has GspKey
+        // encryption and strict encryption policy is disabled.
         tracing::warn!(CVM_ALLOWED, "Allowing Gsp");
     } else {
         tracing::info!(CVM_ALLOWED, "Using Gsp");
