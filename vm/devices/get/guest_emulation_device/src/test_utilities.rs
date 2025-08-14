@@ -255,7 +255,7 @@ pub fn create_host_channel(
         no_persistent_secrets: true,
         guest_state_lifetime: Default::default(),
         guest_state_encryption_policy: Default::default(),
-        hcl_features: Default::default(),
+        management_vtl_features: Default::default(),
     };
 
     let halt_reason = Arc::new(Mutex::new(None));

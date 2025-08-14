@@ -38,8 +38,8 @@ use get_protocol::UefiConsoleMode;
 use get_protocol::VmgsIoStatus;
 use get_protocol::dps_json::GuestStateEncryptionPolicy;
 use get_protocol::dps_json::GuestStateLifetime;
-use get_protocol::dps_json::HclFeatureFlags;
 use get_protocol::dps_json::HclSecureBootTemplateId;
+use get_protocol::dps_json::ManagementVtlFeatures;
 use get_protocol::dps_json::PcatBootDevice;
 use get_resources::ged::FirmwareEvent;
 use get_resources::ged::GuestEmulationRequest;
@@ -158,9 +158,9 @@ pub struct GuestConfig {
     /// Guest state encryption policy
     #[inspect(debug)]
     pub guest_state_encryption_policy: GuestStateEncryptionPolicy,
-    /// HCL feature flags
+    /// Management VTL feature flags
     #[inspect(debug)]
-    pub hcl_features: HclFeatureFlags,
+    pub management_vtl_features: ManagementVtlFeatures,
 }
 
 #[derive(Debug, Clone, Inspect)]
@@ -1434,7 +1434,7 @@ impl<T: RingMem + Unpin> GedChannel<T> {
                     cxl_memory_enabled: false,
                     guest_state_lifetime: state.config.guest_state_lifetime,
                     guest_state_encryption_policy: state.config.guest_state_encryption_policy,
-                    hcl_features: state.config.hcl_features,
+                    management_vtl_features: state.config.management_vtl_features,
                 },
                 dynamic: get_protocol::dps_json::HclDevicePlatformSettingsV2Dynamic {
                     is_servicing_scenario: state.save_restore_buf.is_some(),

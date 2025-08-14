@@ -1703,7 +1703,9 @@ async fn new_underhill_vm(
                 suppress_attestation,
                 early_init_driver,
                 guest_state_encryption_policy,
-                dps.general.hcl_features.strict_encryption_policy(),
+                dps.general
+                    .management_vtl_features
+                    .strict_encryption_policy(),
             )
             .instrument(tracing::info_span!(
                 "initialize_platform_security",
@@ -3198,9 +3200,11 @@ fn validate_isolated_configuration(dps: &DevicePlatformSettings) -> Result<(), a
         vtl2_settings: _,
         cxl_memory_enabled: _,
         guest_state_lifetime: _,
-        // TODO: do we want to validate this here?
+
+        // TODO: we should probably validate these in the future to ensure
+        // CVM data is properly encrypted.
         guest_state_encryption_policy: _,
-        hcl_features: _,
+        management_vtl_features: _,
     } = &dps.general;
 
     if *hibernation_enabled {

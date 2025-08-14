@@ -111,28 +111,33 @@ pub enum GuestStateEncryptionPolicy {
     /// unencrypted if neither are available.
     #[default]
     Auto,
-    /// Do not encrypt the guest state
+    /// Prefer (or require, if strict) no encryption.
+    ///
+    /// Do not encrypt the guest state unless it is already encrypted and
+    /// strict encryption policy is disabled.
     None,
-    /// Prefers GspById
+    /// Prefer (or require, if strict) GspById.
     ///
     /// This prevents a VM from being created as or migrated to GspKey even
-    /// if it is available. Exisiting GspKey encryption will be used as-is.
-    /// Fails if the data cannot be encrypted.
+    /// if it is available. Exisiting GspKey encryption will be used unless
+    /// strict encryption policy is enabled. Fails if the data cannot be
+    /// encrypted.
     GspById,
-    /// Requires GspKey
+    /// Require GspKey.
     ///
     /// VMs will be created as or migrated to GspKey. Fails if GspKey is
     /// not available.
     GspKey,
-    /// Use hardware sealing only
+    /// Use hardware sealing
+    // TODO: update this doc comment once hardware sealing is implemented
     HardwareSealing,
 }
 
-/// HCL Feature Flags
+/// Management VTL Feature Flags
 #[bitfield(u64)]
 #[derive(Deserialize, Serialize)]
 #[serde(transparent)]
-pub struct HclFeatureFlags {
+pub struct ManagementVtlFeatures {
     pub strict_encryption_policy: bool,
     #[bits(63)]
     pub reserved: u64,
@@ -191,7 +196,7 @@ pub struct HclDevicePlatformSettingsV2Static {
     #[serde(default)]
     pub guest_state_encryption_policy: GuestStateEncryptionPolicy,
     #[serde(default)]
-    pub hcl_features: HclFeatureFlags,
+    pub management_vtl_features: ManagementVtlFeatures,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]

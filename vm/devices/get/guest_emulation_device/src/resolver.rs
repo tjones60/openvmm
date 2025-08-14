@@ -160,7 +160,7 @@ impl AsyncResolveResource<VmbusDeviceHandleKind, GuestEmulationDeviceHandle>
                 // TODO: pass these from OpenVMM config/command line
                 guest_state_encryption_policy:
                     get_protocol::dps_json::GuestStateEncryptionPolicy::default(),
-                hcl_features: get_protocol::dps_json::HclFeatureFlags::default(),
+                management_vtl_features: get_protocol::dps_json::ManagementVtlFeatures::default(),
             },
             halt,
             resource.firmware_event_send,
