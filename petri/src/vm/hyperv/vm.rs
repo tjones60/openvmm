@@ -466,9 +466,15 @@ impl HyperVVM {
             .chunks_exact_mut(OUT_BYTES_PER_PIXEL)
             .zip(image_rgb565.chunks_exact(IN_BYTES_PER_PIXEL))
         {
-            out_pixel[0] = in_pixel[0] & 0b11111000;
-            out_pixel[1] = ((in_pixel[0] & 0b00000111) << 5) + ((in_pixel[1] & 0b11100000) >> 3);
-            out_pixel[2] = in_pixel[1] << 3;
+            // convert from rgb565 ( gggbbbbb rrrrrggg )
+            // to rgb888 ( rrrrrrrr gggggggg bbbbbbbb )
+
+            // red
+            out_pixel[0] = in_pixel[1] & 0b11111000;
+            // green
+            out_pixel[1] = ((in_pixel[1] & 0b00000111) << 5) + ((in_pixel[0] & 0b11100000) >> 3);
+            // blue
+            out_pixel[2] = in_pixel[0] << 3;
         }
 
         Ok(VmScreenshotMeta {

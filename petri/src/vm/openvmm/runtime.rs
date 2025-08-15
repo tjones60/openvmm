@@ -55,7 +55,7 @@ impl PetriVmRuntime for PetriVmOpenVmm {
     async fn teardown(self) -> anyhow::Result<()> {
         tracing::info!("waiting for worker");
         let worker = Arc::into_inner(self.inner.worker)
-            .expect("Watchdog task was cancelled, we should be the only ref left");
+            .context("all references to the OpenVMM worker have not been closed")?;
         worker.shutdown().await?;
 
         tracing::info!("Worker quit, waiting for mesh");
