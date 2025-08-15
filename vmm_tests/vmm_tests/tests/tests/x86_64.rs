@@ -79,6 +79,9 @@ async fn boot_with_tpm(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::R
 #[openvmm_test(openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)))]
 async fn tpm_ak_cert_persisted(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Result<()> {
     let config = config
+        // See `get_protocol::dps_json::ManagementVtlFeatures`
+        // Enables attempt ak cert callback
+        .with_openhcl_command_line("HCL_FEATURES=12")
         .with_guest_state_lifetime(PetriGuestStateLifetime::Disk)
         .modify_backend(|b| {
             b.with_tpm()
@@ -125,6 +128,9 @@ async fn tpm_ak_cert_persisted(config: PetriVmBuilder<OpenVmmPetriBackend>) -> a
 #[openvmm_test(openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)))]
 async fn tpm_ak_cert_retry(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Result<()> {
     let config = config
+        // See `get_protocol::dps_json::ManagementVtlFeatures`
+        // Enables attempt ak cert callback
+        .with_openhcl_command_line("HCL_FEATURES=12")
         .with_guest_state_lifetime(PetriGuestStateLifetime::Disk)
         .modify_backend(|b| {
             b.with_tpm()
