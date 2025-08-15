@@ -126,7 +126,8 @@ pub enum GuestStateEncryptionPolicy {
     /// Require GspKey.
     ///
     /// VMs will be created as or migrated to GspKey. Fails if GspKey is
-    /// not available.
+    /// not available. Strict encryption policy has no effect here since
+    /// GspKey is currently the most secure policy.
     GspKey,
     /// Use hardware sealing
     // TODO: update this doc comment once hardware sealing is implemented

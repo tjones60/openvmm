@@ -175,18 +175,6 @@ pub struct GuestStateProtection {
     pub new_gsp: GspCleartextContent,
 }
 
-impl GuestStateProtection {
-    /// Construct a blank instance of `GuestStateProtection`
-    pub fn new_zeroed() -> GuestStateProtection {
-        GuestStateProtection {
-            encrypted_gsp: GspCiphertextContent::new_zeroed(),
-            decrypted_gsp: [GspCleartextContent::new_zeroed(); NUMBER_GSP as usize],
-            extended_status_flags: GspExtendedStatusFlags::new_zeroed(),
-            new_gsp: GspCleartextContent::new_zeroed(),
-        }
-    }
-}
-
 /// Response fields for Guest State Protection by ID from the host
 #[derive(Copy, Clone)]
 pub struct GuestStateProtectionById {
