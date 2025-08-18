@@ -363,6 +363,7 @@ impl PetriVmmBackend for HyperVPetriBackend {
                 powershell::HyperVGuestStateIsolationType::Vbs
             );
             let openhcl_serial_pipe_path = is_not_vbs.then(|| vm.set_vm_com_port(3).ok()).flatten();
+            let openhcl_log_file = log_source.log_file("openhcl")?;
 
             if let Some(openhcl_serial_pipe_path) = openhcl_serial_pipe_path {
                 log_tasks.push(driver.spawn("openhcl-log", {
