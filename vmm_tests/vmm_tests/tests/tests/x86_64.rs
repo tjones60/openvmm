@@ -81,7 +81,7 @@ async fn tpm_ak_cert_persisted(config: PetriVmBuilder<OpenVmmPetriBackend>) -> a
     let config = config
         // See `get_protocol::dps_json::ManagementVtlFeatures`
         // Enables attempt ak cert callback
-        .with_openhcl_command_line("HCL_FEATURES=12")
+        .with_openhcl_command_line("HCL_ATTEMPT_AK_CERT_CALLBACK=1")
         .with_guest_state_lifetime(PetriGuestStateLifetime::Disk)
         .modify_backend(|b| {
             b.with_tpm()
@@ -130,7 +130,7 @@ async fn tpm_ak_cert_retry(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyho
     let config = config
         // See `get_protocol::dps_json::ManagementVtlFeatures`
         // Enables attempt ak cert callback
-        .with_openhcl_command_line("HCL_FEATURES=12")
+        .with_openhcl_command_line("HCL_ATTEMPT_AK_CERT_CALLBACK=1")
         .with_guest_state_lifetime(PetriGuestStateLifetime::Disk)
         .modify_backend(|b| {
             b.with_tpm()

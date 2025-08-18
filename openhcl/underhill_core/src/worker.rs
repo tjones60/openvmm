@@ -295,8 +295,8 @@ pub struct UnderhillEnvCfg {
     pub disable_uefi_frontpage: bool,
     /// Guest state encryption policy
     pub guest_state_encryption_policy: Option<GuestStateEncryptionPolicyCli>,
-    /// Management VTL feature flags
-    pub management_vtl_features: Option<u64>,
+    /// Attempt to renew the AK cert
+    pub attempt_ak_cert_callback: Option<bool>,
 }
 
 /// Bundle of config + runtime objects for hooking into the underhill remote
@@ -1199,13 +1199,15 @@ async fn new_underhill_vm(
         }
     }
 
-    let management_vtl_features = env_cfg
-        .management_vtl_features
-        .map(|f| {
-            tracing::info!("using management vtl features from command line");
-            f.into()
-        })
-        .unwrap_or(dps.general.management_vtl_features);
+    let management_vtl_features = {
+        let mut features = dps.general.management_vtl_features;
+        if let Some(value) = env_cfg.attempt_ak_cert_callback {
+            tracing::info!("using command line to modify management_vtl_features");
+            features.set_control_ak_cert_provisioning(true);
+            features.set_attempt_ak_cert_callback(value);
+        }
+        features
+    };
     tracing::info!(management_vtl_features = management_vtl_features.into_bits());
 
     // Read the initial configuration from the IGVM parameters.
