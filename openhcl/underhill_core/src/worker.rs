@@ -1206,7 +1206,7 @@ async fn new_underhill_vm(
             f.into()
         })
         .unwrap_or(dps.general.management_vtl_features);
-    tracing::info!(?management_vtl_features);
+    tracing::info!(management_vtl_features = management_vtl_features.into_bits());
 
     // Read the initial configuration from the IGVM parameters.
     let (runtime_params, measured_vtl2_info) =
