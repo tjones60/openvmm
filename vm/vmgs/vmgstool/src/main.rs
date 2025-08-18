@@ -108,7 +108,7 @@ enum ExitCode {
 }
 
 #[derive(Debug, Clone, Copy)]
-enum EncryptionPolicy {
+enum VmgsEncryptionScheme {
     GspKey,
     GspById,
     None,
@@ -1004,15 +1004,15 @@ async fn vmgs_file_query_encryption(file_path: impl AsRef<Path>) -> Result<(), E
             println!("not encrypted (encryption scheme: {scheme:?})");
             Err(Error::NotEncrypted)
         }
-        (EncryptionAlgorithm::AES_GCM, EncryptionPolicy::GspKey) => {
+        (EncryptionAlgorithm::AES_GCM, VmgsEncryptionScheme::GspKey) => {
             println!("encrypted with AES GCM encryption algorithm using GspKey");
             Ok(())
         }
-        (EncryptionAlgorithm::AES_GCM, EncryptionPolicy::GspById) => {
+        (EncryptionAlgorithm::AES_GCM, VmgsEncryptionScheme::GspById) => {
             println!("encrypted with AES GCM encryption algorithm using GspById");
             Err(Error::GspByIdEncryption)
         }
-        (EncryptionAlgorithm::AES_GCM, EncryptionPolicy::None) => {
+        (EncryptionAlgorithm::AES_GCM, VmgsEncryptionScheme::None) => {
             println!(
                 "encrypted with AES GCM encryption algorithm using an unknown encryption scheme"
             );
@@ -1027,13 +1027,13 @@ async fn vmgs_file_query_encryption(file_path: impl AsRef<Path>) -> Result<(), E
     }
 }
 
-fn vmgs_get_encryption_scheme(vmgs: &Vmgs) -> EncryptionPolicy {
+fn vmgs_get_encryption_scheme(vmgs: &Vmgs) -> VmgsEncryptionScheme {
     if vmgs_query_file_size(vmgs, FileId::KEY_PROTECTOR).is_ok() {
-        EncryptionPolicy::GspKey
+        VmgsEncryptionScheme::GspKey
     } else if vmgs_query_file_size(vmgs, FileId::VM_UNIQUE_ID).is_ok() {
-        EncryptionPolicy::GspById
+        VmgsEncryptionScheme::GspById
     } else {
-        EncryptionPolicy::None
+        VmgsEncryptionScheme::None
     }
 }
 
