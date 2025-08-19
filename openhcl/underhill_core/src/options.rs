@@ -185,6 +185,7 @@ pub struct Options {
     pub guest_state_encryption_policy: Option<GuestStateEncryptionPolicyCli>,
 
     /// (HCL_ATTEMPT_AK_CERT_CALLBACK=1) Attempt to renew the AK cert.
+    /// If not specified, use the configuration in DPSv2 ManagementVtlFeatures.
     pub attempt_ak_cert_callback: Option<bool>,
 }
 

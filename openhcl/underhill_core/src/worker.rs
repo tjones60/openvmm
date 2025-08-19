@@ -1202,7 +1202,7 @@ async fn new_underhill_vm(
     let management_vtl_features = {
         let mut features = dps.general.management_vtl_features;
         if let Some(value) = env_cfg.attempt_ak_cert_callback {
-            tracing::info!("using command line to modify management_vtl_features");
+            tracing::info!("using attempt_ak_cert_callback={value} from cmdline");
             features.set_control_ak_cert_provisioning(true);
             features.set_attempt_ak_cert_callback(value);
         }
