@@ -366,7 +366,7 @@ impl PetriVmmBackend for HyperVPetriBackend {
 
                 // The Hyper-V serial device for ARM doesn't support additional
                 // serial ports yet.
-                let is_x86 = !matches!(arch, MachineArch::X86_64);
+                let is_x86 = matches!(arch, MachineArch::X86_64);
 
                 // The registry key to enable additional COM ports is only
                 // available in newer builds of Windows.
@@ -374,20 +374,18 @@ impl PetriVmmBackend for HyperVPetriBackend {
                 tracing::debug!(?current_winver, "host windows version");
                 // This is the oldest working build used in CI
                 // TODO: determine the actual minimum version
-                const COM3_MIN_WINVER: u32 = 27774;
+                const COM3_MIN_WINVER: u32 = 27766;
                 let is_supported_winver =
                     winver::WindowsVersion::detect().is_some_and(|v| v.build >= COM3_MIN_WINVER);
 
                 is_not_vbs && is_x86 && is_supported_winver
             };
 
-            let openhcl_serial_pipe_path =
-                supports_com3.then(|| vm.set_vm_com_port(3).ok()).flatten();
             let openhcl_log_file = log_source.log_file("openhcl")?;
-
-            if let Some(openhcl_serial_pipe_path) = openhcl_serial_pipe_path {
+            if supports_com3 {
                 tracing::debug!("getting kmsg logs from COM3");
 
+                let openhcl_serial_pipe_path = vm.set_vm_com_port(3)?;
                 log_tasks.push(driver.spawn(
                     "openhcl-log",
                     hyperv_serial_log_task(
@@ -633,10 +631,10 @@ async fn hyperv_serial_log_task(
             diag_client::hyperv::ComPortAccessInfo::PortPipePath(&serial_pipe_path),
         )
         .await?;
-        tracing::info!("kmsg connected");
+        tracing::info!("connected to {serial_pipe_path}");
         let pipe = PolledPipe::new(&driver, serial)?;
         let res = crate::log_stream(log_file.clone(), pipe).await;
-        tracing::info!("kmsg disconnected: {res:?}");
+        tracing::info!("disconnected from {serial_pipe_path}: {res:?}");
     }
 }
 
