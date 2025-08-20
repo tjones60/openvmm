@@ -6,7 +6,6 @@ use fs_err::File;
 use fs_err::PathExt;
 use futures::AsyncBufReadExt;
 use futures::AsyncRead;
-use futures::AsyncReadExt;
 use futures::StreamExt;
 use futures::io::BufReader;
 use jiff::Timestamp;
@@ -309,18 +308,16 @@ pub async fn log_stream(
     log_file: PetriLogFile,
     reader: impl AsyncRead + Unpin + Send + 'static,
 ) -> anyhow::Result<()> {
-    let mut buf = Vec::new();
-    let mut reader = BufReader::new(reader);
-    loop {
-        buf.clear();
-        let n = (&mut reader).take(256).read_until(b'\n', &mut buf).await?;
-        if n == 0 {
-            break;
+    let reader = BufReader::new(reader);
+    let mut lines = reader.lines();
+    while let Some(line) = lines.next().await {
+        let line = line?;
+        if let Some(message) = kmsg::SyslogParsedEntry::new(&line) {
+            let level = kernel_level_to_tracing_level(message.level);
+            log_file.write_entry_fmt(None, level, format_args!("{}", message.display(false)));
+        } else {
+            log_file.write_entry(line);
         }
-
-        let string_buf = String::from_utf8_lossy(&buf);
-        let string_buf_trimmed = string_buf.trim_end();
-        log_file.write_entry(string_buf_trimmed);
     }
     Ok(())
 }
@@ -342,17 +339,10 @@ pub async fn kmsg_log_task(
     mut file_stream: KmsgStream,
 ) -> anyhow::Result<()> {
     while let Some(data) = file_stream.next().await {
-        match data {
-            Ok(data) => {
-                let message = KmsgParsedEntry::new(&data).unwrap();
-                let level = kernel_level_to_tracing_level(message.level);
-                log_file.write_entry_fmt(None, level, format_args!("{}", message.display(false)));
-            }
-            Err(err) => {
-                tracing::info!("kmsg disconnected: {err:?}");
-                break;
-            }
-        }
+        let data = data?;
+        let message = KmsgParsedEntry::new(&data).unwrap();
+        let level = kernel_level_to_tracing_level(message.level);
+        log_file.write_entry_fmt(None, level, format_args!("{}", message.display(false)));
     }
 
     Ok(())

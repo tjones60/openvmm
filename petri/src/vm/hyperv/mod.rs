@@ -356,64 +356,62 @@ impl PetriVmmBackend for HyperVPetriBackend {
 
             // Attempt to enable COM3 and use that to get KMSG logs, otherwise
             // fall back to use diag_client.
-            //
-            // Hyper-V VBS VMs don't work with COM3 enabled for some reason.
-            let is_not_vbs = !matches!(
-                guest_state_isolation_type,
-                powershell::HyperVGuestStateIsolationType::Vbs
-            );
-            let openhcl_serial_pipe_path = is_not_vbs.then(|| vm.set_vm_com_port(3).ok()).flatten();
+            let supports_com3 = {
+                // Hyper-V VBS VMs don't work with COM3 enabled.
+                // Hypervisor support is needed for this to work.
+                let is_not_vbs = !matches!(
+                    guest_state_isolation_type,
+                    powershell::HyperVGuestStateIsolationType::Vbs
+                );
+
+                // The Hyper-V serial device for ARM doesn't support additional
+                // serial ports yet.
+                let is_x86 = !matches!(arch, MachineArch::X86_64);
+
+                // The registry key to enable additional COM ports is only
+                // available in newer builds of Windows.
+                let current_winver = winver::WindowsVersion::detect();
+                tracing::debug!(?current_winver, "host windows version");
+                // This is the oldest working build used in CI
+                // TODO: determine the actual minimum version
+                const COM3_MIN_WINVER: u32 = 27774;
+                let is_supported_winver =
+                    winver::WindowsVersion::detect().is_some_and(|v| v.build >= COM3_MIN_WINVER);
+
+                is_not_vbs && is_x86 && is_supported_winver
+            };
+
+            let openhcl_serial_pipe_path =
+                supports_com3.then(|| vm.set_vm_com_port(3).ok()).flatten();
             let openhcl_log_file = log_source.log_file("openhcl")?;
 
             if let Some(openhcl_serial_pipe_path) = openhcl_serial_pipe_path {
-                log_tasks.push(driver.spawn("openhcl-log", {
-                    let driver = driver.clone();
-                    async move {
-                        let serial = diag_client::hyperv::open_serial_port(
-                            &driver,
-                            diag_client::hyperv::ComPortAccessInfo::PortPipePath(
-                                &openhcl_serial_pipe_path,
-                            ),
-                        )
-                        .await?;
-                        crate::log_stream(openhcl_log_file, PolledPipe::new(&driver, serial)?).await
-                    }
-                }));
-            } else {
-                tracing::warn!("falling back to getting kmsg logs from diag_client");
+                tracing::debug!("getting kmsg logs from COM3");
 
-                log_tasks.push(driver.spawn("openhcl-log", {
-                    let driver = driver.clone();
-                    let vmid = *vm.vmid();
-                    async move {
-                        let diag_client =
-                            diag_client::DiagClient::from_hyperv_id(driver.clone(), vmid);
-                        loop {
-                            diag_client.wait_for_server().await?;
-                            crate::kmsg_log_task(
-                                openhcl_log_file.clone(),
-                                diag_client.kmsg(true).await?,
-                            )
-                            .await?
-                        }
-                    }
-                }));
+                log_tasks.push(driver.spawn(
+                    "openhcl-log",
+                    hyperv_serial_log_task(
+                        driver.clone(),
+                        openhcl_serial_pipe_path,
+                        openhcl_log_file,
+                    ),
+                ));
+            } else {
+                tracing::debug!("getting kmsg logs from diag_client");
+
+                log_tasks.push(driver.spawn(
+                    "openhcl-log",
+                    hyperv_kmsg_log_task(driver.clone(), *vm.vmid(), openhcl_log_file),
+                ));
             }
         }
 
         let serial_pipe_path = vm.set_vm_com_port(1)?;
         let serial_log_file = log_source.log_file("guest")?;
-        log_tasks.push(driver.spawn("guest-log", {
-            let driver = driver.clone();
-            async move {
-                let serial = diag_client::hyperv::open_serial_port(
-                    &driver,
-                    diag_client::hyperv::ComPortAccessInfo::PortPipePath(&serial_pipe_path),
-                )
-                .await?;
-                crate::log_stream(serial_log_file, PolledPipe::new(&driver, serial)?).await
-            }
-        }));
+        log_tasks.push(driver.spawn(
+            "guest-log",
+            hyperv_serial_log_task(driver.clone(), serial_pipe_path, serial_log_file),
+        ));
 
         vm.start()?;
 
@@ -622,4 +620,36 @@ pub async fn create_child_vhd_locking(
     fs_err::remove_file(&lock_file_path)?;
 
     res
+}
+
+async fn hyperv_serial_log_task(
+    driver: DefaultDriver,
+    serial_pipe_path: String,
+    log_file: crate::PetriLogFile,
+) -> anyhow::Result<()> {
+    loop {
+        let serial = diag_client::hyperv::open_serial_port(
+            &driver,
+            diag_client::hyperv::ComPortAccessInfo::PortPipePath(&serial_pipe_path),
+        )
+        .await?;
+        tracing::info!("kmsg connected");
+        let pipe = PolledPipe::new(&driver, serial)?;
+        let res = crate::log_stream(log_file.clone(), pipe).await;
+        tracing::info!("kmsg disconnected: {res:?}");
+    }
+}
+
+async fn hyperv_kmsg_log_task(
+    driver: DefaultDriver,
+    vmid: guid::Guid,
+    log_file: crate::PetriLogFile,
+) -> anyhow::Result<()> {
+    let diag_client = diag_client::DiagClient::from_hyperv_id(driver.clone(), vmid);
+    loop {
+        diag_client.wait_for_server().await?;
+        tracing::info!("kmsg connected");
+        let res = crate::kmsg_log_task(log_file.clone(), diag_client.kmsg(true).await?).await;
+        tracing::info!("kmsg disconnected: {res:?}");
+    }
 }
