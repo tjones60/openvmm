@@ -6,6 +6,7 @@ use fs_err::File;
 use fs_err::PathExt;
 use futures::AsyncBufReadExt;
 use futures::AsyncRead;
+use futures::AsyncReadExt;
 use futures::StreamExt;
 use futures::io::BufReader;
 use jiff::Timestamp;
@@ -308,15 +309,23 @@ pub async fn log_stream(
     log_file: PetriLogFile,
     reader: impl AsyncRead + Unpin + Send + 'static,
 ) -> anyhow::Result<()> {
-    let reader = BufReader::new(reader);
-    let mut lines = reader.lines();
-    while let Some(line) = lines.next().await {
-        let line = line?;
-        if let Some(message) = kmsg::SyslogParsedEntry::new(&line) {
+    let mut buf = Vec::new();
+    let mut reader = BufReader::new(reader);
+    loop {
+        buf.clear();
+        let n = (&mut reader).take(256).read_until(b'\n', &mut buf).await?;
+        if n == 0 {
+            break;
+        }
+
+        let string_buf = String::from_utf8_lossy(&buf);
+        let string_buf_trimmed = string_buf.trim_end();
+
+        if let Some(message) = kmsg::SyslogParsedEntry::new(string_buf_trimmed) {
             let level = kernel_level_to_tracing_level(message.level);
             log_file.write_entry_fmt(None, level, format_args!("{}", message.display(false)));
         } else {
-            log_file.write_entry(line);
+            log_file.write_entry(string_buf_trimmed);
         }
     }
     Ok(())

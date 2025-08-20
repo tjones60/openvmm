@@ -63,6 +63,7 @@ sparse_mmap.workspace = true
 
 anyhow.workspace = true
 async-trait.workspace = true
+blocking.workspace = true
 clap.workspace = true
 fatfs = { workspace = true, features = ["std", "alloc"] }
 fs-err.workspace = true
@@ -85,7 +86,7 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 
 [target.'cfg(windows)'.dependencies]
-winver.workspace = true
+windows-version.workspace = true
 
 [lints]
 workspace = true
