@@ -33,7 +33,6 @@ nvme_resources.workspace = true
 scsidisk_resources.workspace = true
 storvsp_resources.workspace = true
 vm_resource.workspace = true
-vmm_core_defs.workspace = true
 
 guid.workspace = true
 kmsg.workspace = true

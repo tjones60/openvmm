@@ -82,7 +82,7 @@ impl PetriVmmBackend for OpenVmmPetriBackend {
     type VmmConfig = PetriVmConfigOpenVmm;
     type VmRuntime = PetriVmOpenVmm;
 
-    fn check_compat(firmware: &Firmware, arch: MachineArch) -> bool {
+    fn check_compat(firmware: &mut Firmware, arch: MachineArch) -> bool {
         arch == MachineArch::host()
             && !(firmware.is_openhcl() && (!cfg!(windows) || arch == MachineArch::Aarch64))
             && !(firmware.is_pcat() && arch == MachineArch::Aarch64)

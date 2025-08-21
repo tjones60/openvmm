@@ -11,6 +11,7 @@ use jiff::SignedDuration;
 use mesh::rpc::RpcSend;
 use petri::MemoryConfig;
 use petri::PetriGuestStateLifetime;
+use petri::PetriHaltReason;
 use petri::PetriVmBuilder;
 use petri::PetriVmmBackend;
 use petri::ProcessorTopology;
@@ -23,7 +24,6 @@ use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_common::tags::OsFlavor;
 use petri_artifacts_vmm_test::artifacts::test_vmgs::VMGS_WITH_BOOT_ENTRY;
 use std::time::Duration;
-use vmm_core_defs::HaltReason;
 use vmm_test_macros::openvmm_test;
 use vmm_test_macros::openvmm_test_no_agent;
 use vmm_test_macros::vmm_test;
@@ -43,7 +43,7 @@ pub(crate) mod openhcl_servicing;
 async fn frontpage<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Result<()> {
     let mut vm = config.run_without_agent().await?;
     vm.wait_for_successful_boot_event().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -53,7 +53,7 @@ async fn frontpage<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Res
     openvmm_openhcl_linux_direct_x64,
     openvmm_pcat_x64(vhd(windows_datacenter_core_2022_x64)),
     openvmm_pcat_x64(vhd(ubuntu_2204_server_x64)),
-    // openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
+    openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
     openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     openvmm_uefi_x64(vhd(ubuntu_2204_server_x64)),
@@ -73,7 +73,7 @@ async fn frontpage<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Res
 async fn boot<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Result<()> {
     let (vm, agent) = config.run().await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -83,7 +83,7 @@ async fn boot<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Result<(
     openvmm_openhcl_linux_direct_x64,
     openvmm_pcat_x64(vhd(windows_datacenter_core_2022_x64)),
     openvmm_pcat_x64(vhd(ubuntu_2204_server_x64)),
-    // openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
+    openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
     openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     openvmm_uefi_x64(vhd(ubuntu_2204_server_x64)),
@@ -110,7 +110,7 @@ async fn boot_heavy<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Re
         .run()
         .await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -133,7 +133,7 @@ async fn boot_heavy<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Re
 async fn secure_boot<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Result<()> {
     let (vm, agent) = config.with_secure_boot().run().await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -177,23 +177,7 @@ async fn secure_boot_mismatched_template<T: PetriVmmBackend>(
         _ => anyhow::bail!("Unsupported OS flavor for test: {:?}", config.os_flavor()),
     };
     assert_eq!(vm.wait_for_boot_event().await?, FirmwareEvent::BootFailed);
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
-    Ok(())
-}
-
-/// Basic boot test for guests that are expected to reboot
-// TODO: Remove this test and other enable Windows 11 ARM OpenVMM tests
-// once we figure out how to get the guest to not reboot via IMC or other
-// means. At that point, we can also use Windows Server 2025 for x64 tests.
-// Hyper-V VMs work for now since we don't notice that they reboot
-#[openvmm_test(openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64)))]
-async fn boot_reset_expected(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Result<()> {
-    let mut vm = config.run_with_lazy_pipette().await?;
-    assert_eq!(vm.wait_for_halt().await?, HaltReason::Reset);
-    vm.backend().reset().await?;
-    let agent = vm.wait_for_agent().await?;
-    agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -307,7 +291,7 @@ async fn kvp_ic(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Result<(
     assert_eq!(gateway.to_string(), "10.0.0.1");
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -315,7 +299,7 @@ async fn kvp_ic(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Result<(
 #[openvmm_test(
     uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     uefi_x64(vhd(ubuntu_2204_server_x64)),
-    // uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
+    uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
     linux_direct_x64
 )]
@@ -351,13 +335,13 @@ async fn timesync_ic(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Res
     }
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
 /// Validate we can reboot a VM and reconnect to pipette.
 // TODO: Reenable guests that use the framebuffer once #74 is fixed.
-#[openvmm_test(
+#[vmm_test(
     openvmm_linux_direct_x64,
     openvmm_openhcl_linux_direct_x64,
     // openvmm_pcat_x64(vhd(windows_datacenter_core_2022_x64)),
@@ -368,22 +352,25 @@ async fn timesync_ic(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Res
     // openvmm_uefi_x64(vhd(ubuntu_2204_server_x64)),
     // openvmm_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     // openvmm_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))
+    hyperv_openhcl_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
+    hyperv_openhcl_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
+    hyperv_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
+    hyperv_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))
 )]
-async fn reboot(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(), anyhow::Error> {
+async fn reboot<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> Result<(), anyhow::Error> {
     let (mut vm, agent) = config.run().await?;
 
     agent.ping().await?;
 
     agent.reboot().await?;
-    assert_eq!(vm.wait_for_halt().await?, HaltReason::Reset);
-    vm.backend().reset().await?;
+    vm.wait_for_reset().await?;
 
     let agent = vm.wait_for_agent().await?;
 
     agent.ping().await?;
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
 
     Ok(())
 }
@@ -398,7 +385,7 @@ async fn reboot(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(), anyho
     openvmm_pcat_x64(iso(freebsd_13_2_x64)),
     openvmm_pcat_x64(vhd(windows_datacenter_core_2022_x64)),
     openvmm_pcat_x64(vhd(ubuntu_2204_server_x64)),
-    // openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
+    openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
     openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     openvmm_uefi_x64(vhd(ubuntu_2204_server_x64)),
@@ -418,7 +405,7 @@ async fn boot_no_agent<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow:
     let mut vm = config.run_without_agent().await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -440,7 +427,7 @@ async fn boot_no_agent_heavy<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> a
         .await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -455,7 +442,7 @@ async fn vmbus_relay<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::R
     let mut vm = config.with_vmbus_redirect(true).run_without_agent().await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -482,7 +469,7 @@ async fn vmbus_relay_force_mnf<T: PetriVmmBackend>(
         .run()
         .await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -504,7 +491,7 @@ async fn vmbr_force_mnf_no_agent<T: PetriVmmBackend>(
         .await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -526,7 +513,7 @@ async fn vmbus_relay_heavy<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> any
         .await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -550,13 +537,13 @@ async fn boot_no_agent_single_proc<T: PetriVmmBackend>(
         .await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
 /// Basic reboot test without agent
 // TODO: Reenable guests that use the framebuffer once #74 is fixed.
-#[openvmm_test_no_agent(
+#[vmm_test_no_agent(
     openvmm_linux_direct_x64,
     openvmm_openhcl_linux_direct_x64,
     // openvmm_pcat_x64(vhd(windows_datacenter_core_2022_x64)),
@@ -569,16 +556,18 @@ async fn boot_no_agent_single_proc<T: PetriVmmBackend>(
     // openvmm_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)),
     openvmm_openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2022_x64)),
     openvmm_openhcl_uefi_x64[vbs](vhd(ubuntu_2204_server_x64)),
+    hyperv_openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2025_x64)),
+    hyperv_openhcl_uefi_x64[tdx](vhd(windows_datacenter_core_2025_x64)),
+    hyperv_openhcl_uefi_x64[snp](vhd(windows_datacenter_core_2025_x64))
 )]
-async fn reboot_no_agent(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Result<()> {
+async fn reboot_no_agent<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Result<()> {
     let mut vm = config.run_without_agent().await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Reboot).await?;
-    assert_eq!(vm.wait_for_halt().await?, HaltReason::Reset);
-    vm.backend().reset().await?;
+    vm.wait_for_reset().await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -600,8 +589,8 @@ async fn guest_test_uefi<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyho
     let halt_reason = vm.wait_for_teardown().await?;
     tracing::debug!("vm halt reason: {halt_reason:?}");
     match arch {
-        MachineArch::X86_64 => assert!(matches!(halt_reason, HaltReason::TripleFault { .. })),
-        MachineArch::Aarch64 => assert!(matches!(halt_reason, HaltReason::Reset)),
+        MachineArch::X86_64 => assert!(matches!(halt_reason, PetriHaltReason::TripleFault)),
+        MachineArch::Aarch64 => assert!(matches!(halt_reason, PetriHaltReason::Reset)),
     }
     Ok(())
 }
@@ -610,7 +599,7 @@ async fn guest_test_uefi<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyho
 #[vmm_test(
     openvmm_linux_direct_x64,
     openvmm_openhcl_linux_direct_x64,
-    // openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
+    openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
     openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     openvmm_uefi_x64(vhd(ubuntu_2204_server_x64)),
@@ -633,7 +622,7 @@ async fn file_transfer_test<T: PetriVmmBackend>(
     assert_eq!(agent.read_file(FILE_NAME).await?, TEST_CONTENT.as_bytes());
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
 
     Ok(())
 }
@@ -671,7 +660,7 @@ async fn five_gb(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(), anyh
     );
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
 
     Ok(())
 }
@@ -679,7 +668,7 @@ async fn five_gb(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(), anyh
 /// Verify that UEFI default boots even if invalid boot entries exist
 /// when `default_boot_always_attempt` is enabled.
 #[openvmm_test(
-    // openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64))[VMGS_WITH_BOOT_ENTRY],
+    openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64))[VMGS_WITH_BOOT_ENTRY],
     openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64))[VMGS_WITH_BOOT_ENTRY],
     openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64))[VMGS_WITH_BOOT_ENTRY],
     openvmm_uefi_x64(vhd(ubuntu_2204_server_x64))[VMGS_WITH_BOOT_ENTRY],
@@ -698,7 +687,7 @@ async fn default_boot(
         .await?;
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
 
     Ok(())
 }
@@ -706,7 +695,7 @@ async fn default_boot(
 /// Verify that UEFI successfully boots an operating system after reprovisioning
 /// the VMGS when invalid boot entries existed initially.
 #[openvmm_test(
-    // openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64))[VMGS_WITH_BOOT_ENTRY],
+    openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64))[VMGS_WITH_BOOT_ENTRY],
     openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64))[VMGS_WITH_BOOT_ENTRY],
     openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64))[VMGS_WITH_BOOT_ENTRY],
     openvmm_uefi_x64(vhd(ubuntu_2204_server_x64))[VMGS_WITH_BOOT_ENTRY],
@@ -724,7 +713,7 @@ async fn clear_vmgs(
         .await?;
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
 
     Ok(())
 }
@@ -734,7 +723,7 @@ async fn clear_vmgs(
 /// This test exists to ensure we are not getting a false positive for
 /// the `default_boot` and `clear_vmgs` test above.
 #[openvmm_test_no_agent(
-    // openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64))[VMGS_WITH_BOOT_ENTRY],
+    openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64))[VMGS_WITH_BOOT_ENTRY],
     openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64))[VMGS_WITH_BOOT_ENTRY],
     openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64))[VMGS_WITH_BOOT_ENTRY],
     openvmm_uefi_x64(vhd(ubuntu_2204_server_x64))[VMGS_WITH_BOOT_ENTRY],
@@ -752,7 +741,7 @@ async fn boot_expect_fail(
         .await?;
 
     assert_eq!(vm.wait_for_boot_event().await?, FirmwareEvent::BootFailed);
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
 
     Ok(())
 }

@@ -270,6 +270,13 @@ pub mod artifacts {
         impl IsTestVhd for GEN2_WINDOWS_DATA_CENTER_CORE2025_X64 {
             const OS_FLAVOR: OsFlavor = OsFlavor::Windows;
             const ARCH: MachineArch = MachineArch::X86_64;
+
+            fn quirks() -> GuestQuirks {
+                GuestQuirks {
+                    initial_reboot_required: true,
+                    ..Default::default()
+                }
+            }
         }
 
         impl IsHostedOnHvliteAzureBlobStore for GEN2_WINDOWS_DATA_CENTER_CORE2025_X64 {
@@ -290,6 +297,7 @@ pub mod artifacts {
             fn quirks() -> GuestQuirks {
                 GuestQuirks {
                     hyperv_shutdown_ic_sleep: Some(std::time::Duration::from_secs(20)),
+                    ..Default::default()
                 }
             }
         }
@@ -310,6 +318,7 @@ pub mod artifacts {
             fn quirks() -> GuestQuirks {
                 GuestQuirks {
                     hyperv_shutdown_ic_sleep: Some(std::time::Duration::from_secs(20)),
+                    ..Default::default()
                 }
             }
         }
@@ -330,6 +339,7 @@ pub mod artifacts {
             fn quirks() -> GuestQuirks {
                 GuestQuirks {
                     hyperv_shutdown_ic_sleep: Some(std::time::Duration::from_secs(20)),
+                    ..Default::default()
                 }
             }
         }
@@ -347,6 +357,13 @@ pub mod artifacts {
         impl IsTestVhd for WINDOWS_11_ENTERPRISE_AARCH64 {
             const OS_FLAVOR: OsFlavor = OsFlavor::Windows;
             const ARCH: MachineArch = MachineArch::Aarch64;
+
+            fn quirks() -> GuestQuirks {
+                GuestQuirks {
+                    initial_reboot_required: true,
+                    ..Default::default()
+                }
+            }
         }
 
         impl IsHostedOnHvliteAzureBlobStore for WINDOWS_11_ENTERPRISE_AARCH64 {
@@ -377,6 +394,7 @@ pub mod artifacts {
             fn quirks() -> GuestQuirks {
                 GuestQuirks {
                     hyperv_shutdown_ic_sleep: Some(std::time::Duration::from_secs(20)),
+                    ..Default::default()
                 }
             }
         }

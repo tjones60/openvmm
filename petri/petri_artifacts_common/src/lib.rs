@@ -72,6 +72,8 @@ pub mod tags {
         /// This is necessary because some guests will ignore shutdown requests
         /// that arrive too early in the boot process.
         pub hyperv_shutdown_ic_sleep: Option<std::time::Duration>,
+        /// Some guests reboot automatically soon after first boot.
+        pub initial_reboot_required: bool,
     }
 
     /// Artifact is a OpenHCL IGVM file

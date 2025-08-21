@@ -33,7 +33,6 @@ use std::hash::Hasher;
 use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
-use vmm_core_defs::HaltReason;
 
 /// The set of artifacts and resources needed to instantiate a
 /// [`PetriVmBuilder`].
@@ -56,11 +55,11 @@ impl<T: PetriVmmBackend> PetriVmArtifacts<T> {
     /// Returns `None` if the supplied configuration is not supported on this platform.
     pub fn new(
         resolver: &ArtifactResolver<'_>,
-        firmware: Firmware,
+        mut firmware: Firmware,
         arch: MachineArch,
         with_vtl0_pipette: bool,
     ) -> Option<Self> {
-        if !T::check_compat(&firmware, arch) {
+        if !T::check_compat(&mut firmware, arch) {
             return None;
         }
 
@@ -131,8 +130,9 @@ pub trait PetriVmmBackend {
     type VmRuntime: PetriVmRuntime;
 
     /// Check whether the combination of firmware and architecture is
-    /// supported on the VMM.
-    fn check_compat(firmware: &Firmware, arch: MachineArch) -> bool;
+    /// supported on the VMM. Adjust the guest quirks as necessary for
+    /// this backend.
+    fn check_compat(firmware: &mut Firmware, arch: MachineArch) -> bool;
 
     /// Resolve any artifacts needed to use this backend
     fn new(resolver: &ArtifactResolver<'_>) -> Self;
@@ -211,6 +211,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
     async fn run_core(self) -> anyhow::Result<PetriVm<T>> {
         let arch = self.config.arch;
         let quirks = self.config.firmware.quirks();
+
         let mut runtime = self
             .backend
             .run(self.config, self.modify_vmm_config, &self.resources)
@@ -218,7 +219,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         let openhcl_diag_handler = runtime.openhcl_diag();
         let watchdog_tasks = Self::start_watchdog_tasks(&self.resources, &mut runtime)?;
 
-        let vm = PetriVm {
+        let mut vm = PetriVm {
             arch,
             resources: self.resources,
             runtime,
@@ -226,6 +227,10 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             openhcl_diag_handler,
             watchdog_tasks,
         };
+
+        if quirks.initial_reboot_required {
+            vm.wait_for_reset().await?;
+        }
 
         Ok(vm)
     }
@@ -289,7 +294,11 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
                                 width,
                                 height,
                             } = match framebuffer_access.screenshot(&mut image).await {
-                                Ok(meta) => meta,
+                                Ok(Some(meta)) => meta,
+                                Ok(None) => {
+                                    tracing::debug!("VM off, skipping screenshot.");
+                                    continue;
+                                }
                                 Err(e) => {
                                     tracing::error!(?e, "Failed to take screenshot");
                                     continue;
@@ -297,7 +306,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
                             };
 
                             if image == last_image {
-                                tracing::trace!("No change in framebuffer, skipping screenshot.");
+                                tracing::debug!("No change in framebuffer, skipping screenshot.");
                                 continue;
                             }
 
@@ -560,17 +569,28 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
 
 impl<T: PetriVmmBackend> PetriVm<T> {
     /// Wait for the VM to halt, returning the reason for the halt.
-    pub async fn wait_for_halt(&mut self) -> anyhow::Result<HaltReason> {
+    pub async fn wait_for_halt(&mut self) -> anyhow::Result<PetriHaltReason> {
         tracing::info!("Waiting for VM to halt...");
-        let r = self.runtime.wait_for_halt().await;
-        tracing::info!("VM Halted");
+        let r = self.runtime.wait_for_halt(false).await;
+        tracing::info!("VM Halted: {r:?}");
         r
+    }
+
+    /// Wait for the VM to reset
+    pub async fn wait_for_reset(&mut self) -> anyhow::Result<()> {
+        tracing::info!("Waiting for VM to reset...");
+        let halt_reason = self.runtime.wait_for_halt(true).await?;
+        if halt_reason != PetriHaltReason::Reset {
+            anyhow::bail!("Expected reset, got {halt_reason:?}");
+        }
+        tracing::info!("VM Reset.");
+        Ok(())
     }
 
     /// Wait for the VM to halt, returning the reason for the halt,
     /// and cleanly tear down the VM.
-    pub async fn wait_for_teardown(mut self) -> anyhow::Result<HaltReason> {
-        let halt_reason = self.runtime.wait_for_halt().await?;
+    pub async fn wait_for_teardown(mut self) -> anyhow::Result<PetriHaltReason> {
+        let halt_reason = self.wait_for_halt().await?;
         tracing::info!("Cancelling watchdogs");
         futures::future::join_all(self.watchdog_tasks.into_iter().map(|t| t.cancel())).await;
         self.runtime.teardown().await?;
@@ -732,8 +752,9 @@ pub trait PetriVmRuntime {
 
     /// Cleanly tear down the VM immediately.
     async fn teardown(self) -> anyhow::Result<()>;
-    /// Wait for the VM to halt, returning the reason for the halt.
-    async fn wait_for_halt(&mut self) -> anyhow::Result<HaltReason>;
+    /// Wait for the VM to halt, returning the reason for the halt. The VM
+    /// should automatically restart the VM on reset if `allow_reset` is true.
+    async fn wait_for_halt(&mut self, allow_reset: bool) -> anyhow::Result<PetriHaltReason>;
     /// Wait for a connection from a pipette agent
     async fn wait_for_agent(&mut self, set_high_vtl: bool) -> anyhow::Result<PipetteClient>;
     /// Get an OpenHCL diagnostics handler for the VM
@@ -765,7 +786,7 @@ pub trait PetriVmRuntime {
         None
     }
     /// If the backend supports it, take the screenshot interface
-    /// (subsequent calls will return None).
+    /// (subsequent calls may return None).
     fn take_framebuffer_access(&mut self) -> Option<Self::VmFramebufferAccess> {
         None
     }
@@ -802,14 +823,18 @@ pub struct VmScreenshotMeta {
 pub trait PetriVmFramebufferAccess: Send + 'static {
     /// Populates the provided buffer with a screenshot of the VM,
     /// returning the dimensions and color type.
-    async fn screenshot(&mut self, image: &mut Vec<u8>) -> anyhow::Result<VmScreenshotMeta>;
+    async fn screenshot(&mut self, image: &mut Vec<u8>)
+    -> anyhow::Result<Option<VmScreenshotMeta>>;
 }
 
 /// Use this for the associated type if not supported
 pub struct NoPetriVmFramebufferAccess;
 #[async_trait]
 impl PetriVmFramebufferAccess for NoPetriVmFramebufferAccess {
-    async fn screenshot(&mut self, _image: &mut Vec<u8>) -> anyhow::Result<VmScreenshotMeta> {
+    async fn screenshot(
+        &mut self,
+        _image: &mut Vec<u8>,
+    ) -> anyhow::Result<Option<VmScreenshotMeta>> {
         unreachable!()
     }
 }
@@ -1142,6 +1167,28 @@ impl Firmware {
         }
     }
 
+    fn quirks_mut(&mut self) -> Option<&mut GuestQuirks> {
+        match self {
+            Firmware::Pcat {
+                guest: PcatGuest::Vhd(cfg),
+                ..
+            }
+            | Firmware::Uefi {
+                guest: UefiGuest::Vhd(cfg),
+                ..
+            }
+            | Firmware::OpenhclUefi {
+                guest: UefiGuest::Vhd(cfg),
+                ..
+            } => Some(&mut cfg.quirks),
+            Firmware::Pcat {
+                guest: PcatGuest::Iso(cfg),
+                ..
+            } => Some(&mut cfg.quirks),
+            _ => None,
+        }
+    }
+
     fn expected_boot_event(&self) -> Option<FirmwareEvent> {
         match self {
             Firmware::LinuxDirect { .. } | Firmware::OpenhclLinuxDirect { .. } => None,
@@ -1417,6 +1464,21 @@ fn make_vm_safe_name(name: &str) -> String {
 
         format!("{}{}", truncated, hash_suffix)
     }
+}
+
+/// The reason that the VM halted
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum PetriHaltReason {
+    /// The vm powered off
+    PowerOff,
+    /// The vm reset
+    Reset,
+    /// The vm hibernated
+    Hibernate,
+    /// The vm triple faulted
+    TripleFault,
+    /// The vm halted for some other reason
+    Other,
 }
 
 fn append_cmdline(cmd: &mut Option<String>, add_cmd: &str) {

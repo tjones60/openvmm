@@ -5,6 +5,7 @@
 
 use super::PetriVmResourcesOpenVmm;
 use crate::OpenHclServicingFlags;
+use crate::PetriHaltReason;
 use crate::PetriVmFramebufferAccess;
 use crate::PetriVmInspector;
 use crate::PetriVmRuntime;
@@ -69,7 +70,7 @@ impl PetriVmRuntime for PetriVmOpenVmm {
         Ok(())
     }
 
-    async fn wait_for_halt(&mut self) -> anyhow::Result<HaltReason> {
+    async fn wait_for_halt(&mut self, allow_reset: bool) -> anyhow::Result<PetriHaltReason> {
         let halt_reason = if let Some(already) = self.halt.already_received.take() {
             already.map_err(anyhow::Error::from)
         } else {
@@ -81,6 +82,19 @@ impl PetriVmRuntime for PetriVmOpenVmm {
         }?;
 
         tracing::info!(?halt_reason, "Got halt reason");
+
+        let halt_reason = match halt_reason {
+            HaltReason::PowerOff => PetriHaltReason::PowerOff,
+            HaltReason::Reset => PetriHaltReason::Reset,
+            HaltReason::Hibernate => PetriHaltReason::Hibernate,
+            HaltReason::TripleFault { .. } => PetriHaltReason::TripleFault,
+            _ => PetriHaltReason::Other,
+        };
+
+        if allow_reset && halt_reason == PetriHaltReason::Reset {
+            self.reset().await?
+        }
+
         Ok(halt_reason)
     }
 
@@ -172,26 +186,6 @@ impl PetriVmOpenVmm {
             },
         }
     }
-
-    /// Get the path to the VTL 2 vsock socket, if the VM is configured with OpenHCL.
-    pub fn vtl2_vsock_path(&self) -> anyhow::Result<&Path> {
-        self.inner
-            .resources
-            .vtl2_vsock_path
-            .as_deref()
-            .context("VM is not configured with OpenHCL")
-    }
-
-    /// Wait for the VM to halt, returning the reason for the halt,
-    /// and cleanly tear down the VM.
-    pub async fn wait_for_teardown(mut self) -> anyhow::Result<HaltReason> {
-        let halt_reason = self.wait_for_halt().await?;
-
-        self.teardown().await?;
-
-        Ok(halt_reason)
-    }
-
     petri_vm_fn!(
         /// Waits for an event emitted by the firmware about its boot status, and
         /// verifies that it is the expected success value.
@@ -544,7 +538,10 @@ pub struct OpenVmmFramebufferAccess {
 
 #[async_trait]
 impl PetriVmFramebufferAccess for OpenVmmFramebufferAccess {
-    async fn screenshot(&mut self, image: &mut Vec<u8>) -> anyhow::Result<VmScreenshotMeta> {
+    async fn screenshot(
+        &mut self,
+        image: &mut Vec<u8>,
+    ) -> anyhow::Result<Option<VmScreenshotMeta>> {
         // Our framebuffer uses 4 bytes per pixel, approximating an
         // BGRA image, however it only actually contains BGR data.
         // The fourth byte is effectively noise. We can set the 'alpha'
@@ -563,10 +560,10 @@ impl PetriVmFramebufferAccess for OpenVmmFramebufferAccess {
             }
         }
 
-        Ok(VmScreenshotMeta {
+        Ok(Some(VmScreenshotMeta {
             color: image::ExtendedColorType::Rgba8,
             width,
             height,
-        })
+        }))
     }
 }

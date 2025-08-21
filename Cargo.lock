@@ -9262,7 +9262,6 @@ dependencies = [
  "tracing",
  "unix_socket",
  "vm_resource",
- "vmm_core_defs",
  "vmm_test_macros",
  "vtl2_settings_proto",
  "x86defs",
