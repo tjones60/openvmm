@@ -7,9 +7,9 @@ use hvlite_defs::config::ArchTopologyConfig;
 use hvlite_defs::config::ProcessorTopologyConfig;
 use hvlite_defs::config::X2ApicConfig;
 use hvlite_defs::config::X86TopologyConfig;
+use petri::PetriHaltReason;
 use petri::PetriVmBuilder;
 use petri::openvmm::OpenVmmPetriBackend;
-use vmm_core_defs::HaltReason;
 use vmm_test_macros::openvmm_test;
 
 /// Validate we can run with VP index != APIC ID.
@@ -30,7 +30,7 @@ async fn apicid_offset(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<()
     agent.ping().await?;
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
 
     Ok(())
 }
@@ -63,7 +63,7 @@ async fn legacy_xapic(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(),
     assert!(output.contains("apicid\t\t: 254"));
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
 
     Ok(())
 }

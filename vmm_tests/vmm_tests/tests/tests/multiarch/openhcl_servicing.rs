@@ -10,6 +10,7 @@ use disk_backend_resources::LayeredDiskHandle;
 use disk_backend_resources::layer::RamDiskLayerHandle;
 use hvlite_defs::config::DeviceVtl;
 use petri::OpenHclServicingFlags;
+use petri::PetriHaltReason;
 use petri::PetriVmBuilder;
 use petri::PetriVmmBackend;
 use petri::ResolvedArtifact;
@@ -26,7 +27,6 @@ use storvsp_resources::ScsiControllerHandle;
 use storvsp_resources::ScsiDeviceAndPath;
 use storvsp_resources::ScsiPath;
 use vm_resource::IntoResource;
-use vmm_core_defs::HaltReason;
 use vmm_test_macros::openvmm_test;
 use vmm_test_macros::vmm_test;
 
@@ -95,7 +95,7 @@ async fn openhcl_servicing_core<T: PetriVmmBackend>(
     }
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
 
     Ok(())
 }
@@ -218,7 +218,7 @@ async fn shutdown_ic(
 
     vm.send_enlightened_shutdown(petri::ShutdownKind::Shutdown)
         .await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 

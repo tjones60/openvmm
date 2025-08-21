@@ -13,15 +13,14 @@ use crate::IsolationType;
 use crate::NoPetriVmInspector;
 use crate::OpenHclConfig;
 use crate::OpenHclServicingFlags;
+use crate::PetriHaltReason;
 use crate::PetriVmConfig;
-use crate::PetriVmFramebufferAccess;
 use crate::PetriVmResources;
 use crate::PetriVmRuntime;
 use crate::PetriVmmBackend;
 use crate::SecureBootTemplate;
 use crate::ShutdownKind;
 use crate::UefiConfig;
-use crate::VmScreenshotMeta;
 use crate::disk_image::AgentImage;
 use crate::hyperv::powershell::HyperVSecureBootTemplate;
 use crate::openhcl_diag::OpenHclDiagHandler;
@@ -45,18 +44,15 @@ use pipette_client::PipetteClient;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
-use std::sync::Arc;
-use std::sync::Weak;
 use std::time::Duration;
 use vm::HyperVVM;
-use vmm_core_defs::HaltReason;
 
 /// The Hyper-V Petri backend
 pub struct HyperVPetriBackend {}
 
 /// Resources needed at runtime for a Hyper-V Petri VM
 pub struct HyperVPetriRuntime {
-    vm: Arc<HyperVVM>,
+    vm: HyperVVM,
     log_tasks: Vec<Task<anyhow::Result<()>>>,
     temp_dir: tempfile::TempDir,
     is_openhcl: bool,
@@ -421,7 +417,7 @@ impl PetriVmmBackend for HyperVPetriBackend {
         vm.start().await?;
 
         Ok(HyperVPetriRuntime {
-            vm: Arc::new(vm),
+            vm,
             log_tasks,
             temp_dir,
             is_openhcl: openhcl_config.is_some(),
@@ -433,19 +429,16 @@ impl PetriVmmBackend for HyperVPetriBackend {
 #[async_trait]
 impl PetriVmRuntime for HyperVPetriRuntime {
     type VmInspector = NoPetriVmInspector;
-    type VmFramebufferAccess = HyperVFramebufferAccess;
+    type VmFramebufferAccess = vm::HyperVFramebufferAccess;
 
     async fn teardown(mut self) -> anyhow::Result<()> {
         futures::future::join_all(self.log_tasks.into_iter().map(|t| t.cancel())).await;
-        Arc::into_inner(self.vm)
-            .context("all references to the Hyper-V VM object have not been closed")?
-            .remove()
-            .await
+        self.vm.remove().await
     }
 
-    async fn wait_for_halt(&mut self) -> anyhow::Result<HaltReason> {
+    async fn wait_for_halt(&mut self, allow_reset: bool) -> anyhow::Result<PetriHaltReason> {
         self.vm.wait_for_halt().await?;
-        Ok(HaltReason::PowerOff) // TODO: Get actual halt reason
+        Ok(PetriHaltReason::PowerOff) // TODO: Get actual halt reason
     }
 
     async fn wait_for_agent(&mut self, set_high_vtl: bool) -> anyhow::Result<PipetteClient> {
@@ -524,26 +517,8 @@ impl PetriVmRuntime for HyperVPetriRuntime {
         self.vm.restart_openhcl(flags).await
     }
 
-    fn take_framebuffer_access(&mut self) -> Option<HyperVFramebufferAccess> {
-        Some(HyperVFramebufferAccess {
-            vm: Arc::downgrade(&self.vm),
-        })
-    }
-}
-
-/// Interface to the Hyper-V framebuffer
-pub struct HyperVFramebufferAccess {
-    vm: Weak<HyperVVM>,
-}
-
-#[async_trait]
-impl PetriVmFramebufferAccess for HyperVFramebufferAccess {
-    async fn screenshot(&mut self, image: &mut Vec<u8>) -> anyhow::Result<VmScreenshotMeta> {
-        self.vm
-            .upgrade()
-            .context("VM no longer exists")?
-            .screenshot(image)
-            .await
+    fn take_framebuffer_access(&mut self) -> Option<vm::HyperVFramebufferAccess> {
+        Some(self.vm.get_framebuffer_access())
     }
 }
 

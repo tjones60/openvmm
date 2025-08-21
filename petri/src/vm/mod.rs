@@ -30,7 +30,6 @@ use pipette_client::PipetteClient;
 use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
-use vmm_core_defs::HaltReason;
 
 /// The set of artifacts and resources needed to instantiate a
 /// [`PetriVmBuilder`].
@@ -151,6 +150,7 @@ pub struct PetriVm<T: PetriVmmBackend> {
     quirks: GuestQuirks,
     openhcl_diag_handler: Option<OpenHclDiagHandler>,
     watchdog_tasks: Vec<Task<()>>,
+    isolated: bool,
 }
 
 impl<T: PetriVmmBackend> PetriVmBuilder<T> {
@@ -208,6 +208,8 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
     async fn run_core(self) -> anyhow::Result<PetriVm<T>> {
         let arch = self.config.arch;
         let quirks = self.config.firmware.quirks();
+        let isolated = self.config.firmware.isolation().is_some();
+
         let mut runtime = self
             .backend
             .run(self.config, self.modify_vmm_config, &self.resources)
@@ -222,6 +224,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             quirks,
             openhcl_diag_handler,
             watchdog_tasks,
+            isolated,
         };
 
         Ok(vm)
@@ -286,7 +289,11 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
                                 width,
                                 height,
                             } = match framebuffer_access.screenshot(&mut image).await {
-                                Ok(meta) => meta,
+                                Ok(Some(meta)) => meta,
+                                Ok(None) => {
+                                    tracing::debug!("VM off, skipping screenshot.");
+                                    continue;
+                                }
                                 Err(e) => {
                                     tracing::error!(?e, "Failed to take screenshot");
                                     continue;
@@ -294,7 +301,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
                             };
 
                             if image == last_image {
-                                tracing::trace!("No change in framebuffer, skipping screenshot.");
+                                tracing::debug!("No change in framebuffer, skipping screenshot.");
                                 continue;
                             }
 
@@ -557,17 +564,17 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
 
 impl<T: PetriVmmBackend> PetriVm<T> {
     /// Wait for the VM to halt, returning the reason for the halt.
-    pub async fn wait_for_halt(&mut self) -> anyhow::Result<HaltReason> {
+    pub async fn wait_for_halt(&mut self, allow_reset: bool) -> anyhow::Result<PetriHaltReason> {
         tracing::info!("Waiting for VM to halt...");
-        let r = self.runtime.wait_for_halt().await;
+        let r = self.runtime.wait_for_halt(allow_reset).await;
         tracing::info!("VM Halted");
         r
     }
 
     /// Wait for the VM to halt, returning the reason for the halt,
     /// and cleanly tear down the VM.
-    pub async fn wait_for_teardown(mut self) -> anyhow::Result<HaltReason> {
-        let halt_reason = self.runtime.wait_for_halt().await?;
+    pub async fn wait_for_teardown(mut self) -> anyhow::Result<PetriHaltReason> {
+        let halt_reason = self.runtime.wait_for_halt(false).await?;
         tracing::info!("Cancelling watchdogs");
         futures::future::join_all(self.watchdog_tasks.into_iter().map(|t| t.cancel())).await;
         self.runtime.teardown().await?;
@@ -730,7 +737,7 @@ pub trait PetriVmRuntime {
     /// Cleanly tear down the VM immediately.
     async fn teardown(self) -> anyhow::Result<()>;
     /// Wait for the VM to halt, returning the reason for the halt.
-    async fn wait_for_halt(&mut self) -> anyhow::Result<HaltReason>;
+    async fn wait_for_halt(&mut self, allow_reset: bool) -> anyhow::Result<PetriHaltReason>;
     /// Wait for a connection from a pipette agent
     async fn wait_for_agent(&mut self, set_high_vtl: bool) -> anyhow::Result<PipetteClient>;
     /// Get an OpenHCL diagnostics handler for the VM
@@ -799,14 +806,18 @@ pub struct VmScreenshotMeta {
 pub trait PetriVmFramebufferAccess: Send + 'static {
     /// Populates the provided buffer with a screenshot of the VM,
     /// returning the dimensions and color type.
-    async fn screenshot(&mut self, image: &mut Vec<u8>) -> anyhow::Result<VmScreenshotMeta>;
+    async fn screenshot(&mut self, image: &mut Vec<u8>)
+    -> anyhow::Result<Option<VmScreenshotMeta>>;
 }
 
 /// Use this for the associated type if not supported
 pub struct NoPetriVmFramebufferAccess;
 #[async_trait]
 impl PetriVmFramebufferAccess for NoPetriVmFramebufferAccess {
-    async fn screenshot(&mut self, _image: &mut Vec<u8>) -> anyhow::Result<VmScreenshotMeta> {
+    async fn screenshot(
+        &mut self,
+        _image: &mut Vec<u8>,
+    ) -> anyhow::Result<Option<VmScreenshotMeta>> {
         unreachable!()
     }
 }
@@ -1379,6 +1390,21 @@ pub enum SecureBootTemplate {
     MicrosoftWindows,
     /// The Microsoft UEFI certificate authority template.
     MicrosoftUefiCertificateAuthority,
+}
+
+/// The reason that the VM halted
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum PetriHaltReason {
+    /// The vm powered off
+    PowerOff,
+    /// The vm reset
+    Reset,
+    /// The vm hibernated
+    Hibernate,
+    /// The vm triple faulted
+    TripleFault,
+    /// The vm halted for some other reason
+    Other,
 }
 
 fn append_cmdline(cmd: &mut Option<String>, add_cmd: &str) {

@@ -11,6 +11,7 @@ use jiff::SignedDuration;
 use mesh::rpc::RpcSend;
 use petri::MemoryConfig;
 use petri::PetriGuestStateLifetime;
+use petri::PetriHaltReason;
 use petri::PetriVmBuilder;
 use petri::PetriVmmBackend;
 use petri::ProcessorTopology;
@@ -23,7 +24,6 @@ use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_common::tags::OsFlavor;
 use petri_artifacts_vmm_test::artifacts::test_vmgs::VMGS_WITH_BOOT_ENTRY;
 use std::time::Duration;
-use vmm_core_defs::HaltReason;
 use vmm_test_macros::openvmm_test;
 use vmm_test_macros::openvmm_test_no_agent;
 use vmm_test_macros::vmm_test;
@@ -43,7 +43,7 @@ pub(crate) mod openhcl_servicing;
 async fn frontpage<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Result<()> {
     let mut vm = config.run_without_agent().await?;
     vm.wait_for_successful_boot_event().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -73,7 +73,7 @@ async fn frontpage<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Res
 async fn boot<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Result<()> {
     let (vm, agent) = config.run().await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -110,7 +110,7 @@ async fn boot_heavy<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Re
         .run()
         .await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -133,7 +133,7 @@ async fn boot_heavy<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Re
 async fn secure_boot<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Result<()> {
     let (vm, agent) = config.with_secure_boot().run().await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -177,7 +177,7 @@ async fn secure_boot_mismatched_template<T: PetriVmmBackend>(
         _ => anyhow::bail!("Unsupported OS flavor for test: {:?}", config.os_flavor()),
     };
     assert_eq!(vm.wait_for_boot_event().await?, FirmwareEvent::BootFailed);
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -189,11 +189,11 @@ async fn secure_boot_mismatched_template<T: PetriVmmBackend>(
 #[openvmm_test(openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64)))]
 async fn boot_reset_expected(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Result<()> {
     let mut vm = config.run_with_lazy_pipette().await?;
-    assert_eq!(vm.wait_for_halt().await?, HaltReason::Reset);
+    assert_eq!(vm.wait_for_halt().await?, PetriHaltReason::Reset);
     vm.backend().reset().await?;
     let agent = vm.wait_for_agent().await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -307,7 +307,7 @@ async fn kvp_ic(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Result<(
     assert_eq!(gateway.to_string(), "10.0.0.1");
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -351,7 +351,7 @@ async fn timesync_ic(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Res
     }
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -375,7 +375,7 @@ async fn reboot(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(), anyho
     agent.ping().await?;
 
     agent.reboot().await?;
-    assert_eq!(vm.wait_for_halt().await?, HaltReason::Reset);
+    assert_eq!(vm.wait_for_halt().await?, PetriHaltReason::Reset);
     vm.backend().reset().await?;
 
     let agent = vm.wait_for_agent().await?;
@@ -383,7 +383,7 @@ async fn reboot(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(), anyho
     agent.ping().await?;
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
 
     Ok(())
 }
@@ -418,7 +418,7 @@ async fn boot_no_agent<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow:
     let mut vm = config.run_without_agent().await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -440,7 +440,7 @@ async fn boot_no_agent_heavy<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> a
         .await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -455,7 +455,7 @@ async fn vmbus_relay<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::R
     let mut vm = config.with_vmbus_redirect(true).run_without_agent().await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -482,7 +482,7 @@ async fn vmbus_relay_force_mnf<T: PetriVmmBackend>(
         .run()
         .await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -504,7 +504,7 @@ async fn vmbr_force_mnf_no_agent<T: PetriVmmBackend>(
         .await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -526,7 +526,7 @@ async fn vmbus_relay_heavy<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> any
         .await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -550,7 +550,7 @@ async fn boot_no_agent_single_proc<T: PetriVmmBackend>(
         .await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -574,11 +574,11 @@ async fn reboot_no_agent(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow:
     let mut vm = config.run_without_agent().await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Reboot).await?;
-    assert_eq!(vm.wait_for_halt().await?, HaltReason::Reset);
+    assert_eq!(vm.wait_for_halt().await?, PetriHaltReason::Reset);
     vm.backend().reset().await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -600,8 +600,8 @@ async fn guest_test_uefi<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyho
     let halt_reason = vm.wait_for_teardown().await?;
     tracing::debug!("vm halt reason: {halt_reason:?}");
     match arch {
-        MachineArch::X86_64 => assert!(matches!(halt_reason, HaltReason::TripleFault { .. })),
-        MachineArch::Aarch64 => assert!(matches!(halt_reason, HaltReason::Reset)),
+        MachineArch::X86_64 => assert!(matches!(halt_reason, PetriHaltReason::TripleFault)),
+        MachineArch::Aarch64 => assert!(matches!(halt_reason, PetriHaltReason::Reset)),
     }
     Ok(())
 }
@@ -633,7 +633,7 @@ async fn file_transfer_test<T: PetriVmmBackend>(
     assert_eq!(agent.read_file(FILE_NAME).await?, TEST_CONTENT.as_bytes());
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
 
     Ok(())
 }
@@ -671,7 +671,7 @@ async fn five_gb(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(), anyh
     );
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
 
     Ok(())
 }
@@ -698,7 +698,7 @@ async fn default_boot(
         .await?;
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
 
     Ok(())
 }
@@ -724,7 +724,7 @@ async fn clear_vmgs(
         .await?;
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
 
     Ok(())
 }
@@ -752,7 +752,7 @@ async fn boot_expect_fail(
         .await?;
 
     assert_eq!(vm.wait_for_boot_event().await?, FirmwareEvent::BootFailed);
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
 
     Ok(())
 }

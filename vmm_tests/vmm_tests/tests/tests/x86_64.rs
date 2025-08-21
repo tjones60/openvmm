@@ -9,6 +9,7 @@ mod openhcl_uefi;
 use anyhow::Context;
 use petri::ApicMode;
 use petri::PetriGuestStateLifetime;
+use petri::PetriHaltReason;
 use petri::PetriVmBuilder;
 use petri::PetriVmmBackend;
 use petri::ProcessorTopology;
@@ -16,7 +17,6 @@ use petri::ShutdownKind;
 use petri::openvmm::OpenVmmPetriBackend;
 use petri::pipette::cmd;
 use petri_artifacts_common::tags::OsFlavor;
-use vmm_core_defs::HaltReason;
 use vmm_test_macros::openvmm_test;
 use vmm_test_macros::openvmm_test_no_agent;
 use vmm_test_macros::vmm_test;
@@ -35,7 +35,7 @@ async fn boot_alias_map(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::
         .run()
         .await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -56,7 +56,7 @@ async fn boot_with_tpm(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::R
                 .run_with_lazy_pipette()
                 .await?;
             // Workaround to https://github.com/microsoft/openvmm/issues/379
-            assert_eq!(vm.wait_for_halt().await?, HaltReason::Reset);
+            assert_eq!(vm.wait_for_halt().await?, PetriHaltReason::Reset);
 
             vm.backend().reset().await?;
             let agent = vm.wait_for_agent().await?;
@@ -68,7 +68,7 @@ async fn boot_with_tpm(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::R
     };
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -90,7 +90,7 @@ async fn boot_with_tpm(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::R
 //     // First boot - AK cert request will be served by GED
 //     let mut vm = config.run_with_lazy_pipette().await?;
 //     // Workaround to https://github.com/microsoft/openvmm/issues/379
-//     assert_eq!(vm.wait_for_halt().await?, HaltReason::Reset);
+//     assert_eq!(vm.wait_for_halt().await?, PetriHaltReason::Reset);
 
 //     // Second boot - Ak cert request will be bypassed by GED
 //     vm.reset().await?;
@@ -113,7 +113,7 @@ async fn boot_with_tpm(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::R
 //     assert!(output.contains("succeeded"));
 
 //     agent.power_off().await?;
-//     assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+//     assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
 //     Ok(())
 // }
 
@@ -135,7 +135,7 @@ async fn boot_with_tpm(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::R
 //     // First boot - expect no AK cert from GED
 //     let mut vm = config.run_with_lazy_pipette().await?;
 //     // Workaround to https://github.com/microsoft/openvmm/issues/379
-//     assert_eq!(vm.wait_for_halt().await?, HaltReason::Reset);
+//     assert_eq!(vm.wait_for_halt().await?, PetriHaltReason::Reset);
 
 //     // Second boot - except get AK cert from GED on the second attempts
 //     vm.reset().await?;
@@ -171,7 +171,7 @@ async fn boot_with_tpm(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::R
 //     assert!(output.contains("succeeded"));
 
 //     agent.power_off().await?;
-//     assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+//     assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
 //     Ok(())
 // }
 
@@ -192,7 +192,7 @@ async fn vbs_boot_with_tpm(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyho
                 .run_without_agent()
                 .await?;
             // Workaround to https://github.com/microsoft/openvmm/issues/379
-            assert_eq!(vm.wait_for_halt().await?, HaltReason::Reset);
+            assert_eq!(vm.wait_for_halt().await?, PetriHaltReason::Reset);
             vm.backend().reset().await?;
             vm
         }
@@ -201,7 +201,7 @@ async fn vbs_boot_with_tpm(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyho
 
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -216,7 +216,7 @@ async fn vtl2_pipette(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Re
     assert!(output.contains("openvmm_hcl vm"));
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -231,7 +231,7 @@ async fn mtrrs(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(), anyhow
     let dmesg_output = cmd!(sh, "dmesg").read().await?;
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
 
     // Validate that output does not contain any MTRR-related errors.
     // If all MTRR registers are zero we get this message.
@@ -273,7 +273,7 @@ async fn vmbus_redirect(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(
     let (mut vm, agent) = config.with_vmbus_redirect(true).run().await?;
     vm.wait_for_successful_boot_event().await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -321,7 +321,7 @@ async fn battery_capacity(
     assert_eq!(guest_capacity, 95, "Output did not match expected capacity");
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
 
@@ -385,6 +385,6 @@ async fn sidecar_aps_unused<T: PetriVmmBackend>(
 async fn sidecar_boot<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> Result<(), anyhow::Error> {
     let (vm, agent) = configure_for_sidecar(config, 8, 2).run().await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
 }
