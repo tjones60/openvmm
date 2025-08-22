@@ -24,6 +24,7 @@ use crate::UefiConfig;
 use crate::VmScreenshotMeta;
 use crate::disk_image::AgentImage;
 use crate::hyperv::powershell::HyperVSecureBootTemplate;
+use crate::kmsg_log_task;
 use crate::openhcl_diag::OpenHclDiagHandler;
 use crate::vm::append_cmdline;
 use anyhow::Context;
@@ -406,7 +407,10 @@ impl PetriVmmBackend for HyperVPetriBackend {
 
                 log_tasks.push(driver.spawn(
                     "openhcl-log",
-                    hyperv_kmsg_log_task(driver.clone(), *vm.vmid(), openhcl_log_file),
+                    kmsg_log_task(
+                        openhcl_log_file,
+                        diag_client::DiagClient::from_hyperv_id(driver.clone(), *vm.vmid()),
+                    ),
                 ));
             }
         }
@@ -641,23 +645,7 @@ async fn hyperv_serial_log_task(
             diag_client::hyperv::ComPortAccessInfo::PortPipePath(&serial_pipe_path),
         )
         .await?;
-        tracing::info!("connected to {serial_pipe_path}");
         let pipe = PolledPipe::new(&driver, serial)?;
-        let res = crate::log_stream(log_file.clone(), pipe).await;
-        tracing::info!("disconnected from {serial_pipe_path}: {res:?}");
-    }
-}
-
-async fn hyperv_kmsg_log_task(
-    driver: DefaultDriver,
-    vmid: guid::Guid,
-    log_file: crate::PetriLogFile,
-) -> anyhow::Result<()> {
-    let diag_client = diag_client::DiagClient::from_hyperv_id(driver.clone(), vmid);
-    loop {
-        diag_client.wait_for_server().await?;
-        tracing::info!("kmsg connected");
-        let res = crate::kmsg_log_task(log_file.clone(), diag_client.kmsg(true).await?).await;
-        tracing::info!("kmsg disconnected: {res:?}");
+        _ = crate::log_task(log_file.clone(), pipe, &serial_pipe_path).await;
     }
 }
