@@ -373,7 +373,7 @@ pub async fn kmsg_log_task(
                     );
                 }
                 Err(err) => {
-                    tracing::info!("kmsg disconnected: {err:?}");
+                    tracing::info!("kmsg disconnected: {err:#}");
                     break;
                 }
             }

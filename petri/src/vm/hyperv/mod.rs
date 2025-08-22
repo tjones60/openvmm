@@ -44,6 +44,7 @@ use petri_artifacts_core::ArtifactResolver;
 use petri_artifacts_core::ResolvedArtifact;
 use pipette_client::PipetteClient;
 use std::fs;
+use std::io::ErrorKind;
 use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
@@ -611,7 +612,7 @@ pub async fn create_child_vhd_locking(
             .open(&lock_file_path)
         {
             Ok(_) => break,
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+            Err(e) if e.kind() == ErrorKind::AlreadyExists => {
                 tracing::debug!("vhd lock taken, waiting...");
                 PolledTimer::new(driver).sleep(Duration::from_secs(1)).await;
                 continue;
@@ -639,13 +640,33 @@ async fn hyperv_serial_log_task(
     serial_pipe_path: String,
     log_file: crate::PetriLogFile,
 ) -> anyhow::Result<()> {
+    let mut timer = None;
     loop {
-        let serial = diag_client::hyperv::open_serial_port(
-            &driver,
-            diag_client::hyperv::ComPortAccessInfo::PortPipePath(&serial_pipe_path),
-        )
-        .await?;
-        let pipe = PolledPipe::new(&driver, serial)?;
-        _ = crate::log_task(log_file.clone(), pipe, &serial_pipe_path).await;
+        match fs_err::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&serial_pipe_path)
+        {
+            Ok(file) => {
+                let pipe = PolledPipe::new(&driver, file.into()).expect("failed to create pipe");
+                // connect/disconnect messages logged internally
+                _ = crate::log_task(log_file.clone(), pipe, &serial_pipe_path).await;
+            }
+            Err(err) => {
+                // Log the error if it isn't just that the VM is not running
+                // or the pipe is "busy" (which is reported during reset).
+                const ERROR_PIPE_BUSY: i32 = 231;
+                if !(err.kind() == ErrorKind::NotFound
+                    || matches!(err.raw_os_error(), Some(ERROR_PIPE_BUSY)))
+                {
+                    tracing::warn!("{err:#}")
+                }
+                // Wait a bit and try again.
+                timer
+                    .get_or_insert_with(|| PolledTimer::new(&driver))
+                    .sleep(Duration::from_millis(100))
+                    .await;
+            }
+        }
     }
 }

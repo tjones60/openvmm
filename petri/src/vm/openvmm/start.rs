@@ -218,7 +218,7 @@ impl PetriVmConfigOpenVmm {
                 log_file,
                 PolledPipe::new(&resources.driver, stderr_read)
                     .context("failed to create polled pipe")?,
-                "tmk_vmm stdout",
+                "openvmm stderr",
             ),
         );
         resources.log_stream_tasks.push(task);
