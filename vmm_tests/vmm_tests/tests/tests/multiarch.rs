@@ -189,7 +189,7 @@ async fn secure_boot_mismatched_template<T: PetriVmmBackend>(
 #[openvmm_test(openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64)))]
 async fn boot_reset_expected(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Result<()> {
     let mut vm = config.run_with_lazy_pipette().await?;
-    assert_eq!(vm.wait_for_halt().await?, PetriHaltReason::Reset);
+    assert_eq!(vm.wait_for_halt(true).await?, PetriHaltReason::Reset);
     vm.backend().reset().await?;
     let agent = vm.wait_for_agent().await?;
     agent.power_off().await?;
@@ -375,7 +375,7 @@ async fn reboot(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(), anyho
     agent.ping().await?;
 
     agent.reboot().await?;
-    assert_eq!(vm.wait_for_halt().await?, PetriHaltReason::Reset);
+    assert_eq!(vm.wait_for_halt(true).await?, PetriHaltReason::Reset);
     vm.backend().reset().await?;
 
     let agent = vm.wait_for_agent().await?;
@@ -574,7 +574,7 @@ async fn reboot_no_agent(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow:
     let mut vm = config.run_without_agent().await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Reboot).await?;
-    assert_eq!(vm.wait_for_halt().await?, PetriHaltReason::Reset);
+    assert_eq!(vm.wait_for_halt(true).await?, PetriHaltReason::Reset);
     vm.backend().reset().await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;

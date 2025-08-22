@@ -16,7 +16,6 @@ use async_trait::async_trait;
 use get_resources::ged::FirmwareEvent;
 use guid::Guid;
 use jiff::Timestamp;
-use jiff::ToSpan;
 use pal_async::DefaultDriver;
 use pal_async::timer::PolledTimer;
 use std::io::Write;

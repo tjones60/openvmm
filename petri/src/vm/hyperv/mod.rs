@@ -437,8 +437,7 @@ impl PetriVmRuntime for HyperVPetriRuntime {
     }
 
     async fn wait_for_halt(&mut self, allow_reset: bool) -> anyhow::Result<PetriHaltReason> {
-        self.vm.wait_for_halt().await?;
-        Ok(PetriHaltReason::PowerOff) // TODO: Get actual halt reason
+        self.vm.wait_for_halt(allow_reset).await
     }
 
     async fn wait_for_agent(&mut self, set_high_vtl: bool) -> anyhow::Result<PipetteClient> {

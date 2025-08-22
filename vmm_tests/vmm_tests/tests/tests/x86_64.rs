@@ -56,7 +56,7 @@ async fn boot_with_tpm(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::R
                 .run_with_lazy_pipette()
                 .await?;
             // Workaround to https://github.com/microsoft/openvmm/issues/379
-            assert_eq!(vm.wait_for_halt().await?, PetriHaltReason::Reset);
+            assert_eq!(vm.wait_for_halt(true).await?, PetriHaltReason::Reset);
 
             vm.backend().reset().await?;
             let agent = vm.wait_for_agent().await?;
@@ -192,7 +192,7 @@ async fn vbs_boot_with_tpm(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyho
                 .run_without_agent()
                 .await?;
             // Workaround to https://github.com/microsoft/openvmm/issues/379
-            assert_eq!(vm.wait_for_halt().await?, PetriHaltReason::Reset);
+            assert_eq!(vm.wait_for_halt(true).await?, PetriHaltReason::Reset);
             vm.backend().reset().await?;
             vm
         }
