@@ -201,7 +201,7 @@ impl HyperVVM {
 
     /// Waits for an event emitted by the firmware about its boot status, and
     /// returns that status.
-    pub async fn wait_for_boot_event(&self) -> anyhow::Result<FirmwareEvent> {
+    pub async fn wait_for_boot_event(&mut self) -> anyhow::Result<FirmwareEvent> {
         self.wait_for_some(Self::boot_event).await
     }
 
@@ -319,9 +319,8 @@ impl HyperVVM {
     }
 
     /// Start the VM
-    pub async fn start(&mut self) -> anyhow::Result<()> {
+    pub async fn start(&self) -> anyhow::Result<()> {
         self.check_state(VmState::Off).await?;
-        self.last_start_time = Some(Timestamp::now());
         hvc::hvc_start(&self.vmid).await?;
         Ok(())
     }
@@ -363,14 +362,14 @@ impl HyperVVM {
     pub async fn wait_for_halt(&mut self, allow_reset: bool) -> anyhow::Result<PetriHaltReason> {
         powershell::run_set_turn_off_on_guest_restart(&self.vmid, &self.ps_mod, !allow_reset)
             .await?;
-        let halt_reason = self.wait_for_some(Self::halt_event).await?;
+        let (halt_reason, timestamp) = self.wait_for_some(Self::halt_event).await?;
         if halt_reason == PetriHaltReason::Reset {
-            self.last_start_time = Some(Timestamp::now());
+            self.last_start_time = Some(timestamp);
         }
         Ok(halt_reason)
     }
 
-    async fn halt_event(&self) -> anyhow::Result<Option<PetriHaltReason>> {
+    async fn halt_event(&self) -> anyhow::Result<Option<(PetriHaltReason, Timestamp)>> {
         let events = powershell::hyperv_halt_events(
             &self.vmid,
             self.last_start_time.as_ref().unwrap_or(&self.create_time),
@@ -380,25 +379,30 @@ impl HyperVVM {
         if events.len() > 1 {
             anyhow::bail!("Got more than one halt event");
         }
+        let event = events.first();
 
-        events
-            .first()
-            .map(|e| match e.id {
-                powershell::MSVM_HOST_STOP_SUCCESS
-                | powershell::MSVM_HOST_SHUTDOWN_SUCCESS
-                | powershell::MSVM_GUEST_SHUTDOWN_SUCCESS => Ok(PetriHaltReason::PowerOff),
-                powershell::MSVM_HOST_RESET_SUCCESS
-                | powershell::MSVM_GUEST_RESET_SUCCESS
-                | powershell::MSVM_STOP_FOR_GUEST_RESET_SUCCESS => Ok(PetriHaltReason::Reset),
-                powershell::MSVM_GUEST_HIBERNATE_SUCCESS => Ok(PetriHaltReason::Hibernate),
-                powershell::MSVM_TRIPLE_FAULT_GENERAL_ERROR
-                | powershell::MSVM_TRIPLE_FAULT_UNSUPPORTED_FEATURE_ERROR
-                | powershell::MSVM_TRIPLE_FAULT_INVALID_VP_REGISTER_ERROR
-                | powershell::MSVM_TRIPLE_FAULT_UNRECOVERABLE_EXCEPTION_ERROR => {
-                    Ok(PetriHaltReason::TripleFault)
-                }
-                powershell::MSVM_STOP_CRITICAL_SUCCESS => Ok(PetriHaltReason::Other),
-                id => anyhow::bail!("Unexpected event id: {id}"),
+        event
+            .map(|e| {
+                Ok((
+                    match e.id {
+                        powershell::MSVM_HOST_STOP_SUCCESS
+                        | powershell::MSVM_HOST_SHUTDOWN_SUCCESS
+                        | powershell::MSVM_GUEST_SHUTDOWN_SUCCESS => PetriHaltReason::PowerOff,
+                        powershell::MSVM_HOST_RESET_SUCCESS
+                        | powershell::MSVM_GUEST_RESET_SUCCESS
+                        | powershell::MSVM_STOP_FOR_GUEST_RESET_SUCCESS => PetriHaltReason::Reset,
+                        powershell::MSVM_GUEST_HIBERNATE_SUCCESS => PetriHaltReason::Hibernate,
+                        powershell::MSVM_TRIPLE_FAULT_GENERAL_ERROR
+                        | powershell::MSVM_TRIPLE_FAULT_UNSUPPORTED_FEATURE_ERROR
+                        | powershell::MSVM_TRIPLE_FAULT_INVALID_VP_REGISTER_ERROR
+                        | powershell::MSVM_TRIPLE_FAULT_UNRECOVERABLE_EXCEPTION_ERROR => {
+                            PetriHaltReason::TripleFault
+                        }
+                        powershell::MSVM_STOP_CRITICAL_SUCCESS => PetriHaltReason::Other,
+                        id => anyhow::bail!("Unexpected event id: {id}"),
+                    },
+                    e.time_created,
+                ))
             })
             .transpose()
     }

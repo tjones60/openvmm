@@ -544,6 +544,19 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         self
     }
 
+    /// Use the specified backing VMGS file
+    pub fn with_initial_reboot_required(mut self, enable: bool) -> Self {
+        let quirks = self.config.firmware.quirks_mut();
+        if let Some(quirks) = quirks {
+            quirks.initial_reboot_required = enable;
+        } else if enable {
+            panic!("cannot enable initial reboot without quirks");
+        } else {
+            // silently succeed to set if false, since this is the default
+        }
+        self
+    }
+
     /// Get VM's guest OS flavor
     pub fn os_flavor(&self) -> OsFlavor {
         self.config.firmware.os_flavor()

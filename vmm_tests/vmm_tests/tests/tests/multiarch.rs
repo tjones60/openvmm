@@ -157,25 +157,16 @@ async fn secure_boot<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::R
 async fn secure_boot_mismatched_template<T: PetriVmmBackend>(
     config: PetriVmBuilder<T>,
 ) -> anyhow::Result<()> {
-    let mut vm = match config.os_flavor() {
-        OsFlavor::Windows => {
-            config
-                .with_secure_boot()
-                .with_uefi_ca_secure_boot_template()
-                .with_uefi_frontpage(false)
-                .run_without_agent()
-                .await?
-        }
-        OsFlavor::Linux => {
-            config
-                .with_secure_boot()
-                .with_windows_secure_boot_template()
-                .with_uefi_frontpage(false)
-                .run_without_agent()
-                .await?
-        }
+    let config = config
+        .with_initial_reboot_required(false)
+        .with_secure_boot()
+        .with_uefi_frontpage(false);
+    let config = match config.os_flavor() {
+        OsFlavor::Windows => config.with_uefi_ca_secure_boot_template(),
+        OsFlavor::Linux => config.with_windows_secure_boot_template(),
         _ => anyhow::bail!("Unsupported OS flavor for test: {:?}", config.os_flavor()),
     };
+    let mut vm = config.run_without_agent().await?;
     assert_eq!(vm.wait_for_boot_event().await?, FirmwareEvent::BootFailed);
     assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
     Ok(())
@@ -735,6 +726,7 @@ async fn boot_expect_fail(
     (initial_vmgs,): (ResolvedArtifact<VMGS_WITH_BOOT_ENTRY>,),
 ) -> Result<(), anyhow::Error> {
     let mut vm = config
+        .with_initial_reboot_required(false)
         .with_guest_state_lifetime(PetriGuestStateLifetime::Disk)
         .with_backing_vmgs(initial_vmgs)
         .run_without_agent()
