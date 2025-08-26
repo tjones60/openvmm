@@ -364,7 +364,7 @@ impl HyperVVM {
             .await?;
         let (halt_reason, timestamp) = self.wait_for_some(Self::halt_event).await?;
         if halt_reason == PetriHaltReason::Reset {
-            self.last_start_time = Some(timestamp);
+            self.last_start_time = Some(timestamp.checked_add(Duration::from_millis(1))?);
         }
         Ok(halt_reason)
     }
