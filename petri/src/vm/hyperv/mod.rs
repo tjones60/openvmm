@@ -189,7 +189,6 @@ impl PetriVmmBackend for HyperVPetriBackend {
             guest_state_isolation_type,
             memory.startup_bytes,
             log_source.log_file("hyperv")?,
-            firmware.expected_boot_event(),
             driver.clone(),
         )
         .await?;
@@ -497,10 +496,6 @@ impl PetriVmRuntime for HyperVPetriRuntime {
                 *self.vm.vmid(),
             ))
         })
-    }
-
-    async fn wait_for_successful_boot_event(&mut self) -> anyhow::Result<()> {
-        self.vm.wait_for_successful_boot_event().await
     }
 
     async fn wait_for_boot_event(&mut self) -> anyhow::Result<FirmwareEvent> {

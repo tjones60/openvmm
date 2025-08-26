@@ -36,6 +36,7 @@ pub struct HyperVVM {
     vmid: Guid,
     name: String,
     create_time: Timestamp,
+    is_isolated: bool,
 
     // resources
     temp_dir: Arc<TempDir>,
@@ -43,8 +44,6 @@ pub struct HyperVVM {
     // TODO: use a trait interface here
     log_file: PetriLogFile,
     driver: DefaultDriver,
-    // TODO: move logic using this to petri-specific code
-    expected_boot_event: Option<FirmwareEvent>,
 
     // state
     destroyed: bool,
@@ -59,7 +58,6 @@ impl HyperVVM {
         guest_state_isolation_type: powershell::HyperVGuestStateIsolationType,
         memory: u64,
         log_file: PetriLogFile,
-        expected_boot_event: Option<FirmwareEvent>,
         driver: DefaultDriver,
     ) -> anyhow::Result<Self> {
         let create_time = Timestamp::now();
@@ -72,6 +70,15 @@ impl HyperVVM {
                 .write_all(include_bytes!("hyperv.psm1"))
                 .context("failed to write hyperv helpers powershell module")?;
         }
+
+        // Used to ignore `hvc restart` error on CVMs
+        let is_isolated = {
+            use powershell::HyperVGuestStateIsolationType as IsolationType;
+            matches!(
+                guest_state_isolation_type,
+                IsolationType::Snp | IsolationType::Tdx | IsolationType::Vbs
+            )
+        };
 
         // Delete the VM if it already exists
         let cleanup = async |vmid: &Guid| -> anyhow::Result<()> {
@@ -112,11 +119,11 @@ impl HyperVVM {
             vmid,
             name,
             create_time,
+            is_isolated,
             temp_dir: Arc::new(temp_dir),
             ps_mod,
             log_file,
             driver,
-            expected_boot_event,
             destroyed: false,
             last_start_time: None,
         };
@@ -181,21 +188,6 @@ impl HyperVVM {
                 ),
             );
         }
-        Ok(())
-    }
-
-    /// Waits for an event emitted by the firmware about its boot status, and
-    /// verifies that it is the expected success value.
-    // TODO: move this logic up
-    pub async fn wait_for_successful_boot_event(&self) -> anyhow::Result<()> {
-        if let Some(expected_boot_event) = self.expected_boot_event {
-            self.wait_for(Self::boot_event, Some(expected_boot_event))
-                .await
-                .context("wait_for_successful_boot_event")?;
-        } else {
-            tracing::warn!("Configured firmware does not emit a boot event, skipping");
-        }
-
         Ok(())
     }
 
@@ -337,7 +329,19 @@ impl HyperVVM {
     pub async fn restart(&self) -> anyhow::Result<()> {
         self.check_shutdown_ic().await?;
         self.check_state(VmState::Running).await?;
-        hvc::hvc_restart(&self.vmid).await?;
+        let res = hvc::hvc_restart(&self.vmid).await;
+
+        const KNOWN_HVC_RESTART_ERROR: &str = "The VM is in the wrong state for this operation.";
+        if self.is_isolated
+            && matches!(&res, Err(CommandError::Command(code, msg))
+            if matches!(code.code(), Some(1))
+            && msg.trim() == KNOWN_HVC_RESTART_ERROR)
+        {
+            // Ignore this error when isolated, since it seems to work anyways.
+        } else {
+            res?;
+        }
+
         Ok(())
     }
 

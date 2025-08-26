@@ -7,7 +7,6 @@ use hvlite_defs::config::ArchTopologyConfig;
 use hvlite_defs::config::ProcessorTopologyConfig;
 use hvlite_defs::config::X2ApicConfig;
 use hvlite_defs::config::X86TopologyConfig;
-use petri::PetriHaltReason;
 use petri::PetriVmBuilder;
 use petri::openvmm::OpenVmmPetriBackend;
 use vmm_test_macros::openvmm_test;
@@ -30,7 +29,7 @@ async fn apicid_offset(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<()
     agent.ping().await?;
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
 
     Ok(())
 }
@@ -63,7 +62,7 @@ async fn legacy_xapic(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(),
     assert!(output.contains("apicid\t\t: 254"));
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
 
     Ok(())
 }

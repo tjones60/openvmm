@@ -148,12 +148,14 @@ pub trait PetriVmmBackend {
 
 /// A constructed Petri VM
 pub struct PetriVm<T: PetriVmmBackend> {
-    arch: MachineArch,
     resources: PetriVmResources,
     runtime: T::VmRuntime,
-    quirks: GuestQuirks,
-    openhcl_diag_handler: Option<OpenHclDiagHandler>,
     watchdog_tasks: Vec<Task<()>>,
+    openhcl_diag_handler: Option<OpenHclDiagHandler>,
+
+    arch: MachineArch,
+    quirks: GuestQuirks,
+    expected_boot_event: Option<FirmwareEvent>,
 }
 
 impl<T: PetriVmmBackend> PetriVmBuilder<T> {
@@ -211,6 +213,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
     async fn run_core(self) -> anyhow::Result<PetriVm<T>> {
         let arch = self.config.arch;
         let quirks = self.config.firmware.quirks();
+        let expected_boot_event = self.config.firmware.expected_boot_event();
 
         let mut runtime = self
             .backend
@@ -220,12 +223,14 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         let watchdog_tasks = Self::start_watchdog_tasks(&self.resources, &mut runtime)?;
 
         let mut vm = PetriVm {
-            arch,
             resources: self.resources,
             runtime,
-            quirks,
-            openhcl_diag_handler,
             watchdog_tasks,
+            openhcl_diag_handler,
+
+            arch,
+            quirks,
+            expected_boot_event,
         };
 
         if quirks.initial_reboot_required {
@@ -584,9 +589,9 @@ impl<T: PetriVmmBackend> PetriVm<T> {
     /// Wait for the VM to halt, returning the reason for the halt.
     pub async fn wait_for_halt(&mut self) -> anyhow::Result<PetriHaltReason> {
         tracing::info!("Waiting for VM to halt...");
-        let r = self.runtime.wait_for_halt(false).await;
-        tracing::info!("VM Halted: {r:?}");
-        r
+        let halt_reason = self.runtime.wait_for_halt(false).await?;
+        tracing::info!("VM halted: {halt_reason:?}");
+        Ok(halt_reason)
     }
 
     /// Wait for the VM to reset
@@ -596,7 +601,7 @@ impl<T: PetriVmmBackend> PetriVm<T> {
         if halt_reason != PetriHaltReason::Reset {
             anyhow::bail!("Expected reset, got {halt_reason:?}");
         }
-        tracing::info!("VM Reset.");
+        tracing::info!("VM reset.");
         Ok(())
     }
 
@@ -604,10 +609,21 @@ impl<T: PetriVmmBackend> PetriVm<T> {
     /// and cleanly tear down the VM.
     pub async fn wait_for_teardown(mut self) -> anyhow::Result<PetriHaltReason> {
         let halt_reason = self.wait_for_halt().await?;
-        tracing::info!("Cancelling watchdogs");
+        tracing::info!("Cancelling watchdogs...");
         futures::future::join_all(self.watchdog_tasks.into_iter().map(|t| t.cancel())).await;
+        tracing::info!("Tearing down VM...");
         self.runtime.teardown().await?;
         Ok(halt_reason)
+    }
+
+    /// Wait for the VM to reset
+    pub async fn wait_for_clean_teardown(self) -> anyhow::Result<()> {
+        let halt_reason = self.wait_for_teardown().await?;
+        if halt_reason != PetriHaltReason::PowerOff {
+            anyhow::bail!("Expected PowerOff, got {halt_reason:?}");
+        }
+        tracing::info!("VM was cleanly powered off and torn down.");
+        Ok(())
     }
 
     /// Test that we are able to inspect OpenHCL.
@@ -665,13 +681,27 @@ impl<T: PetriVmmBackend> PetriVm<T> {
     /// * PCAT guests may not emit an event depending on the PCAT version, this
     ///   method is best effort for them.
     pub async fn wait_for_successful_boot_event(&mut self) -> anyhow::Result<()> {
-        self.runtime.wait_for_successful_boot_event().await
+        if let Some(expected_event) = self.expected_boot_event {
+            let event = self.wait_for_boot_event().await?;
+
+            anyhow::ensure!(
+                event == expected_event,
+                "Did not receive expected successful boot event"
+            );
+        } else {
+            tracing::warn!("Configured firmware does not emit a boot event, skipping");
+        }
+
+        Ok(())
     }
 
     /// Waits for an event emitted by the firmware about its boot status, and
     /// returns that status.
     pub async fn wait_for_boot_event(&mut self) -> anyhow::Result<FirmwareEvent> {
-        self.runtime.wait_for_boot_event().await
+        tracing::info!("Waiting for boot event...");
+        let boot_event = self.runtime.wait_for_boot_event().await?;
+        tracing::info!("Got boot event: {boot_event:?}");
+        Ok(boot_event)
     }
 
     /// Wait for the Hyper-V shutdown IC to be ready and use it to instruct
@@ -772,13 +802,6 @@ pub trait PetriVmRuntime {
     async fn wait_for_agent(&mut self, set_high_vtl: bool) -> anyhow::Result<PipetteClient>;
     /// Get an OpenHCL diagnostics handler for the VM
     fn openhcl_diag(&self) -> Option<OpenHclDiagHandler>;
-    /// Waits for an event emitted by the firmware about its boot status, and
-    /// verifies that it is the expected success value.
-    ///
-    /// * Linux Direct guests do not emit a boot event, so this method immediately returns Ok.
-    /// * PCAT guests may not emit an event depending on the PCAT version, this
-    ///   method is best effort for them.
-    async fn wait_for_successful_boot_event(&mut self) -> anyhow::Result<()>;
     /// Waits for an event emitted by the firmware about its boot status, and
     /// returns that status.
     async fn wait_for_boot_event(&mut self) -> anyhow::Result<FirmwareEvent>;

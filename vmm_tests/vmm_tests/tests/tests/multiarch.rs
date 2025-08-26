@@ -43,7 +43,7 @@ pub(crate) mod openhcl_servicing;
 async fn frontpage<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Result<()> {
     let mut vm = config.run_without_agent().await?;
     vm.wait_for_successful_boot_event().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -73,7 +73,7 @@ async fn frontpage<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Res
 async fn boot<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Result<()> {
     let (vm, agent) = config.run().await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -110,7 +110,7 @@ async fn boot_heavy<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Re
         .run()
         .await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -133,7 +133,7 @@ async fn boot_heavy<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Re
 async fn secure_boot<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Result<()> {
     let (vm, agent) = config.with_secure_boot().run().await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -168,7 +168,7 @@ async fn secure_boot_mismatched_template<T: PetriVmmBackend>(
     };
     let mut vm = config.run_without_agent().await?;
     assert_eq!(vm.wait_for_boot_event().await?, FirmwareEvent::BootFailed);
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -282,7 +282,7 @@ async fn kvp_ic(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Result<(
     assert_eq!(gateway.to_string(), "10.0.0.1");
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -326,7 +326,7 @@ async fn timesync_ic(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Res
     }
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -361,7 +361,7 @@ async fn reboot<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> Result<(), any
     agent.ping().await?;
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
 
     Ok(())
 }
@@ -396,7 +396,7 @@ async fn boot_no_agent<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow:
     let mut vm = config.run_without_agent().await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -418,7 +418,7 @@ async fn boot_no_agent_heavy<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> a
         .await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -433,7 +433,7 @@ async fn vmbus_relay<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::R
     let mut vm = config.with_vmbus_redirect(true).run_without_agent().await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -460,7 +460,7 @@ async fn vmbus_relay_force_mnf<T: PetriVmmBackend>(
         .run()
         .await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -482,7 +482,7 @@ async fn vmbr_force_mnf_no_agent<T: PetriVmmBackend>(
         .await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -504,7 +504,7 @@ async fn vmbus_relay_heavy<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> any
         .await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -528,7 +528,7 @@ async fn boot_no_agent_single_proc<T: PetriVmmBackend>(
         .await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -558,7 +558,7 @@ async fn reboot_no_agent<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyho
     vm.wait_for_reset().await?;
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -613,7 +613,7 @@ async fn file_transfer_test<T: PetriVmmBackend>(
     assert_eq!(agent.read_file(FILE_NAME).await?, TEST_CONTENT.as_bytes());
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
 
     Ok(())
 }
@@ -651,7 +651,7 @@ async fn five_gb(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(), anyh
     );
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
 
     Ok(())
 }
@@ -678,7 +678,7 @@ async fn default_boot(
         .await?;
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
 
     Ok(())
 }
@@ -704,7 +704,7 @@ async fn clear_vmgs(
         .await?;
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
 
     Ok(())
 }
@@ -733,7 +733,7 @@ async fn boot_expect_fail(
         .await?;
 
     assert_eq!(vm.wait_for_boot_event().await?, FirmwareEvent::BootFailed);
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
 
     Ok(())
 }

@@ -3,7 +3,6 @@
 
 //! Integration tests for aarch64 guests.
 
-use petri::PetriHaltReason;
 use petri::PetriVmBuilder;
 use petri::PetriVmmBackend;
 use petri::pipette::cmd;
@@ -40,7 +39,7 @@ async fn pmu_gsiv<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> Result<(), a
     })?;
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
 
     Ok(())
 }

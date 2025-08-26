@@ -6,7 +6,6 @@
 use anyhow::Context;
 use futures::StreamExt;
 use petri::OpenHclServicingFlags;
-use petri::PetriHaltReason;
 use petri::PetriVmBuilder;
 use petri::ProcessorTopology;
 use petri::ResolvedArtifact;
@@ -31,7 +30,7 @@ async fn nvme_relay_test_core(
 
     vm.wait_for_successful_boot_event().await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
 
     Ok(())
 }
@@ -62,7 +61,7 @@ async fn nvme_relay_servicing_core(
     vm.test_inspect_openhcl().await?;
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
 
     Ok(())
 }
@@ -132,7 +131,7 @@ async fn auto_vtl2_range(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<
         .await?;
 
     vm.wait_for_successful_boot_event().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
 
     Ok(())
 }

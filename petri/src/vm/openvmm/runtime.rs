@@ -111,10 +111,6 @@ impl PetriVmRuntime for PetriVmOpenVmm {
         })
     }
 
-    async fn wait_for_successful_boot_event(&mut self) -> anyhow::Result<()> {
-        Self::wait_for_successful_boot_event(self).await
-    }
-
     async fn wait_for_boot_event(&mut self) -> anyhow::Result<FirmwareEvent> {
         Self::wait_for_boot_event(self).await
     }
@@ -186,15 +182,6 @@ impl PetriVmOpenVmm {
             },
         }
     }
-    petri_vm_fn!(
-        /// Waits for an event emitted by the firmware about its boot status, and
-        /// verifies that it is the expected success value.
-        ///
-        /// * Linux Direct guests do not emit a boot event, so this method immediately returns Ok.
-        /// * PCAT guests may not emit an event depending on the PCAT version, this
-        /// method is best effort for them.
-        pub async fn wait_for_successful_boot_event(&mut self) -> anyhow::Result<()>
-    );
     petri_vm_fn!(
         /// Waits for an event emitted by the firmware about its boot status, and
         /// returns that status.
@@ -311,21 +298,6 @@ impl PetriVmOpenVmm {
 }
 
 impl PetriVmInner {
-    async fn wait_for_successful_boot_event(&mut self) -> anyhow::Result<()> {
-        if let Some(expected_event) = self.resources.expected_boot_event {
-            let event = self.wait_for_boot_event().await?;
-
-            anyhow::ensure!(
-                event == expected_event,
-                "Did not receive expected successful boot event"
-            );
-        } else {
-            tracing::warn!("Configured firmware does not emit a boot event, skipping");
-        }
-
-        Ok(())
-    }
-
     async fn wait_for_boot_event(&mut self) -> anyhow::Result<FirmwareEvent> {
         self.resources
             .firmware_event_recv

@@ -9,7 +9,6 @@ mod openhcl_uefi;
 use anyhow::Context;
 use petri::ApicMode;
 use petri::PetriGuestStateLifetime;
-use petri::PetriHaltReason;
 use petri::PetriVmBuilder;
 use petri::PetriVmmBackend;
 use petri::ProcessorTopology;
@@ -35,7 +34,7 @@ async fn boot_alias_map(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::
         .run()
         .await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -67,7 +66,7 @@ async fn boot_with_tpm(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::R
     };
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -115,7 +114,7 @@ async fn tpm_ak_cert_persisted(config: PetriVmBuilder<OpenVmmPetriBackend>) -> a
     assert!(output.contains("succeeded"));
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -176,7 +175,7 @@ async fn tpm_ak_cert_retry(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyho
     assert!(output.contains("succeeded"));
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -205,7 +204,7 @@ async fn vbs_boot_with_tpm(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyho
 
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -242,7 +241,7 @@ async fn vbs_boot_with_attestation(
 
     vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -257,7 +256,7 @@ async fn vtl2_pipette(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Re
     assert!(output.contains("openvmm_hcl vm"));
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -272,7 +271,7 @@ async fn mtrrs(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(), anyhow
     let dmesg_output = cmd!(sh, "dmesg").read().await?;
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
 
     // Validate that output does not contain any MTRR-related errors.
     // If all MTRR registers are zero we get this message.
@@ -314,7 +313,7 @@ async fn vmbus_redirect(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(
     let (mut vm, agent) = config.with_vmbus_redirect(true).run().await?;
     vm.wait_for_successful_boot_event().await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -362,7 +361,7 @@ async fn battery_capacity(
     assert_eq!(guest_capacity, 95, "Output did not match expected capacity");
 
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }
 
@@ -426,6 +425,6 @@ async fn sidecar_aps_unused<T: PetriVmmBackend>(
 async fn sidecar_boot<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> Result<(), anyhow::Error> {
     let (vm, agent) = configure_for_sidecar(config, 8, 2).run().await?;
     agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, PetriHaltReason::PowerOff);
+    vm.wait_for_clean_teardown().await?;
     Ok(())
 }

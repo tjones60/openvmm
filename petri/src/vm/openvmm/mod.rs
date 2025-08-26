@@ -135,7 +135,6 @@ struct PetriVmResourcesOpenVmm {
     firmware_event_recv: Receiver<FirmwareEvent>,
     shutdown_ic_send: Sender<ShutdownRpc>,
     kvp_ic_send: Sender<hyperv_ic_resources::kvp::KvpConnectRpc>,
-    expected_boot_event: Option<FirmwareEvent>,
     ged_send: Option<Sender<get_resources::ged::GuestEmulationRequest>>,
     pipette_listener: PolledSocket<UnixListener>,
     vtl2_pipette_listener: Option<PolledSocket<UnixListener>>,
