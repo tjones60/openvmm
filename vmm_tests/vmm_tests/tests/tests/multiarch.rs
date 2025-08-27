@@ -5,7 +5,6 @@
 
 use anyhow::Context;
 use futures::StreamExt;
-use get_resources::ged::FirmwareEvent;
 use hyperv_ic_resources::kvp::KvpRpc;
 use jiff::SignedDuration;
 use mesh::rpc::RpcSend;
@@ -157,7 +156,7 @@ async fn secure_boot_mismatched_template<T: PetriVmmBackend>(
     config: PetriVmBuilder<T>,
 ) -> anyhow::Result<()> {
     let config = config
-        .with_expected_boot_event(Some(FirmwareEvent::BootFailed))
+        .with_expect_boot_failure()
         .with_secure_boot()
         .with_uefi_frontpage(false);
     let config = match config.os_flavor() {
@@ -706,7 +705,7 @@ async fn boot_expect_fail(
     (initial_vmgs,): (ResolvedArtifact<VMGS_WITH_BOOT_ENTRY>,),
 ) -> Result<(), anyhow::Error> {
     let vm = config
-        .with_expected_boot_event(Some(FirmwareEvent::BootFailed))
+        .with_expect_boot_failure()
         .with_guest_state_lifetime(PetriGuestStateLifetime::Disk)
         .with_backing_vmgs(initial_vmgs)
         .run_without_agent()

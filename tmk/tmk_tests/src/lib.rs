@@ -224,7 +224,7 @@ fn openvmm_openhcl_tmks(
     DefaultPool::run_with(async |driver| {
         let mut vm = petri::PetriVmBuilder::new(&params, artifacts.vm, &driver)?
             .with_openhcl_command_line(OPENHCL_COMMAND_LINE)
-            .with_expected_boot_event(None)
+            .with_expect_no_boot_event()
             .with_openhcl_agent_file("tmk_vmm", artifacts.tmk_vmm)
             .with_openhcl_agent_file("simple_tmk", artifacts.tmk)
             .with_processor_topology(ProcessorTopology {
@@ -261,7 +261,7 @@ mod hyperv {
         DefaultPool::run_with(async |driver| {
             let mut vm = petri::PetriVmBuilder::new(&params, artifacts.vm, &driver)?
                 .with_openhcl_command_line(OPENHCL_COMMAND_LINE)
-                .with_expected_boot_event(None)
+                .with_expect_no_boot_event()
                 .with_openhcl_agent_file("tmk_vmm", artifacts.tmk_vmm)
                 .with_openhcl_agent_file("simple_tmk", artifacts.tmk)
                 .with_processor_topology(ProcessorTopology {

@@ -410,10 +410,17 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         Ok(tasks)
     }
 
-    /// Set the expected boot event for the VM. Should only be used if you
-    /// don't expect the VM to boot normally.
-    pub fn with_expected_boot_event(mut self, expected_boot_event: Option<FirmwareEvent>) -> Self {
-        self.expected_boot_event = expected_boot_event;
+    /// Configure the test to expect a boot failure from the VM.
+    /// Useful for negative tests.
+    pub fn with_expect_boot_failure(mut self) -> Self {
+        self.expected_boot_event = Some(FirmwareEvent::BootFailed);
+        self
+    }
+
+    /// Configure the test to not expect any boot event.
+    /// Useful for tests that do not boot a VTL0 guest.
+    pub fn with_expect_no_boot_event(mut self) -> Self {
+        self.expected_boot_event = None;
         self
     }
 
