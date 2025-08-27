@@ -204,6 +204,8 @@ pub mod artifacts {
     pub mod test_vhd {
         use crate::tags::IsHostedOnHvliteAzureBlobStore;
         use petri_artifacts_common::tags::GuestQuirks;
+        use petri_artifacts_common::tags::GuestQuirksInner;
+        use petri_artifacts_common::tags::InitialRebootCondition;
         use petri_artifacts_common::tags::IsTestVhd;
         use petri_artifacts_common::tags::MachineArch;
         use petri_artifacts_common::tags::OsFlavor;
@@ -272,10 +274,10 @@ pub mod artifacts {
             const ARCH: MachineArch = MachineArch::X86_64;
 
             fn quirks() -> GuestQuirks {
-                GuestQuirks {
-                    initial_reboot_required: true,
+                GuestQuirks::all_backends(GuestQuirksInner {
+                    initial_reboot: Some(InitialRebootCondition::Always),
                     ..Default::default()
-                }
+                })
             }
         }
 
@@ -295,10 +297,10 @@ pub mod artifacts {
             const ARCH: MachineArch = MachineArch::X86_64;
 
             fn quirks() -> GuestQuirks {
-                GuestQuirks {
+                GuestQuirks::all_backends(GuestQuirksInner {
                     hyperv_shutdown_ic_sleep: Some(std::time::Duration::from_secs(20)),
                     ..Default::default()
-                }
+                })
             }
         }
 
@@ -316,10 +318,12 @@ pub mod artifacts {
             const OS_FLAVOR: OsFlavor = OsFlavor::Linux;
             const ARCH: MachineArch = MachineArch::X86_64;
             fn quirks() -> GuestQuirks {
-                GuestQuirks {
+                let mut quirks = GuestQuirks::all_backends(GuestQuirksInner {
                     hyperv_shutdown_ic_sleep: Some(std::time::Duration::from_secs(20)),
                     ..Default::default()
-                }
+                });
+                quirks.hyperv.initial_reboot = Some(InitialRebootCondition::WithOpenHclUefi);
+                quirks
             }
         }
 
@@ -337,10 +341,12 @@ pub mod artifacts {
             const OS_FLAVOR: OsFlavor = OsFlavor::Linux;
             const ARCH: MachineArch = MachineArch::Aarch64;
             fn quirks() -> GuestQuirks {
-                GuestQuirks {
+                let mut quirks = GuestQuirks::all_backends(GuestQuirksInner {
                     hyperv_shutdown_ic_sleep: Some(std::time::Duration::from_secs(20)),
                     ..Default::default()
-                }
+                });
+                quirks.hyperv.initial_reboot = Some(InitialRebootCondition::WithOpenHclUefi);
+                quirks
             }
         }
 
@@ -359,10 +365,10 @@ pub mod artifacts {
             const ARCH: MachineArch = MachineArch::Aarch64;
 
             fn quirks() -> GuestQuirks {
-                GuestQuirks {
-                    initial_reboot_required: true,
+                GuestQuirks::all_backends(GuestQuirksInner {
+                    initial_reboot: Some(InitialRebootCondition::Always),
                     ..Default::default()
-                }
+                })
             }
         }
 
@@ -377,6 +383,7 @@ pub mod artifacts {
     pub mod test_iso {
         use crate::tags::IsHostedOnHvliteAzureBlobStore;
         use petri_artifacts_common::tags::GuestQuirks;
+        use petri_artifacts_common::tags::GuestQuirksInner;
         use petri_artifacts_common::tags::IsTestIso;
         use petri_artifacts_common::tags::MachineArch;
         use petri_artifacts_common::tags::OsFlavor;
@@ -392,10 +399,10 @@ pub mod artifacts {
             const ARCH: MachineArch = MachineArch::X86_64;
 
             fn quirks() -> GuestQuirks {
-                GuestQuirks {
+                GuestQuirks::all_backends(GuestQuirksInner {
                     hyperv_shutdown_ic_sleep: Some(std::time::Duration::from_secs(20)),
                     ..Default::default()
-                }
+                })
             }
         }
 

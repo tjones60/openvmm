@@ -41,6 +41,8 @@ use net_backend_resources::mac_address::MacAddress;
 use pal_async::DefaultDriver;
 use pal_async::socket::PolledSocket;
 use pal_async::task::Task;
+use petri_artifacts_common::tags::GuestQuirks;
+use petri_artifacts_common::tags::GuestQuirksInner;
 use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_common::tags::OsFlavor;
 use petri_artifacts_core::ArtifactResolver;
@@ -82,10 +84,14 @@ impl PetriVmmBackend for OpenVmmPetriBackend {
     type VmmConfig = PetriVmConfigOpenVmm;
     type VmRuntime = PetriVmOpenVmm;
 
-    fn check_compat(firmware: &mut Firmware, arch: MachineArch) -> bool {
+    fn check_compat(firmware: &Firmware, arch: MachineArch) -> bool {
         arch == MachineArch::host()
             && !(firmware.is_openhcl() && (!cfg!(windows) || arch == MachineArch::Aarch64))
             && !(firmware.is_pcat() && arch == MachineArch::Aarch64)
+    }
+
+    fn select_quirks(quirks: GuestQuirks) -> GuestQuirksInner {
+        quirks.openvmm
     }
 
     fn new(resolver: &ArtifactResolver<'_>) -> Self {

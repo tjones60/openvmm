@@ -50,17 +50,13 @@ async fn boot_with_tpm(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::R
     let (vm, agent) = match os_flavor {
         OsFlavor::Windows => config.run().await?,
         OsFlavor::Linux => {
-            let mut vm = config
+            config
                 .with_guest_state_lifetime(PetriGuestStateLifetime::Disk)
-                .run_with_lazy_pipette()
-                .await?;
-            // Workaround to https://github.com/microsoft/openvmm/issues/379
-            vm.wait_for_reset().await?;
-
-            let agent = vm.wait_for_agent().await?;
-            vm.wait_for_successful_boot_event().await?;
-
-            (vm, agent)
+                // TODO: this shouldn't be needed once with_tpm() is
+                // backend-agnostic.
+                .with_expect_reset()
+                .run()
+                .await?
         }
         _ => unreachable!(),
     };
@@ -90,13 +86,10 @@ async fn tpm_ak_cert_persisted(config: PetriVmBuilder<OpenVmmPetriBackend>) -> a
         });
 
     // First boot - AK cert request will be served by GED
-    let mut vm = config.run_with_lazy_pipette().await?;
-    // Workaround to https://github.com/microsoft/openvmm/issues/379
-    vm.wait_for_reset().await?;
-
     // Second boot - Ak cert request will be bypassed by GED
-    let agent = vm.wait_for_agent().await?;
-    vm.wait_for_successful_boot_event().await?;
+    // TODO: with_expect_reset shouldn't be needed once with_tpm() is
+    // backend-agnostic.
+    let (vm, agent) = config.with_expect_reset().run().await?;
 
     // Use the python script to read AK cert from TPM nv index
     // and verify that the AK cert preserves across boot.
@@ -138,13 +131,10 @@ async fn tpm_ak_cert_retry(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyho
         });
 
     // First boot - expect no AK cert from GED
-    let mut vm = config.run_with_lazy_pipette().await?;
-    // Workaround to https://github.com/microsoft/openvmm/issues/379
-    vm.wait_for_reset().await?;
-
     // Second boot - except get AK cert from GED on the second attempts
-    let agent = vm.wait_for_agent().await?;
-    vm.wait_for_successful_boot_event().await?;
+    // TODO: with_expect_reset shouldn't be needed once with_tpm() is
+    // backend-agnostic.
+    let (vm, agent) = config.with_expect_reset().run().await?;
 
     // Use the python script to read AK cert from TPM nv index
     // and verify that the AK cert preserves across boot.
@@ -191,18 +181,17 @@ async fn vbs_boot_with_tpm(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyho
     let mut vm = match os_flavor {
         OsFlavor::Windows => config.run_without_agent().await?,
         OsFlavor::Linux => {
-            let mut vm = config
+            config
                 .with_guest_state_lifetime(PetriGuestStateLifetime::Disk)
+                // TODO: this shouldn't be needed once with_tpm() is
+                // backend-agnostic.
+                .with_expect_reset()
                 .run_without_agent()
-                .await?;
-            // Workaround to https://github.com/microsoft/openvmm/issues/379
-            vm.wait_for_reset().await?;
-            vm
+                .await?
         }
         _ => unreachable!(),
     };
 
-    vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
     vm.wait_for_clean_teardown().await?;
     Ok(())
@@ -228,18 +217,17 @@ async fn vbs_boot_with_attestation(
                 .await?
         }
         OsFlavor::Linux => {
-            let mut vm = config
+            config
                 .with_guest_state_lifetime(PetriGuestStateLifetime::Disk)
+                // TODO: this shouldn't be needed once with_tpm() is
+                // backend-agnostic.
+                .with_expect_reset()
                 .run_without_agent()
-                .await?;
-            // Workaround to https://github.com/microsoft/openvmm/issues/379
-            vm.wait_for_reset().await?;
-            vm
+                .await?
         }
         _ => unreachable!(),
     };
 
-    vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
     vm.wait_for_clean_teardown().await?;
     Ok(())
@@ -310,8 +298,7 @@ async fn mtrrs(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(), anyhow
     openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))
 )]
 async fn vmbus_redirect(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(), anyhow::Error> {
-    let (mut vm, agent) = config.with_vmbus_redirect(true).run().await?;
-    vm.wait_for_successful_boot_event().await?;
+    let (vm, agent) = config.with_vmbus_redirect(true).run().await?;
     agent.power_off().await?;
     vm.wait_for_clean_teardown().await?;
     Ok(())
@@ -328,8 +315,7 @@ async fn battery_capacity(
     config: PetriVmBuilder<OpenVmmPetriBackend>,
 ) -> Result<(), anyhow::Error> {
     let os_flavor = config.os_flavor();
-    let (mut vm, agent) = config.modify_backend(|b| b.with_battery()).run().await?;
-    vm.wait_for_successful_boot_event().await?;
+    let (vm, agent) = config.modify_backend(|b| b.with_battery()).run().await?;
 
     let output = match os_flavor {
         OsFlavor::Linux => {
@@ -394,7 +380,6 @@ async fn sidecar_aps_unused<T: PetriVmmBackend>(
         .with_uefi_frontpage(true)
         .run_without_agent()
         .await?;
-    vm.wait_for_successful_boot_event().await?;
 
     let agent = vm.wait_for_vtl2_agent().await?;
     let sh = agent.unix_shell();

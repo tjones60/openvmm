@@ -41,8 +41,7 @@ pub(crate) mod openhcl_servicing;
     hyperv_openhcl_uefi_x64(none)
 )]
 async fn frontpage<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Result<()> {
-    let mut vm = config.run_without_agent().await?;
-    vm.wait_for_successful_boot_event().await?;
+    let vm = config.run_without_agent().await?;
     vm.wait_for_clean_teardown().await?;
     Ok(())
 }
@@ -158,7 +157,7 @@ async fn secure_boot_mismatched_template<T: PetriVmmBackend>(
     config: PetriVmBuilder<T>,
 ) -> anyhow::Result<()> {
     let config = config
-        .with_initial_reboot_required(false)
+        .with_expected_boot_event(Some(FirmwareEvent::BootFailed))
         .with_secure_boot()
         .with_uefi_frontpage(false);
     let config = match config.os_flavor() {
@@ -166,8 +165,7 @@ async fn secure_boot_mismatched_template<T: PetriVmmBackend>(
         OsFlavor::Linux => config.with_windows_secure_boot_template(),
         _ => anyhow::bail!("Unsupported OS flavor for test: {:?}", config.os_flavor()),
     };
-    let mut vm = config.run_without_agent().await?;
-    assert_eq!(vm.wait_for_boot_event().await?, FirmwareEvent::BootFailed);
+    let vm = config.run_without_agent().await?;
     vm.wait_for_clean_teardown().await?;
     Ok(())
 }
@@ -181,10 +179,7 @@ async fn secure_boot_mismatched_template<T: PetriVmmBackend>(
 async fn efi_diagnostics_no_boot(
     config: PetriVmBuilder<OpenVmmPetriBackend>,
 ) -> anyhow::Result<()> {
-    let mut vm = config.with_uefi_frontpage(true).run_without_agent().await?;
-
-    // Boot the VM first
-    vm.wait_for_successful_boot_event().await?;
+    let vm = config.with_uefi_frontpage(true).run_without_agent().await?;
 
     // Expected no-boot message.
     const NO_BOOT_MSG: &str = "[Bds] Unable to boot!";
@@ -350,19 +345,12 @@ async fn timesync_ic(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Res
 )]
 async fn reboot<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> Result<(), anyhow::Error> {
     let (mut vm, agent) = config.run().await?;
-
     agent.ping().await?;
-
     agent.reboot().await?;
-    vm.wait_for_reset().await?;
-
-    let agent = vm.wait_for_agent().await?;
-
+    let agent = vm.wait_for_reset().await?;
     agent.ping().await?;
-
     agent.power_off().await?;
     vm.wait_for_clean_teardown().await?;
-
     Ok(())
 }
 
@@ -394,7 +382,6 @@ async fn reboot<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> Result<(), any
 )]
 async fn boot_no_agent<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Result<()> {
     let mut vm = config.run_without_agent().await?;
-    vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
     vm.wait_for_clean_teardown().await?;
     Ok(())
@@ -416,7 +403,6 @@ async fn boot_no_agent_heavy<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> a
         })
         .run_without_agent()
         .await?;
-    vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
     vm.wait_for_clean_teardown().await?;
     Ok(())
@@ -431,7 +417,6 @@ async fn boot_no_agent_heavy<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> a
 #[cfg_attr(not(windows), expect(dead_code))]
 async fn vmbus_relay<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Result<()> {
     let mut vm = config.with_vmbus_redirect(true).run_without_agent().await?;
-    vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
     vm.wait_for_clean_teardown().await?;
     Ok(())
@@ -480,7 +465,6 @@ async fn vmbr_force_mnf_no_agent<T: PetriVmmBackend>(
         .with_openhcl_command_line("OPENHCL_VMBUS_ENABLE_MNF=1")
         .run_without_agent()
         .await?;
-    vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
     vm.wait_for_clean_teardown().await?;
     Ok(())
@@ -502,7 +486,6 @@ async fn vmbus_relay_heavy<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> any
         })
         .run_without_agent()
         .await?;
-    vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
     vm.wait_for_clean_teardown().await?;
     Ok(())
@@ -526,7 +509,6 @@ async fn boot_no_agent_single_proc<T: PetriVmmBackend>(
         })
         .run_without_agent()
         .await?;
-    vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
     vm.wait_for_clean_teardown().await?;
     Ok(())
@@ -553,10 +535,8 @@ async fn boot_no_agent_single_proc<T: PetriVmmBackend>(
 )]
 async fn reboot_no_agent<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Result<()> {
     let mut vm = config.run_without_agent().await?;
-    vm.wait_for_successful_boot_event().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Reboot).await?;
-    vm.wait_for_reset().await?;
-    vm.wait_for_successful_boot_event().await?;
+    vm.wait_for_reset_no_agent().await?;
     vm.send_enlightened_shutdown(ShutdownKind::Shutdown).await?;
     vm.wait_for_clean_teardown().await?;
     Ok(())
@@ -725,14 +705,13 @@ async fn boot_expect_fail(
     config: PetriVmBuilder<OpenVmmPetriBackend>,
     (initial_vmgs,): (ResolvedArtifact<VMGS_WITH_BOOT_ENTRY>,),
 ) -> Result<(), anyhow::Error> {
-    let mut vm = config
-        .with_initial_reboot_required(false)
+    let vm = config
+        .with_expected_boot_event(Some(FirmwareEvent::BootFailed))
         .with_guest_state_lifetime(PetriGuestStateLifetime::Disk)
         .with_backing_vmgs(initial_vmgs)
         .run_without_agent()
         .await?;
 
-    assert_eq!(vm.wait_for_boot_event().await?, FirmwareEvent::BootFailed);
     vm.wait_for_clean_teardown().await?;
 
     Ok(())

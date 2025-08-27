@@ -37,6 +37,8 @@ use pal_async::socket::PolledSocket;
 use pal_async::task::Spawn;
 use pal_async::task::Task;
 use pal_async::timer::PolledTimer;
+use petri_artifacts_common::tags::GuestQuirks;
+use petri_artifacts_common::tags::GuestQuirksInner;
 use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_common::tags::OsFlavor;
 use petri_artifacts_core::ArtifactResolver;
@@ -56,9 +58,10 @@ pub struct HyperVPetriRuntime {
     vm: HyperVVM,
     log_tasks: Vec<Task<anyhow::Result<()>>>,
     temp_dir: tempfile::TempDir,
+    driver: DefaultDriver,
+
     is_openhcl: bool,
     is_isolated: bool,
-    driver: DefaultDriver,
 }
 
 #[async_trait]
@@ -66,17 +69,14 @@ impl PetriVmmBackend for HyperVPetriBackend {
     type VmmConfig = ();
     type VmRuntime = HyperVPetriRuntime;
 
-    fn check_compat(firmware: &mut Firmware, arch: MachineArch) -> bool {
-        // Workaround for Ubuntu OpenHCL Hyper-V VMs automatically resetting
-        if matches!(firmware.os_flavor(), OsFlavor::Linux) && firmware.is_openhcl() {
-            if let Some(quirks) = firmware.quirks_mut() {
-                quirks.initial_reboot_required = true;
-            }
-        }
-
+    fn check_compat(firmware: &Firmware, arch: MachineArch) -> bool {
         arch == MachineArch::host()
             && !firmware.is_linux_direct()
             && !(firmware.is_pcat() && arch == MachineArch::Aarch64)
+    }
+
+    fn select_quirks(quirks: GuestQuirks) -> GuestQuirksInner {
+        quirks.hyperv
     }
 
     fn new(_resolver: &ArtifactResolver<'_>) -> Self {
@@ -431,9 +431,9 @@ impl PetriVmmBackend for HyperVPetriBackend {
             vm,
             log_tasks,
             temp_dir,
+            driver: driver.clone(),
             is_openhcl: openhcl_config.is_some(),
             is_isolated: firmware.isolation().is_some(),
-            driver: driver.clone(),
         })
     }
 }

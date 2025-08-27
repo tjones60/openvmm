@@ -18,7 +18,7 @@ async fn nvme_relay_test_core(
     config: PetriVmBuilder<OpenVmmPetriBackend>,
     openhcl_cmdline: &str,
 ) -> Result<(), anyhow::Error> {
-    let (mut vm, agent) = config
+    let (vm, agent) = config
         .with_openhcl_command_line(openhcl_cmdline)
         .with_vmbus_redirect(true)
         .with_processor_topology(ProcessorTopology {
@@ -28,7 +28,6 @@ async fn nvme_relay_test_core(
         .run()
         .await?;
 
-    vm.wait_for_successful_boot_event().await?;
     agent.power_off().await?;
     vm.wait_for_clean_teardown().await?;
 
@@ -121,7 +120,7 @@ async fn nvme_keepalive(
 /// hvlite.
 #[openvmm_test_no_agent(openhcl_uefi_x64(none))]
 async fn auto_vtl2_range(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(), anyhow::Error> {
-    let mut vm = config
+    let vm = config
         .modify_backend(|b| {
             b.with_vtl2_relocation_mode(hvlite_defs::config::Vtl2BaseAddressType::MemoryLayout {
                 size: None,
@@ -130,7 +129,6 @@ async fn auto_vtl2_range(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<
         .run_without_agent()
         .await?;
 
-    vm.wait_for_successful_boot_event().await?;
     vm.wait_for_clean_teardown().await?;
 
     Ok(())
