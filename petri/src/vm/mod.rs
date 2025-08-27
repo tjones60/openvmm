@@ -1256,7 +1256,16 @@ impl Firmware {
 
     fn expected_boot_event(&self) -> Option<FirmwareEvent> {
         match self {
-            Firmware::LinuxDirect { .. } | Firmware::OpenhclLinuxDirect { .. } => None,
+            Firmware::LinuxDirect { .. }
+            | Firmware::OpenhclLinuxDirect { .. }
+            | Firmware::Uefi {
+                guest: UefiGuest::GuestTestUefi(_),
+                ..
+            }
+            | Firmware::OpenhclUefi {
+                guest: UefiGuest::GuestTestUefi(_),
+                ..
+            } => None,
             Firmware::Pcat { .. } | Firmware::OpenhclPcat { .. } => {
                 // TODO: Handle older PCAT versions that don't fire the event
                 Some(FirmwareEvent::BootAttempt)

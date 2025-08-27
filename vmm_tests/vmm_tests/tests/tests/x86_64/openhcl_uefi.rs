@@ -143,6 +143,7 @@ async fn auto_vtl2_range(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<
 async fn no_numa_errors(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(), anyhow::Error> {
     let vm = config
         .with_openhcl_command_line("OPENHCL_WAIT_FOR_START=1")
+        .with_expected_boot_event(None)
         .run_without_agent()
         .await?;
 
