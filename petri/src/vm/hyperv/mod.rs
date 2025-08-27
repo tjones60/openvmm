@@ -619,6 +619,8 @@ async fn hyperv_serial_log_task(
 ) -> anyhow::Result<()> {
     let mut timer = None;
     loop {
+        // using `std::fs` here instead of `fs_err` since `raw_os_error` always
+        // returns `None` for `fs_err` errors.
         match std::fs::OpenOptions::new()
             .read(true)
             .write(true)

@@ -97,7 +97,7 @@ pub mod tags {
 
     impl GuestQuirks {
         /// Use the same quirks for all backends
-        pub fn all_backends(quirks: GuestQuirksInner) -> GuestQuirks {
+        pub fn for_all_backends(quirks: GuestQuirksInner) -> GuestQuirks {
             GuestQuirks {
                 openvmm: quirks.clone(),
                 hyperv: quirks,

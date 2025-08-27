@@ -274,7 +274,7 @@ pub mod artifacts {
             const ARCH: MachineArch = MachineArch::X86_64;
 
             fn quirks() -> GuestQuirks {
-                GuestQuirks::all_backends(GuestQuirksInner {
+                GuestQuirks::for_all_backends(GuestQuirksInner {
                     initial_reboot: Some(InitialRebootCondition::Always),
                     ..Default::default()
                 })
@@ -297,7 +297,7 @@ pub mod artifacts {
             const ARCH: MachineArch = MachineArch::X86_64;
 
             fn quirks() -> GuestQuirks {
-                GuestQuirks::all_backends(GuestQuirksInner {
+                GuestQuirks::for_all_backends(GuestQuirksInner {
                     hyperv_shutdown_ic_sleep: Some(std::time::Duration::from_secs(20)),
                     ..Default::default()
                 })
@@ -318,7 +318,7 @@ pub mod artifacts {
             const OS_FLAVOR: OsFlavor = OsFlavor::Linux;
             const ARCH: MachineArch = MachineArch::X86_64;
             fn quirks() -> GuestQuirks {
-                let mut quirks = GuestQuirks::all_backends(GuestQuirksInner {
+                let mut quirks = GuestQuirks::for_all_backends(GuestQuirksInner {
                     hyperv_shutdown_ic_sleep: Some(std::time::Duration::from_secs(20)),
                     ..Default::default()
                 });
@@ -341,7 +341,7 @@ pub mod artifacts {
             const OS_FLAVOR: OsFlavor = OsFlavor::Linux;
             const ARCH: MachineArch = MachineArch::Aarch64;
             fn quirks() -> GuestQuirks {
-                let mut quirks = GuestQuirks::all_backends(GuestQuirksInner {
+                let mut quirks = GuestQuirks::for_all_backends(GuestQuirksInner {
                     hyperv_shutdown_ic_sleep: Some(std::time::Duration::from_secs(20)),
                     ..Default::default()
                 });
@@ -365,7 +365,7 @@ pub mod artifacts {
             const ARCH: MachineArch = MachineArch::Aarch64;
 
             fn quirks() -> GuestQuirks {
-                GuestQuirks::all_backends(GuestQuirksInner {
+                GuestQuirks::for_all_backends(GuestQuirksInner {
                     initial_reboot: Some(InitialRebootCondition::Always),
                     ..Default::default()
                 })
@@ -399,7 +399,7 @@ pub mod artifacts {
             const ARCH: MachineArch = MachineArch::X86_64;
 
             fn quirks() -> GuestQuirks {
-                GuestQuirks::all_backends(GuestQuirksInner {
+                GuestQuirks::for_all_backends(GuestQuirksInner {
                     hyperv_shutdown_ic_sleep: Some(std::time::Duration::from_secs(20)),
                     ..Default::default()
                 })
