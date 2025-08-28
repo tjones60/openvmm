@@ -306,7 +306,7 @@ impl SimpleFlowNode for Node {
                         if windows && (tdx || snp || hyperv_vbs) {
                             artifacts.push(KnownTestArtifacts::Gen2WindowsDataCenterCore2025X64Vhd);
                         }
-                        if windows && (tdx || snp || hyperv_vbs) {
+                        if ubuntu && (tdx || snp || hyperv_vbs) {
                             artifacts.push(KnownTestArtifacts::Ubuntu2404ServerX64Vhd);
                         }
                         if ubuntu {
