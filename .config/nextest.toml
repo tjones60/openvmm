@@ -59,3 +59,8 @@ slow-timeout = { period = "3m", terminate-after = 2 }
 [[profile.ci.overrides]]
 platform = 'cfg(windows)'
 slow-timeout = { period = "1s", terminate-after = 30 }
+
+# Reboot VMM tests take extra long
+[[profile.ci.overrides]]
+filter = 'package(~vmm_tests) & test(reboot)'
+slow-timeout = { period = "5m", terminate-after = 2 }
