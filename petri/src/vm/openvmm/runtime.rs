@@ -45,7 +45,7 @@ use vtl2_settings_proto::Vtl2Settings;
 // hanging indefinitely when waiting on certain channels if the VM crashes.
 pub struct PetriVmOpenVmm {
     inner: PetriVmInner,
-    halt: PetriVmHaltReceiver,
+    halt: Option<PetriVmHaltReceiver>,
 }
 
 #[async_trait]
@@ -53,14 +53,31 @@ impl PetriVmRuntime for PetriVmOpenVmm {
     type VmInspector = OpenVmmInspector;
     type VmFramebufferAccess = OpenVmmFramebufferAccess;
 
+    async fn start(&mut self) -> anyhow::Result<()> {
+        self.resume().await?;
+
+        // Run basic save/restore test that should run on every vm
+        // (that supports it)
+        if self.inner.test_save_restore {
+            tracing::info!("Testing save/restore");
+            self.verify_save_restore().await?;
+        }
+
+        Ok(())
+    }
+
     async fn teardown(self) -> anyhow::Result<()> {
         tracing::info!("waiting for worker");
-        let worker = Arc::into_inner(self.inner.worker)
+        let worker = Arc::into_inner(self.inner.worker.context("worker never started")?)
             .context("all references to the OpenVMM worker have not been closed")?;
         worker.shutdown().await?;
 
         tracing::info!("Worker quit, waiting for mesh");
-        self.inner.mesh.shutdown().await;
+        self.inner
+            .mesh
+            .expect("mesh never started")
+            .shutdown()
+            .await;
 
         tracing::info!("Mesh shutdown, waiting for logging tasks");
         for t in self.inner.resources.log_stream_tasks {
@@ -71,10 +88,18 @@ impl PetriVmRuntime for PetriVmOpenVmm {
     }
 
     async fn wait_for_halt(&mut self, allow_reset: bool) -> anyhow::Result<PetriHaltReason> {
-        let halt_reason = if let Some(already) = self.halt.already_received.take() {
+        let halt_reason = if let Some(already) = self
+            .halt
+            .as_mut()
+            .context("worker never started")?
+            .already_received
+            .take()
+        {
             already.map_err(anyhow::Error::from)
         } else {
             self.halt
+                .as_mut()
+                .context("worker never started")?
                 .halt_notif
                 .recv()
                 .await
@@ -135,7 +160,12 @@ impl PetriVmRuntime for PetriVmOpenVmm {
 
     fn inspector(&self) -> Option<OpenVmmInspector> {
         Some(OpenVmmInspector {
-            worker: self.inner.worker.clone(),
+            worker: self
+                .inner
+                .worker
+                .as_ref()
+                .expect("worker never started")
+                .clone(),
         })
     }
 
@@ -149,9 +179,10 @@ impl PetriVmRuntime for PetriVmOpenVmm {
 
 pub(super) struct PetriVmInner {
     pub(super) resources: PetriVmResourcesOpenVmm,
-    pub(super) mesh: Mesh,
-    pub(super) worker: Arc<Worker>,
+    pub(super) mesh: Option<Mesh>,
+    pub(super) worker: Option<Arc<Worker>>,
     pub(super) framebuffer_view: Option<View>,
+    pub(super) test_save_restore: bool,
 }
 
 struct PetriVmHaltReceiver {
@@ -165,7 +196,8 @@ macro_rules! petri_vm_fn {
     ($(#[$($attrss:tt)*])* $vis:vis async fn $fn_name:ident (&mut self $(,$arg:ident: $ty:ty)*) $(-> $ret:ty)?) => {
         $(#[$($attrss)*])*
         $vis async fn $fn_name(&mut self, $($arg:$ty,)*) $(-> $ret)? {
-            Self::wait_for_halt_or_internal(&mut self.halt, self.inner.$fn_name($($arg,)*)).await
+            let halt = self.halt.as_mut().expect("worker never started");
+            Self::wait_for_halt_or_internal(halt, self.inner.$fn_name($($arg,)*)).await
         }
     };
 }
@@ -173,14 +205,8 @@ macro_rules! petri_vm_fn {
 // TODO: Add all runtime functions that are not backend specific
 // to the `PetriVmRuntime` trait
 impl PetriVmOpenVmm {
-    pub(super) fn new(inner: PetriVmInner, halt_notif: Receiver<HaltReason>) -> Self {
-        Self {
-            inner,
-            halt: PetriVmHaltReceiver {
-                halt_notif,
-                already_received: None,
-            },
-        }
+    pub(super) fn new(inner: PetriVmInner) -> Self {
+        Self { inner, halt: None }
     }
 
     /// Get the path to the VTL 2 vsock socket, if the VM is configured with OpenHCL.
@@ -234,7 +260,6 @@ impl PetriVmOpenVmm {
 
     petri_vm_fn!(pub(crate) async fn resume(&mut self) -> anyhow::Result<()>);
     petri_vm_fn!(pub(crate) async fn verify_save_restore(&mut self) -> anyhow::Result<()>);
-    petri_vm_fn!(pub(crate) async fn launch_linux_direct_pipette(&mut self) -> anyhow::Result<()>);
 
     /// Wrap the provided future in a race with the worker process's halt
     /// notification channel. This is useful for preventing a future from
@@ -246,7 +271,11 @@ impl PetriVmOpenVmm {
         &mut self,
         future: F,
     ) -> anyhow::Result<T> {
-        Self::wait_for_halt_or_internal(&mut self.halt, future).await
+        Self::wait_for_halt_or_internal(self.halt(), future).await
+    }
+
+    fn halt(&mut self) -> &mut PetriVmHaltReceiver {
+        self.halt.as_mut().expect("worker never started")
     }
 
     async fn wait_for_halt_or_internal<T, F: Future<Output = anyhow::Result<T>>>(
@@ -308,6 +337,10 @@ impl PetriVmOpenVmm {
 }
 
 impl PetriVmInner {
+    fn worker(&self) -> &Worker {
+        self.worker.as_ref().expect("worker never started")
+    }
+
     async fn wait_for_boot_event(&mut self) -> anyhow::Result<FirmwareEvent> {
         self.resources
             .firmware_event_recv
@@ -381,7 +414,7 @@ impl PetriVmInner {
             .context("openhcl not configured")?;
 
         let igvm_file = fs_err::File::open(new_openhcl).context("failed to open igvm file")?;
-        self.worker
+        self.worker()
             .restart_openhcl(ged_send, flags, igvm_file.into())
             .await
     }
@@ -410,19 +443,12 @@ impl PetriVmInner {
 
     async fn reset(&mut self) -> anyhow::Result<()> {
         tracing::info!("Resetting VM");
-        self.worker.reset().await?;
+        self.worker().reset().await?;
         // On linux direct pipette won't auto start, start it over serial
         if let Some(agent) = self.resources.linux_direct_serial_agent.as_mut() {
             agent.reset();
 
-            if self
-                .resources
-                .agent_image
-                .as_ref()
-                .is_some_and(|x| x.contains_pipette())
-            {
-                self.launch_linux_direct_pipette().await?;
-            }
+            self.maybe_launch_linux_direct_pipette().await?;
         }
         Ok(())
     }
@@ -464,14 +490,15 @@ impl PetriVmInner {
         client
     }
 
-    async fn resume(&self) -> anyhow::Result<()> {
-        self.worker.resume().await?;
+    async fn resume(&mut self) -> anyhow::Result<()> {
+        self.worker().resume().await?;
+        self.maybe_launch_linux_direct_pipette().await?;
         Ok(())
     }
 
     async fn verify_save_restore(&self) -> anyhow::Result<()> {
         for i in 0..2 {
-            let result = self.worker.pulse_save_restore().await;
+            let result = self.worker().pulse_save_restore().await;
             match result {
                 Ok(()) => {}
                 Err(RpcError::Channel(err)) => return Err(err.into()),
@@ -489,14 +516,22 @@ impl PetriVmInner {
         Ok(())
     }
 
-    async fn launch_linux_direct_pipette(&mut self) -> anyhow::Result<()> {
-        // Start pipette through serial on linux direct.
-        self.resources
-            .linux_direct_serial_agent
-            .as_mut()
-            .unwrap()
-            .run_command("mkdir /cidata && mount LABEL=cidata /cidata && sh -c '/cidata/pipette &'")
-            .await?;
+    /// launch pipette via the linux direct serial agent if necessary
+    async fn maybe_launch_linux_direct_pipette(&mut self) -> anyhow::Result<()> {
+        if let Some(agent) = self.resources.linux_direct_serial_agent.as_mut() {
+            if self
+                .resources
+                .agent_image
+                .as_ref()
+                .is_some_and(|x| x.contains_pipette())
+            {
+                agent
+                    .run_command(
+                        "mkdir /cidata && mount LABEL=cidata /cidata && sh -c '/cidata/pipette &'",
+                    )
+                    .await?;
+            }
+        }
         Ok(())
     }
 }

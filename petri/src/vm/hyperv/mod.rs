@@ -84,7 +84,7 @@ impl PetriVmmBackend for HyperVPetriBackend {
         HyperVPetriBackend {}
     }
 
-    async fn run(
+    async fn create(
         self,
         config: PetriVmConfig,
         modify_vmm_config: Option<impl FnOnce(Self::VmmConfig) -> Self::VmmConfig + Send>,
@@ -455,6 +455,10 @@ impl PetriVmmBackend for HyperVPetriBackend {
 impl PetriVmRuntime for HyperVPetriRuntime {
     type VmInspector = NoPetriVmInspector;
     type VmFramebufferAccess = vm::HyperVFramebufferAccess;
+
+    async fn start(&mut self) -> anyhow::Result<()> {
+        self.vm.start().await
+    }
 
     async fn teardown(mut self) -> anyhow::Result<()> {
         futures::future::join_all(self.log_tasks.into_iter().map(|t| t.cancel())).await;

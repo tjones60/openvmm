@@ -30,7 +30,7 @@ use storvsp_resources::ScsiPath;
 use vm_resource::IntoResource;
 
 impl PetriVmConfigOpenVmm {
-    async fn run_core(self) -> anyhow::Result<PetriVmOpenVmm> {
+    async fn create_core(self) -> anyhow::Result<PetriVmOpenVmm> {
         let Self {
             firmware,
             arch,
@@ -96,52 +96,30 @@ impl PetriVmConfigOpenVmm {
 
         tracing::debug!(?config, ?firmware, ?arch, "VM config");
 
-        let mesh = Mesh::new("petri_mesh".to_string())?;
-
-        let host = Self::openvmm_host(&mut resources, &mesh, openvmm_log_file)
-            .await
-            .context("failed to create host process")?;
-        let (worker, halt_notif) = Worker::launch(&host, config)
-            .await
-            .context("failed to launch vm worker")?;
-
-        let worker = Arc::new(worker);
-
-        let mut vm = PetriVmOpenVmm::new(
-            super::runtime::PetriVmInner {
-                resources,
-                mesh,
-                worker,
-                framebuffer_view,
-            },
-            halt_notif,
-        );
-
-        tracing::info!("Resuming VM");
-        vm.resume().await?;
-
-        // Run basic save/restore test that should run on every vm
         // TODO: OpenHCL needs virt_whp support
         // TODO: PCAT needs vga device support
         // TODO: arm64 is broken?
         // TODO: VPCI and NVMe don't support save/restore
-        if !firmware.is_openhcl()
+        let test_save_restore = !firmware.is_openhcl()
             && !matches!(firmware, Firmware::Pcat { .. })
             && !matches!(arch, MachineArch::Aarch64)
-            && !matches!(boot_device_type, BootDeviceType::Nvme)
-        {
-            tracing::info!("Testing save/restore");
-            vm.verify_save_restore().await?;
-        }
+            && !matches!(boot_device_type, BootDeviceType::Nvme);
 
-        tracing::info!("VM ready");
+        let vm = PetriVmOpenVmm::new(super::runtime::PetriVmInner {
+            resources,
+            mesh: None,
+            worker: None,
+            framebuffer_view,
+            test_save_restore,
+        });
+
         Ok(vm)
     }
 
-    /// Run the VM, configuring pipette to automatically start if it is
+    /// Create the VM configuring pipette to automatically start if it is
     /// included in the config
-    pub async fn run(mut self) -> anyhow::Result<PetriVmOpenVmm> {
-        let launch_linux_direct_pipette = if let Some(agent_image) = &self.resources.agent_image {
+    pub async fn create(mut self) -> anyhow::Result<PetriVmOpenVmm> {
+        if let Some(agent_image) = &self.resources.agent_image {
             const CIDATA_SCSI_INSTANCE: Guid = guid::guid!("766e96f8-2ceb-437e-afe3-a93169e48a7b");
 
             // Construct the agent disk.
@@ -192,18 +170,10 @@ impl PetriVmConfigOpenVmm {
                     .into_resource(),
                 ));
             }
-
-            self.firmware.is_linux_direct() && agent_image.contains_pipette()
-        } else {
-            false
-        };
+        }
 
         // Start the VM.
-        let mut vm = self.run_core().await?;
-
-        if launch_linux_direct_pipette {
-            vm.launch_linux_direct_pipette().await?;
-        }
+        let vm = self.create_core().await?;
 
         Ok(vm)
     }

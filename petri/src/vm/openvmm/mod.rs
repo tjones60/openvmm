@@ -109,7 +109,7 @@ impl PetriVmmBackend for OpenVmmPetriBackend {
         }
     }
 
-    async fn run(
+    async fn create(
         self,
         config: PetriVmConfig,
         modify_vmm_config: Option<impl FnOnce(PetriVmConfigOpenVmm) -> PetriVmConfigOpenVmm + Send>,
@@ -121,7 +121,7 @@ impl PetriVmmBackend for OpenVmmPetriBackend {
             config = f(config);
         }
 
-        config.run().await
+        config.create().await
     }
 }
 

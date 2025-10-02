@@ -22,7 +22,6 @@ use petri_artifacts_common::tags::GuestQuirks;
 use petri_artifacts_common::tags::GuestQuirksInner;
 use petri_artifacts_common::tags::InitialRebootCondition;
 use petri_artifacts_common::tags::IsOpenhclIgvm;
-use petri_artifacts_common::tags::IsTestVmgs;
 use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_common::tags::OsFlavor;
 use petri_artifacts_core::ArtifactResolver;
@@ -151,8 +150,8 @@ pub trait PetriVmmBackend {
     /// Resolve any artifacts needed to use this backend
     fn new(resolver: &ArtifactResolver<'_>) -> Self;
 
-    /// Create and start VM from the generic config using the VMM backend
-    async fn run(
+    /// Create the VM from the generic config using the VMM backend
+    async fn create(
         self,
         config: PetriVmConfig,
         modify_vmm_config: Option<impl FnOnce(Self::VmmConfig) -> Self::VmmConfig + Send>,
@@ -170,6 +169,8 @@ pub struct PetriVm<T: PetriVmmBackend> {
     arch: MachineArch,
     quirks: GuestQuirksInner,
     expected_boot_event: Option<FirmwareEvent>,
+    expect_reset: bool,
+    pipette_available: bool,
 }
 
 impl<T: PetriVmmBackend> PetriVmBuilder<T> {
@@ -224,53 +225,53 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
 }
 
 impl<T: PetriVmmBackend> PetriVmBuilder<T> {
-    /// Build and run the VM, then wait for the VM to emit the expected boot
-    /// event (if configured). Does not configure and start pipette. Should
-    /// only be used for testing platforms that pipette does not support.
-    pub async fn run_without_agent(self) -> anyhow::Result<PetriVm<T>> {
-        self.run_core().await
-    }
-
-    /// Build and run the VM, then wait for the VM to emit the expected boot
-    /// event (if configured). Launches pipette and returns a client to it.
-    pub async fn run(self) -> anyhow::Result<(PetriVm<T>, PipetteClient)> {
-        assert!(self.config.agent_image.is_some());
-        assert!(self.config.agent_image.as_ref().unwrap().contains_pipette());
-
-        let mut vm = self.run_core().await?;
-        let client = vm.wait_for_agent().await?;
-        Ok((vm, client))
-    }
-
-    async fn run_core(self) -> anyhow::Result<PetriVm<T>> {
+    /// Build the configured VM
+    pub async fn build(self) -> anyhow::Result<PetriVm<T>> {
         let arch = self.config.arch;
         let expect_reset = self.expect_reset();
+        let pipette_available = self
+            .config
+            .agent_image
+            .as_ref()
+            .is_some_and(|a| a.contains_pipette());
 
-        let mut runtime = self
+        let runtime = self
             .backend
-            .run(self.config, self.modify_vmm_config, &self.resources)
+            .create(self.config, self.modify_vmm_config, &self.resources)
             .await?;
         let openhcl_diag_handler = runtime.openhcl_diag();
-        let watchdog_tasks = Self::start_watchdog_tasks(&self.resources, &mut runtime)?;
 
-        let mut vm = PetriVm {
+        let vm = PetriVm {
             resources: self.resources,
             runtime,
-            watchdog_tasks,
+            watchdog_tasks: Vec::new(),
             openhcl_diag_handler,
 
             arch,
             quirks: self.quirks,
             expected_boot_event: self.expected_boot_event,
+            expect_reset,
+            pipette_available,
         };
 
-        if expect_reset {
-            vm.wait_for_reset_core().await?;
-        }
-
-        vm.wait_for_expected_boot_event().await?;
-
         Ok(vm)
+    }
+
+    /// Build and run the VM, then wait for the VM to emit the expected boot
+    /// event (if configured). Does not configure and start pipette. Should
+    /// only be used for testing platforms that pipette does not support.
+    pub async fn run_without_agent(self) -> anyhow::Result<PetriVm<T>> {
+        let mut vm = self.build().await?;
+        vm.start_no_agent().await?;
+        Ok(vm)
+    }
+
+    /// Build and run the VM, then wait for the VM to emit the expected boot
+    /// event (if configured). Launches pipette and returns a client to it.
+    pub async fn run(self) -> anyhow::Result<(PetriVm<T>, PipetteClient)> {
+        let mut vm = self.build().await?;
+        let client = vm.start().await?;
+        Ok((vm, client))
     }
 
     fn expect_reset(&self) -> bool {
@@ -292,139 +293,6 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
                     Firmware::OpenhclUefi { .. },
                 )
             )
-    }
-
-    fn start_watchdog_tasks(
-        resources: &PetriVmResources,
-        runtime: &mut T::VmRuntime,
-    ) -> anyhow::Result<Vec<Task<()>>> {
-        // Our CI environment will kill tests after some time. We want to save
-        // some information about the VM if it's still running at that point.
-        const TIMEOUT_DURATION_MINUTES: u64 = 6;
-        const TIMER_DURATION: Duration = Duration::from_secs(TIMEOUT_DURATION_MINUTES * 60 - 10);
-
-        let mut tasks = Vec::new();
-
-        if let Some(inspector) = runtime.inspector() {
-            let mut timer = PolledTimer::new(&resources.driver);
-            let log_source = resources.log_source.clone();
-
-            tasks.push(resources.driver.spawn("petri-watchdog-inspect", {
-                async move {
-                    timer.sleep(TIMER_DURATION).await;
-                    tracing::warn!(
-                        "Test has been running for almost {TIMEOUT_DURATION_MINUTES} minutes,
-                     saving inspect details."
-                    );
-
-                    let info = match inspector.inspect().await {
-                        Ok(info) => info,
-                        Err(e) => {
-                            tracing::error!(?e, "Failed to get inspect contents");
-                            return;
-                        }
-                    };
-
-                    if let Err(e) = log_source.write_attachment("timeout_inspect.log", info) {
-                        tracing::error!(?e, "Failed to save inspect log");
-                        return;
-                    }
-                    tracing::info!("Watchdog inspect task finished.");
-                }
-            }));
-        }
-
-        if let Some(mut framebuffer_access) = runtime.take_framebuffer_access() {
-            let mut timer = PolledTimer::new(&resources.driver);
-            let log_source = resources.log_source.clone();
-
-            tasks.push(
-                resources
-                    .driver
-                    .spawn("petri-watchdog-screenshot", async move {
-                        let mut image = Vec::new();
-                        let mut last_image = Vec::new();
-                        loop {
-                            timer.sleep(Duration::from_secs(2)).await;
-                            tracing::trace!("Taking screenshot.");
-
-                            let VmScreenshotMeta {
-                                color,
-                                width,
-                                height,
-                            } = match framebuffer_access.screenshot(&mut image).await {
-                                Ok(Some(meta)) => meta,
-                                Ok(None) => {
-                                    tracing::debug!("VM off, skipping screenshot.");
-                                    continue;
-                                }
-                                Err(e) => {
-                                    tracing::error!(?e, "Failed to take screenshot");
-                                    continue;
-                                }
-                            };
-
-                            if image == last_image {
-                                tracing::debug!("No change in framebuffer, skipping screenshot.");
-                                continue;
-                            }
-
-                            let r =
-                                log_source
-                                    .create_attachment("screenshot.png")
-                                    .and_then(|mut f| {
-                                        image::write_buffer_with_format(
-                                            &mut f,
-                                            &image,
-                                            width.into(),
-                                            height.into(),
-                                            color,
-                                            image::ImageFormat::Png,
-                                        )
-                                        .map_err(Into::into)
-                                    });
-
-                            if let Err(e) = r {
-                                tracing::error!(?e, "Failed to save screenshot");
-                            } else {
-                                tracing::info!("Screenshot saved.");
-                            }
-
-                            std::mem::swap(&mut image, &mut last_image);
-                        }
-                    }),
-            );
-        }
-
-        if let Some(openhcl_diag_handler) = runtime.openhcl_diag() {
-            let mut timer = PolledTimer::new(&resources.driver);
-            let driver = resources.driver.clone();
-            let log_source = resources.log_source.clone();
-            tasks.push(driver.spawn("petri-watchdog-inspect-vtl2", async move {
-                timer.sleep(TIMER_DURATION).await;
-                tracing::warn!(
-                    "Test has been running for almost {TIMEOUT_DURATION_MINUTES} minutes, saving openhcl inspect details."
-                );
-
-                let output = match openhcl_diag_handler.inspect("", None, None).await {
-                    Err(e) => {
-                        tracing::error!(?e, "Failed to inspect vtl2");
-                        return;
-                    }
-                    Ok(output) => output,
-                };
-
-                let formatted_output = format!("{output:#}");
-                if let Err(e) = log_source.write_attachment("timeout_openhcl_inspect.log", formatted_output) {
-                    tracing::error!(?e, "Failed to save ohcldiag-dev inspect log");
-                    return;
-                }
-
-                tracing::info!("Watchdog OpenHCL inspect task finished.");
-            }));
-        }
-
-        Ok(tasks)
     }
 
     /// Configure the test to expect a boot failure from the VM.
@@ -657,11 +525,170 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
 }
 
 impl<T: PetriVmmBackend> PetriVm<T> {
+    /// Start the VM, then wait for the VM to emit the expected boot
+    /// event (if configured). Launches pipette and returns a client to it.
+    pub async fn start(&mut self) -> anyhow::Result<PipetteClient> {
+        self.start_no_agent().await?;
+        self.wait_for_agent().await
+    }
+
+    /// Start the VM, then wait for the VM to emit the expected boot
+    /// event (if configured). Does not configure and start pipette. Should
+    /// only be used for testing platforms that pipette does not support.
+    pub async fn start_no_agent(&mut self) -> anyhow::Result<()> {
+        self.runtime.start().await?;
+
+        self.start_watchdog_tasks()?;
+
+        if self.expect_reset {
+            self.wait_for_reset_core().await?;
+        }
+
+        self.wait_for_expected_boot_event().await
+    }
+
+    fn start_watchdog_tasks(&mut self) -> anyhow::Result<()> {
+        // Our CI environment will kill tests after some time. We want to save
+        // some information about the VM if it's still running at that point.
+        const TIMEOUT_DURATION_MINUTES: u64 = 6;
+        const TIMER_DURATION: Duration = Duration::from_secs(TIMEOUT_DURATION_MINUTES * 60 - 10);
+
+        if let Some(inspector) = self.runtime.inspector() {
+            let mut timer = PolledTimer::new(&self.resources.driver);
+            let log_source = self.resources.log_source.clone();
+
+            self.watchdog_tasks
+                .push(self.resources.driver.spawn("petri-watchdog-inspect", {
+                    async move {
+                        timer.sleep(TIMER_DURATION).await;
+                        tracing::warn!(
+                            "Test has been running for almost {TIMEOUT_DURATION_MINUTES} minutes,
+                     saving inspect details."
+                        );
+
+                        let info = match inspector.inspect().await {
+                            Ok(info) => info,
+                            Err(e) => {
+                                tracing::error!(?e, "Failed to get inspect contents");
+                                return;
+                            }
+                        };
+
+                        if let Err(e) = log_source.write_attachment("timeout_inspect.log", info) {
+                            tracing::error!(?e, "Failed to save inspect log");
+                            return;
+                        }
+                        tracing::info!("Watchdog inspect task finished.");
+                    }
+                }));
+        }
+
+        if let Some(mut framebuffer_access) = self.runtime.take_framebuffer_access() {
+            let mut timer = PolledTimer::new(&self.resources.driver);
+            let log_source = self.resources.log_source.clone();
+
+            self.watchdog_tasks.push(self.resources.driver.spawn(
+                "petri-watchdog-screenshot",
+                async move {
+                    let mut image = Vec::new();
+                    let mut last_image = Vec::new();
+                    loop {
+                        timer.sleep(Duration::from_secs(2)).await;
+                        tracing::trace!("Taking screenshot.");
+
+                        let VmScreenshotMeta {
+                            color,
+                            width,
+                            height,
+                        } = match framebuffer_access.screenshot(&mut image).await {
+                            Ok(Some(meta)) => meta,
+                            Ok(None) => {
+                                tracing::trace!("VM off, skipping screenshot.");
+                                continue;
+                            }
+                            Err(e) => {
+                                tracing::error!(?e, "Failed to take screenshot");
+                                continue;
+                            }
+                        };
+
+                        if image == last_image {
+                            tracing::trace!("No change in framebuffer, skipping screenshot.");
+                            continue;
+                        }
+
+                        let r = log_source
+                            .create_attachment("screenshot.png")
+                            .and_then(|mut f| {
+                                image::write_buffer_with_format(
+                                    &mut f,
+                                    &image,
+                                    width.into(),
+                                    height.into(),
+                                    color,
+                                    image::ImageFormat::Png,
+                                )
+                                .map_err(Into::into)
+                            });
+
+                        if let Err(e) = r {
+                            tracing::error!(?e, "Failed to save screenshot");
+                        } else {
+                            tracing::info!("Screenshot saved.");
+                        }
+
+                        std::mem::swap(&mut image, &mut last_image);
+                    }
+                },
+            ));
+        }
+
+        if let Some(openhcl_diag_handler) = self.runtime.openhcl_diag() {
+            let mut timer = PolledTimer::new(&self.resources.driver);
+            let driver = self.resources.driver.clone();
+            let log_source = self.resources.log_source.clone();
+            self.watchdog_tasks.push(driver.spawn("petri-watchdog-inspect-vtl2", async move {
+                timer.sleep(TIMER_DURATION).await;
+                tracing::warn!(
+                    "Test has been running for almost {TIMEOUT_DURATION_MINUTES} minutes, saving openhcl inspect details."
+                );
+
+                let output = match openhcl_diag_handler.inspect("", None, None).await {
+                    Err(e) => {
+                        tracing::error!(?e, "Failed to inspect vtl2");
+                        return;
+                    }
+                    Ok(output) => output,
+                };
+
+                let formatted_output = format!("{output:#}");
+                if let Err(e) = log_source.write_attachment("timeout_openhcl_inspect.log", formatted_output) {
+                    tracing::error!(?e, "Failed to save ohcldiag-dev inspect log");
+                    return;
+                }
+
+                tracing::info!("Watchdog OpenHCL inspect task finished.");
+            }));
+        }
+
+        Ok(())
+    }
+
+    /// Wait for the VM to cleanly shutdown.
+    pub async fn wait_for_power_off(&mut self) -> anyhow::Result<()> {
+        let halt_reason = self.wait_for_halt().await?;
+        if halt_reason != PetriHaltReason::PowerOff {
+            anyhow::bail!("Expected PowerOff, got {halt_reason:?}");
+        }
+        Ok(())
+    }
+
     /// Wait for the VM to halt, returning the reason for the halt.
     pub async fn wait_for_halt(&mut self) -> anyhow::Result<PetriHaltReason> {
         tracing::info!("Waiting for VM to halt...");
         let halt_reason = self.runtime.wait_for_halt(false).await?;
-        tracing::info!("VM halted: {halt_reason:?}");
+        tracing::info!("VM halted: {halt_reason:?}. Cancelling watchdogs...");
+        futures::future::join_all(self.watchdog_tasks.drain(..).map(|t| t.cancel())).await;
         Ok(halt_reason)
     }
 
@@ -692,14 +719,12 @@ impl<T: PetriVmmBackend> PetriVm<T> {
     /// and cleanly tear down the VM.
     pub async fn wait_for_teardown(mut self) -> anyhow::Result<PetriHaltReason> {
         let halt_reason = self.wait_for_halt().await?;
-        tracing::info!("Cancelling watchdogs...");
-        futures::future::join_all(self.watchdog_tasks.into_iter().map(|t| t.cancel())).await;
         tracing::info!("Tearing down VM...");
         self.runtime.teardown().await?;
         Ok(halt_reason)
     }
 
-    /// Wait for the VM to reset
+    /// Wait for the VM to cleanly shutdown and tear down the VM.
     pub async fn wait_for_clean_teardown(self) -> anyhow::Result<()> {
         let halt_reason = self.wait_for_teardown().await?;
         if halt_reason != PetriHaltReason::PowerOff {
@@ -745,6 +770,7 @@ impl<T: PetriVmmBackend> PetriVm<T> {
     /// Wait for a connection from a pipette agent running in the guest.
     /// Useful if you've rebooted the vm or are otherwise expecting a fresh connection.
     async fn wait_for_agent(&mut self) -> anyhow::Result<PipetteClient> {
+        assert!(self.pipette_available);
         self.runtime.wait_for_agent(false).await
     }
 
@@ -876,6 +902,8 @@ pub trait PetriVmRuntime {
     /// Interface for accessing the framebuffer
     type VmFramebufferAccess: PetriVmFramebufferAccess;
 
+    /// Start the VM
+    async fn start(&mut self) -> anyhow::Result<()>;
     /// Cleanly tear down the VM immediately.
     async fn teardown(self) -> anyhow::Result<()>;
     /// Wait for the VM to halt, returning the reason for the halt. The VM
