@@ -20,9 +20,13 @@ use petri::ShutdownKind;
 use petri::openvmm::NIC_MAC_ADDRESS;
 use petri::openvmm::OpenVmmPetriBackend;
 use petri::pipette::cmd;
+use petri::run_cmd;
+use petri_artifacts_common::tags::IsVmgsTool;
 use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_common::tags::OsFlavor;
+use petri_artifacts_vmm_test::artifacts::VMGSTOOL_NATIVE;
 use petri_artifacts_vmm_test::artifacts::test_vmgs::VMGS_WITH_BOOT_ENTRY;
+use std::process::Command;
 use std::str::FromStr;
 use std::time::Duration;
 use vmm_test_macros::openvmm_test;
@@ -828,5 +832,32 @@ async fn validate_mnf_usage_in_guest(
 
     agent.power_off().await?;
     vm.wait_for_clean_teardown().await?;
+    Ok(())
+}
+
+/// Test vmgstool
+#[openvmm_test(
+    openvmm_openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))[VMGSTOOL_NATIVE]
+)]
+async fn vmgstool_create(
+    config: PetriVmBuilder<OpenVmmPetriBackend>,
+    (vmgstool,): (ResolvedArtifact<impl IsVmgsTool>,),
+) -> Result<(), anyhow::Error> {
+    let temp_dir = tempfile::tempdir()?;
+    let vmgs_path = temp_dir.path().join("test.vmgs");
+    let vmgstool_path = vmgstool.get();
+    let mut cmd = Command::new(vmgstool_path);
+    cmd.arg("create").arg("--filepath").arg(&vmgs_path);
+    run_cmd(cmd).await?;
+
+    let (mut vm, agent) = config
+        .with_guest_state_lifetime(PetriGuestStateLifetime::Disk)
+        .with_backing_vmgs(&vmgs_path)
+        .run()
+        .await?;
+
+    agent.power_off().await?;
+    vm.wait_for_power_off().await?;
+
     Ok(())
 }

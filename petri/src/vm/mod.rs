@@ -608,7 +608,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
     }
 
     /// Use the specified backing VMGS file
-    pub fn with_backing_vmgs(mut self, disk: ResolvedArtifact<impl IsTestVmgs>) -> Self {
+    pub fn with_backing_vmgs(mut self, disk: impl AsRef<Path>) -> Self {
         match &mut self.config.vmgs {
             PetriVmgsResource::Disk(installed_disk)
             | PetriVmgsResource::ReprovisionOnFailure(installed_disk)
@@ -616,7 +616,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
                 if installed_disk.is_some() {
                     panic!("already specified a backing vmgs file");
                 }
-                *installed_disk = Some(disk.erase());
+                *installed_disk = Some(disk.as_ref().to_path_buf());
             }
             PetriVmgsResource::Ephemeral => {
                 panic!("attempted to specify a backing vmgs with ephemeral guest state")
@@ -1518,11 +1518,11 @@ pub struct OpenHclServicingFlags {
 #[derive(Debug, Clone)]
 pub enum PetriVmgsResource {
     /// Use disk to store guest state
-    Disk(Option<ResolvedArtifact>),
+    Disk(Option<PathBuf>),
     /// Use disk to store guest state, reformatting if corrupted.
-    ReprovisionOnFailure(Option<ResolvedArtifact>),
+    ReprovisionOnFailure(Option<PathBuf>),
     /// Format and use disk to store guest state
-    Reprovision(Option<ResolvedArtifact>),
+    Reprovision(Option<PathBuf>),
     /// Store guest state in memory
     Ephemeral,
 }
