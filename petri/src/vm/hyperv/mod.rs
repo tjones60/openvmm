@@ -29,6 +29,7 @@ use crate::VmmQuirks;
 use crate::disk_image::AgentImage;
 use crate::hyperv::powershell::HyperVSecureBootTemplate;
 use crate::kmsg_log_task;
+use crate::kmsg_log_task_inner;
 use crate::openhcl_diag::OpenHclDiagHandler;
 use crate::vm::append_cmdline;
 use anyhow::Context;
@@ -836,8 +837,9 @@ fn build_and_persist_agent_image(
 async fn hyperv_serial_log_task(
     driver: DefaultDriver,
     serial_pipe_path: String,
+    diag_client: Option<diag_client::DiagClient>,
     log_file: crate::PetriLogFile,
-) -> anyhow::Result<()> {
+) {
     let mut timer = None;
     loop {
         // using `std::fs` here instead of `fs_err` since `raw_os_error` always
@@ -850,7 +852,13 @@ async fn hyperv_serial_log_task(
             Ok(file) => {
                 let pipe = PolledPipe::new(&driver, file).expect("failed to create pipe");
                 // connect/disconnect messages logged internally
-                _ = crate::log_task(log_file.clone(), pipe, &serial_pipe_path).await;
+                _ = crate::log_task(
+                    log_file.clone(),
+                    pipe,
+                    diag_client.as_ref(),
+                    &serial_pipe_path,
+                )
+                .await;
             }
             Err(err) => {
                 // Log the error if it isn't just that the VM is not running

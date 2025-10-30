@@ -445,6 +445,26 @@ impl DiagClient {
         Ok(())
     }
 
+    /// Check if the paravisor is ready for RPCs.
+    pub async fn check_server_ready(&self) -> bool {
+        match self
+            .ttrpc
+            .call()
+            .wait_ready(false)
+            .start(diag_proto::OpenhclDiag::Ping, ())
+            .await
+        {
+            Ok(()) => true,
+            Err(Status { code, .. }) if code == mesh_rpc::service::Code::Unimplemented as i32 => {
+                // Older versions of the diag server don't support the ping
+                // RPC, but an unimplemented failure is good enough to know
+                // the server is ready.
+                true
+            }
+            Err(_) => false,
+        }
+    }
+
     /// Creates a builder for execing a command.
     pub fn exec(&self, command: impl AsRef<str>) -> ExecBuilder<'_> {
         ExecBuilder {

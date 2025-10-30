@@ -10,12 +10,15 @@ use futures::StreamExt;
 use futures::io::BufReader;
 use jiff::Timestamp;
 use kmsg::KmsgParsedEntry;
+use pal_async::DefaultDriver;
+use pal_async::timer::PolledTimer;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::io::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::Level;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::filter::Targets;
@@ -350,12 +353,25 @@ impl<'a> MakeWriter<'a> for PetriWriter {
 pub async fn log_task(
     log_file: PetriLogFile,
     reader: impl AsyncRead + Unpin + Send + 'static,
+    diag_client: Option<&diag_client::DiagClient>,
     name: &str,
 ) -> anyhow::Result<()> {
     tracing::info!("connected to {name}");
+
     let mut buf = Vec::new();
     let mut reader = BufReader::new(reader);
+    let mut newest_log: Option<Duration> = None;
+
     loop {
+        if let Some(diag_client) = diag_client {
+            if diag_client.check_server_ready().await {
+                tracing::info!("switching to diag_client");
+                kmsg_log_task_inner(log_file.clone(), diag_client.kmsg(true).await?, newest_log)
+                    .await;
+            }
+            tracing::info!("switching to serial");
+        }
+
         buf.clear();
         match (&mut reader).take(256).read_until(b'\n', &mut buf).await {
             Ok(0) => {
@@ -375,6 +391,9 @@ pub async fn log_task(
         if let Some(message) = kmsg::SyslogParsedEntry::new(string_buf_trimmed) {
             let level = kernel_level_to_tracing_level(message.level);
             log_file.write_entry_fmt(None, level, format_args!("{}", message.display(false)));
+            if newest_log.is_none_or(|t| t < message.time) {
+                newest_log = Some(message.time);
+            }
         } else {
             log_file.write_entry(string_buf_trimmed);
         }
@@ -392,19 +411,30 @@ fn kernel_level_to_tracing_level(kernel_level: u8) -> Level {
     }
 }
 
-/// read from the kmsg stream and write entries to the log
+/// read kmsg via diag client, write entries to the log, and automatically reconnect
 pub async fn kmsg_log_task(
     log_file: PetriLogFile,
     diag_client: diag_client::DiagClient,
 ) -> anyhow::Result<()> {
     loop {
         diag_client.wait_for_server().await?;
-        let mut kmsg = diag_client.kmsg(true).await?;
+        let kmsg = diag_client.kmsg(true).await?;
         tracing::info!("kmsg connected");
-        while let Some(data) = kmsg.next().await {
-            match data {
-                Ok(data) => {
-                    let message = KmsgParsedEntry::new(&data).unwrap();
+        kmsg_log_task_inner(log_file.clone(), kmsg, None).await;
+    }
+}
+
+/// read from the kmsg stream and write entries to the log
+pub async fn kmsg_log_task_inner(
+    log_file: PetriLogFile,
+    mut kmsg: diag_client::kmsg_stream::KmsgStream,
+    ignore_logs_before: Option<Duration>,
+) {
+    while let Some(data) = kmsg.next().await {
+        match data {
+            Ok(data) => {
+                let message = KmsgParsedEntry::new(&data).unwrap();
+                if ignore_logs_before.is_none_or(|t| t < message.time) {
                     let level = kernel_level_to_tracing_level(message.level);
                     log_file.write_entry_fmt(
                         None,
@@ -412,10 +442,10 @@ pub async fn kmsg_log_task(
                         format_args!("{}", message.display(false)),
                     );
                 }
-                Err(err) => {
-                    tracing::info!("kmsg disconnected: {err:#}");
-                    break;
-                }
+            }
+            Err(err) => {
+                tracing::info!("kmsg disconnected: {err:#}");
+                break;
             }
         }
     }
