@@ -1119,6 +1119,20 @@ impl Vmgs {
         self.update_header(&mut new_header).await
     }
 
+    /// Move an existing file to a different file id
+    pub async fn move_file(
+        &mut self,
+        src_file_id: FileId,
+        dst_file_id: FileId,
+        allow_overwrite: bool,
+    ) -> Result<(), Error> {
+        if src_file_id == FileId::FILE_TABLE || dst_file_id == FileId::FILE_TABLE {
+            return Err(Error::FileId);
+        }
+
+        Ok(())
+    }
+
     /// Decrypts the extended file table by the encryption_key and
     /// updates the related metadata in memory.
     #[cfg(with_encryption)]
