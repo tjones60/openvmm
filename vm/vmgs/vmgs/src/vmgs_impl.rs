@@ -1130,6 +1130,57 @@ impl Vmgs {
             return Err(Error::FileId);
         }
 
+        // Allocate space for the new file contents and the new file table.
+        // On success, the contents of the temporary FCBs are copied to the existing FCBs.
+        let mut temp_fcbs: Vec<ResolvedFileControlBlock> = Vec::new();
+
+        // file_table_fcb
+        self.allocate_space(
+            VMGS_FILE_TABLE_BLOCK_SIZE,
+            &mut temp_fcbs,
+            block_count_to_byte_count(VMGS_FILE_TABLE_BLOCK_SIZE),
+        )?;
+        let mut file_table_fcb = temp_fcbs.pop().unwrap();
+
+        // extended_file_table_fcb is Some() if we should write to extended file table.
+        let extended_file_table_fcb = if self.encryption_algorithm == EncryptionAlgorithm::NONE
+            || self
+                .fcbs
+                .get(&file_id)
+                .map(|f| f.attributes == FileAttribute::new())
+                .unwrap_or(true)
+        {
+            None
+        } else {
+            self.allocate_space(
+                VMGS_EXTENDED_FILE_TABLE_BLOCK_SIZE,
+                &mut temp_fcbs,
+                block_count_to_byte_count(VMGS_EXTENDED_FILE_TABLE_BLOCK_SIZE),
+            )?;
+            temp_fcbs.last_mut().unwrap().attributes = FileAttribute::new()
+                .with_encrypted(true)
+                .with_authenticated(true);
+
+            Some(temp_fcbs.pop().unwrap())
+        };
+
+        // Initialize the new file table with current metadata for all files.
+        let mut new_file_table = VmgsFileTable::new_zeroed();
+        for (file_id, fcb) in self.fcbs.iter() {
+            let new_file_entry = &mut new_file_table.entries[*file_id];
+
+            new_file_entry.offset = fcb.block_offset;
+            new_file_entry.allocation_size = fcb.allocated_blocks.get();
+            new_file_entry.valid_data_size = fcb.valid_bytes;
+
+            if self.version >= VMGS_VERSION_3_0 {
+                new_file_entry.nonce.copy_from_slice(&fcb.nonce);
+                new_file_entry
+                    .authentication_tag
+                    .copy_from_slice(&fcb.authentication_tag);
+            }
+        }
+
         Ok(())
     }
 
