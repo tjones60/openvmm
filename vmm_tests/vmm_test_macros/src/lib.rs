@@ -40,13 +40,19 @@ enum Firmware {
     Pcat(PcatGuest),
     Uefi(UefiGuest),
     OpenhclLinuxDirect,
-    OpenhclUefi(OpenhclUefiOptions, UefiGuest),
+    OpenhclPcat(OpenhclOptions, PcatGuest),
+    OpenhclUefi(OpenhclOptions, UefiGuest, Option<IsolationType>),
 }
 
 #[derive(Default)]
-struct OpenhclUefiOptions {
+struct OpenhclPcatOptions {
     nvme: bool,
     isolation: Option<IsolationType>,
+}
+
+#[derive(Default)]
+struct OpenhclOptions {
+    nvme: bool,
 }
 
 enum IsolationType {
@@ -104,13 +110,14 @@ impl Config {
             Firmware::Pcat(_) => "pcat",
             Firmware::Uefi(_) => "uefi",
             Firmware::OpenhclLinuxDirect => "openhcl_linux",
+            Firmware::OpenhclPcat(..) => "openhcl_pcat",
             Firmware::OpenhclUefi(..) => "openhcl_uefi",
         };
 
         let guest_prefix = match &self.firmware {
             Firmware::LinuxDirect | Firmware::OpenhclLinuxDirect => None,
-            Firmware::Pcat(guest) => Some(guest.name_prefix()),
-            Firmware::Uefi(guest) | Firmware::OpenhclUefi(_, guest) => guest.name_prefix(),
+            Firmware::Pcat(guest) | Firmware::OpenhclPcat(_, guest) => Some(guest.name_prefix()),
+            Firmware::Uefi(guest) | Firmware::OpenhclUefi(_, guest, _) => guest.name_prefix(),
         };
 
         let options_prefix = match &self.firmware {
@@ -118,7 +125,7 @@ impl Config {
             | Firmware::Pcat(_)
             | Firmware::Uefi(_)
             | Firmware::OpenhclLinuxDirect => None,
-            Firmware::OpenhclUefi(opt, _) => opt.name_prefix(),
+            Firmware::OpenhclPcat(opt, _) | Firmware::OpenhclUefi(opt, _, _) => opt.name_prefix(),
         };
 
         let mut name_prefix = format!("{}_{}_{}", vmm_prefix, firmware_prefix, arch_prefix);
@@ -205,6 +212,13 @@ impl ToTokens for FirmwareAndArch {
             }
             Firmware::OpenhclLinuxDirect => {
                 quote!(::petri::Firmware::openhcl_linux_direct(resolver, #arch))
+            }
+            Firmware::OpenhclPcat(guest) => {
+                let isolation = match isolation {
+                    Some(i) => quote!(Some(#i)),
+                    None => quote!(None),
+                };
+                quote!(::petri::Firmware::openhcl_uefi(resolver, #arch, #guest, #isolation, #nvme))
             }
             Firmware::OpenhclUefi(OpenhclUefiOptions { nvme, isolation }, guest) => {
                 let isolation = match isolation {
@@ -447,32 +461,58 @@ fn parse_iso(input: ParseStream<'_>) -> syn::Result<ImageInfo> {
     })
 }
 
-impl OpenhclUefiOptions {
-    fn name_prefix(&self) -> Option<String> {
-        let mut prefix = String::new();
-        if let Some(isolation) = &self.isolation {
-            prefix.push_str(match isolation {
-                IsolationType::Vbs => "vbs",
-                IsolationType::Snp => "snp",
-                IsolationType::Tdx => "tdx",
-            });
-        }
-        if self.nvme {
-            if !prefix.is_empty() {
-                prefix.push('_');
-            }
-            prefix.push_str("nvme");
-        }
-
-        if prefix.is_empty() {
-            None
-        } else {
-            Some(prefix)
+impl IsolationType {
+    fn name_prefix(&self) -> &str {
+        match self {
+            IsolationType::Vbs => "vbs",
+            IsolationType::Snp => "snp",
+            IsolationType::Tdx => "tdx",
         }
     }
 }
 
-impl Parse for OpenhclUefiOptions {
+impl OpenhclOptions {
+    fn name_prefix(&self) -> Option<&str> {
+        if self.nvme { Some("nvme") } else { None }
+    }
+}
+
+impl Parse for IsolationType {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let mut options = Self::default();
+
+        let words = input.parse_terminated(|stream| stream.parse::<Ident>(), Token![,])?;
+        for word in words {
+            match &*word.to_string() {
+                "nvme" => {
+                    options.nvme = true;
+                }
+                "vbs" => {
+                    if options.isolation.is_some() {
+                        return Err(Error::new(word.span(), "isolation type already specified"));
+                    }
+                    options.isolation = Some(IsolationType::Vbs);
+                }
+                "snp" => {
+                    if options.isolation.is_some() {
+                        return Err(Error::new(word.span(), "isolation type already specified"));
+                    }
+                    options.isolation = Some(IsolationType::Snp);
+                }
+                "tdx" => {
+                    if options.isolation.is_some() {
+                        return Err(Error::new(word.span(), "isolation type already specified"));
+                    }
+                    options.isolation = Some(IsolationType::Tdx);
+                }
+                _ => return Err(Error::new(word.span(), "unrecognized openhcl uefi option")),
+            }
+        }
+        Ok(options)
+    }
+}
+
+impl Parse for OpenhclOptions {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let mut options = Self::default();
 

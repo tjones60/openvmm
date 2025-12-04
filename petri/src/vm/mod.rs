@@ -1515,6 +1515,26 @@ impl Firmware {
         }
     }
 
+    /// Constructs a standard [`Firmware::OpenhclPcat`] configuration.
+    pub fn openhcl_pcat(
+        resolver: &ArtifactResolver<'_>,
+        guest: PcatGuest,
+        vtl2_nvme_boot: bool,
+    ) -> Self {
+        use petri_artifacts_vmm_test::artifacts::loadable::*;
+        use petri_artifacts_vmm_test::artifacts::openhcl_igvm::*;
+        Firmware::OpenhclPcat {
+            guest,
+            igvm_path: resolver.require(LATEST_STANDARD_X64).erase(),
+            bios_firmware: resolver.try_require(PCAT_FIRMWARE_X64).erase(),
+            svga_firmware: resolver.try_require(SVGA_FIRMWARE_X64).erase(),
+            openhcl_config: OpenHclConfig {
+                vtl2_nvme_boot,
+                ..Default::default()
+            },
+        }
+    }
+
     /// Constructs a standard [`Firmware::Uefi`] configuration.
     pub fn uefi(resolver: &ArtifactResolver<'_>, arch: MachineArch, guest: UefiGuest) -> Self {
         use petri_artifacts_vmm_test::artifacts::loadable::*;
