@@ -40,19 +40,19 @@ enum Firmware {
     Pcat(PcatGuest),
     Uefi(UefiGuest),
     OpenhclLinuxDirect,
-    OpenhclPcat(OpenhclOptions, PcatGuest),
-    OpenhclUefi(OpenhclOptions, UefiGuest, Option<IsolationType>),
+    OpenhclPcat(OpenhclPcatOptions, PcatGuest),
+    OpenhclUefi(OpenhclUefiOptions, UefiGuest),
 }
 
 #[derive(Default)]
 struct OpenhclPcatOptions {
     nvme: bool,
-    isolation: Option<IsolationType>,
 }
 
 #[derive(Default)]
-struct OpenhclOptions {
+struct OpenhclUefiOptions {
     nvme: bool,
+    isolation: Option<IsolationType>,
 }
 
 enum IsolationType {
@@ -117,7 +117,7 @@ impl Config {
         let guest_prefix = match &self.firmware {
             Firmware::LinuxDirect | Firmware::OpenhclLinuxDirect => None,
             Firmware::Pcat(guest) | Firmware::OpenhclPcat(_, guest) => Some(guest.name_prefix()),
-            Firmware::Uefi(guest) | Firmware::OpenhclUefi(_, guest, _) => guest.name_prefix(),
+            Firmware::Uefi(guest) | Firmware::OpenhclUefi(_, guest) => guest.name_prefix(),
         };
 
         let options_prefix = match &self.firmware {
@@ -125,7 +125,8 @@ impl Config {
             | Firmware::Pcat(_)
             | Firmware::Uefi(_)
             | Firmware::OpenhclLinuxDirect => None,
-            Firmware::OpenhclPcat(opt, _) | Firmware::OpenhclUefi(opt, _, _) => opt.name_prefix(),
+            Firmware::OpenhclPcat(opt, _) => opt.name_prefix(),
+            Firmware::OpenhclUefi(opt, _) => opt.name_prefix(),
         };
 
         let mut name_prefix = format!("{}_{}_{}", vmm_prefix, firmware_prefix, arch_prefix);
@@ -213,12 +214,8 @@ impl ToTokens for FirmwareAndArch {
             Firmware::OpenhclLinuxDirect => {
                 quote!(::petri::Firmware::openhcl_linux_direct(resolver, #arch))
             }
-            Firmware::OpenhclPcat(guest) => {
-                let isolation = match isolation {
-                    Some(i) => quote!(Some(#i)),
-                    None => quote!(None),
-                };
-                quote!(::petri::Firmware::openhcl_uefi(resolver, #arch, #guest, #isolation, #nvme))
+            Firmware::OpenhclPcat(OpenhclPcatOptions { nvme }, guest) => {
+                quote!(::petri::Firmware::openhcl_pcat(resolver, #guest, #nvme))
             }
             Firmware::OpenhclUefi(OpenhclUefiOptions { nvme, isolation }, guest) => {
                 let isolation = match isolation {
@@ -281,6 +278,10 @@ impl Parse for Config {
             "pcat_x64" => (
                 MachineArch::X86_64,
                 Firmware::Pcat(parse_pcat_guest(input)?),
+            ),
+            "openhcl_pcat_x64" => (
+                MachineArch::X86_64,
+                Firmware::OpenhclPcat(parse_openhcl_pcat_options(input)?, parse_pcat_guest(input)?),
             ),
             "uefi_x64" => (
                 MachineArch::X86_64,
@@ -461,23 +462,17 @@ fn parse_iso(input: ParseStream<'_>) -> syn::Result<ImageInfo> {
     })
 }
 
-impl IsolationType {
-    fn name_prefix(&self) -> &str {
-        match self {
-            IsolationType::Vbs => "vbs",
-            IsolationType::Snp => "snp",
-            IsolationType::Tdx => "tdx",
+impl OpenhclPcatOptions {
+    fn name_prefix(&self) -> Option<String> {
+        if self.nvme {
+            Some("nvme".to_owned())
+        } else {
+            None
         }
     }
 }
 
-impl OpenhclOptions {
-    fn name_prefix(&self) -> Option<&str> {
-        if self.nvme { Some("nvme") } else { None }
-    }
-}
-
-impl Parse for IsolationType {
+impl Parse for OpenhclPcatOptions {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let mut options = Self::default();
 
@@ -487,32 +482,49 @@ impl Parse for IsolationType {
                 "nvme" => {
                     options.nvme = true;
                 }
-                "vbs" => {
-                    if options.isolation.is_some() {
-                        return Err(Error::new(word.span(), "isolation type already specified"));
-                    }
-                    options.isolation = Some(IsolationType::Vbs);
-                }
-                "snp" => {
-                    if options.isolation.is_some() {
-                        return Err(Error::new(word.span(), "isolation type already specified"));
-                    }
-                    options.isolation = Some(IsolationType::Snp);
-                }
-                "tdx" => {
-                    if options.isolation.is_some() {
-                        return Err(Error::new(word.span(), "isolation type already specified"));
-                    }
-                    options.isolation = Some(IsolationType::Tdx);
-                }
-                _ => return Err(Error::new(word.span(), "unrecognized openhcl uefi option")),
+                _ => return Err(Error::new(word.span(), "unrecognized openhcl pcat option")),
             }
         }
         Ok(options)
     }
 }
 
-impl Parse for OpenhclOptions {
+fn parse_openhcl_pcat_options(input: ParseStream<'_>) -> syn::Result<OpenhclPcatOptions> {
+    if input.peek(syn::token::Paren) {
+        return Ok(Default::default());
+    }
+
+    let brackets;
+    syn::bracketed!(brackets in input);
+    brackets.parse()
+}
+
+impl OpenhclUefiOptions {
+    fn name_prefix(&self) -> Option<String> {
+        let mut prefix = String::new();
+        if let Some(isolation) = &self.isolation {
+            prefix.push_str(match isolation {
+                IsolationType::Vbs => "vbs",
+                IsolationType::Snp => "snp",
+                IsolationType::Tdx => "tdx",
+            });
+        }
+        if self.nvme {
+            if !prefix.is_empty() {
+                prefix.push('_');
+            }
+            prefix.push_str("nvme");
+        }
+
+        if prefix.is_empty() {
+            None
+        } else {
+            Some(prefix)
+        }
+    }
+}
+
+impl Parse for OpenhclUefiOptions {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let mut options = Self::default();
 
@@ -584,6 +596,7 @@ fn parse_extra_deps(input: ParseStream<'_>) -> syn::Result<Vec<Path>> {
 /// - `{vmm}_linux_direct_{arch}`: Our provided Linux direct image
 /// - `{vmm}_openhcl_linux_direct_{arch}`: Our provided Linux direct image with OpenHCL
 /// - `{vmm}_pcat_{arch}(<PCAT guest>)`: A Gen 1 configuration
+/// - `{vmm}_openhcl_pcat_{arch}[list,of,options](<UEFI guest>)`: A Gen 1 configuration with OpenHCL
 /// - `{vmm}_uefi_{arch}(<UEFI guest>)`: A Gen 2 configuration
 /// - `{vmm}_openhcl_uefi_{arch}[list,of,options](<UEFI guest>)`: A Gen 2 configuration with OpenHCL
 ///
