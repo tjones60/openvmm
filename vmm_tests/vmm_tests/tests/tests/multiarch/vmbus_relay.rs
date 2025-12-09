@@ -90,7 +90,7 @@ async fn validate_mnf_usage_in_guest(
     let (vm, agent) = config
         .with_vmbus_redirect(true)
         .with_openhcl_command_line("OPENHCL_VMBUS_ENABLE_MNF=1")
-        .modify_backend(|c| c.with_nic())
+        .modify_backend(|c, r| c.with_nic())
         .run()
         .await?;
 

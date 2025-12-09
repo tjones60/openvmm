@@ -24,6 +24,7 @@ use crate::PetriDiskType;
 use crate::PetriLogFile;
 use crate::PetriVmConfig;
 use crate::PetriVmResources;
+use crate::PetriVmRuntimeResources;
 use crate::PetriVmgsDisk;
 use crate::PetriVmgsResource;
 use crate::PetriVmmBackend;
@@ -63,7 +64,6 @@ use vm_resource::Resource;
 use vm_resource::kind::DiskHandleKind;
 use vmgs_resources::VmgsDisk;
 use vmgs_resources::VmgsResource;
-use vtl2_settings_proto::Vtl2Settings;
 
 /// The instance guid used for all of our SCSI drives.
 pub(crate) const SCSI_INSTANCE: Guid = guid::guid!("27b553e8-8b39-411b-a55f-839971a7884f");
@@ -140,16 +140,18 @@ impl PetriVmmBackend for OpenVmmPetriBackend {
         }
     }
 
-    async fn run(
+    async fn run<'a>(
         self,
         config: PetriVmConfig,
-        modify_vmm_config: Option<impl FnOnce(PetriVmConfigOpenVmm) -> PetriVmConfigOpenVmm + Send>,
-        resources: &PetriVmResources,
+        modify_vmm_config: Option<
+            impl FnOnce(Self::VmmConfig, &'a mut PetriVmRuntimeResources) -> Self::VmmConfig + Send,
+        >,
+        resources: &'a mut PetriVmRuntimeResources,
     ) -> anyhow::Result<Self::VmRuntime> {
         let mut config = PetriVmConfigOpenVmm::new(&self.openvmm_path, config, resources)?;
 
         if let Some(f) = modify_vmm_config {
-            config = f(config);
+            config = f(config, resources);
         }
 
         config.run().await
@@ -179,7 +181,6 @@ pub struct PetriVmConfigOpenVmm {
 }
 /// Various channels and resources used to interact with the VM while it is running.
 struct PetriVmResourcesOpenVmm {
-    log_stream_tasks: Vec<Task<anyhow::Result<()>>>,
     firmware_event_recv: Receiver<FirmwareEvent>,
     shutdown_ic_send: Sender<ShutdownRpc>,
     kvp_ic_send: Sender<hyperv_ic_resources::kvp::KvpConnectRpc>,
@@ -198,8 +199,6 @@ struct PetriVmResourcesOpenVmm {
     // TempPaths that cannot be dropped until the end.
     vtl2_vsock_path: Option<TempPath>,
     _vmbus_vsock_path: TempPath,
-
-    vtl2_settings: Option<Vtl2Settings>,
 }
 
 impl PetriVmConfigOpenVmm {

@@ -19,6 +19,7 @@ use crate::PetriHaltReason;
 use crate::PetriVmConfig;
 use crate::PetriVmResources;
 use crate::PetriVmRuntime;
+use crate::PetriVmRuntimeResources;
 use crate::PetriVmgsDisk;
 use crate::PetriVmgsResource;
 use crate::PetriVmmBackend;
@@ -81,7 +82,6 @@ pub struct HyperVScsiController {
 /// Resources needed at runtime for a Hyper-V Petri VM
 pub struct HyperVPetriRuntime {
     vm: HyperVVM,
-    log_tasks: Vec<Task<anyhow::Result<()>>>,
     _temp_dir: tempfile::TempDir,
     output_dir: PathBuf,
     driver: DefaultDriver,
@@ -222,11 +222,13 @@ impl PetriVmmBackend for HyperVPetriBackend {
         HyperVPetriBackend {}
     }
 
-    async fn run(
+    async fn run<'a>(
         self,
         config: PetriVmConfig,
-        modify_vmm_config: Option<impl FnOnce(Self::VmmConfig) -> Self::VmmConfig + Send>,
-        resources: &PetriVmResources,
+        modify_vmm_config: Option<
+            impl FnOnce(Self::VmmConfig, &'a mut PetriVmRuntimeResources) -> Self::VmmConfig + Send,
+        >,
+        resources: &'a mut PetriVmRuntimeResources,
     ) -> anyhow::Result<Self::VmRuntime> {
         let PetriVmConfig {
             name,
@@ -242,7 +244,8 @@ impl PetriVmmBackend for HyperVPetriBackend {
             guest_crash_disk,
         } = config;
 
-        let PetriVmResources { driver, log_source } = resources;
+        let driver = resources.driver.clone();
+        let log_source = resources.log_source.clone();
 
         let temp_dir = tempfile::tempdir()?;
 
@@ -373,8 +376,6 @@ impl PetriVmmBackend for HyperVPetriBackend {
             }
         };
 
-        let mut log_tasks = Vec::new();
-
         let mut vm = HyperVVM::new(
             &name,
             generation,
@@ -382,7 +383,7 @@ impl PetriVmmBackend for HyperVPetriBackend {
             memory.startup_bytes,
             vmgs_path.as_deref(),
             log_source.clone(),
-            driver.clone(),
+            resources.driver.clone(),
         )
         .await?;
 
@@ -530,6 +531,7 @@ impl PetriVmmBackend for HyperVPetriBackend {
                 command_line: _,
                 log_levels: _,
                 vtl2_base_address_type,
+                vtl2_settings,
             },
         )) = &openhcl_config
         {
@@ -611,7 +613,7 @@ impl PetriVmmBackend for HyperVPetriBackend {
                 tracing::debug!("getting kmsg logs from COM3");
 
                 let openhcl_serial_pipe_path = vm.set_vm_com_port(3).await?;
-                log_tasks.push(driver.spawn(
+                resources.tasks.push(driver.spawn(
                     "openhcl-log",
                     hyperv_serial_log_task(
                         driver.clone(),
@@ -622,7 +624,7 @@ impl PetriVmmBackend for HyperVPetriBackend {
             } else {
                 tracing::debug!("getting kmsg logs from diag_client");
 
-                log_tasks.push(driver.spawn(
+                resources.tasks.push(driver.spawn(
                     "openhcl-log",
                     kmsg_log_task(
                         openhcl_log_file,
@@ -644,7 +646,7 @@ impl PetriVmmBackend for HyperVPetriBackend {
 
         let serial_pipe_path = vm.set_vm_com_port(1).await?;
         let serial_log_file = log_source.log_file("guest")?;
-        log_tasks.push(driver.spawn(
+        resources.tasks.push(driver.spawn(
             "guest-log",
             hyperv_serial_log_task(driver.clone(), serial_pipe_path, serial_log_file),
         ));
@@ -655,7 +657,7 @@ impl PetriVmmBackend for HyperVPetriBackend {
         // TODO: If OpenHCL is being used, then translate storage through it.
         // (requires changes above where VHDs are added)
         if let Some(modify_vmm_config) = modify_vmm_config {
-            let config = modify_vmm_config(HyperVPetriConfig::default());
+            let config = modify_vmm_config(HyperVPetriConfig::default(), resources);
 
             tracing::debug!(?config, "additional hyper-v config");
 
@@ -703,7 +705,6 @@ impl PetriVmmBackend for HyperVPetriBackend {
 
         Ok(HyperVPetriRuntime {
             vm,
-            log_tasks,
             _temp_dir: temp_dir,
             output_dir: log_source.output_dir().to_owned(),
             driver: driver.clone(),
@@ -772,7 +773,6 @@ impl PetriVmRuntime for HyperVPetriRuntime {
     type VmFramebufferAccess = vm::HyperVFramebufferAccess;
 
     async fn teardown(mut self) -> anyhow::Result<()> {
-        futures::future::join_all(self.log_tasks.into_iter().map(|t| t.cancel())).await;
         self.vm.remove().await
     }
 
@@ -893,6 +893,13 @@ impl PetriVmRuntime for HyperVPetriRuntime {
 
     async fn get_guest_state_file(&self) -> anyhow::Result<Option<PathBuf>> {
         Ok(Some(self.vm.get_guest_state_file().await?))
+    }
+
+    async fn set_vtl2_settings(
+        &mut self,
+        settings: &vtl2_settings_proto::Vtl2Settings,
+    ) -> anyhow::Result<()> {
+        self.vm.set_base_vtl2_settings(settings).await
     }
 }
 

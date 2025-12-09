@@ -20,6 +20,7 @@ use crate::PcatGuest;
 use crate::PetriLogSource;
 use crate::PetriVmConfig;
 use crate::PetriVmResources;
+use crate::PetriVmRuntimeResources;
 use crate::PetriVmgsResource;
 use crate::ProcessorTopology;
 use crate::SIZE_1_GB;
@@ -112,7 +113,7 @@ impl PetriVmConfigOpenVmm {
     pub fn new(
         openvmm_path: &ResolvedArtifact,
         petri_vm_config: PetriVmConfig,
-        resources: &PetriVmResources,
+        resources: &mut PetriVmRuntimeResources,
     ) -> anyhow::Result<Self> {
         let PetriVmConfig {
             name: _,
@@ -128,7 +129,13 @@ impl PetriVmConfigOpenVmm {
             guest_crash_disk,
         } = petri_vm_config;
 
-        let PetriVmResources { driver, log_source } = resources;
+        let PetriVmRuntimeResources {
+            driver,
+            log_source,
+            tasks,
+            openhcl_diag_handler,
+            vtl2_settings,
+        } = resources;
 
         let setup = PetriVmConfigSetupCore {
             arch,
@@ -163,9 +170,11 @@ impl PetriVmConfigOpenVmm {
 
         let SerialData {
             mut emulated_serial_config,
-            serial_tasks: log_stream_tasks,
+            mut serial_tasks,
             linux_direct_serial_agent,
         } = setup.configure_serial(log_source)?;
+
+        tasks.append(&mut serial_tasks);
 
         let (video_dev, framebuffer, framebuffer_view) = match setup.config_video()? {
             Some((v, fb, fba)) => {
@@ -533,7 +542,6 @@ impl PetriVmConfigOpenVmm {
             boot_device_type,
 
             resources: PetriVmResourcesOpenVmm {
-                log_stream_tasks,
                 firmware_event_recv,
                 shutdown_ic_send,
                 kvp_ic_send,
@@ -548,7 +556,6 @@ impl PetriVmConfigOpenVmm {
                 openvmm_path: openvmm_path.clone(),
                 vtl2_vsock_path,
                 _vmbus_vsock_path: vmbus_vsock_path,
-                vtl2_settings,
             },
 
             openvmm_log_file: log_source.log_file("openvmm")?,
@@ -750,6 +757,7 @@ impl PetriVmConfigSetupCore<'_> {
                     command_line: _,
                     log_levels: _,
                     vtl2_base_address_type,
+                    vtl2_settings,
                 } = openhcl_config;
 
                 let mut cmdline = Some(openhcl_config.command_line());
@@ -882,7 +890,7 @@ impl PetriVmConfigSetupCore<'_> {
                     .unwrap()
                     .storage_controllers
                     .push(
-                        Vtl2StorageControllerBuilder::scsi()
+                        Vtl2StorageControllerBuilder::new(ControllerType::Scsi)
                             .with_instance_id(PARAVISOR_BOOT_NVME_INSTANCE)
                             .add_lun(
                                 Vtl2LunBuilder::disk()

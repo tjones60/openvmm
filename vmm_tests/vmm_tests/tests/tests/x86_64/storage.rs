@@ -266,9 +266,8 @@ async fn storvsp(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(), anyh
             })
             .with_custom_vtl2_settings(|v| {
                 v.dynamic.as_mut().unwrap().storage_controllers.push(
-                    Vtl2StorageControllerBuilder::scsi()
+                    Vtl2StorageControllerBuilder::new(ControllerType::Scsi)
                         .with_instance_id(scsi_instance)
-                        .with_protocol(ControllerType::Scsi)
                         .add_lun(
                             Vtl2LunBuilder::disk()
                                 .with_location(vtl0_scsi_lun)
@@ -357,9 +356,8 @@ async fn storvsp_hyperv(config: PetriVmBuilder<HyperVPetriBackend>) -> Result<()
         .modify_backend(move |b| {
             b.with_custom_vtl2_settings(|v| {
                 v.dynamic.as_mut().unwrap().storage_controllers.push(
-                    Vtl2StorageControllerBuilder::scsi()
+                    Vtl2StorageControllerBuilder::new(ControllerType::Scsi)
                         .with_instance_id(scsi_instance)
-                        .with_protocol(ControllerType::Scsi)
                         .build(),
                 );
             })
@@ -482,9 +480,8 @@ async fn openhcl_linux_stripe_storvsp(
             })
             .with_custom_vtl2_settings(|v| {
                 v.dynamic.as_mut().unwrap().storage_controllers.push(
-                    Vtl2StorageControllerBuilder::scsi()
+                    Vtl2StorageControllerBuilder::new(ControllerType::Scsi)
                         .with_instance_id(scsi_instance)
-                        .with_protocol(ControllerType::Scsi)
                         .add_lun(
                             Vtl2LunBuilder::disk()
                                 .with_location(vtl0_nvme_lun)
@@ -572,7 +569,7 @@ async fn openhcl_linux_storvsp_dvd(
             })
             .with_custom_vtl2_settings(|v| {
                 v.dynamic.as_mut().unwrap().storage_controllers.push(
-                    Vtl2StorageControllerBuilder::scsi()
+                    Vtl2StorageControllerBuilder::new(ControllerType::Scsi)
                         .with_instance_id(scsi_instance)
                         .add_lun(Vtl2LunBuilder::dvd().with_location(vtl0_scsi_lun))
                         // No physical devices initially, so the drive is empty
@@ -700,9 +697,8 @@ async fn openhcl_linux_storvsp_dvd_nvme(
             })
             .with_custom_vtl2_settings(|v| {
                 v.dynamic.as_mut().unwrap().storage_controllers.push(
-                    Vtl2StorageControllerBuilder::scsi()
+                    Vtl2StorageControllerBuilder::new(ControllerType::Scsi)
                         .with_instance_id(scsi_instance)
-                        .with_protocol(ControllerType::Scsi)
                         .add_lun(
                             Vtl2LunBuilder::dvd()
                                 .with_location(vtl2_lun)
