@@ -172,7 +172,7 @@ impl PetriVmRuntime for PetriVmOpenVmm {
 
     async fn add_disk(
         &mut self,
-        _disk: &crate::PetriDisk,
+        _disk: &crate::DiskType,
         _controller_type: crate::StorageType,
         _controller_location: u8,
         _controller: &Self::RealizedStorageController,

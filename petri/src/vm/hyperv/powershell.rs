@@ -5,7 +5,6 @@
 
 use crate::CommandError;
 use crate::OpenHclServicingFlags;
-use crate::StorageType;
 use crate::VmScreenshotMeta;
 use crate::run_host_cmd;
 use anyhow::Context;

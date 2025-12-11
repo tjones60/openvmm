@@ -375,7 +375,7 @@ async fn storvsp_hyperv(config: PetriVmBuilder<HyperVPetriBackend>) -> Result<()
         .ok_or_else(|| anyhow::anyhow!("couldn't find additional scsi controller"))?;
 
     vm.add_disk(
-        petri::PetriDisk::Persistent(vhd_path.to_path_buf()),
+        petri::DiskType::Persistent(vhd_path.to_path_buf()),
         CONTROLLER_TEST_ID,
         Some(vtl2_lun),
     )

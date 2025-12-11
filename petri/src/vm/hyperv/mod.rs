@@ -9,14 +9,14 @@ use vmsocket::VmSocket;
 
 use super::ProcessorTopology;
 use crate::BootDeviceType;
+use crate::Disk;
+use crate::DiskType;
 use crate::Firmware;
 use crate::IsolationType;
 use crate::NoPetriVmInspector;
 use crate::OpenHclConfig;
 use crate::OpenHclServicingFlags;
-use crate::PetriDisk;
 use crate::PetriHaltReason;
-use crate::PetriStorageController;
 use crate::PetriVmConfig;
 use crate::PetriVmResources;
 use crate::PetriVmRuntime;
@@ -26,9 +26,11 @@ use crate::PetriVmgsResource;
 use crate::PetriVmmBackend;
 use crate::SecureBootTemplate;
 use crate::ShutdownKind;
-use crate::StorageType;
 use crate::TpmConfig;
 use crate::UefiConfig;
+use crate::VmbusStorageController;
+use crate::VmbusStorageControllerConfig;
+use crate::VmbusStorageType;
 use crate::VmmQuirks;
 use crate::disk_image::AgentImage;
 use crate::hyperv::powershell::HyperVSecureBootTemplate;
@@ -40,6 +42,7 @@ use async_trait::async_trait;
 use disk_backend::sync_wrapper::BlockingDisk;
 use disk_vhdmp::VhdmpDisk;
 use get_resources::ged::FirmwareEvent;
+use guid::Guid;
 use pal_async::DefaultDriver;
 use pal_async::pipe::PolledPipe;
 use pal_async::socket::PolledSocket;
@@ -175,10 +178,7 @@ impl PetriVmmBackend for HyperVPetriBackend {
         config: PetriVmConfig,
         _modify_vmm_config: Option<impl FnOnce(Self::VmmConfig) -> Self::VmmConfig + Send>,
         resources: &PetriVmResources,
-    ) -> anyhow::Result<(
-        Self::VmRuntime,
-        PetriVmRuntimeConfig<RealizedHyperVStorageController>,
-    )> {
+    ) -> anyhow::Result<(Self::VmRuntime, PetriVmRuntimeConfig)> {
         let PetriVmConfig {
             name,
             arch,
@@ -191,7 +191,8 @@ impl PetriVmmBackend for HyperVPetriBackend {
             vmgs,
             tpm,
             guest_crash_disk,
-            additional_storage_controllers,
+            ide,
+            additional_vmbus_storage_controllers,
         } = config;
 
         let PetriVmResources { driver, log_source } = resources;
@@ -265,7 +266,7 @@ impl PetriVmmBackend for HyperVPetriBackend {
 
         let mut openhcl_command_line = openhcl_config.as_ref().map(|(_, c)| c.command_line());
         let mut vtl2_settings = None;
-        let mut storage_controllers = HashMap::new();
+        let mut vmbus_storage_controllers = HashMap::new();
 
         let vmgs_path = {
             // TODO: add support for configuring the TPM in Hyper-V
@@ -316,15 +317,15 @@ impl PetriVmmBackend for HyperVPetriBackend {
             };
 
             match disk {
-                None | Some(PetriDisk::Memory) => None,
-                Some(PetriDisk::Differencing(parent_path)) => {
+                None | Some(DiskType::Empty | DiskType::Memory(_)) => None,
+                Some(DiskType::Differencing(parent_path)) => {
                     let diff_disk_path = temp_dir
                         .path()
                         .join(parent_path.file_name().context("path has no filename")?);
                     make_temp_diff_disk(&diff_disk_path, &parent_path).await?;
                     Some(diff_disk_path)
                 }
-                Some(PetriDisk::Persistent(path)) => Some(path),
+                Some(DiskType::Persistent(path)) => Some(path),
             }
         };
 
@@ -613,28 +614,18 @@ impl PetriVmmBackend for HyperVPetriBackend {
         // (requires changes above where VHDs are added)
 
         // Add additional storage
-        for (
-            test_id,
-            PetriStorageController {
-                target_vtl,
-                controller_type,
-                disks,
-                ..
-            },
-        ) in additional_storage_controllers
-        {
-            let (hyperv_controller_type, (controller_number, vsid)) = match controller_type {
-                StorageType::Ide => todo!(),
-                StorageType::Scsi => (
+        for (test_id, config) in additional_vmbus_storage_controllers {
+            let (hyperv_controller_type, (controller_number, vsid)) = match config.controller_type {
+                VmbusStorageType::Scsi => (
                     powershell::ControllerType::Scsi,
-                    vm.add_scsi_controller(target_vtl as u32).await?,
+                    vm.add_scsi_controller(config.target_vtl as u32).await?,
                 ),
-                StorageType::Nvme => todo!(),
+                VmbusStorageType::Nvme => todo!(),
             };
 
-            for (controller_location, disk) in disks.iter() {
+            for (controller_location, disk) in config.disks.iter() {
                 vm.add_vhd(
-                    &petri_disk_to_hyperv(disk, &temp_dir).await?,
+                    &petri_disk_to_hyperv(&disk.disk, &temp_dir).await?,
                     hyperv_controller_type,
                     Some(*controller_location),
                     Some(controller_number),
@@ -642,16 +633,11 @@ impl PetriVmmBackend for HyperVPetriBackend {
                 .await?;
             }
 
-            storage_controllers.insert(
+            vmbus_storage_controllers.insert(
                 test_id,
-                PetriStorageController {
-                    target_vtl,
-                    controller_type,
-                    disks,
-                    realized: RealizedHyperVStorageController {
-                        controller_number,
-                        vsid,
-                    },
+                VmbusStorageController {
+                    config,
+                    instance_id: vsid,
                 },
             );
         }
@@ -699,7 +685,8 @@ impl PetriVmmBackend for HyperVPetriBackend {
             },
             PetriVmRuntimeConfig {
                 vtl2_settings,
-                storage_controllers,
+                ide_controllers: None,
+                vmbus_storage_controllers,
             },
         ))
     }
@@ -709,7 +696,6 @@ impl PetriVmmBackend for HyperVPetriBackend {
 impl PetriVmRuntime for HyperVPetriRuntime {
     type VmInspector = NoPetriVmInspector;
     type VmFramebufferAccess = vm::HyperVFramebufferAccess;
-    type RealizedStorageController = RealizedHyperVStorageController;
 
     async fn teardown(mut self) -> anyhow::Result<()> {
         futures::future::join_all(self.log_tasks.into_iter().map(|t| t.cancel())).await;
@@ -842,19 +828,19 @@ impl PetriVmRuntime for HyperVPetriRuntime {
         self.vm.set_base_vtl2_settings(settings).await
     }
 
-    async fn add_disk(
+    async fn add_vmbus_disk(
         &mut self,
-        disk: &PetriDisk,
-        controller_type: StorageType,
+        disk: &Disk,
+        controller_type: VmbusStorageType,
         controller_location: u8,
-        controller: &Self::RealizedStorageController,
+        controller_id: &Guid,
     ) -> anyhow::Result<()> {
         self.vm
             .add_vhd(
-                &petri_disk_to_hyperv(disk, &self.temp_dir).await?,
+                &petri_disk_to_hyperv(&disk.disk, &self.temp_dir).await?,
                 controller_type.into(),
                 Some(controller_location),
-                Some(controller.controller_number),
+                Some(0),
             )
             .await
     }
@@ -947,16 +933,16 @@ async fn make_temp_diff_disk(
     Ok(())
 }
 
-async fn petri_disk_to_hyperv(disk: &PetriDisk, temp_dir: &TempDir) -> anyhow::Result<PathBuf> {
+async fn petri_disk_to_hyperv(disk: &DiskType, temp_dir: &TempDir) -> anyhow::Result<PathBuf> {
     Ok(match disk {
-        PetriDisk::Memory => todo!(),
-        PetriDisk::Differencing(parent_path) => {
+        DiskType::Memory => todo!(),
+        DiskType::Differencing(parent_path) => {
             let diff_disk_path = temp_dir
                 .path()
                 .join(parent_path.file_name().context("path has no filename")?);
             make_temp_diff_disk(&diff_disk_path, &parent_path).await?;
             diff_disk_path
         }
-        PetriDisk::Persistent(path) => path.clone(),
+        DiskType::Persistent(path) => path.clone(),
     })
 }
