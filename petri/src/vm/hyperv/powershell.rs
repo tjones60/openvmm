@@ -381,6 +381,32 @@ pub async fn run_add_vm_dvd_drive(args: HyperVAddVMDvdDriveArgs<'_>) -> anyhow::
     .context("add_vm_dvd_drive")
 }
 
+/// Adds a SCSI controller with the specified VSID and target VTL to the VM
+pub async fn run_add_vm_scsi_controller_with_id(
+    ps_mod: &Path,
+    vmid: &Guid,
+    vsid: &Guid,
+    target_vtl: u32,
+) -> anyhow::Result<()> {
+    run_host_cmd(
+        PowerShellBuilder::new()
+            .cmdlet("Import-Module")
+            .positional(ps_mod)
+            .next()
+            .cmdlet("Get-VM")
+            .arg("Id", vmid)
+            .pipeline()
+            .cmdlet("Add-VmScsiControllerWithId")
+            .arg("Vsid", vsid)
+            .arg("TargetVtl", target_vtl)
+            .finish()
+            .build(),
+    )
+    .await
+    .map(|_| ())
+    .context("add_vm_scsi_controller")
+}
+
 /// Runs Add-VMScsiController with the given arguments.
 ///
 /// Returns the controller number and controller instance guid.
