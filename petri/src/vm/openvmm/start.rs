@@ -32,7 +32,7 @@ use storvsp_resources::ScsiPath;
 use vm_resource::IntoResource;
 
 impl PetriVmConfigOpenVmm {
-    async fn run_core(self) -> anyhow::Result<(PetriVmOpenVmm, PetriVmRuntimeConfig<()>)> {
+    async fn run_core(self) -> anyhow::Result<(PetriVmOpenVmm, PetriVmRuntimeConfig)> {
         let Self {
             firmware,
             arch,
@@ -167,14 +167,15 @@ impl PetriVmConfigOpenVmm {
             vm,
             PetriVmRuntimeConfig {
                 vtl2_settings,
-                storage_controllers: HashMap::new(),
+                ide_controllers: None,
+                vmbus_storage_controllers: HashMap::new(),
             },
         ))
     }
 
     /// Run the VM, configuring pipette to automatically start if it is
     /// included in the config
-    pub async fn run(mut self) -> anyhow::Result<(PetriVmOpenVmm, PetriVmRuntimeConfig<()>)> {
+    pub async fn run(mut self) -> anyhow::Result<(PetriVmOpenVmm, PetriVmRuntimeConfig)> {
         let launch_linux_direct_pipette = if let Some(agent_image) = &self.resources.agent_image {
             // Construct the agent disk.
             if let Some(agent_disk) = agent_image.build().context("failed to build agent image")? {

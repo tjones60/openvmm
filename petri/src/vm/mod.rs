@@ -141,7 +141,7 @@ pub struct PetriVmConfig {
     /// IDE configuration
     pub ide: Option<IdeConfig>,
     /// Additional VMBus storage for the VM
-    pub additional_vmbus_storage_controllers: HashMap<String, VmbusStorageControllerConfig>,
+    pub additional_vmbus_storage_controllers: HashMap<Guid, VmbusStorageController>,
 }
 
 /// VM configuration that can be changed after the VM is created
@@ -149,9 +149,9 @@ pub struct PetriVmRuntimeConfig {
     /// VTL2 settings
     pub vtl2_settings: Option<Vtl2Settings>,
     /// IDE controllers and associated disks
-    pub ide_controllers: Option<[[Disk; 2]; 2]>,
+    pub ide_controllers: Option<[[Drive; 2]; 2]>,
     /// Storage controllers and associated disks
-    pub vmbus_storage_controllers: HashMap<String, VmbusStorageController>,
+    pub vmbus_storage_controllers: HashMap<Guid, VmbusStorageController>,
 }
 
 /// Resources used by a Petri VM during contruction and runtime
@@ -200,9 +200,21 @@ pub trait PetriVmmBackend {
     ) -> anyhow::Result<(Self::VmRuntime, PetriVmRuntimeConfig)>;
 }
 
+pub(crate) const PETRI_IDE_BOOT_CONTROLLER: u32 = 0;
+pub(crate) const PETRI_IDE_BOOT_LUN: u8 = 0;
+
 pub(crate) const PETRI_VTL0_SCSI_BOOT_LUN: u8 = 0;
 pub(crate) const PETRI_VTL0_SCSI_PIPETTE_LUN: u8 = 1;
 pub(crate) const PETRI_VTL0_SCSI_CRASH_LUN: u8 = 2;
+
+pub(crate) const PETRI_VTL2_SCSI_PIPETTE_LUN: u8 = 1;
+
+/// The instance guid used for all of our SCSI drives.
+pub(crate) const PETRI_VTL0_SCSI_CONTROLLER_ID: Guid =
+    guid::guid!("27b553e8-8b39-411b-a55f-839971a7884f");
+
+pub(crate) const PETRI_VTL2_SCSI_CONTROLLER_ID: Guid =
+    guid::guid!("818ae0a4-4f68-4b8e-94bc-c520c049097d");
 
 /// A constructed Petri VM
 pub struct PetriVm<T: PetriVmmBackend> {
@@ -714,7 +726,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             }
             PetriGuestStateLifetime::Reprovision => PetriVmgsResource::Reprovision(disk),
             PetriGuestStateLifetime::Ephemeral => {
-                if !matches!(disk.disk, DiskType::Memory(_)) {
+                if !matches!(disk.disk, Disk::Memory(_)) {
                     panic!("attempted to use ephemeral guest state after specifying backing vmgs")
                 }
                 PetriVmgsResource::Ephemeral
@@ -740,20 +752,20 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
 
     /// Use the specified backing VMGS file
     pub fn with_initial_vmgs(self, disk: ResolvedArtifact<impl IsTestVmgs>) -> Self {
-        self.with_backing_vmgs(DiskType::Differencing(disk.into()))
+        self.with_backing_vmgs(Disk::Differencing(disk.into()))
     }
 
     /// Use the specified backing VMGS file
     pub fn with_persistent_vmgs(self, disk: impl AsRef<Path>) -> Self {
-        self.with_backing_vmgs(DiskType::Persistent(disk.as_ref().to_path_buf()))
+        self.with_backing_vmgs(Disk::Persistent(disk.as_ref().to_path_buf()))
     }
 
-    fn with_backing_vmgs(mut self, disk: DiskType) -> Self {
+    fn with_backing_vmgs(mut self, disk: Disk) -> Self {
         match &mut self.config.vmgs {
             PetriVmgsResource::Disk(vmgs)
             | PetriVmgsResource::ReprovisionOnFailure(vmgs)
             | PetriVmgsResource::Reprovision(vmgs) => {
-                if !matches!(vmgs.disk, DiskType::Memory(_)) {
+                if !matches!(vmgs.disk, Disk::Memory(_)) {
                     panic!("already specified a backing vmgs file");
                 }
                 vmgs.disk = disk;
@@ -815,49 +827,39 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
     /// Add an additional SCSI controller to the VM.
     pub fn add_vmbus_storage_controller(
         mut self,
-        test_id: impl AsRef<str>,
+        id: &Guid,
         target_vtl: Vtl,
-        device_type: VmbusStorageType,
+        controller_type: VmbusStorageType,
     ) -> Self {
-        let test_id = test_id.as_ref().to_string();
-
         if self
             .config
             .additional_vmbus_storage_controllers
-            .contains_key(&test_id)
+            .contains_key(id)
         {
-            panic!("storage controller with id \"{test_id}\" already exists");
+            panic!("storage controller {id} already exists");
         }
 
         self.config.additional_vmbus_storage_controllers.insert(
-            test_id,
-            VmbusStorageControllerConfig {
-                target_vtl,
-                controller_type: device_type,
-                disks: HashMap::new(),
-            },
+            *id,
+            VmbusStorageController::new(target_vtl, controller_type),
         );
         self
     }
 
-    /// Add a VMBus disk to the VM
-    pub fn add_vmbus_disk(
+    /// Add a VMBus disk drive to the VM
+    pub fn add_vmbus_drive(
         mut self,
-        disk: Disk,
-        controller_test_id: impl AsRef<str>,
+        drive: Drive,
+        controller_id: &Guid,
         controller_location: Option<u8>,
     ) -> Self {
-        let controller_test_id = controller_test_id.as_ref();
-
         let controller = self
             .config
             .additional_vmbus_storage_controllers
-            .get_mut(controller_test_id)
-            .unwrap_or_else(|| {
-                panic!("storage controller with id \"{controller_test_id}\" does not exist")
-            });
+            .get_mut(controller_id)
+            .unwrap_or_else(|| panic!("storage controller {controller_id} does not exist"));
 
-        _ = controller.add_disk(controller_location, disk);
+        _ = controller.set_drive(controller_location, drive, false);
 
         self
     }
@@ -1218,37 +1220,28 @@ impl<T: PetriVmmBackend> PetriVm<T> {
     }
 
     /// Get the list of storage controllers added to this VM
-    pub fn get_vmbus_storage_controllers(&self) -> &HashMap<String, VmbusStorageController> {
+    pub fn get_vmbus_storage_controllers(&self) -> &HashMap<Guid, VmbusStorageController> {
         &self.config.vmbus_storage_controllers
     }
 
-    /// Add a VMBus disk to the VM
-    pub async fn add_vmbus_disk(
+    /// Add or modify a VMBus disk drive
+    pub async fn set_vmbus_drive(
         &mut self,
-        disk: Disk,
-        controller_test_id: impl AsRef<str>,
+        drive: Drive,
+        controller_id: &Guid,
         controller_location: Option<u8>,
     ) -> anyhow::Result<()> {
-        let controller_test_id = controller_test_id.as_ref();
-
         let controller = self
             .config
             .vmbus_storage_controllers
-            .get_mut(controller_test_id)
-            .unwrap_or_else(|| {
-                panic!("storage controller with id \"{controller_test_id}\" does not exist")
-            });
+            .get_mut(controller_id)
+            .unwrap_or_else(|| panic!("storage controller {controller_id} does not exist"));
 
-        let controller_location = controller.config.add_disk(controller_location, disk);
-        let disk = controller.config.disks.get(&controller_location).unwrap();
+        let controller_location = controller.set_drive(controller_location, drive, true);
+        let disk = controller.drives.get(&controller_location).unwrap();
 
         self.runtime
-            .add_vmbus_disk(
-                disk,
-                controller.config.controller_type,
-                controller_location,
-                &controller.instance_id,
-            )
+            .set_vmbus_drive(disk, controller_id, controller_location)
             .await?;
 
         Ok(())
@@ -1316,15 +1309,14 @@ pub trait PetriVmRuntime: Send + Sync + 'static {
     async fn get_guest_state_file(&self) -> anyhow::Result<Option<PathBuf>> {
         Ok(None)
     }
-    /// Set the OpenHCL VTL2 settings.
+    /// Set the OpenHCL VTL2 settings
     async fn set_vtl2_settings(&mut self, settings: &Vtl2Settings) -> anyhow::Result<()>;
-    /// Add a VMBus disk to the VM
-    async fn add_vmbus_disk(
+    /// Add or modify a VMBus disk drive
+    async fn set_vmbus_drive(
         &mut self,
-        disk: &Disk,
-        controller_type: VmbusStorageType,
+        disk: &Drive,
+        controller_id: &Guid,
         controller_location: u8,
-        instance_id: &Guid,
     ) -> anyhow::Result<()>;
 }
 
@@ -1914,6 +1906,10 @@ impl PcatGuest {
             PcatGuest::Iso(disk) => &disk.artifact,
         }
     }
+
+    fn is_dvd(&self) -> bool {
+        matches!(self, Self::Iso(_))
+    }
 }
 
 /// The guest the VM will boot into. A boot drive with the chosen setup
@@ -2043,10 +2039,8 @@ pub struct OpenHclServicingFlags {
 }
 
 /// Petri disk
-#[derive(Debug, Clone)]
-pub enum DiskType {
-    /// No disk inserted
-    Empty,
+#[derive(Debug, Clone, PartialEq)]
+pub enum Disk {
     /// Memory backed with specified size
     Memory(u64),
     /// Memory differencing disk backed by a file
@@ -2059,7 +2053,7 @@ pub enum DiskType {
 #[derive(Debug, Clone)]
 pub struct PetriVmgsDisk {
     /// Backing disk
-    pub disk: DiskType,
+    pub disk: Disk,
     /// Guest state encryption policy
     pub encryption_policy: GuestStateEncryptionPolicy,
 }
@@ -2067,7 +2061,7 @@ pub struct PetriVmgsDisk {
 impl Default for PetriVmgsDisk {
     fn default() -> Self {
         PetriVmgsDisk {
-            disk: DiskType::Memory(vmgs_format::VMGS_DEFAULT_CAPACITY),
+            disk: Disk::Memory(vmgs_format::VMGS_DEFAULT_CAPACITY),
             // TODO: make this strict once we can set it in OpenHCL on Hyper-V
             encryption_policy: GuestStateEncryptionPolicy::None(false),
         }
@@ -2250,67 +2244,80 @@ pub enum VmbusStorageType {
     Nvme,
 }
 
-/// Petri IDE disk
-#[derive(Debug, Clone)]
-pub struct Disk {
+/// VM disk drive
+#[derive(Debug, Clone, PartialEq)]
+pub struct Drive {
     /// Backing disk
-    pub disk: DiskType,
+    pub disk: Option<Disk>,
     /// Whether this is a DVD
     pub is_dvd: bool,
+}
+
+impl Drive {
+    /// Create a new disk
+    pub fn new(disk: Option<Disk>, is_dvd: bool) -> Self {
+        Self { disk, is_dvd }
+    }
 }
 
 /// IDE configuration
 ///
 /// Controller 0, location 0 is reserved for the boot disk.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct IdeConfig {
     /// Controller 0, location 1
-    pub disk_0_1: Option<Disk>,
+    pub drive_0_1: Option<Drive>,
     /// Controller 1, location 0
-    pub disk_1_0: Option<Disk>,
+    pub drive_1_0: Option<Drive>,
     /// Controller 1, location 1
-    pub disk_1_1: Option<Disk>,
+    pub drive_1_1: Option<Drive>,
 }
 
 impl Default for IdeConfig {
     fn default() -> Self {
         Self {
-            disk_0_1: None,
-            disk_1_0: Some(Disk {
-                disk: DiskType::Empty,
+            drive_0_1: None,
+            drive_1_0: Some(Drive {
+                disk: None,
                 is_dvd: true,
             }),
-            disk_1_1: None,
+            drive_1_1: None,
         }
+    }
+}
+
+impl IdeConfig {
+    /// Get the config with the boot disk
+    pub fn into_controllers(self) -> [[Option<Drive>; 2]; 2] {
+        [[None, self.drive_0_1], [self.drive_1_0, self.drive_1_1]]
     }
 }
 
 /// VMBus storage controller
 #[derive(Debug, Clone)]
-pub struct VmbusStorageControllerConfig {
+pub struct VmbusStorageController {
     /// The VTL to assign the storage controller to
     pub target_vtl: Vtl,
     /// The storage device type
     pub controller_type: VmbusStorageType,
-    /// Disks attached to this storage controller
-    pub disks: HashMap<u8, Disk>,
+    /// Drives (with any inserted disks) attached to this storage controller
+    pub drives: HashMap<u8, Drive>,
 }
 
-/// VMBus storage controller
-#[derive(Debug, Clone)]
-pub struct VmbusStorageController {
-    /// Current configuration
-    pub config: VmbusStorageControllerConfig,
+impl VmbusStorageController {
+    /// Create a new storage controller
+    pub fn new(target_vtl: Vtl, controller_type: VmbusStorageType) -> Self {
+        Self {
+            target_vtl,
+            controller_type,
+            drives: HashMap::new(),
+        }
+    }
 
-    /// Instance ID GUID (VSID)
-    pub instance_id: Guid,
-}
-
-impl VmbusStorageControllerConfig {
     /// Add a disk to the storage controller
-    pub fn add_disk(&mut self, lun: Option<u8>, disk: Disk) -> u8 {
+    pub fn set_drive(&mut self, lun: Option<u8>, drive: Drive, allow_modify_existing: bool) -> u8 {
         let lun = if let Some(lun) = lun {
-            if self.disks.contains_key(&lun) {
+            if !allow_modify_existing && self.drives.contains_key(&lun) {
                 panic!("a disk with lun {lun} already exists on this controller");
             }
             lun
@@ -2318,7 +2325,7 @@ impl VmbusStorageControllerConfig {
             // find the first available lun
             let mut lun = None;
             for x in 0..u8::MAX {
-                if !self.disks.contains_key(&x) {
+                if !self.drives.contains_key(&x) {
                     lun = Some(x)
                 }
             }
@@ -2329,7 +2336,7 @@ impl VmbusStorageControllerConfig {
             }
         };
 
-        self.disks.insert(lun, disk);
+        self.drives.insert(lun, drive);
 
         lun
     }

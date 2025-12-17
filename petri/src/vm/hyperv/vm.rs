@@ -306,24 +306,48 @@ impl HyperVVM {
         target_vtl: u32,
     ) -> anyhow::Result<()> {
         powershell::run_add_vm_scsi_controller_with_id(&self.ps_mod, &self.vmid, vsid, target_vtl)
-            .await?;
+            .await
     }
 
-    /// Add a VHD
-    pub async fn add_vhd(
+    /// Add a drive to the scsi controller
+    pub async fn set_drive_scsi(
         &mut self,
-        path: &Path,
-        controller_type: powershell::ControllerType,
-        controller_location: Option<u8>,
-        controller_number: Option<u32>,
+        controller_vsid: &Guid,
+        controller_location: u8,
+        path: Option<&Path>,
+        dvd: bool,
+        allow_modify_existing: bool,
     ) -> anyhow::Result<()> {
-        powershell::run_add_vm_hard_disk_drive(powershell::HyperVAddVMHardDiskDriveArgs {
-            vmid: &self.vmid,
-            controller_type,
+        powershell::run_set_vm_drive_scsi(
+            &self.ps_mod,
+            &self.vmid,
+            controller_vsid,
             controller_location,
+            path,
+            dvd,
+            allow_modify_existing,
+        )
+        .await
+    }
+
+    /// Add a drive to the ide controller
+    pub async fn set_drive_ide(
+        &mut self,
+        controller_number: u32,
+        controller_location: u8,
+        path: Option<&Path>,
+        dvd: bool,
+        allow_modify_existing: bool,
+    ) -> anyhow::Result<()> {
+        powershell::run_set_vm_drive_ide(
+            &self.ps_mod,
+            &self.vmid,
             controller_number,
-            path: Some(path),
-        })
+            controller_location,
+            path,
+            dvd,
+            allow_modify_existing,
+        )
         .await
     }
 

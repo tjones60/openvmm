@@ -18,9 +18,9 @@ pub use runtime::OpenVmmInspector;
 pub use runtime::PetriVmOpenVmm;
 
 use crate::BootDeviceType;
+use crate::Disk;
 use crate::Firmware;
 use crate::OpenHclServicingFlags;
-use crate::DiskType;
 use crate::PetriLogFile;
 use crate::PetriVmConfig;
 use crate::PetriVmResources;
@@ -65,9 +65,6 @@ use vm_resource::kind::DiskHandleKind;
 use vmgs_resources::VmgsDisk;
 use vmgs_resources::VmgsResource;
 use vtl2_settings_proto::Vtl2Settings;
-
-/// The instance guid used for all of our SCSI drives.
-pub(crate) const SCSI_INSTANCE: Guid = guid::guid!("27b553e8-8b39-411b-a55f-839971a7884f");
 
 /// The instance guid for the NVMe controller automatically added for boot media
 /// for paravisor storage translation.
@@ -146,7 +143,7 @@ impl PetriVmmBackend for OpenVmmPetriBackend {
         config: PetriVmConfig,
         modify_vmm_config: Option<impl FnOnce(PetriVmConfigOpenVmm) -> PetriVmConfigOpenVmm + Send>,
         resources: &PetriVmResources,
-    ) -> anyhow::Result<(Self::VmRuntime, PetriVmRuntimeConfig<()>)> {
+    ) -> anyhow::Result<(Self::VmRuntime, PetriVmRuntimeConfig)> {
         let mut config = PetriVmConfigOpenVmm::new(&self.openvmm_path, config, resources)?;
 
         if let Some(f) = modify_vmm_config {
@@ -226,12 +223,12 @@ fn memdiff_vmgs(vmgs: &PetriVmgsResource) -> anyhow::Result<VmgsResource> {
     let convert_disk = |disk: &PetriVmgsDisk| -> anyhow::Result<VmgsDisk> {
         Ok(VmgsDisk {
             disk: match &disk.disk {
-                DiskType::Memory => LayeredDiskHandle::single_layer(RamDiskLayerHandle {
-                    len: Some(vmgs_format::VMGS_DEFAULT_CAPACITY),
-                })
-                .into_resource(),
-                DiskType::Differencing(path) => memdiff_disk(path)?,
-                DiskType::Persistent(path) => open_disk_type(path, false)?,
+                Disk::Memory(len) => {
+                    LayeredDiskHandle::single_layer(RamDiskLayerHandle { len: Some(*len) })
+                        .into_resource()
+                }
+                Disk::Differencing(path) => memdiff_disk(path)?,
+                Disk::Persistent(path) => open_disk_type(path, false)?,
             },
             encryption_policy: disk.encryption_policy,
         })

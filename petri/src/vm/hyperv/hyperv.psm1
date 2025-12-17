@@ -7,6 +7,7 @@
 
 $ROOT_HYPER_V_NAMESPACE = "root\virtualization\v2"
 $SCSI_CONTROLLER_TYPE = "Microsoft:Hyper-V:Synthetic SCSI Controller"
+$IDE_CONTROLLER_TYPE = "Microsoft:Hyper-V:Emulated IDE Controller"
 $HARD_DRIVE_TYPE = "Microsoft:Hyper-V:Synthetic Disk Drive"
 $DVD_DRIVE_TYPE = "Microsoft:Hyper-V:Synthetic DVD Drive"
 $HARD_DISK_TYPE = "Microsoft:Hyper-V:Virtual Hard Disk"
@@ -260,7 +261,59 @@ function Get-VmScsiControllerProperties
     return "$ControllerNumber,$($rasd.VirtualSystemIdentifiers[0])"
 }
 
-function Get-VmScsiControllerById
+function Get-VmScsiConfiguration
+{
+    [CmdletBinding()]
+    Param (
+        [Parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $true)]
+        [System.Object] $Vm
+    )
+
+    $controllers = @($Vm | Get-VmRasd -ResourceSubType $SCSI_CONTROLLER_TYPE)
+
+    for ($i = 0; $i -lt $controllers.Count; $i++) {
+        $controllerPath = Get-CimInstancePath $controllers[$i]
+        $iid = $controllers[$i].InstanceId
+        $vsid = $controllers[$i].VirtualSystemIdentifiers[0]
+        $vtl = $controllers[$i].TargetVtl
+
+        Write-Host $i $vtl $vsid $iid
+
+        $drives = $Vm | Get-VmRasd | Where-Object {
+            (($_.ResourceSubType -eq $HARD_DRIVE_TYPE) -or ($_.ResourceSubType -eq $DVD_DRIVE_TYPE)) -and
+            ($_.Parent -eq $controllerPath)
+        }
+
+        $drives | ForEach-Object {
+            $drivePath = Get-CimInstancePath $_
+            $iid = $_.InstanceId
+            $lun = $_.AddressOnParent
+            $type = if ($_.ResourceSubType -eq $HARD_DRIVE_TYPE) {
+                "hdd"
+            } elseif ($_.ResourceSubType -eq $DVD_DRIVE_TYPE) {
+                "dvd"
+            } else {
+                "unknown"
+            }
+
+            Write-Host "   " $lun $type $iid
+
+            $disk = $Vm | Get-VmSasd | Where-Object {
+                (($_.ResourceSubType -eq $HARD_DISK_TYPE) -or ($_.ResourceSubType -eq $DVD_DISK_TYPE)) -and
+                ($_.Parent -eq $drivePath)
+            }
+
+            if ($disk) {
+                $iid = $disk.InstanceId
+                $path = $disk.HostResource[0]
+
+                Write-Host "       " $path $iid
+            }
+        }
+    }
+}
+
+function Get-VmScsiControllerNumberWithId
 {
     [CmdletBinding()]
     Param (
@@ -272,7 +325,92 @@ function Get-VmScsiControllerById
     )
 
     $vsid = $Vsid.ToString()
-    $Vm | Get-VmRasd -ResourceSubType $SCSI_CONTROLLER_TYPE | Where-Object { $_.VirtualSystemIdentifiers[0] -eq "{$vsid}" }
+    $controllers = @($Vm | Get-VmRasd -ResourceSubType $SCSI_CONTROLLER_TYPE)
+
+    for ($i = 0; $i -lt $controllers.Count; $i++) {
+        if ($controllers[$i].VirtualSystemIdentifiers[0] -eq "{$vsid}") {
+            return $i
+        }
+    }
+
+    $vmid = $Vm.Id
+    throw "controller $vsid does not exist on vm $vmid"
+}
+
+function Get-VmScsiControllerIdByNumber
+{
+    [CmdletBinding()]
+    Param (
+        [Parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $true)]
+        [System.Object] $Vm,
+
+        [Parameter(Mandatory = $true)]
+        [int] $ControllerNumber
+    )
+
+    $controllers = @($Vm | Get-VmRasd -ResourceSubType $SCSI_CONTROLLER_TYPE)
+
+    if (($ControllerNumber -lt 0) -or ($ControllerNumber -ge $controllers.Count)) {
+        $vmid = $Vm.Id
+        throw "controller number $ControllerNumber does not exist on vm $vmid"
+    }
+
+    $controllers[$ControllerNumber].VirtualSystemIdentifiers[0]
+}
+
+function Get-VmIdeController
+{
+    [CmdletBinding()]
+    Param (
+        [Parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $true)]
+        [System.Object] $Vm,
+
+        [Parameter(Mandatory = $true)]
+        [int] $ControllerNumber,
+
+        [bool] $Expected = $true
+    )
+
+    $vmid = $Vm.Id
+    $controller = $Vm | Get-VmRasd -ResourceSubType $IDE_CONTROLLER_TYPE | Where-Object { $_.Address -eq $ControllerNumber }
+
+    if ($Expected -and (-not $controller)) {
+        throw "ide controller $ControllerNumber does not exist on vm $vmid"
+    }
+
+    if ((-not $Expected) -and $controller) {
+        throw "ide controller $ControllerNumber already exists on vm $vmid"
+    }
+
+    return $controller
+}
+
+function Get-VmScsiControllerWithId
+{
+    [CmdletBinding()]
+    Param (
+        [Parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $true)]
+        [System.Object] $Vm,
+
+        [Parameter(Mandatory = $true)]
+        [Guid] $Vsid,
+
+        [bool] $Expected = $true
+    )
+
+    $vmid = $Vm.Id
+    $vsid = $Vsid.ToString()
+    $controller = $Vm | Get-VmRasd -ResourceSubType $SCSI_CONTROLLER_TYPE | Where-Object { $_.VirtualSystemIdentifiers[0] -eq "{$vsid}" }
+
+    if ($Expected -and (-not $controller)) {
+        throw "scsi controller $vsid does not exist on vm $vmid"
+    }
+
+    if ((-not $Expected) -and $controller) {
+        throw "scsi controller $vsid already exists on vm $vmid"
+    }
+
+    return $controller
 }
 
 function Add-VmScsiControllerWithId
@@ -289,19 +427,19 @@ function Add-VmScsiControllerWithId
         [int] $TargetVtl
     )
 
-    if ($Vm | Get-VmScsiControllerById -Vsid $Vsid) {
-        $vmid = $Vm.Id
-        $vsid = $Vsid.ToString()
-        throw "controller $vsid already exists on vm $vmid"
-    }
+    $Vm | Get-VmScsiControllerWithId -Vsid $Vsid -Expected $false
     
     $vsid = $Vsid.ToString()
     $template = Get-DefaultRasd $SCSI_CONTROLLER_TYPE
-    $controller = Copy-CimInstanceWithNewProperties $template @{ "VirtualSystemIdentifiers" = @("{$vsid}"); "TargetVtl" = $TargetVtl }
-    $Vm | Add-VmResourceSettings -Rasd $controller
+    $controllerConfig = Copy-CimInstanceWithNewProperties $template @{ "VirtualSystemIdentifiers" = @("{$vsid}"); "TargetVtl" = $TargetVtl }
+    $controllerAddResult = $Vm | Add-VmResourceSettings -Rasd $controllerConfig
+    $controller = $controllerAddResult.ResultingResourceSettings[0]
+    Write-Host "added controller:" $controller.InstanceId
+    
+    return $controller
 }
 
-function Set-VmDriveOnScsiControllerById
+function Remove-VmScsiControllerWithId
 {
     [CmdletBinding()]
     Param (
@@ -309,7 +447,61 @@ function Set-VmDriveOnScsiControllerById
         [System.Object] $Vm,
 
         [Parameter(Mandatory = $true)]
-        [Guid] $ControllerVsid,
+        [Guid] $Vsid
+    )
+
+    $controller = $Vm | Get-VmScsiControllerWithId -Vsid $Vsid -Expected $true
+    $controllerPath = Get-CimInstancePath $controller
+
+    $drives = $Vm | Get-VmRasd | Where-Object {
+        (($_.ResourceSubType -eq $HARD_DRIVE_TYPE) -or ($_.ResourceSubType -eq $DVD_DRIVE_TYPE)) -and
+        ($_.Parent -eq $controllerPath)
+    }
+    $drives | ForEach-Object { $Vm | Remove-VmDrive -Drive $_ }
+
+    Write-Host "removing controller:" $controller.InstanceId
+    $controller | Remove-VmResourceSettings
+}
+
+function Remove-VmDrive
+{
+    [CmdletBinding()]
+    Param (
+        [Parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $true)]
+        [System.Object] $Vm,
+
+        [Parameter(Mandatory = $true)]
+        [System.Object] $Drive
+    )
+
+    $drivePath = Get-CimInstancePath $Drive
+
+    $disk = $Vm | Get-VmSasd | Where-Object {
+        (($_.ResourceSubType -eq $HARD_DISK_TYPE) -or ($_.ResourceSubType -eq $DVD_DISK_TYPE)) -and
+        ($_.Parent -eq $drivePath)
+    }
+
+    Write-Host $disk.InstanceId $drivePath
+
+    if ($disk) {
+        Write-Host "removing disk:" $disk.InstanceId
+        $disk | Remove-VmResourceSettings
+    }
+
+    Write-Host "removing drive:" $Drive.InstanceId
+    $Drive | Remove-VmResourceSettings
+}
+
+function Set-VmDrive
+{
+    [CmdletBinding()]
+    Param (
+        [Parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $true)]
+        [System.Object] $Vm,
+
+        [guid] $ControllerVsid,
+
+        [int] $ControllerNumber = 0,
 
         [Parameter(Mandatory = $true)]
         [int] $Lun,
@@ -321,16 +513,19 @@ function Set-VmDriveOnScsiControllerById
         [switch] $AllowModifyExisting
     )
     
-    $vmid = $Vm.Id
-    $vsid = $ControllerVsid.ToString()
-
-    # get the scsi controller with the specified vsid
-    $controller = $Vm | Get-VmScsiControllerById -Vsid $ControllerVsid
-    if (-not $controller) {
-        throw "controller $vsid does not exist on vm $vmid"
+    if ($ControllerVsid) {
+        $controller = $Vm | Get-VmScsiControllerWithId -Vsid $ControllerVsid
+        $controllerId = $controller.VirtualSystemIdentifiers[0]
+    } else {
+        $controller = $Vm | Get-VmIdeController -ControllerNumber $ControllerNumber
+        $controllerId = $controller.Address
     }
+
+    $vmid = $Vm.Id
+    
+
     $controllerPath = Get-CimInstancePath $controller
-    Write-Host "found controller:" $controller.InstanceId
+    Write-Host "modifying controller:" $controller.InstanceId
 
     if ($Dvd) {
         $driveType = $DVD_DRIVE_TYPE
@@ -348,14 +543,13 @@ function Set-VmDriveOnScsiControllerById
     }
 
     if ($drive -and (-not $AllowModifyExisting)) {
-        throw "drive $Lun on controller $vsid already exists on vm $vmid"
+        throw "drive $Lun on controller $controllerId already exists on vm $vmid"
     }
 
     # (re-)create the drive if necessary
     if ((-not $drive) -or ($drive.ResourceSubType -ne $driveType)) {
         if ($drive) {
-            Write-Host "removing drive:" $drive.InstanceId
-            $drive | Remove-VmResourceSettings
+            $Vm | Remove-VmDrive -Drive $drive
         }
 
         $driveTemplate = Get-DefaultRasd $driveType
