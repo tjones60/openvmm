@@ -1912,6 +1912,7 @@ impl PcatGuest {
         }
     }
 
+    #[cfg_attr(not(windows), expect(dead_code))]
     fn is_dvd(&self) -> bool {
         matches!(self, Self::Iso(_))
     }
