@@ -213,7 +213,6 @@ pub(crate) const PETRI_VTL0_SCSI_CRASH_LUN: u8 = 2;
 pub(crate) const PETRI_VTL2_SCSI_PIPETTE_LUN: u8 = 1;
 
 /// The instance guid used for all of our SCSI drives.
-#[cfg_attr(not(windows), expect(dead_code))]
 pub(crate) const PETRI_VTL0_SCSI_CONTROLLER_ID: Guid =
     guid::guid!("27b553e8-8b39-411b-a55f-839971a7884f");
 
