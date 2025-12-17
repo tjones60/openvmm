@@ -200,19 +200,24 @@ pub trait PetriVmmBackend {
     ) -> anyhow::Result<(Self::VmRuntime, PetriVmRuntimeConfig)>;
 }
 
+#[cfg_attr(not(windows), expect(dead_code))]
 pub(crate) const PETRI_IDE_BOOT_CONTROLLER: u32 = 0;
+#[cfg_attr(not(windows), expect(dead_code))]
 pub(crate) const PETRI_IDE_BOOT_LUN: u8 = 0;
 
 pub(crate) const PETRI_VTL0_SCSI_BOOT_LUN: u8 = 0;
 pub(crate) const PETRI_VTL0_SCSI_PIPETTE_LUN: u8 = 1;
 pub(crate) const PETRI_VTL0_SCSI_CRASH_LUN: u8 = 2;
 
+#[cfg_attr(not(windows), expect(dead_code))]
 pub(crate) const PETRI_VTL2_SCSI_PIPETTE_LUN: u8 = 1;
 
 /// The instance guid used for all of our SCSI drives.
+#[cfg_attr(not(windows), expect(dead_code))]
 pub(crate) const PETRI_VTL0_SCSI_CONTROLLER_ID: Guid =
     guid::guid!("27b553e8-8b39-411b-a55f-839971a7884f");
 
+#[cfg_attr(not(windows), expect(dead_code))]
 pub(crate) const PETRI_VTL2_SCSI_CONTROLLER_ID: Guid =
     guid::guid!("818ae0a4-4f68-4b8e-94bc-c520c049097d");
 

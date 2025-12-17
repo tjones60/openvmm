@@ -631,7 +631,7 @@ impl PetriVmmBackend for HyperVPetriBackend {
                         vm.set_drive_ide(
                             controller_number as u32,
                             controller_location as u8,
-                            path.as_ref().map(|p| p.as_path()),
+                            path.as_deref(),
                             disk.is_dvd,
                             false,
                         )
@@ -645,16 +645,16 @@ impl PetriVmmBackend for HyperVPetriBackend {
         for (vsid, controller) in &vmbus_storage_controllers {
             match controller.controller_type {
                 VmbusStorageType::Scsi => {
-                    vm.add_scsi_controller(&vsid, controller.target_vtl as u32)
+                    vm.add_scsi_controller(vsid, controller.target_vtl as u32)
                         .await?;
 
                     for (controller_location, disk) in controller.drives.iter() {
                         let path = petri_disk_to_hyperv(disk.disk.as_ref(), &temp_dir).await?;
 
                         vm.set_drive_scsi(
-                            &vsid,
+                            vsid,
                             *controller_location,
-                            path.as_ref().map(|p| p.as_path()),
+                            path.as_deref(),
                             false,
                             false,
                         )
@@ -863,8 +863,7 @@ impl PetriVmRuntime for HyperVPetriRuntime {
                 controller_location,
                 petri_disk_to_hyperv(drive.disk.as_ref(), &self.temp_dir)
                     .await?
-                    .as_ref()
-                    .map(|p| p.as_path()),
+                    .as_deref(),
                 false,
                 false,
             )
