@@ -265,13 +265,15 @@ enum Options {
     Move {
         #[command(flatten)]
         file_path: FilePathArg,
-        #[command(flatten)]
-        src: FileIdArg,
-        #[command(flatten)]
-        dest: FileIdArg,
+        /// Source VMGS File ID
+        #[clap(long, alias = "src", value_parser = parse_file_id)]
+        src_file_id: FileId,
+        /// Destination VMGS File ID
+        #[clap(long, alias = "dst", value_parser = parse_file_id)]
+        dst_file_id: FileId,
         #[command(flatten)]
         key_path: KeyPathArg,
-        /// Overwrite the VMGS data at `fileid`, even if it already exists with nonzero size
+        /// Overwrite the VMGS data at `dst_file_id`, even if it already exists
         #[clap(long, alias = "allowoverwrite")]
         allow_overwrite: bool,
     },
@@ -501,15 +503,15 @@ async fn do_main() -> Result<(), Error> {
         }
         Options::Move {
             file_path,
-            src,
-            dest,
+            src_file_id,
+            dst_file_id,
             key_path,
             allow_overwrite,
         } => {
             vmgs_file_move(
                 file_path.file_path,
-                src.file_id,
-                dest.file_id,
+                src_file_id,
+                dst_file_id,
                 key_path.key_path,
                 allow_overwrite,
             )
@@ -830,27 +832,27 @@ async fn vmgs_read(vmgs: &mut Vmgs, file_id: FileId, decrypt: bool) -> Result<Ve
 async fn vmgs_file_move(
     file_path: impl AsRef<Path>,
     src: FileId,
-    dest: FileId,
+    dst: FileId,
     key_path: Option<impl AsRef<Path>>,
     allow_overwrite: bool,
 ) -> Result<(), Error> {
     let mut vmgs = vmgs_file_open(file_path, key_path, OpenMode::ReadWriteRequire).await?;
 
-    vmgs_move(&mut vmgs, src, dest, allow_overwrite).await
+    vmgs_move(&mut vmgs, src, dst, allow_overwrite).await
 }
 
 async fn vmgs_move(
     vmgs: &mut Vmgs,
     src: FileId,
-    dest: FileId,
+    dst: FileId,
     allow_overwrite: bool,
 ) -> Result<(), Error> {
     eprintln!(
         "Moving File ID {} ({:?}) to File ID {} ({:?})",
-        src.0, src, dest.0, dest
+        src.0, src, dst.0, dst
     );
 
-    vmgs.move_file(src, dest, allow_overwrite).await?;
+    vmgs.move_file(src, dst, allow_overwrite).await?;
 
     Ok(())
 }

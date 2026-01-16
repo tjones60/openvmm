@@ -950,17 +950,17 @@ impl Vmgs {
     pub async fn move_file(
         &mut self,
         src: FileId,
-        dest: FileId,
+        dst: FileId,
         allow_overwrite: bool,
     ) -> Result<(), Error> {
-        if [src, dest]
+        if [src, dst]
             .iter()
             .any(|id| matches!(*id, FileId::FILE_TABLE | FileId::EXTENDED_FILE_TABLE))
         {
             return Err(Error::FileId);
         }
 
-        if !allow_overwrite && self.state.fcbs.contains_key(&dest) {
+        if !allow_overwrite && self.state.fcbs.contains_key(&dst) {
             return Err(Error::OverwriteMove);
         }
 
@@ -971,7 +971,7 @@ impl Vmgs {
             .fcbs
             .remove(&src)
             .ok_or(Error::FileInfoNotAllocated)?;
-        temp_state.fcbs.insert(dest, fcb);
+        temp_state.fcbs.insert(dst, fcb);
 
         // write the new file table(s)
         self.write_files_internal(BTreeMap::new(), Some(&mut temp_state))
