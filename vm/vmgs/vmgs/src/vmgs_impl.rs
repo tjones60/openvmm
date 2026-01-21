@@ -795,7 +795,7 @@ impl Vmgs {
     ) -> Result<(), Error> {
         if let Err(e) = self
             .storage
-            .write_block(block_count_to_byte_count(fcb.block_offset), buf)
+            .write_block_with_timeout(block_count_to_byte_count(fcb.block_offset), buf)
             .await
         {
             self.logger
@@ -816,7 +816,7 @@ impl Vmgs {
     ) -> Result<(), Error> {
         assert!(index < 2);
         self.storage
-            .write_block(
+            .write_block_with_timeout(
                 index as u64 * self.storage.aligned_header_size(),
                 header.as_bytes(),
             )
@@ -882,7 +882,7 @@ impl Vmgs {
 
             if let Err(e) = self
                 .storage
-                .read_block(block_count_to_byte_count(fcb.block_offset), &mut buf)
+                .read_block_with_timeout(block_count_to_byte_count(fcb.block_offset), &mut buf)
                 .await
             {
                 self.logger
@@ -1517,7 +1517,7 @@ async fn read_headers_inner(
     let mut first_two_blocks = [0; (VMGS_BYTES_PER_BLOCK * 2) as usize];
 
     storage
-        .read_block(0, &mut first_two_blocks)
+        .read_block_with_timeout(0, &mut first_two_blocks)
         .await
         .map_err(|e| (Error::ReadDisk(e), None))?;
 

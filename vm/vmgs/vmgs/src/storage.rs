@@ -6,6 +6,7 @@
 use disk_backend::Disk;
 use disk_backend::DiskError;
 use guestmem::GuestMemory;
+use jiff::Timestamp;
 use scsi_buffers::OwnedRequestBuffers;
 use thiserror::Error;
 
@@ -107,6 +108,23 @@ impl VmgsStorage {
         Ok(())
     }
 
+    pub async fn read_block_with_timeout(
+        &mut self,
+        byte_offset: u64,
+        buf: &mut [u8],
+    ) -> Result<(), StorageError> {
+        let start = Timestamp::now();
+        self.read_block(byte_offset, buf).await?;
+        let time_elapsed = Timestamp::now() - start;
+        eprintln!(
+            "VMGS Read: {} bytes at {} in {:.3} ms.",
+            buf.len(),
+            byte_offset,
+            time_elapsed.total(jiff::Unit::Millisecond).unwrap()
+        );
+        Ok(())
+    }
+
     /// Write a block to the block device.
     ///
     /// The beginning of the write must be sector aligned, but the end need not
@@ -144,9 +162,33 @@ impl VmgsStorage {
         Ok(())
     }
 
+    pub async fn write_block_with_timeout(
+        &mut self,
+        byte_offset: u64,
+        buf: &[u8],
+    ) -> Result<(), StorageError> {
+        let start = Timestamp::now();
+        self.write_block(byte_offset, buf).await?;
+        let time_elapsed = Timestamp::now() - start;
+        eprintln!(
+            "VMGS Write: {} bytes at {} in {:.3} ms.",
+            buf.len(),
+            byte_offset,
+            time_elapsed.total(jiff::Unit::Millisecond).unwrap()
+        );
+        Ok(())
+    }
+
     /// Flush any buffered data.
     pub async fn flush(&mut self) -> Result<(), StorageError> {
-        self.disk.sync_cache().await.map_err(StorageError::Disk)
+        let start = Timestamp::now();
+        self.disk.sync_cache().await.map_err(StorageError::Disk)?;
+        let time_elapsed = Timestamp::now() - start;
+        eprintln!(
+            "VMGS Flush: {:.3} ms.",
+            time_elapsed.total(jiff::Unit::Millisecond).unwrap()
+        );
+        Ok(())
     }
 
     pub fn sector_size(&self) -> u32 {

@@ -18,6 +18,7 @@ use clap::Parser;
 use disk_backend::Disk;
 use disk_vhd1::Vhd1Disk;
 use fs_err::File;
+use jiff::Timestamp;
 use pal_async::DefaultPool;
 use std::io::prelude::*;
 use std::path::Path;
@@ -387,30 +388,41 @@ fn parse_legacy_args() -> Vec<String> {
 }
 
 fn main() {
-    DefaultPool::run_with(async |_| match do_main().await {
-        Ok(_) => eprintln!("The operation completed successfully."),
-        Err(e) => {
-            let exit_code = match e {
-                Error::NotEncrypted => ExitCode::ErrorNotEncrypted,
-                Error::EmptyFile => ExitCode::ErrorEmpty,
-                Error::ZeroSize => ExitCode::ErrorEmpty,
-                Error::Vmgs(VmgsError::FileInfoNotAllocated) => ExitCode::ErrorNotFound,
-                Error::V1Format => ExitCode::ErrorV1,
-                Error::GspByIdEncryption => ExitCode::ErrorGspById,
-                Error::GspUnknown => ExitCode::ErrorGspUnknown,
-                _ => ExitCode::Error,
-            };
-
-            eprintln!("EXIT CODE: {} ({:?})", exit_code as i32, exit_code);
-            eprintln!("ERROR: {}", e);
-            let mut error_source = std::error::Error::source(&e);
-            while let Some(e2) = error_source {
-                eprintln!("- {}", e2);
-                error_source = e2.source();
+    DefaultPool::run_with(async |_| {
+        let start = Timestamp::now();
+        let exit_code = match do_main().await {
+            Ok(_) => {
+                eprintln!("The operation completed successfully.");
+                0
             }
+            Err(e) => {
+                let exit_code = match e {
+                    Error::NotEncrypted => ExitCode::ErrorNotEncrypted,
+                    Error::EmptyFile => ExitCode::ErrorEmpty,
+                    Error::ZeroSize => ExitCode::ErrorEmpty,
+                    Error::Vmgs(VmgsError::FileInfoNotAllocated) => ExitCode::ErrorNotFound,
+                    Error::V1Format => ExitCode::ErrorV1,
+                    Error::GspByIdEncryption => ExitCode::ErrorGspById,
+                    Error::GspUnknown => ExitCode::ErrorGspUnknown,
+                    _ => ExitCode::Error,
+                };
 
-            std::process::exit(exit_code as i32);
-        }
+                eprintln!("EXIT CODE: {} ({:?})", exit_code as i32, exit_code);
+                eprintln!("ERROR: {}", e);
+                let mut error_source = std::error::Error::source(&e);
+                while let Some(e2) = error_source {
+                    eprintln!("- {}", e2);
+                    error_source = e2.source();
+                }
+                exit_code as i32
+            }
+        };
+        let time_elapsed = Timestamp::now() - start;
+        eprintln!(
+            "Elapsed time: {:.3} ms.",
+            time_elapsed.total(jiff::Unit::Millisecond).unwrap()
+        );
+        std::process::exit(exit_code as i32);
     })
 }
 
