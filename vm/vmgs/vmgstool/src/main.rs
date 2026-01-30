@@ -694,6 +694,15 @@ async fn vmgs_write(
         }
     }
 
+    #[cfg(feature = "test_helpers")]
+    {
+        // hang half the time
+        if getrandom::u32().unwrap() % 2 == 1 {
+            eprintln!("simulating getting stuck while writing");
+            loop {}
+        }
+    }
+
     if encrypt {
         #[cfg(with_encryption)]
         vmgs.write_file_encrypted(file_id, data).await?;
