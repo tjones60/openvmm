@@ -3,6 +3,8 @@
 
 //! A local-only job that builds everything needed and runs the VMM tests
 
+use crate::_jobs::build_and_publish_openhcl_igvm_from_recipe::OpenhclIgvmBuildParams;
+use crate::_jobs::consume_and_test_nextest_vmm_tests_archive::VmmTestsDepArtifacts;
 use crate::_jobs::local_build_igvm::non_production_build_igvm_tool_out_name;
 use crate::build_nextest_vmm_tests::NextestVmmTestsArchive;
 use crate::build_openhcl_igvm_from_recipe::OpenhclIgvmRecipe;
@@ -19,6 +21,7 @@ use flowey_lib_common::gen_cargo_nextest_run_cmd::CommandShell;
 use flowey_lib_common::gen_cargo_nextest_run_cmd::RunKindDeps;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use std::env::temp_dir;
 use vmm_test_images::KnownTestArtifacts;
 
 #[derive(Serialize, Deserialize)]
@@ -177,6 +180,8 @@ impl SimpleFlowNode for Node {
         let mut copy_to_dir = Vec::new();
         let extras_dir = Path::new("extras");
 
+        let mut side_effects = Vec::new();
+
         let VmmTestSelections {
             filter: nextest_filter_expr,
             artifacts: test_artifacts,
@@ -194,7 +199,7 @@ impl SimpleFlowNode for Node {
             build.test_igvm_agent_rpc_server = false;
         }
 
-        let register_openhcl_igvm_files = build.openhcl.then(|| {
+        build.openhcl.then(|| {
             let openvmm_hcl_profile = if release {
                 OpenvmmHclBuildProfile::OpenvmmHclShip
             } else {
@@ -214,89 +219,31 @@ impl SimpleFlowNode for Node {
                     ]
                 }
             };
-            let openhcl_extras_dir = extras_dir.join("openhcl");
+            let openhcl_dir = ReadVar::from_static(tempfile());
+            let openhcl_extras_dir = copy_extras
+                .then(|| ReadVar::from_static(test_content_dir.join(extras_dir).join("openhcl")));
 
-            let mut register_openhcl_igvm_files = Vec::new();
-            for recipe in openhcl_recipies {
-                let (read_built_openvmm_hcl, built_openvmm_hcl) = ctx.new_var();
-                let (read_built_openhcl_igvm, built_openhcl_igvm) = ctx.new_var();
-                let (read_built_openhcl_boot, built_openhcl_boot) = ctx.new_var();
-                let (read_built_sidecar, built_sidecar) = ctx.new_var();
-                let recipe_to_use =
-                    if custom_kernel_modules_abs.is_some() || custom_kernel_abs.is_some() {
-                        let mut details = recipe.recipe_details(release);
-                        if custom_kernel_abs.is_some() {
-                            details.with_uefi = true;
-                        }
-                        assert!(details.local_only.is_none());
-                        details.local_only = Some(OpenhclIgvmRecipeDetailsLocalOnly {
-                            openvmm_hcl_no_strip: false,
-                            openhcl_initrd_extra_params: None,
-                            custom_openvmm_hcl: None,
-                            custom_openhcl_boot: None,
-                            custom_kernel: custom_kernel_abs.clone(),
-                            custom_sidecar: None,
-                            custom_extra_rootfs: vec![],
-                        });
-                        OpenhclIgvmRecipe::LocalOnlyCustom(details)
-                    } else {
-                        recipe.clone()
-                    };
-
-                ctx.req(crate::build_openhcl_igvm_from_recipe::Request {
-                    build_profile: openvmm_hcl_profile,
-                    release_cfg: release,
-                    recipe: recipe_to_use,
-                    custom_target: None,
-                    extra_features: BTreeSet::new(),
-                    built_openvmm_hcl,
-                    built_openhcl_boot,
-                    built_openhcl_igvm,
-                    built_sidecar,
-                });
-
-                register_openhcl_igvm_files.push(read_built_openhcl_igvm.map(ctx, {
-                    let recipe = recipe.clone();
-                    |x| (recipe, x)
-                }));
-
-                if copy_extras {
-                    let dir =
-                        openhcl_extras_dir.join(non_production_build_igvm_tool_out_name(&recipe));
-                    copy_to_dir.extend_from_slice(&[
-                        (
-                            dir.clone(),
-                            read_built_openvmm_hcl.map(ctx, |x| Some(x.bin)),
-                        ),
-                        (dir.clone(), read_built_openvmm_hcl.map(ctx, |x| x.dbg)),
-                        (
-                            dir.clone(),
-                            read_built_openhcl_boot.map(ctx, |x| Some(x.bin)),
-                        ),
-                        (
-                            dir.clone(),
-                            read_built_openhcl_boot.map(ctx, |x| Some(x.dbg)),
-                        ),
-                        (
-                            dir.clone(),
-                            read_built_sidecar.map(ctx, |x| x.map(|y| y.bin)),
-                        ),
-                        (
-                            dir.clone(),
-                            read_built_sidecar.map(ctx, |x| x.map(|y| y.dbg)),
-                        ),
-                    ]);
-                } else {
-                    read_built_openvmm_hcl.claim_unused(ctx);
-                    read_built_openhcl_boot.claim_unused(ctx);
-                    read_built_sidecar.claim_unused(ctx);
+            side_effects.push(ctx.reqv(|v| {
+                crate::_jobs::build_and_publish_openhcl_igvm_from_recipe::Params {
+                    igvm_files: openhcl_recipies
+                        .clone()
+                        .into_iter()
+                        .map(|recipe| OpenhclIgvmBuildParams {
+                            profile: openvmm_hcl_profile,
+                            recipe,
+                            custom_target: None,
+                            extra_features: BTreeSet::new(),
+                            release_cfg: release,
+                        })
+                        .collect(),
+                    artifact_dir_openhcl_igvm: openhcl_dir.clone(),
+                    artifact_dir_openhcl_igvm_extras: openhcl_extras_dir,
+                    artifact_openhcl_verify_size_baseline: None,
+                    done: v,
                 }
-            }
-            let register_openhcl_igvm_files: ReadVar<
-                Vec<(OpenhclIgvmRecipe, crate::run_igvmfilegen::IgvmOutput)>,
-            > = ReadVar::transpose_vec(ctx, register_openhcl_igvm_files);
+            }));
 
-            register_openhcl_igvm_files
+            openhcl_dir
         });
 
         let register_openvmm = build.openvmm.then(|| {
@@ -518,62 +465,68 @@ impl SimpleFlowNode for Node {
             output
         });
 
-        let register_prep_steps = build.prep_steps.then(|| {
-            let prep_steps_bin = Path::new(match target_triple.operating_system {
-                target_lexicon::OperatingSystem::Windows => "prep_steps.exe",
-                _ => unreachable!(),
-            });
+        let (register_prep_steps, prep_steps_cmd) = build
+            .prep_steps
+            .then(|| {
+                let prep_steps_bin = Path::new(match target_triple.operating_system {
+                    target_lexicon::OperatingSystem::Windows => "prep_steps.exe",
+                    _ => unreachable!(),
+                });
 
-            let output = ctx.reqv(|v| crate::build_prep_steps::Request {
-                target: CommonTriple::Common {
-                    arch,
-                    platform: CommonPlatform::WindowsMsvc,
-                },
-                profile: CommonProfile::from_release(release),
-                prep_steps: v,
-            });
+                let output = ctx.reqv(|v| crate::build_prep_steps::Request {
+                    target: CommonTriple::Common {
+                        arch,
+                        platform: CommonPlatform::WindowsMsvc,
+                    },
+                    profile: CommonProfile::from_release(release),
+                    prep_steps: v,
+                });
 
-            copy_to_dir.push((
-                prep_steps_bin.to_owned(),
-                output.map(ctx, |x| {
-                    Some(match x {
-                        crate::build_prep_steps::PrepStepsOutput::WindowsBin { exe, pdb: _ } => exe,
-                        _ => unreachable!(),
-                    })
-                }),
-            ));
-            if copy_extras {
                 copy_to_dir.push((
-                    extras_dir.to_owned(),
+                    prep_steps_bin.to_owned(),
                     output.map(ctx, |x| {
                         Some(match x {
                             crate::build_prep_steps::PrepStepsOutput::WindowsBin {
-                                exe: _,
-                                pdb,
-                            } => pdb,
+                                exe,
+                                pdb: _,
+                            } => exe,
                             _ => unreachable!(),
                         })
                     }),
                 ));
-            }
+                if copy_extras {
+                    copy_to_dir.push((
+                        extras_dir.to_owned(),
+                        output.map(ctx, |x| {
+                            Some(match x {
+                                crate::build_prep_steps::PrepStepsOutput::WindowsBin {
+                                    exe: _,
+                                    pdb,
+                                } => pdb,
+                                _ => unreachable!(),
+                            })
+                        }),
+                    ));
+                }
 
-            let cmd = (
-                format!("$PSScriptRoot\\{}", prep_steps_bin.to_string_lossy()).into(),
-                Vec::new(),
-            );
+                let cmd = (
+                    format!("$PSScriptRoot\\{}", prep_steps_bin.to_string_lossy()).into(),
+                    Vec::new(),
+                );
 
-            let prep_steps_bin = test_content_dir.join(prep_steps_bin);
-            let output = output.map(ctx, |mut output| {
-                let path = match &mut output {
-                    crate::build_prep_steps::PrepStepsOutput::WindowsBin { exe, pdb: _ } => exe,
-                    _ => unreachable!(),
-                };
-                *path = prep_steps_bin;
-                output
-            });
+                let prep_steps_bin = test_content_dir.join(prep_steps_bin);
+                let output = output.map(ctx, |mut output| {
+                    let path = match &mut output {
+                        crate::build_prep_steps::PrepStepsOutput::WindowsBin { exe, pdb: _ } => exe,
+                        _ => unreachable!(),
+                    };
+                    *path = prep_steps_bin;
+                    output
+                });
 
-            (output, cmd)
-        });
+                (output, cmd)
+            })
+            .unzip();
 
         let register_vmgstool = build.vmgstool.then(|| {
             let output = ctx.reqv(|v| crate::build_vmgstool::Request {
@@ -695,7 +648,7 @@ impl SimpleFlowNode for Node {
             register_tpm_guest_tests_linux,
             register_test_igvm_agent_rpc_server,
             disk_images_dir: Some(test_artifacts_dir),
-            register_openhcl_igvm_files,
+            register_openhcl_igvm_files: None,
             get_test_log_path: None,
             get_env: v,
             release_igvm_files,
@@ -703,8 +656,6 @@ impl SimpleFlowNode for Node {
             disable_remote_artifacts: false,
             reuse_prepped_vhds,
         });
-
-        let mut side_effects = Vec::new();
 
         side_effects.push(
             ctx.emit_rust_step("copy additional files to test content dir", |ctx| {
@@ -772,9 +723,7 @@ impl SimpleFlowNode for Node {
             run_ignored: false,
             fail_fast: None,
             extra_env: Some(extra_env.clone()),
-            extra_commands: register_prep_steps
-                .clone()
-                .map(|(_, cmd)| ReadVar::from_static(vec![cmd])),
+            extra_commands: prep_steps_cmd.map(|prep_steps| ReadVar::from_static(vec![prep_steps])),
             portable: true,
             command: v,
         });
@@ -801,88 +750,44 @@ impl SimpleFlowNode for Node {
 
         if build_only {
             ctx.emit_side_effect_step(side_effects, [done]);
-            if let Some((prep_steps, _)) = register_prep_steps {
+            if let Some(prep_steps) = register_prep_steps {
                 prep_steps.claim_unused(ctx);
             }
         } else {
-            side_effects.push(ctx.reqv(crate::install_vmm_tests_deps::Request::Install));
-
-            // Start the test_igvm_agent_rpc_server before running tests (Windows only).
-            if matches!(ctx.platform(), FlowPlatform::Windows) {
-                side_effects.push(ctx.reqv(|done| {
-                    crate::run_test_igvm_agent_rpc_server::Request {
-                        env: extra_env.clone(),
-                        done,
-                    }
-                }));
-            }
-
-            if let Some((prep_steps, _)) = register_prep_steps {
-                side_effects.push(ctx.reqv(|done| crate::run_prep_steps::Request {
-                    prep_steps,
-                    env: extra_env.clone(),
-                    done,
-                }));
-            }
-
-            let results = ctx.reqv(|v| crate::test_nextest_vmm_tests_archive::Request {
-                nextest_archive_file: ReadVar::from_static(NextestVmmTestsArchive {
-                    archive_file: nextest_archive_file,
-                }),
-                nextest_profile,
-                nextest_filter_expr: Some(nextest_filter_expr),
-                nextest_working_dir: Some(ReadVar::from_static(test_content_dir.clone())),
-                nextest_config_file: Some(ReadVar::from_static(nextest_config_file)),
-                nextest_bin: Some(ReadVar::from_static(nextest_bin)),
-                target: Some(ReadVar::from_static(target_triple.clone())),
-                extra_env,
-                pre_run_deps: side_effects,
-                hugetlb_2mb_overcommit_pages: None,
-                results: v,
-            });
-
-            // Stop the test_igvm_agent_rpc_server after tests complete (Windows only).
-            let rpc_server_stopped = if matches!(ctx.platform(), FlowPlatform::Windows) {
-                let after_tests = results.map(ctx, |_| ());
-                Some(
-                    ctx.reqv(|done| crate::stop_test_igvm_agent_rpc_server::Request {
-                        after_tests,
-                        done,
+            ctx.req(
+                crate::_jobs::consume_and_test_nextest_vmm_tests_archive::Params {
+                    junit_test_label: test_label,
+                    nextest_vmm_tests_archive: ReadVar::from_static(NextestVmmTestsArchive {
+                        archive_file: nextest_archive_file,
                     }),
-                )
-            } else {
-                None
-            };
-
-            let junit_xml = results.map(ctx, |r| r.junit_xml);
-            let published_results =
-                ctx.reqv(|v| flowey_lib_common::publish_test_results::Request {
-                    junit_xml,
-                    test_label,
-                    attachments: BTreeMap::new(), // the logs are already there
-                    output_dir: Some(ReadVar::from_static(test_content_dir)),
-                    done: v,
-                });
-
-            ctx.emit_rust_step("report test results", |ctx| {
-                published_results.claim(ctx);
-                if let Some(rpc_server_stopped) = rpc_server_stopped {
-                    rpc_server_stopped.claim(ctx);
-                }
-                done.claim(ctx);
-
-                let results = results.clone().claim(ctx);
-                move |rt| {
-                    let results = rt.read(results);
-                    if results.all_tests_passed {
-                        log::info!("all tests passed!");
-                    } else {
-                        log::error!("encountered test failures.");
-                    }
-
-                    Ok(())
-                }
-            });
+                    target: target_triple.clone(),
+                    nextest_profile,
+                    nextest_filter_expr: Some(nextest_filter_expr),
+                    dep_artifact_dirs: VmmTestsDepArtifacts {
+                        openvmm: None,
+                        openvmm_vhost: None,
+                        pipette_windows: None,
+                        pipette_linux_musl: None,
+                        guest_test_uefi: None,
+                        prep_steps: register_prep_steps,
+                        artifact_dir_openhcl_igvm_files: None,
+                        tmks: None,
+                        tmk_vmm: None,
+                        tmk_vmm_linux_musl: None,
+                        vmgstool: None,
+                        tpm_guest_tests_windows: None,
+                        tpm_guest_tests_linux: None,
+                        test_igvm_agent_rpc_server: None,
+                    },
+                    test_artifacts: Vec::new(),
+                    needs_prep_run: build.prep_steps,
+                    hugetlb_2mb_overcommit_pages: None,
+                    fail_job_on_test_fail: true,
+                    artifact_dir: Some(ReadVar::from_static(test_content_dir.clone())),
+                    test_content_dir: Some(ReadVar::from_static(test_content_dir)),
+                    done,
+                },
+            );
         }
 
         Ok(())

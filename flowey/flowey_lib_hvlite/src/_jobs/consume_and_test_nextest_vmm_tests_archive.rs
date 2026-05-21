@@ -63,6 +63,9 @@ flowey_request! {
         pub fail_job_on_test_fail: bool,
         /// If provided, also publish junit.xml test results as an artifact.
         pub artifact_dir: Option<ReadVar<PathBuf>>,
+        /// Optionally provide a custom dir for staging test content
+        pub test_content_dir: Option<ReadVar<PathBuf>>,
+
         pub done: WriteVar<SideEffect>,
     }
 }
@@ -100,12 +103,15 @@ impl SimpleFlowNode for Node {
             needs_prep_run,
             hugetlb_2mb_overcommit_pages,
             artifact_dir,
+            test_content_dir,
             done,
         } = request;
 
         // use an ad-hoc, step-local dir as a staging ground for test content
-        let test_content_dir = ctx.emit_rust_stepv("creating new test content dir", |_| {
-            |_| Ok(std::env::current_dir()?.absolute()?)
+        let test_content_dir = test_content_dir.unwrap_or_else(|| {
+            ctx.emit_rust_stepv("creating new test content dir", |_| {
+                |_| Ok(std::env::current_dir()?.absolute()?)
+            })
         });
 
         let VmmTestsDepArtifacts {

@@ -129,7 +129,9 @@ impl IntoPipeline for BuildReproducibleCli {
                     })
                     .collect(),
                 artifact_dir_openhcl_igvm: ctx.publish_artifact(pub_openhcl_igvm),
-                artifact_dir_openhcl_igvm_extras: ctx.publish_artifact(pub_openhcl_igvm_extras),
+                artifact_dir_openhcl_igvm_extras: Some(
+                    ctx.publish_artifact(pub_openhcl_igvm_extras),
+                ),
                 artifact_openhcl_verify_size_baseline: None,
                 done: ctx.new_done_handle(),
             }

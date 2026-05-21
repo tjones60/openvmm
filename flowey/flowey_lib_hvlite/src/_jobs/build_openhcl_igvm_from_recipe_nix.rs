@@ -21,7 +21,7 @@ flowey_request! {
         pub kernel_kind: OpenhclKernelPackageKind,
         pub igvm_files: Vec<OpenhclIgvmBuildParams>,
         pub artifact_dir_openhcl_igvm: ReadVar<PathBuf>,
-        pub artifact_dir_openhcl_igvm_extras: ReadVar<PathBuf>,
+        pub artifact_dir_openhcl_igvm_extras: Option<ReadVar<PathBuf>>,
         pub artifact_openhcl_verify_size_baseline: Option<ReadVar<PathBuf>>,
         pub done: WriteVar<SideEffect>,
     }

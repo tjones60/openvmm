@@ -33,7 +33,7 @@ flowey_request! {
     pub struct Params {
         pub igvm_files: Vec<OpenhclIgvmBuildParams>,
         pub artifact_dir_openhcl_igvm: ReadVar<PathBuf>,
-        pub artifact_dir_openhcl_igvm_extras: ReadVar<PathBuf>,
+        pub artifact_dir_openhcl_igvm_extras: Option<ReadVar<PathBuf>>,
         pub artifact_openhcl_verify_size_baseline: Option<ReadVar<PathBuf>>,
         pub done: WriteVar<SideEffect>,
     }
@@ -122,13 +122,15 @@ impl SimpleFlowNode for Node {
             }
         }));
 
-        did_publish.push(ctx.reqv(|v| {
-            crate::artifact_openhcl_igvm_from_recipe_extras::publish::Request {
-                extras: built_extras,
-                artifact_dir: artifact_dir_openhcl_igvm_extras,
-                done: v,
-            }
-        }));
+        if let Some(artifact_dir) = artifact_dir_openhcl_igvm_extras {
+            did_publish.push(ctx.reqv(|v| {
+                crate::artifact_openhcl_igvm_from_recipe_extras::publish::Request {
+                    extras: built_extras,
+                    artifact_dir,
+                    done: v,
+                }
+            }));
+        }
 
         if let Some(sizecheck_artifact) = artifact_openhcl_verify_size_baseline {
             // Validate that all custom_target values are equal (or all None)

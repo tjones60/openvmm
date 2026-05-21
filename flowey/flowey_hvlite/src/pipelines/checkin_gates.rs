@@ -1032,8 +1032,9 @@ impl IntoPipeline for CheckinGatesCli {
                             })
                             .collect(),
                         artifact_dir_openhcl_igvm: ctx.publish_artifact(pub_openhcl_igvm),
-                        artifact_dir_openhcl_igvm_extras: ctx
-                            .publish_artifact(pub_openhcl_igvm_extras),
+                        artifact_dir_openhcl_igvm_extras: Some(
+                            ctx.publish_artifact(pub_openhcl_igvm_extras),
+                        ),
                         artifact_openhcl_verify_size_baseline: publish_baseline_artifact,
                         done: ctx.new_done_handle(),
                     }
@@ -1573,6 +1574,7 @@ impl IntoPipeline for CheckinGatesCli {
                     artifact_dir: pub_vmm_tests_results.map(|x| ctx.publish_artifact(x)),
                     needs_prep_run,
                     hugetlb_2mb_overcommit_pages,
+                    test_content_dir: None,
                     done: ctx.new_done_handle(),
                 }
             });
