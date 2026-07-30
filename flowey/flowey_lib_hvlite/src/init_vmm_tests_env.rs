@@ -256,7 +256,7 @@ impl SimpleFlowNode for Node {
                 };
 
                 if !test_content_dir.exists() {
-                    fs_err::create_dir(&test_content_dir)?
+                    fs_err::create_dir_all(&test_content_dir)?
                 };
 
                 env.insert(
@@ -273,18 +273,15 @@ impl SimpleFlowNode for Node {
                 );
 
                 if !temp_dir.exists() {
-                    fs_err::create_dir_all(&temp_dir)?
+                    fs_err::create_dir(&temp_dir)?
                 };
                 let portable_temp_dir = make_portable_path(converted_temp_dir)?;
-                match rt.platform().kind() {
-                    FlowPlatformKind::Windows => {
-                        env.insert("TEMP".into(), portable_temp_dir.clone());
-                        env.insert("TMP".into(), portable_temp_dir.clone());
-                        env.insert("SystemTemp".into(), portable_temp_dir);
-                    }
-                    FlowPlatformKind::Unix => {
-                        env.insert("TMPDIR".into(), portable_temp_dir);
-                    }
+                if matches!(rt.platform().kind(), FlowPlatformKind::Windows) || windows_via_wsl2 {
+                    env.insert("TEMP".into(), portable_temp_dir.clone());
+                    env.insert("TMP".into(), portable_temp_dir.clone());
+                    env.insert("SystemTemp".into(), portable_temp_dir);
+                } else {
+                    env.insert("TMPDIR".into(), portable_temp_dir);
                 }
 
                 if let Some(disk_image_dir) = converted_disk_image_dir {
