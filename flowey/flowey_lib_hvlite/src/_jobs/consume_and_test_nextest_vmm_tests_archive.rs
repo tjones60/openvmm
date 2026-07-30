@@ -167,7 +167,7 @@ impl SimpleFlowNode for Node {
         let test_content_dir = match ctx.backend() {
             FlowBackend::Local => panic!("local backend not supported"),
             FlowBackend::Ado => ctx.get_ado_variable(AdoRuntimeVar::PIPELINE_WORKSPACE),
-            FlowBackend::Github => ctx.get_gh_context_var().global().workspace(),
+            FlowBackend::Github => ctx.get_gh_context_var().global().runner_temp(),
         }
         .map(ctx, |w| PathBuf::from(w).join("test"));
 

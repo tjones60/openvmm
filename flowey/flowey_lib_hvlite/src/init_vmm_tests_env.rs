@@ -279,7 +279,8 @@ impl SimpleFlowNode for Node {
                 match rt.platform().kind() {
                     FlowPlatformKind::Windows => {
                         env.insert("TEMP".into(), portable_temp_dir.clone());
-                        env.insert("TMP".into(), portable_temp_dir);
+                        env.insert("TMP".into(), portable_temp_dir.clone());
+                        env.insert("SystemTemp".into(), portable_temp_dir);
                     }
                     FlowPlatformKind::Unix => {
                         env.insert("TMPDIR".into(), portable_temp_dir);
