@@ -109,16 +109,18 @@ fn cache_parameters_cpuid(
         let mut eax = CacheParametersEax::new();
         // Only 6 bits are available in the cache parameters CPUID leaf (04H)
         // so use a saturated value here as the maximum to avoid a panic later.
-        const MAX_CORES_PER_SOCKET: u32 = 1 << 6;
+        const MAX_CORES_PER_SOCKET_MINUS_ONE: u32 = 0b111111;
         if topology.smt_enabled() {
-            eax.set_cores_per_socket_minus_one(
-                min(MAX_CORES_PER_SOCKET, topology.reserved_vps_per_socket() / 2) - 1,
-            );
+            eax.set_cores_per_socket_minus_one(min(
+                MAX_CORES_PER_SOCKET_MINUS_ONE,
+                topology.reserved_vps_per_socket() / 2 - 1,
+            ));
             eax.set_threads_sharing_cache_minus_one(1);
         } else {
-            eax.set_cores_per_socket_minus_one(
-                min(MAX_CORES_PER_SOCKET, topology.reserved_vps_per_socket()) - 1,
-            );
+            eax.set_cores_per_socket_minus_one(min(
+                MAX_CORES_PER_SOCKET_MINUS_ONE,
+                topology.reserved_vps_per_socket() - 1,
+            ));
             eax.set_threads_sharing_cache_minus_one(0);
         }
 
