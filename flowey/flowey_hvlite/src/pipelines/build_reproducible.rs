@@ -9,6 +9,7 @@ use flowey::pipeline::prelude::*;
 use flowey_lib_common::git_checkout::RepoSource;
 use flowey_lib_hvlite::_jobs::build_and_publish_openhcl_igvm_from_recipe::OpenhclIgvmBuildParams;
 use flowey_lib_hvlite::build_openhcl_igvm_from_recipe::OpenhclIgvmRecipe;
+use flowey_lib_hvlite::build_openhcl_igvm_from_recipe::OpenhclIgvmRecipeType;
 use flowey_lib_hvlite::build_openvmm_hcl::OpenvmmHclBuildProfile;
 use flowey_lib_hvlite::common::CommonArch;
 use flowey_lib_hvlite::common::CommonPlatform;
@@ -122,11 +123,12 @@ impl IntoPipeline for BuildReproducibleCli {
                 igvm_files: vec![(
                     OpenhclIgvmBuildParams {
                         profile: openvmm_hcl_profile,
-                        recipe,
+                        recipe: OpenhclIgvmRecipeType::WellKnown(recipe),
                         custom_target: Some(CommonTriple::Custom(openhcl_musl_target(recipe_arch))),
                         extra_features: BTreeSet::new(),
                         release_cfg: release,
                         confidential_debug: false,
+                        disable_secure_avic: false,
                     },
                     ctx.publish_typed_artifact(pub_openhcl_igvm),
                     ctx.publish_typed_artifact(pub_openhcl_igvm_extras),

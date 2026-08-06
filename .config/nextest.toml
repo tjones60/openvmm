@@ -53,7 +53,7 @@ filter = 'package(~vmm_tests)'
 # about 4GB * (32 cores / (2 threads/test)) = 64GB < 128GB.
 # For local dev runs, you may need to manually restrict the number of
 # threads running via the -j cli arg.
-threads-required = 2
+threads-required = 4
 # Use the same slow timeout as ci, but never terminate
 slow-timeout = { period = "10m" }
 

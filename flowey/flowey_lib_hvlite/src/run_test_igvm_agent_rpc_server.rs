@@ -49,7 +49,7 @@ impl SimpleFlowNode for Node {
         ctx.emit_rust_step("starting test_igvm_agent_rpc_server", |ctx| {
             let env = env.claim(ctx);
             done.claim(ctx);
-            move |rt| start_rpc_server(rt.read(env))
+            move |rt| start_rpc_server(rt, env)
         });
 
         Ok(())
@@ -57,9 +57,14 @@ impl SimpleFlowNode for Node {
 }
 
 #[cfg(windows)]
-fn start_rpc_server(env: BTreeMap<String, String>) -> anyhow::Result<()> {
+fn start_rpc_server(
+    rt: &mut RustRuntimeServices<'_>,
+    env: ReadVar<BTreeMap<String, String>, VarClaimed>,
+) -> anyhow::Result<()> {
     use std::os::windows::process::CommandExt;
     use std::path::Path;
+
+    let env = rt.read(env);
 
     let test_content_dir = env
         .get("VMM_TESTS_CONTENT_DIR")
@@ -71,11 +76,10 @@ fn start_rpc_server(env: BTreeMap<String, String>) -> anyhow::Result<()> {
     let exe = Path::new(test_content_dir).join("test_igvm_agent_rpc_server.exe");
 
     if !exe.exists() {
-        log::info!(
-            "test_igvm_agent_rpc_server.exe not found at {}, skipping",
+        anyhow::bail!(
+            "test_igvm_agent_rpc_server.exe not found at {}",
             exe.display()
         );
-        return Ok(());
     }
 
     // Create log file for server output
@@ -136,7 +140,10 @@ fn start_rpc_server(env: BTreeMap<String, String>) -> anyhow::Result<()> {
 }
 
 #[cfg(not(windows))]
-fn start_rpc_server(_env: BTreeMap<String, String>) -> anyhow::Result<()> {
+fn start_rpc_server(
+    _rt: &mut RustRuntimeServices<'_>,
+    _env: ReadVar<BTreeMap<String, String>, VarClaimed>,
+) -> anyhow::Result<()> {
     // This should never be called - the node rejects non-Windows at construction time.
     // But we need this for compilation on non-Windows hosts.
     anyhow::bail!("run_test_igvm_agent_rpc_server is only supported on Windows")

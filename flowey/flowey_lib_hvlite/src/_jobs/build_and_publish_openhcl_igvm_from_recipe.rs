@@ -7,7 +7,6 @@ use super::build_and_publish_openvmm_hcl_baseline;
 use crate::_jobs::build_and_publish_openvmm_hcl_baseline::OpenvmmHclBaselineOutput;
 use crate::build_openhcl_igvm_from_recipe::OpenhclIgvmExtrasOutput;
 use crate::build_openhcl_igvm_from_recipe::OpenhclIgvmOutput;
-use crate::build_openhcl_igvm_from_recipe::OpenhclIgvmRecipe;
 use crate::build_openhcl_igvm_from_recipe::OpenhclIgvmRecipeType;
 use crate::build_openvmm_hcl::OpenvmmHclBuildProfile;
 use crate::build_openvmm_hcl::OpenvmmHclFeature;
@@ -24,7 +23,7 @@ pub struct VmfirmwareigvmDllParams {
 #[derive(Serialize, Deserialize)]
 pub struct OpenhclIgvmBuildParams {
     pub profile: OpenvmmHclBuildProfile,
-    pub recipe: OpenhclIgvmRecipe,
+    pub recipe: OpenhclIgvmRecipeType,
     pub custom_target: Option<CommonTriple>,
     /// Additional features to enable on top of the recipe's defaults.
     pub extra_features: BTreeSet<OpenvmmHclFeature>,
@@ -34,6 +33,7 @@ pub struct OpenhclIgvmBuildParams {
     /// enabling confidential diagnostics on CVM builds. Used by the
     /// VMM tests so that release CVM IGVMs still emit diagnostics.
     pub confidential_debug: bool,
+    pub disable_secure_avic: bool,
 }
 
 flowey_request! {
@@ -86,6 +86,7 @@ impl SimpleFlowNode for Node {
                 extra_features,
                 release_cfg,
                 confidential_debug,
+                disable_secure_avic,
             },
             openhcl_igvm,
             openhcl_igvm_extras,
@@ -95,9 +96,9 @@ impl SimpleFlowNode for Node {
                 custom_target: custom_target.clone(),
                 build_profile: profile,
                 release_cfg,
-                recipe: OpenhclIgvmRecipeType::WellKnown(recipe.clone()),
+                recipe,
                 extra_features: extra_features.clone(),
-                disable_secure_avic: false,
+                disable_secure_avic,
                 confidential_debug,
                 openhcl_igvm,
                 openhcl_igvm_extras,

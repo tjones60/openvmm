@@ -17,6 +17,7 @@ use crate::build_tmks::TmksOutput;
 use crate::build_tpm_guest_tests::TpmGuestTestsOutput;
 use crate::build_vmgstool::VmgstoolOutput;
 use crate::install_vmm_tests_deps::VmmTestsDepSelections;
+use crate::install_vmm_tests_deps::VmmTestsDepSelectionsLinux;
 use crate::install_vmm_tests_deps::VmmTestsDepSelectionsWindows;
 use crate::run_cargo_nextest_run::NextestProfile;
 use flowey::node::prelude::*;
@@ -89,7 +90,7 @@ flowey_request! {
         /// Friendly label for report JUnit test results
         pub junit_test_label: String,
         /// Existing VMM tests archive
-        pub nextest_vmm_tests_archive: ReadVar<NextestVmmTestsArchive>,
+        pub nextest_vmm_tests_archive: Option<ReadVar<NextestVmmTestsArchive>>,
         /// What target VMM tests were compiled for (determines required deps).
         pub target: target_lexicon::Triple,
         /// Nextest profile to use when running the source code
@@ -97,7 +98,9 @@ flowey_request! {
         /// Nextest test filter expression.
         pub nextest_filter_expr: Option<String>,
         /// Artifacts corresponding to required test dependencies
-        pub dep_artifact_dirs: VmmTestsDepArtifacts,
+        ///
+        /// If omitted, assume the test content dir is already initialized
+        pub vmm_tests_dep_artifacts: Option<VmmTestsDepArtifacts>,
         /// Test artifacts to download
         pub test_artifacts: Vec<KnownTestArtifacts>,
         /// Which prep_steps variants to run before tests (e.g. "standard", "no-vmbus").
@@ -111,12 +114,18 @@ flowey_request! {
         /// `.toml` extension) is resolved against the profiles directory
         /// bundled in the incubator artifact supplied via
         /// [`VmmTestsDepArtifacts::incubator`] (e.g. "aarch64-tcg-pcie").
-        pub incubator_profile: Option<String>,
+        pub incubator_profile: Option<PathBuf>,
 
         /// Whether the job should fail if any test has failed
         pub fail_job_on_test_fail: bool,
         /// If provided, also publish junit.xml test results as an artifact.
         pub artifact_dir: Option<ReadVar<PathBuf>>,
+        pub test_content_dir: Option<ReadVar<PathBuf>>,
+        pub reuse_prepped_vhds: bool,
+        pub disable_remote_artifacts: bool,
+        pub test_content_dir_as_repo_root: bool,
+        pub needs_release_igvm: bool,
+        pub deps: Option<VmmTestsDepSelections>,
         pub done: WriteVar<SideEffect>,
     }
 }
@@ -151,126 +160,123 @@ impl SimpleFlowNode for Node {
             target,
             nextest_profile,
             nextest_filter_expr,
-            dep_artifact_dirs,
+            vmm_tests_dep_artifacts,
             test_artifacts,
             fail_job_on_test_fail,
             incubator_profile,
             prep_steps_variants,
             hugetlb_2mb_overcommit_pages,
             artifact_dir,
+            test_content_dir,
+            reuse_prepped_vhds,
+            disable_remote_artifacts,
+            test_content_dir_as_repo_root,
+            needs_release_igvm,
+            deps,
             done,
         } = request;
 
         // use a test content dir with
         // - short path name to avoid issues with long paths
         // - relative to github.workspace so that the correct disk is used on CI machines.
-        let test_content_dir = match ctx.backend() {
-            FlowBackend::Local => panic!("local backend not supported"),
-            FlowBackend::Ado => ctx.get_ado_variable(AdoRuntimeVar::PIPELINE_WORKSPACE),
-            FlowBackend::Github => ctx.get_gh_context_var().global().runner_temp(),
-        }
-        .map(ctx, |w| PathBuf::from(w).join("test"));
+        let test_content_dir = test_content_dir.unwrap_or_else(|| {
+            match ctx.backend() {
+                FlowBackend::Local => panic!("must specify test_content_dir with local backend"),
+                FlowBackend::Ado => ctx.get_ado_variable(AdoRuntimeVar::PIPELINE_WORKSPACE),
+                FlowBackend::Github => ctx.get_gh_context_var().global().runner_temp(),
+            }
+            .map(ctx, |w| PathBuf::from(w).join("test"))
+        });
 
-        let VmmTestsDepArtifacts {
-            incubator: register_incubator,
-            openvmm: register_openvmm,
-            openvmm_vhost: register_openvmm_vhost,
-            pipette_windows: register_pipette_windows,
-            pipette_linux_musl: register_pipette_linux_musl,
-            guest_test_uefi: register_guest_test_uefi,
-            prep_steps: register_prep_steps,
-            openhcl_standard,
-            openhcl_standard_dev,
-            openhcl_cvm,
-            openhcl_linux_direct,
-            tmks: register_tmks,
-            tmk_vmm: register_tmk_vmm,
-            tmk_vmm_linux_musl: register_tmk_vmm_linux_musl,
-            vmgstool: register_vmgstool,
-            vmgstool_dev: register_vmgstool_dev,
-            tpm_guest_tests_windows: register_tpm_guest_tests_windows,
-            tpm_guest_tests_linux: register_tpm_guest_tests_linux,
-            test_igvm_agent_rpc_server: register_test_igvm_agent_rpc_server,
-        } = dep_artifact_dirs;
+        let openvmm_repo_path = if test_content_dir_as_repo_root {
+            test_content_dir.clone()
+        } else {
+            ctx.reqv(crate::git_checkout_openvmm_repo::req::GetRepoDir)
+        };
 
-        let register_openhcl_igvm_files = [
-            openhcl_standard,
-            openhcl_standard_dev,
-            openhcl_cvm,
-            openhcl_linux_direct,
-        ]
-        .into_iter()
-        .flatten()
-        .collect();
+        let nextest_vmm_tests_archive = nextest_vmm_tests_archive.unwrap_or_else(|| {
+            ctx.emit_rust_stepv("resolve vmm_tests archive", |ctx| {
+                let test_content_dir = test_content_dir.clone().claim(ctx);
+                move |rt| {
+                    let test_content_dir = rt.read(test_content_dir);
+                    let archive_file = test_content_dir.join("vmm_tests.tar.zst");
+                    if !archive_file.exists() {
+                        anyhow::bail!("vmm_tests archive not found at {}", archive_file.display());
+                    }
+                    Ok(NextestVmmTestsArchive { archive_file })
+                }
+            })
+        });
 
         ctx.req(crate::download_openvmm_vmm_tests_artifacts::Request::Download(test_artifacts));
 
         let disk_images_dir =
             ctx.reqv(crate::download_openvmm_vmm_tests_artifacts::Request::GetDownloadFolder);
 
+        let prepare_vhost_vsock = incubator_profile.is_none()
+            && matches!(
+                target.operating_system,
+                target_lexicon::OperatingSystem::Linux
+            )
+            && matches!(target.architecture, target_lexicon::Architecture::X86_64);
+
         ctx.config(crate::install_vmm_tests_deps::Config {
-            selections: Some(match target.operating_system {
-                target_lexicon::OperatingSystem::Windows => {
-                    VmmTestsDepSelections::Windows(VmmTestsDepSelectionsWindows {
-                        hyperv: true,
-                        whp: true,
-                        hardware_isolation: false,
-                    })
+            selections: Some(if let Some(deps) = deps {
+                deps
+            } else {
+                match target.operating_system {
+                    target_lexicon::OperatingSystem::Windows => {
+                        VmmTestsDepSelections::Windows(VmmTestsDepSelectionsWindows {
+                            hyperv: true,
+                            whp: true,
+                            // this is currently manually set on CVM runners
+                            hardware_isolation: false,
+                        })
+                    }
+                    target_lexicon::OperatingSystem::Linux => {
+                        VmmTestsDepSelections::Linux(VmmTestsDepSelectionsLinux {
+                            hugetlb_2mb_overcommit_pages,
+                            prepare_vhost_vsock,
+                        })
+                    }
+                    os => anyhow::bail!("unsupported target operating system: {os}"),
                 }
-                target_lexicon::OperatingSystem::Linux => VmmTestsDepSelections::Linux,
-                os => anyhow::bail!("unsupported target operating system: {os}"),
             }),
             auto_install: None,
         });
 
-        let arch = crate::common::CommonArch::from_architecture(target.architecture)?;
-        let release_igvm_files = if !matches!(ctx.backend(), FlowBackend::Ado) {
-            Some(ctx.reqv(
-                |v| crate::download_release_igvm_files_from_gh::resolve::Request {
-                    arch,
-                    release_igvm_files: v,
-                    release_version:
-                        crate::download_release_igvm_files_from_gh::OpenhclReleaseVersion::latest(),
-                },
-            ))
-        } else {
-            None
-        };
-
         let mut pre_run_deps = vec![ctx.reqv(crate::install_vmm_tests_deps::Request::Install)];
+
+        if let Some(vmm_tests_dep_artifacts) = vmm_tests_dep_artifacts {
+            pre_run_deps.push(ctx.reqv(|v| crate::init_vmm_tests_content_dir::Request {
+                test_content_dir: test_content_dir.clone(),
+                vmm_tests_target: target.clone(),
+                vmm_tests_dep_artifacts,
+                is_repo_root: test_content_dir_as_repo_root,
+                needs_release_igvm,
+                done: v,
+            }));
+        }
 
         let (test_log_path, get_test_log_path) = ctx.new_var();
 
         let extra_env = ctx.reqv(|v| crate::init_vmm_tests_env::Request {
             test_content_dir: test_content_dir.clone(),
             vmm_tests_target: target.clone(),
-            register_openvmm,
-            register_openvmm_vhost,
-            register_pipette_windows,
-            register_pipette_linux_musl,
-            register_guest_test_uefi,
-            register_tmks,
-            register_tmk_vmm,
-            register_tmk_vmm_linux_musl,
-            register_vmgstool,
-            register_vmgstool_dev,
-            register_tpm_guest_tests_windows,
-            register_tpm_guest_tests_linux,
-            register_test_igvm_agent_rpc_server,
             disk_images_dir: Some(disk_images_dir),
-            register_openhcl_igvm_files,
             get_test_log_path: Some(get_test_log_path),
+            disable_remote_artifacts,
+            reuse_prepped_vhds,
+            require_2mb_hugetlb: hugetlb_2mb_overcommit_pages.is_some(),
             get_env: v,
-            release_igvm_files,
-            use_relative_paths: false,
-            disable_remote_artifacts: true,
-            reuse_prepped_vhds: false,
         });
 
-        // Start the test_igvm_agent_rpc_server before running tests (Windows only).
-        // This must happen after init_vmm_tests_env which copies the binary.
+        // Start the test_igvm_agent_rpc_server before running tests.
+        // Currently X64 Windows only.
+        // The binary must already exist in the test content dir.
         // The server runs in the background for the duration of the test run.
-        if matches!(ctx.platform(), FlowPlatform::Windows) {
+        if matches!(ctx.platform(), FlowPlatform::Windows) && matches!(ctx.arch(), FlowArch::X86_64)
+        {
             pre_run_deps.push(
                 ctx.reqv(|done| crate::run_test_igvm_agent_rpc_server::Request {
                     env: extra_env.clone(),
@@ -279,33 +285,20 @@ impl SimpleFlowNode for Node {
             );
         }
 
-        if !prep_steps_variants.is_empty() {
-            let prep_steps = register_prep_steps.expect("Test run indicated prep_steps was needed but built prep_steps binary was not given");
-            for variant in &prep_steps_variants {
-                pre_run_deps.push(ctx.reqv(|done| crate::run_prep_steps::Request {
-                    prep_steps: prep_steps.clone(),
-                    args: vec![variant.clone()],
-                    env: extra_env.clone(),
-                    done,
-                }));
-            }
-        } else if let Some(register_prep_steps) = register_prep_steps {
-            register_prep_steps.claim_unused(ctx);
+        for variant in &prep_steps_variants {
+            pre_run_deps.push(ctx.reqv(|done| crate::run_prep_steps::Request {
+                prep_steps: crate::run_prep_steps::PrepStepsSource::TestContentDir(target.clone()),
+                args: vec![variant.clone()],
+                env: extra_env.clone(),
+                done,
+            }));
         }
 
-        let prepare_vhost_vsock = incubator_profile.is_none()
-            && matches!(
-                target.operating_system,
-                target_lexicon::OperatingSystem::Linux
-            )
-            && matches!(target.architecture, target_lexicon::Architecture::X86_64);
-        let (extra_env, nextest_working_dir, nextest_config_file) = if let Some(profile_name) =
-            incubator_profile
-        {
-            let incubator = register_incubator.ok_or_else(|| {
-                anyhow::anyhow!("incubator profile was set but no incubator artifact was provided")
-            })?;
+        let nextest_config_file = openvmm_repo_path
+            .clone()
+            .map(ctx, |p| p.join(".config").join("nextest.toml"));
 
+        let extra_env = if let Some(incubator_profile) = incubator_profile {
             let arch = crate::common::CommonArch::from_architecture(target.architecture)?;
 
             let kernel = ctx.reqv(|v| {
@@ -327,23 +320,18 @@ impl SimpleFlowNode for Node {
                 )
             });
 
-            // Resolve the incubator binary and the selected profile from the
-            // incubator artifact (which bundles the profiles directory).
-            let incubator_bin = incubator.clone().map(ctx, |o| o.bin);
-            let profile_path = incubator.map(ctx, move |o| {
-                o.profiles.join(format!("{profile_name}.toml"))
-            });
+            let profile_path = if incubator_profile.is_absolute() {
+                ReadVar::from_static(incubator_profile)
+            } else {
+                test_content_dir.map(ctx, |d| d.join(incubator_profile))
+            };
 
-            let openvmm_repo_path = ctx.reqv(crate::git_checkout_openvmm_repo::req::GetRepoDir);
-            let nextest_config_file = openvmm_repo_path
-                .clone()
-                .map(ctx, |p| p.join(".config").join("nextest.toml"));
             let nextest_archive = nextest_vmm_tests_archive
                 .clone()
                 .map(ctx, |x| x.archive_file);
 
-            let extra_env = ctx.reqv(|v| crate::write_incubator_target_runner::Request {
-                incubator_bin,
+            ctx.reqv(|v| crate::write_incubator_target_runner::Request {
+                incubator_bin: None,
                 profile_path,
                 kernel: Some(kernel),
                 initrd: Some(initrd),
@@ -354,32 +342,21 @@ impl SimpleFlowNode for Node {
                 qemu_binary: Some(qemu_binary),
                 target: target.clone(),
                 nextest_env: v,
-            });
-
-            (
-                extra_env,
-                Some(openvmm_repo_path),
-                Some(nextest_config_file),
-            )
+            })
         } else {
-            if let Some(register_incubator) = register_incubator {
-                register_incubator.claim_unused(ctx);
-            }
-            (extra_env, None, None)
+            extra_env
         };
 
         let results = ctx.reqv(|v| crate::test_nextest_vmm_tests_archive::Request {
             nextest_archive_file: nextest_vmm_tests_archive,
             nextest_profile,
             nextest_filter_expr,
-            nextest_working_dir,
-            nextest_config_file,
+            nextest_working_dir: Some(openvmm_repo_path),
+            nextest_config_file: Some(nextest_config_file),
             nextest_bin: None,
             target: None,
             extra_env,
             pre_run_deps,
-            hugetlb_2mb_overcommit_pages,
-            prepare_vhost_vsock,
             results: v,
         });
 

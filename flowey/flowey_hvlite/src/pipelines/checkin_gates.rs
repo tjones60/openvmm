@@ -1119,7 +1119,7 @@ impl IntoPipeline for CheckinGatesCli {
                                 (
                                     OpenhclIgvmBuildParams {
                                         profile: openvmm_hcl_profile,
-                                        recipe,
+                                        recipe: flowey_lib_hvlite::build_openhcl_igvm_from_recipe::OpenhclIgvmRecipeType::WellKnown(recipe),
                                         custom_target: Some(CommonTriple::Custom(
                                             openhcl_musl_target(arch),
                                         )),
@@ -1135,6 +1135,7 @@ impl IntoPipeline for CheckinGatesCli {
                                         // Enable confidential diagnostics on the CVM IGVM
                                         // consumed by the VMM tests.
                                         confidential_debug: true,
+                                        disable_secure_avic: false,
                                     },
                                     ctx.publish_typed_artifact(pub_openhcl_igvm),
                                     ctx.publish_typed_artifact(pub_openhcl_igvm_extras),
@@ -1727,20 +1728,31 @@ impl IntoPipeline for CheckinGatesCli {
                 vmm_tests_run_job = vmm_tests_run_job.ado_set_pool(pool);
             }
 
+            let incubator_profile = incubator_profile.map(|name| flowey_lib_hvlite::build_incubator::incubator_profile_path(name));
+
+            // TODO: figure out if this is actually needed
+            let needs_release_igvm = !matches!(backend_hint, PipelineBackendHint::Ado);
+
             vmm_tests_run_job = vmm_tests_run_job.dep_on(|ctx| {
                 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive::Params {
                     junit_test_label: test_label,
-                    nextest_vmm_tests_archive: ctx.use_typed_artifact(use_vmm_tests_archive),
+                    nextest_vmm_tests_archive: Some(ctx.use_typed_artifact(use_vmm_tests_archive)),
                     target: target.as_triple(),
                     nextest_profile: flowey_lib_hvlite::run_cargo_nextest_run::NextestProfile::Ci,
                     nextest_filter_expr: Some(nextest_filter_expr),
-                    dep_artifact_dirs: resolve_vmm_tests_artifacts(ctx),
+                    vmm_tests_dep_artifacts: Some(resolve_vmm_tests_artifacts(ctx)),
                     test_artifacts,
-                    incubator_profile: incubator_profile.map(Into::into),
+                    incubator_profile,
                     fail_job_on_test_fail: true,
                     artifact_dir: pub_vmm_tests_results.map(|x| ctx.publish_artifact(x)),
                     prep_steps_variants,
                     hugetlb_2mb_overcommit_pages,
+                    test_content_dir: None,
+                    reuse_prepped_vhds: false,
+                    disable_remote_artifacts: true,
+                    test_content_dir_as_repo_root: false,
+                    needs_release_igvm,
+                    deps: None,
                     done: ctx.new_done_handle(),
                 }
             });

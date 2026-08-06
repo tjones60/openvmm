@@ -17,6 +17,7 @@ use flowey_lib_hvlite::_jobs::local_build_and_run_nextest_vmm_tests::VmmTestSele
 use flowey_lib_hvlite::common::CommonPlatform;
 use flowey_lib_hvlite::common::CommonTriple;
 use flowey_lib_hvlite::install_vmm_tests_deps::VmmTestsDepSelections;
+use flowey_lib_hvlite::install_vmm_tests_deps::VmmTestsDepSelectionsLinux;
 use flowey_lib_hvlite::install_vmm_tests_deps::VmmTestsDepSelectionsWindows;
 use petri_artifacts_core::ArtifactId;
 use petri_artifacts_core::ArtifactListOutput;
@@ -213,20 +214,7 @@ impl IntoPipeline for VmmTestsRunCli {
 
         let repo_root = crate::repo_root();
 
-        // Resolve the incubator profile path. `--incubator` with no value uses
-        // the default profile for the target; `--incubator <PATH>` overrides.
-        let incubator_profile = match incubator {
-            None => None,
-            Some(Some(path)) => Some(path),
-            Some(None) => Some(default_incubator_profile(&repo_root, &target).ok_or_else(
-                || {
-                    anyhow::anyhow!(
-                        "no default incubator profile for target {target_str}; \
-                     pass an explicit path with --incubator <PATH>"
-                    )
-                },
-            )?),
-        };
+        let incubator_profile = resolve_incubator(incubator, &target)?;
 
         // Artifact discovery only needs to execute the test binary far enough
         // to dump its static artifact metadata (`--list-required-artifacts`),
@@ -617,7 +605,7 @@ fn query_test_binary_artifacts(suite: &RustSuite) -> anyhow::Result<Vec<String>>
 }
 
 #[derive(clap::ValueEnum, Copy, Clone)]
-enum VmmTestTargetCli {
+pub(crate) enum VmmTestTargetCli {
     /// Windows Aarch64
     WindowsAarch64,
     /// Windows X64
@@ -629,7 +617,7 @@ enum VmmTestTargetCli {
 }
 
 /// Resolve a CLI target option to a CommonTriple, defaulting to the host.
-fn resolve_target(
+pub(crate) fn resolve_target(
     target: Option<VmmTestTargetCli>,
     backend_hint: PipelineBackendHint,
 ) -> anyhow::Result<CommonTriple> {
@@ -653,21 +641,6 @@ fn resolve_target(
         VmmTestTargetCli::LinuxX64 => CommonTriple::X86_64_LINUX_GNU,
         VmmTestTargetCli::LinuxAarch64Musl => CommonTriple::AARCH64_LINUX_MUSL,
     })
-}
-
-/// Default incubator profile path for a target, used when `--incubator` is
-/// passed without an explicit profile path. Returns `None` for targets that
-/// have no incubator profile.
-fn default_incubator_profile(repo_root: &Path, target: &CommonTriple) -> Option<PathBuf> {
-    let name = match *target {
-        CommonTriple::AARCH64_LINUX_MUSL => "aarch64-tcg-pcie",
-        _ => return None,
-    };
-    Some(
-        repo_root
-            .join("petri/incubator/profiles")
-            .join(format!("{name}.toml")),
-    )
 }
 
 /// Validate the output directory path based on the current platform.
@@ -729,7 +702,12 @@ fn selections_from_resolved(
                     hardware_isolation: resolved.needs_hardware_isolation,
                 })
             }
-            target_lexicon::OperatingSystem::Linux => VmmTestsDepSelections::Linux,
+            target_lexicon::OperatingSystem::Linux => {
+                VmmTestsDepSelections::Linux(VmmTestsDepSelectionsLinux {
+                    hugetlb_2mb_overcommit_pages: None, // TODO
+                    prepare_vhost_vsock: false,         // TODO
+                })
+            }
             _ => unreachable!(),
         },
         needs_release_igvm: resolved.needs_release_igvm,
@@ -872,6 +850,7 @@ impl ResolvedArtifactSelections {
             }
             petri_artifacts_vmm_test::artifacts::test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64_PREPPED::GLOBAL_UNIQUE_ID =>
             {
+                self.build.openvmm = true;
                 self.build.prep_steps_standard = true;
                 // prep_steps needs actual VHD files on disk to copy them.
                 // Force download even when lazy fetch is enabled.
@@ -882,6 +861,7 @@ impl ResolvedArtifactSelections {
             }
             petri_artifacts_vmm_test::artifacts::test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64_NO_VMBUS_PREPPED::GLOBAL_UNIQUE_ID =>
             {
+                self.build.openvmm = true;
                 self.build.prep_steps_no_vmbus = true;
                 self.force_downloads
                     .insert(KnownTestArtifacts::Gen2WindowsDataCenterCore2022X64Vhd);
@@ -953,4 +933,27 @@ impl ResolvedArtifactSelections {
         };
         Ok(())
     }
+}
+
+/// Resolve the incubator profile path. `--incubator` with no value uses
+/// the default profile for the target; `--incubator <PATH>` overrides.
+pub(crate) fn resolve_incubator(
+    incubator: Option<Option<PathBuf>>,
+    target: &CommonTriple,
+) -> anyhow::Result<Option<PathBuf>> {
+    Ok(match incubator {
+        None => None,
+        Some(Some(path)) => Some(path),
+        Some(None) => Some(
+            flowey_lib_hvlite::build_incubator::default_incubator_profile(&target).ok_or_else(
+                || {
+                    anyhow::anyhow!(
+                        "no default incubator profile for target {}; \
+                         pass an explicit path with --incubator <PATH>",
+                        target.as_triple().to_string()
+                    )
+                },
+            )?,
+        ),
+    })
 }

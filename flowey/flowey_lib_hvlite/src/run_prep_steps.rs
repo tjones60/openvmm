@@ -6,11 +6,19 @@
 use crate::build_prep_steps::PrepStepsOutput;
 use flowey::node::prelude::*;
 use std::collections::BTreeMap;
+use target_lexicon::OperatingSystem;
+
+#[derive(Serialize, Deserialize)]
+pub enum PrepStepsSource {
+    TestContentDir(target_lexicon::Triple),
+    DirectOutput(ReadVar<PrepStepsOutput>),
+}
 
 flowey_request! {
     pub struct Request {
-        /// Path to prep_steps bin to use
-        pub prep_steps: ReadVar<PrepStepsOutput>,
+        /// Path to prep_steps bin to use. If not specified, try to find a
+        /// binary in VMM_TESTS_CONTENT_DIR.
+        pub prep_steps: PrepStepsSource,
         /// Arguments to pass to prep_steps (e.g. "standard" or "no-vmbus")
         pub args: Vec<String>,
         /// Environment variables to set when running prep_steps
@@ -34,6 +42,39 @@ impl SimpleFlowNode for Node {
             env,
             done,
         } = request;
+
+        let prep_steps = match prep_steps {
+            PrepStepsSource::DirectOutput(output) => output.map(ctx, |o| match o {
+                PrepStepsOutput::LinuxBin { bin, .. } => bin,
+                PrepStepsOutput::WindowsBin { exe, .. } => exe,
+            }),
+            PrepStepsSource::TestContentDir(triple) => {
+                ctx.emit_rust_stepv("resolve prep_steps", |ctx| {
+                    let env = env.clone().claim(ctx);
+                    move |rt| {
+                        let env = rt.read(env);
+                        let test_content_dir = env
+                            .get("VMM_TESTS_CONTENT_DIR")
+                            .context("VMM_TESTS_CONTENT_DIR not set")?;
+
+                        let test_content_dir = if flowey_lib_common::_util::running_in_wsl(rt) {
+                            flowey_lib_common::_util::wslpath::win_to_linux(rt, test_content_dir)
+                        } else {
+                            PathBuf::from(test_content_dir)
+                        };
+
+                        let exe = test_content_dir.join(match triple.operating_system {
+                            OperatingSystem::Windows => "prep_steps.exe",
+                            _ => "prep_steps",
+                        });
+                        if !exe.exists() {
+                            anyhow::bail!("prep_steps bin not found at {}", exe.display());
+                        }
+                        Ok(exe)
+                    }
+                })
+            }
+        };
 
         ctx.emit_rust_step("running vmm_test prep_steps", |ctx| {
             let prep_steps = prep_steps.claim(ctx);
@@ -76,19 +117,11 @@ impl SimpleFlowNode for Node {
                         .output()?;
                 }
 
-                let binary_path = match &prep_steps {
-                    PrepStepsOutput::WindowsBin { exe, .. } => exe,
-                    PrepStepsOutput::LinuxBin { bin, .. } => {
-                        bin.make_executable()?;
-                        bin
-                    }
-                };
-
                 // When running a Windows exe from WSL2, environment variables don't
                 // automatically propagate. We need to set WSLENV to tell WSL which
                 // env vars to share with Windows processes.
                 let is_windows_exe_via_wsl = flowey_lib_common::_util::running_in_wsl(rt)
-                    && matches!(prep_steps, PrepStepsOutput::WindowsBin { .. });
+                    && prep_steps.extension().is_some_and(|ext| ext == "exe");
 
                 let mut env = env;
                 if is_windows_exe_via_wsl {
@@ -107,7 +140,7 @@ impl SimpleFlowNode for Node {
                     );
                 }
 
-                flowey::shell_cmd!(rt, "{binary_path}")
+                flowey::shell_cmd!(rt, "{prep_steps}")
                     .args(&args)
                     .envs(env)
                     .run()?;

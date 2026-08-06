@@ -61,8 +61,9 @@ fn add_incubator_target_runner_env(
 
 flowey_request! {
     pub struct Request {
-        /// Path to the incubator binary.
-        pub incubator_bin: ReadVar<PathBuf>,
+        /// Path to the incubator binary. If not specified, try to find a
+        /// binary in VMM_TESTS_CONTENT_DIR.
+        pub incubator_bin: Option<ReadVar<PathBuf>>,
         /// Path to the incubator profile TOML file.
         pub profile_path: ReadVar<PathBuf>,
         /// Path to the guest kernel image. If omitted, incubator auto-detects it.
@@ -128,7 +129,19 @@ impl SimpleFlowNode for Node {
             let nextest_env = nextest_env.claim(ctx);
 
             move |rt| {
-                let incubator_bin = rt.read(incubator_bin).absolute()?;
+                let extra_env = extra_env.map(|v| rt.read(v)).unwrap_or_default();
+                let incubator_bin = if let Some(bin) = incubator_bin {
+                    rt.read(bin).absolute()?
+                } else {
+                    let test_content_dir = extra_env
+                        .get("VMM_TESTS_CONTENT_DIR")
+                        .context("VMM_TESTS_CONTENT_DIR not set")?;
+                    let bin = Path::new(test_content_dir).join("incubator");
+                    if !bin.exists() {
+                        anyhow::bail!("incubator bin not found at {}", bin.display());
+                    }
+                    bin
+                };
                 let profile_path = rt.read(profile_path).absolute()?;
                 let kernel = kernel.map(|v| rt.read(v).absolute()).transpose()?;
                 let initrd = initrd.map(|v| rt.read(v).absolute()).transpose()?;
@@ -139,7 +152,6 @@ impl SimpleFlowNode for Node {
                     .into_iter()
                     .map(|p| p.absolute().map_err(Into::into))
                     .collect::<anyhow::Result<Vec<_>>>()?;
-                let extra_env = extra_env.map(|v| rt.read(v)).unwrap_or_default();
                 let qemu_binary = qemu_binary.map(|v| rt.read(v).absolute()).transpose()?;
 
                 let mut share_paths = vec![repo_root.as_path(), test_content_dir.as_path()];
