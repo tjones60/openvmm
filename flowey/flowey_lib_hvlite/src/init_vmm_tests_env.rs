@@ -108,9 +108,10 @@ impl SimpleFlowNode for Node {
 
                 env.insert("VMM_TESTS_CONTENT_DIR".into(), converted_content_dir);
 
-                if !test_log_dir.exists() {
-                    fs_err::create_dir(&test_log_dir)?
+                if test_log_dir.exists() {
+                    fs_err::remove_dir_all(&test_log_dir)?;
                 };
+                fs_err::create_dir(&test_log_dir)?;
                 env.insert("TEST_OUTPUT_PATH".into(), converted_log_dir);
 
                 if !temp_dir.exists() {

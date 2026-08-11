@@ -141,6 +141,7 @@ impl SimpleFlowNode for Node {
         ctx.import::<crate::init_openvmm_magicpath_uefi_mu_msvm::Node>();
         ctx.import::<crate::install_vmm_tests_deps::Node>();
         ctx.import::<crate::init_vmm_tests_env::Node>();
+        ctx.import::<crate::init_vmm_tests_content_dir::Node>();
         ctx.import::<crate::resolve_openvmm_qemu::Node>();
         ctx.import::<crate::resolve_openvmm_test_initrd::Node>();
         ctx.import::<crate::resolve_openvmm_test_linux_kernel::Node>();
@@ -336,22 +337,26 @@ impl SimpleFlowNode for Node {
 
         let mut all_results = Vec::with_capacity(repetitions as usize);
         let mut all_log_dirs = Vec::with_capacity(repetitions as usize);
-        let mut stop_previous = None;
-
         for i in 0..repetitions {
             let mut pre_run_deps_iteration = pre_run_deps.clone();
             // Start the test_igvm_agent_rpc_server before running tests.
             // Currently X64 Windows only.
             // The binary must already exist in the test content dir.
             // The server runs in the background for the duration of the test run.
+            let previous_done = all_log_dirs
+                .last()
+                .map(|x: &ReadVar<PathBuf>| x.map(ctx, |_| ()));
             if matches!(ctx.platform(), FlowPlatform::Windows) {
                 pre_run_deps_iteration.push(ctx.reqv(|done| {
                     crate::run_test_igvm_agent_rpc_server::Request {
                         env: igvm_agent_env.clone(),
                         done,
-                        stop_previous: stop_previous.take(),
+                        stop_previous: previous_done.clone(),
                     }
                 }));
+            // make the repetitions run in order
+            } else if let Some(previous) = previous_done {
+                pre_run_deps_iteration.push(previous);
             }
 
             let results = ctx.reqv(|v| crate::test_nextest_vmm_tests_archive::Request {
@@ -367,8 +372,6 @@ impl SimpleFlowNode for Node {
                 results: v,
             });
 
-            stop_previous = Some(results.map(ctx, |_| ()));
-
             let log_dir_archive = {
                 // Bind the externally generated output paths together with the results
                 // to create a dependency on the VMM tests having actually run.
@@ -380,6 +383,14 @@ impl SimpleFlowNode for Node {
 
                         // rename the log dir and create a fresh one
                         let log_dir_archive = log_dir_for_iteration(&log_dir, i)?;
+                        log::info!(
+                            "renaming {} to {}",
+                            log_dir.to_string_lossy(),
+                            log_dir_archive.to_string_lossy()
+                        );
+                        if log_dir_archive.exists() {
+                            fs_err::remove_dir_all(&log_dir_archive)?;
+                        }
                         fs_err::rename(&log_dir, &log_dir_archive)?;
                         fs_err::create_dir(&log_dir)?;
 

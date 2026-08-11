@@ -93,6 +93,8 @@ flowey_request! {
 
         pub disable_secure_avic: bool,
 
+        pub repetitions: u64,
+
         /// Optional: incubator profile path. When set, tests run inside
         /// an emulated VM instead of on the host.
         pub incubator_profile: Option<PathBuf>,
@@ -142,6 +144,7 @@ impl SimpleFlowNode for Node {
             nextest_profile,
             reuse_prepped_vhds,
             disable_secure_avic,
+            repetitions,
             incubator_profile,
             done,
         } = request;
@@ -713,7 +716,7 @@ impl SimpleFlowNode for Node {
                     test_content_dir_as_repo_root: true,
                     needs_release_igvm,
                     deps: Some(deps),
-                    repetitions: 1,
+                    repetitions,
                     done: v,
                 }
             }));

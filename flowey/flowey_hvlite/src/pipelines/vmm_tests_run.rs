@@ -114,6 +114,10 @@ pub struct VmmTestsRunCli {
     #[clap(long)]
     pub disable_secure_avic: bool,
 
+    /// How many times to run the tests
+    #[clap(long)]
+    repetitions: Option<u64>,
+
     /// Run tests inside an emulated incubator.
     ///
     /// Pass `--incubator` on its own to use the default profile for the
@@ -185,6 +189,7 @@ impl IntoPipeline for VmmTestsRunCli {
             ci_profile,
             no_reuse_prepped_vhds,
             disable_secure_avic,
+            repetitions,
             incubator,
         } = self;
 
@@ -435,6 +440,7 @@ impl IntoPipeline for VmmTestsRunCli {
                     },
                     reuse_prepped_vhds: !no_reuse_prepped_vhds,
                     disable_secure_avic,
+                    repetitions: repetitions.unwrap_or(1),
                     incubator_profile,
                     done: ctx.new_done_handle(),
                 }
