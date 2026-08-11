@@ -64,6 +64,10 @@ pub struct VmmTestsRunTargetCli {
     #[clap(long)]
     needs_hardware_isolation: bool,
 
+    /// How many times to run the tests
+    #[clap(long)]
+    repetitions: Option<u64>,
+
     /// Run tests inside an emulated incubator.
     #[clap(long, num_args = 0..=1)]
     #[expect(clippy::option_option)]
@@ -88,6 +92,7 @@ impl IntoPipeline for VmmTestsRunTargetCli {
             ci_profile,
             no_reuse_prepped_vhds,
             needs_hardware_isolation,
+            repetitions,
             incubator,
         } = self;
 
@@ -156,6 +161,7 @@ impl IntoPipeline for VmmTestsRunTargetCli {
                     artifacts,
                     deps,
                     prep_steps_variants: prep_steps,
+                    repetitions: repetitions.unwrap_or(1),
                     done: ctx.new_done_handle(),
                 },
             );

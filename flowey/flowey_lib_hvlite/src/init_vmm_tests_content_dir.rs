@@ -42,6 +42,7 @@ impl SimpleFlowNode for Node {
         ctx.import::<crate::resolve_openvmm_test_virtio_win::Node>();
         ctx.import::<crate::git_checkout_openvmm_repo::Node>();
         ctx.import::<crate::download_uefi_mu_msvm::Node>();
+        ctx.import::<crate::download_release_igvm_files_from_gh::resolve::Node>();
     }
 
     fn process_request(request: Self::Request, ctx: &mut NodeCtx<'_>) -> anyhow::Result<()> {

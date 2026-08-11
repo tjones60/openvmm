@@ -707,13 +707,13 @@ impl SimpleFlowNode for Node {
                     hugetlb_2mb_overcommit_pages: None,
                     incubator_profile,
                     fail_job_on_test_fail: true,
-                    artifact_dir: None,
                     test_content_dir: Some(ReadVar::from_static(test_content_dir)),
                     reuse_prepped_vhds,
                     disable_remote_artifacts: false,
                     test_content_dir_as_repo_root: true,
                     needs_release_igvm,
                     deps: Some(deps),
+                    repetitions: 1,
                     done: v,
                 }
             }));

@@ -24,6 +24,8 @@ flowey_request! {
         pub env: ReadVar<BTreeMap<String, String>>,
         /// Completion indicator - signals that the server is ready
         pub done: WriteVar<SideEffect>,
+        /// Stop running server first after a previous test run
+        pub stop_previous: Option<ReadVar<SideEffect>>,
     }
 }
 
@@ -35,7 +37,11 @@ impl SimpleFlowNode for Node {
     fn imports(_ctx: &mut ImportCtx<'_>) {}
 
     fn process_request(request: Self::Request, ctx: &mut NodeCtx<'_>) -> anyhow::Result<()> {
-        let Request { env, done } = request;
+        let Request {
+            env,
+            done,
+            stop_previous,
+        } = request;
 
         // This node only supports Windows - fail at flow-graph construction time
         // if someone mistakenly tries to use it on another platform.
@@ -46,9 +52,14 @@ impl SimpleFlowNode for Node {
             );
         }
 
+        let maybe_stopped = stop_previous.map(|after_tests| {
+            ctx.reqv(|done| crate::stop_test_igvm_agent_rpc_server::Request { after_tests, done })
+        });
+
         ctx.emit_rust_step("starting test_igvm_agent_rpc_server", |ctx| {
             let env = env.claim(ctx);
             done.claim(ctx);
+            maybe_stopped.claim(ctx);
             move |rt| start_rpc_server(rt, env)
         });
 
@@ -76,10 +87,11 @@ fn start_rpc_server(
     let exe = Path::new(test_content_dir).join("test_igvm_agent_rpc_server.exe");
 
     if !exe.exists() {
-        anyhow::bail!(
-            "test_igvm_agent_rpc_server.exe not found at {}",
+        log::info!(
+            "test_igvm_agent_rpc_server.exe not found at {}, skipping",
             exe.display()
         );
+        return Ok(());
     }
 
     // Create log file for server output

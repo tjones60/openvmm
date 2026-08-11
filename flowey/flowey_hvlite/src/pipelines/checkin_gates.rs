@@ -1705,12 +1705,6 @@ impl IntoPipeline for CheckinGatesCli {
             let nextest_filter_expr = exclude_checkin_disabled_vmm_tests(nextest_filter_expr);
             let test_label = format!("{label}-vmm-tests");
 
-            let pub_vmm_tests_results = if matches!(backend_hint, PipelineBackendHint::Local) {
-                Some(pipeline.new_artifact(&test_label).0)
-            } else {
-                None
-            };
-
             let use_vmm_tests_archive = match target {
                 CommonTriple::X86_64_WINDOWS_MSVC => &use_vmm_tests_archive_windows_x86,
                 CommonTriple::X86_64_LINUX_GNU => &use_vmm_tests_archive_linux_x86,
@@ -1744,7 +1738,6 @@ impl IntoPipeline for CheckinGatesCli {
                     test_artifacts,
                     incubator_profile,
                     fail_job_on_test_fail: true,
-                    artifact_dir: pub_vmm_tests_results.map(|x| ctx.publish_artifact(x)),
                     prep_steps_variants,
                     hugetlb_2mb_overcommit_pages,
                     test_content_dir: None,
@@ -1753,6 +1746,7 @@ impl IntoPipeline for CheckinGatesCli {
                     test_content_dir_as_repo_root: false,
                     needs_release_igvm,
                     deps: None,
+                    repetitions: 1,
                     done: ctx.new_done_handle(),
                 }
             });

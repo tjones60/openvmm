@@ -118,14 +118,13 @@ flowey_request! {
 
         /// Whether the job should fail if any test has failed
         pub fail_job_on_test_fail: bool,
-        /// If provided, also publish junit.xml test results as an artifact.
-        pub artifact_dir: Option<ReadVar<PathBuf>>,
         pub test_content_dir: Option<ReadVar<PathBuf>>,
         pub reuse_prepped_vhds: bool,
         pub disable_remote_artifacts: bool,
         pub test_content_dir_as_repo_root: bool,
         pub needs_release_igvm: bool,
         pub deps: Option<VmmTestsDepSelections>,
+        pub repetitions: u64,
         pub done: WriteVar<SideEffect>,
     }
 }
@@ -166,13 +165,13 @@ impl SimpleFlowNode for Node {
             incubator_profile,
             prep_steps_variants,
             hugetlb_2mb_overcommit_pages,
-            artifact_dir,
             test_content_dir,
             reuse_prepped_vhds,
             disable_remote_artifacts,
             test_content_dir_as_repo_root,
             needs_release_igvm,
             deps,
+            repetitions,
             done,
         } = request;
 
@@ -271,32 +270,11 @@ impl SimpleFlowNode for Node {
             get_env: v,
         });
 
-        // Start the test_igvm_agent_rpc_server before running tests.
-        // Currently X64 Windows only.
-        // The binary must already exist in the test content dir.
-        // The server runs in the background for the duration of the test run.
-        if matches!(ctx.platform(), FlowPlatform::Windows) && matches!(ctx.arch(), FlowArch::X86_64)
-        {
-            pre_run_deps.push(
-                ctx.reqv(|done| crate::run_test_igvm_agent_rpc_server::Request {
-                    env: extra_env.clone(),
-                    done,
-                }),
-            );
-        }
-
-        for variant in &prep_steps_variants {
-            pre_run_deps.push(ctx.reqv(|done| crate::run_prep_steps::Request {
-                prep_steps: crate::run_prep_steps::PrepStepsSource::TestContentDir(target.clone()),
-                args: vec![variant.clone()],
-                env: extra_env.clone(),
-                done,
-            }));
-        }
-
         let nextest_config_file = openvmm_repo_path
             .clone()
             .map(ctx, |p| p.join(".config").join("nextest.toml"));
+
+        let igvm_agent_env = extra_env.clone();
 
         let extra_env = if let Some(incubator_profile) = incubator_profile {
             let arch = crate::common::CommonArch::from_architecture(target.architecture)?;
@@ -347,36 +325,79 @@ impl SimpleFlowNode for Node {
             extra_env
         };
 
-        let results = ctx.reqv(|v| crate::test_nextest_vmm_tests_archive::Request {
-            nextest_archive_file: nextest_vmm_tests_archive,
-            nextest_profile,
-            nextest_filter_expr,
-            nextest_working_dir: Some(openvmm_repo_path),
-            nextest_config_file: Some(nextest_config_file),
-            nextest_bin: None,
-            target: None,
-            extra_env,
-            pre_run_deps,
-            results: v,
-        });
+        for variant in &prep_steps_variants {
+            pre_run_deps.push(ctx.reqv(|done| crate::run_prep_steps::Request {
+                prep_steps: crate::run_prep_steps::PrepStepsSource::TestContentDir(target.clone()),
+                args: vec![variant.clone()],
+                env: extra_env.clone(),
+                done,
+            }));
+        }
+
+        let mut all_results = Vec::with_capacity(repetitions as usize);
+        let mut all_log_dirs = Vec::with_capacity(repetitions as usize);
+        let mut stop_previous = None;
+
+        for i in 0..repetitions {
+            let mut pre_run_deps_iteration = pre_run_deps.clone();
+            // Start the test_igvm_agent_rpc_server before running tests.
+            // Currently X64 Windows only.
+            // The binary must already exist in the test content dir.
+            // The server runs in the background for the duration of the test run.
+            if matches!(ctx.platform(), FlowPlatform::Windows) {
+                pre_run_deps_iteration.push(ctx.reqv(|done| {
+                    crate::run_test_igvm_agent_rpc_server::Request {
+                        env: igvm_agent_env.clone(),
+                        done,
+                        stop_previous: stop_previous.take(),
+                    }
+                }));
+            }
+
+            let results = ctx.reqv(|v| crate::test_nextest_vmm_tests_archive::Request {
+                nextest_archive_file: nextest_vmm_tests_archive.clone(),
+                nextest_profile,
+                nextest_filter_expr: nextest_filter_expr.clone(),
+                nextest_working_dir: Some(openvmm_repo_path.clone()),
+                nextest_config_file: Some(nextest_config_file.clone()),
+                nextest_bin: None,
+                target: None,
+                extra_env: extra_env.clone(),
+                pre_run_deps: pre_run_deps_iteration,
+                results: v,
+            });
+
+            stop_previous = Some(results.map(ctx, |_| ()));
+
+            let log_dir_archive = {
+                // Bind the externally generated output paths together with the results
+                // to create a dependency on the VMM tests having actually run.
+                let test_log_path = test_log_path.depending_on(ctx, &results);
+                ctx.emit_rust_stepv("rename and create new log dir", |ctx| {
+                    let test_log_path = test_log_path.claim(ctx);
+                    move |rt| {
+                        let log_dir = rt.read(test_log_path);
+
+                        // rename the log dir and create a fresh one
+                        let log_dir_archive = log_dir_for_iteration(&log_dir, i)?;
+                        fs_err::rename(&log_dir, &log_dir_archive)?;
+                        fs_err::create_dir(&log_dir)?;
+
+                        Ok(log_dir_archive)
+                    }
+                })
+            };
+
+            all_results.push((results, log_dir_archive.clone()));
+            all_log_dirs.push(log_dir_archive);
+        }
 
         // Stop the test_igvm_agent_rpc_server after tests complete (Windows only).
         // This ensures we clean up the background process.
-        let rpc_server_stopped = if matches!(ctx.platform(), FlowPlatform::Windows) {
-            let after_tests = results.map(ctx, |_| ());
-            Some(
-                ctx.reqv(|done| crate::stop_test_igvm_agent_rpc_server::Request {
-                    after_tests,
-                    done,
-                }),
-            )
-        } else {
-            None
-        };
-
-        // Bind the externally generated output paths together with the results
-        // to create a dependency on the VMM tests having actually run.
-        let test_log_path = test_log_path.depending_on(ctx, &results);
+        let rpc_server_stopped = matches!(ctx.platform(), FlowPlatform::Windows).then(|| {
+            let after_tests = all_results.last().unwrap().0.map(ctx, |_| ());
+            ctx.reqv(|done| crate::stop_test_igvm_agent_rpc_server::Request { after_tests, done })
+        });
 
         // A failing VMM test dumps its entire captured stdout -- guest serial
         // console, OpenHCL kmsg, pipette, and petri tracing -- into the job
@@ -384,51 +405,77 @@ impl SimpleFlowNode for Node {
         // actually failed. Emit a scannable summary alongside it.
         let summarized = {
             let is_github = matches!(ctx.backend(), FlowBackend::Github);
-            let test_log_path = test_log_path.clone();
+            let all_log_dirs = all_log_dirs.clone();
             let log_artifact_name = format!("{junit_test_label}-logs");
             ctx.emit_rust_step("summarize failing vmm tests", |ctx| {
-                let test_log_path = test_log_path.claim(ctx);
+                let all_log_dirs = all_log_dirs.claim(ctx);
                 move |rt| {
-                    let log_dir = rt.read(test_log_path);
+                    let all_log_dirs = rt.read(all_log_dirs);
+
+                    let mut test_failures = Vec::new();
+
+                    for log_dir in all_log_dirs {
+                        match failure_summary::collect_failed_tests(&log_dir) {
+                            Ok(failures) => test_failures.extend(failures),
+                            Err(err) => {
+                                failure_summary::warn_summary_unavailable(is_github, &err);
+                            }
+                        };
+                    }
+
                     // Summarizing is ancillary to the test run. If it fails,
                     // warn rather than propagate: this step is ordered before
                     // the one that reports test failures, so returning an
                     // error here would replace "encountered test failures"
                     // with an unrelated error and hide what actually broke.
-                    match failure_summary::collect_failed_tests(&log_dir) {
-                        Ok(failures) => failure_summary::report_failed_tests(
-                            &failures,
-                            is_github,
-                            &log_artifact_name,
-                        ),
-                        Err(err) => failure_summary::warn_summary_unavailable(is_github, &err),
-                    }
+                    failure_summary::report_failed_tests(
+                        &test_failures,
+                        is_github,
+                        &log_artifact_name,
+                    );
+
+                    let (failures_by_test, failures_by_mode) =
+                        failure_summary::bucketize_failures(&test_failures);
+                    failure_summary::report_failure_buckets(failures_by_test, failures_by_mode);
+
                     Ok(())
                 }
             })
         };
 
-        let junit_xml = results.map(ctx, |r| r.junit_xml);
-        let reported_results = ctx.reqv(|v| flowey_lib_common::publish_test_results::Request {
-            junit_xml,
-            test_label: junit_test_label,
-            attachments: BTreeMap::from([("logs".to_string(), (test_log_path, false))]),
-            output_dir: artifact_dir,
-            done: v,
-        });
+        let mut reported_results = Vec::new();
+
+        for (i, (results, log_dir)) in all_results.iter().enumerate() {
+            let junit_xml = results.map(ctx, |r| r.junit_xml);
+            let test_label = if repetitions > 1 {
+                format!("{junit_test_label}-{i}")
+            } else {
+                junit_test_label.clone()
+            };
+            reported_results.push(
+                ctx.reqv(|v| flowey_lib_common::publish_test_results::Request {
+                    junit_xml,
+                    test_label,
+                    attachments: BTreeMap::from([(
+                        "logs".to_string(),
+                        (log_dir.to_owned(), false),
+                    )]),
+                    output_dir: None,
+                    done: v,
+                }),
+            );
+        }
 
         ctx.emit_rust_step("report test results to overall pipeline status", |ctx| {
             reported_results.claim(ctx);
             summarized.claim(ctx);
-            if let Some(rpc_server_stopped) = rpc_server_stopped {
-                rpc_server_stopped.claim(ctx);
-            }
+            rpc_server_stopped.claim(ctx);
             done.claim(ctx);
 
-            let results = results.clone().claim(ctx);
+            let all_results = all_results.clone().claim(ctx);
             move |rt| {
-                let results = rt.read(results);
-                if results.all_tests_passed {
+                let all_results = rt.read(all_results);
+                if all_results.iter().all(|x| x.0.all_tests_passed) {
                     log::info!("all tests passed!");
                 } else {
                     if fail_job_on_test_fail {
@@ -446,6 +493,15 @@ impl SimpleFlowNode for Node {
     }
 }
 
+fn log_dir_for_iteration(log_dir: &Path, i: u64) -> anyhow::Result<PathBuf> {
+    let mut log_dir_basename = log_dir.file_name().context("invalid path")?.to_owned();
+    log_dir_basename.push(format!("_{i}"));
+    Ok(log_dir
+        .parent()
+        .context("invalid path")?
+        .join(log_dir_basename))
+}
+
 /// Summarizes failing VMM tests by scanning the per-test output directories
 /// that petri writes during a run.
 ///
@@ -456,11 +512,15 @@ impl SimpleFlowNode for Node {
 /// linkable report to sit alongside that output.
 mod failure_summary {
     use flowey::node::prelude::fs_err;
+    use serde::Deserialize;
+    use serde::Serialize;
+    use std::collections::BTreeMap;
     use std::collections::VecDeque;
     use std::io::BufRead;
     use std::io::BufReader;
     use std::io::Read;
     use std::path::Path;
+    use std::path::PathBuf;
 
     /// Maximum number of log lines to show inline per failing test. The tail
     /// is kept, since the entries immediately preceding a failure are almost
@@ -474,7 +534,7 @@ mod failure_summary {
     const LOG_VIEWER_BASE_URL: &str = "https://openvmm.dev/test-results";
 
     /// How a test finished, for tests that did not pass.
-    #[derive(Clone, Copy, PartialEq, Eq)]
+    #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
     enum Outcome {
         Failed,
         FailedUnstable,
@@ -495,6 +555,7 @@ mod failure_summary {
     }
 
     /// A failing test discovered by scanning the petri log directory.
+    #[derive(Serialize, Deserialize)]
     pub struct FailedTest {
         /// Full test name, e.g. `x86_64::openhcl_linux_direct_boot`.
         name: String,
@@ -506,6 +567,8 @@ mod failure_summary {
         error: Option<String>,
         /// ERROR / WARN entries from the tail of `petri.jsonl`.
         excerpt: Vec<String>,
+        /// Path to the test results on the local system
+        path: PathBuf,
     }
 
     /// Scans `log_dir` for the per-test marker files petri writes, returning
@@ -561,6 +624,7 @@ mod failure_summary {
                 outcome,
                 error: error.map(|e| one_line(&e)).filter(|e| !e.is_empty()),
                 excerpt,
+                path: entry.path(),
             });
         }
 
@@ -788,6 +852,84 @@ mod failure_summary {
         encoded
     }
 
+    pub fn bucketize_failures(
+        test_failures: &[FailedTest],
+    ) -> (
+        BTreeMap<String, BTreeMap<String, Vec<PathBuf>>>,
+        BTreeMap<String, BTreeMap<String, Vec<PathBuf>>>,
+    ) {
+        let mut failures_by_test: BTreeMap<String, BTreeMap<String, Vec<PathBuf>>> =
+            BTreeMap::new();
+        let mut failures_by_mode: BTreeMap<String, BTreeMap<String, Vec<PathBuf>>> =
+            BTreeMap::new();
+
+        for FailedTest {
+            name, error, path, ..
+        } in test_failures
+        {
+            let error: String = error.clone().unwrap_or_else(|| "Unknown".into());
+            failures_by_test
+                .entry(name.clone())
+                .or_default()
+                .entry(error.clone())
+                .or_default()
+                .push(path.clone());
+            failures_by_mode
+                .entry(error.clone())
+                .or_default()
+                .entry(name.clone())
+                .or_default()
+                .push(path.clone());
+        }
+
+        (failures_by_test, failures_by_mode)
+    }
+
+    pub fn report_failure_buckets(
+        failures_by_test: BTreeMap<String, BTreeMap<String, Vec<PathBuf>>>,
+        failures_by_mode: BTreeMap<String, BTreeMap<String, Vec<PathBuf>>>,
+    ) {
+        if !failures_by_test.is_empty() {
+            for (name, failures) in failures_by_test {
+                let total_failures: usize = failures.values().map(|x| x.len()).sum();
+
+                println!(
+                    "test failed {} times in {} ways: {}",
+                    total_failures,
+                    failures.len(),
+                    name,
+                );
+                for (error, log_dirs) in failures {
+                    println!("  error: {error}");
+                    for dir in log_dirs {
+                        println!("    {}", dir.to_string_lossy());
+                    }
+                }
+                println!();
+            }
+        }
+
+        if !failures_by_mode.is_empty() {
+            for (error, tests) in failures_by_mode {
+                let total_failures: usize = tests.values().map(|x| x.len()).sum();
+
+                println!(
+                    "error occured {} times in {} tests: {}",
+                    total_failures,
+                    tests.len(),
+                    error
+                );
+                for (name, log_dirs) in tests {
+                    println!("  test: {name}");
+                    for dir in log_dirs {
+                        println!("    {}", dir.to_string_lossy());
+                    }
+                }
+                println!();
+            }
+        }
+    }
+
     #[cfg(test)]
     mod tests {
         use super::*;
@@ -801,6 +943,7 @@ mod failure_summary {
                 outcome,
                 error: None,
                 excerpt: excerpt.iter().map(|s| (*s).to_owned()).collect(),
+                path: PathBuf::new(),
             }
         }
 
