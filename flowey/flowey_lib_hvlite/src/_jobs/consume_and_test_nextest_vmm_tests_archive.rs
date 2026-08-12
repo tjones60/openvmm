@@ -552,8 +552,11 @@ mod failure_summary {
         "Kernel indicates VP is both halted and idle",
         "the guest operating system requested an operation that is not supported by Hyper-V",
         "an unrecoverable error occurred on a virtual processor that caused a triple fault",
+        "an unrecoverable error occurred while accessing a virtual processor register which caused a triple fault",
         "failed to start worker process",
+        "Failed to create a new virtual machine",
         "Not enough memory in the system to start the virtual machine",
+        "Test timed out",
     ];
 
     /// How a test finished, for tests that did not pass.
