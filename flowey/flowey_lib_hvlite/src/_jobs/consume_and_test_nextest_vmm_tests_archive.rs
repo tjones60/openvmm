@@ -345,13 +345,13 @@ impl SimpleFlowNode for Node {
             // The server runs in the background for the duration of the test run.
             let previous_done = all_log_dirs
                 .last()
-                .map(|x: &ReadVar<PathBuf>| x.map(ctx, |_| ()));
+                .map(|x: &ReadVar<PathBuf>| x.clone().into_side_effect());
             if matches!(ctx.platform(), FlowPlatform::Windows) {
                 pre_run_deps_iteration.push(ctx.reqv(|done| {
                     crate::run_test_igvm_agent_rpc_server::Request {
                         env: igvm_agent_env.clone(),
                         done,
-                        stop_previous: previous_done.clone(),
+                        previous_done,
                     }
                 }));
             // make the repetitions run in order
@@ -372,10 +372,22 @@ impl SimpleFlowNode for Node {
                 results: v,
             });
 
+            // Stop the test_igvm_agent_rpc_server after tests complete (Windows only).
+            // This ensures we clean up the background process.
+            let rpc_server_stopped = matches!(ctx.platform(), FlowPlatform::Windows).then(|| {
+                ctx.reqv(|done| crate::stop_test_igvm_agent_rpc_server::Request {
+                    after_tests: results.clone().into_side_effect(),
+                    done,
+                })
+            });
+
             let log_dir_archive = {
                 // Bind the externally generated output paths together with the results
                 // to create a dependency on the VMM tests having actually run.
-                let test_log_path = test_log_path.depending_on(ctx, &results);
+                let test_log_path = test_log_path.depending_on(
+                    ctx,
+                    &rpc_server_stopped.unwrap_or(results.clone().into_side_effect()),
+                );
                 ctx.emit_rust_stepv("rename and create new log dir", |ctx| {
                     let test_log_path = test_log_path.claim(ctx);
                     move |rt| {
@@ -402,13 +414,6 @@ impl SimpleFlowNode for Node {
             all_results.push((results, log_dir_archive.clone()));
             all_log_dirs.push(log_dir_archive);
         }
-
-        // Stop the test_igvm_agent_rpc_server after tests complete (Windows only).
-        // This ensures we clean up the background process.
-        let rpc_server_stopped = matches!(ctx.platform(), FlowPlatform::Windows).then(|| {
-            let after_tests = all_results.last().unwrap().0.map(ctx, |_| ());
-            ctx.reqv(|done| crate::stop_test_igvm_agent_rpc_server::Request { after_tests, done })
-        });
 
         // A failing VMM test dumps its entire captured stdout -- guest serial
         // console, OpenHCL kmsg, pipette, and petri tracing -- into the job
@@ -480,7 +485,6 @@ impl SimpleFlowNode for Node {
         ctx.emit_rust_step("report test results to overall pipeline status", |ctx| {
             reported_results.claim(ctx);
             summarized.claim(ctx);
-            rpc_server_stopped.claim(ctx);
             done.claim(ctx);
 
             let all_results = all_results.clone().claim(ctx);

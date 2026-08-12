@@ -24,8 +24,8 @@ flowey_request! {
         pub env: ReadVar<BTreeMap<String, String>>,
         /// Completion indicator - signals that the server is ready
         pub done: WriteVar<SideEffect>,
-        /// Stop running server first after a previous test run
-        pub stop_previous: Option<ReadVar<SideEffect>>,
+        /// Used to ensure that the previous test run is complete, if any
+        pub previous_done: Option<ReadVar<SideEffect>>,
     }
 }
 
@@ -34,15 +34,13 @@ new_simple_flow_node!(struct Node);
 impl SimpleFlowNode for Node {
     type Request = Request;
 
-    fn imports(ctx: &mut ImportCtx<'_>) {
-        ctx.import::<crate::stop_test_igvm_agent_rpc_server::Node>();
-    }
+    fn imports(_ctx: &mut ImportCtx<'_>) {}
 
     fn process_request(request: Self::Request, ctx: &mut NodeCtx<'_>) -> anyhow::Result<()> {
         let Request {
             env,
             done,
-            stop_previous,
+            previous_done,
         } = request;
 
         // This node only supports Windows - fail at flow-graph construction time
@@ -54,14 +52,10 @@ impl SimpleFlowNode for Node {
             );
         }
 
-        let maybe_stopped = stop_previous.map(|after_tests| {
-            ctx.reqv(|done| crate::stop_test_igvm_agent_rpc_server::Request { after_tests, done })
-        });
-
         ctx.emit_rust_step("starting test_igvm_agent_rpc_server", |ctx| {
             let env = env.claim(ctx);
             done.claim(ctx);
-            maybe_stopped.claim(ctx);
+            previous_done.claim(ctx);
             move |rt| start_rpc_server(rt, env)
         });
 
