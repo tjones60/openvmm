@@ -544,6 +544,14 @@ mod failure_summary {
     /// Base URL of the petri log viewer.
     const LOG_VIEWER_BASE_URL: &str = "https://openvmm.dev/test-results";
 
+    const ERROR_BUCKETS: &[&str] = &[
+        "Kernel indicates VP is both halted and idle",
+        "the guest operating system requested an operation that is not supported by Hyper-V",
+        "an unrecoverable error occurred on a virtual processor that caused a triple fault",
+        "failed to start worker process",
+        "Not enough memory in the system to start the virtual machine",
+    ];
+
     /// How a test finished, for tests that did not pass.
     #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
     enum Outcome {
@@ -866,27 +874,38 @@ mod failure_summary {
     pub fn bucketize_failures(
         test_failures: &[FailedTest],
     ) -> (
-        BTreeMap<String, BTreeMap<String, Vec<PathBuf>>>,
-        BTreeMap<String, BTreeMap<String, Vec<PathBuf>>>,
+        BTreeMap<String, BTreeMap<&'static str, Vec<PathBuf>>>,
+        BTreeMap<&'static str, BTreeMap<String, Vec<PathBuf>>>,
     ) {
-        let mut failures_by_test: BTreeMap<String, BTreeMap<String, Vec<PathBuf>>> =
+        let mut failures_by_test: BTreeMap<String, BTreeMap<&'static str, Vec<PathBuf>>> =
             BTreeMap::new();
-        let mut failures_by_mode: BTreeMap<String, BTreeMap<String, Vec<PathBuf>>> =
+        let mut failures_by_mode: BTreeMap<&'static str, BTreeMap<String, Vec<PathBuf>>> =
             BTreeMap::new();
 
         for FailedTest {
-            name, error, path, ..
+            name,
+            excerpt,
+            path,
+            ..
         } in test_failures
         {
-            let error: String = error.clone().unwrap_or_else(|| "Unknown".into());
+            let mut error = "Unknown";
+            for err in ERROR_BUCKETS {
+                for line in excerpt {
+                    if line.contains(err) {
+                        error = err;
+                    }
+                }
+            }
+
             failures_by_test
                 .entry(name.clone())
                 .or_default()
-                .entry(error.clone())
+                .entry(error)
                 .or_default()
                 .push(path.clone());
             failures_by_mode
-                .entry(error.clone())
+                .entry(error)
                 .or_default()
                 .entry(name.clone())
                 .or_default()
@@ -897,8 +916,8 @@ mod failure_summary {
     }
 
     pub fn report_failure_buckets(
-        failures_by_test: BTreeMap<String, BTreeMap<String, Vec<PathBuf>>>,
-        failures_by_mode: BTreeMap<String, BTreeMap<String, Vec<PathBuf>>>,
+        failures_by_test: BTreeMap<String, BTreeMap<&'static str, Vec<PathBuf>>>,
+        failures_by_mode: BTreeMap<&'static str, BTreeMap<String, Vec<PathBuf>>>,
     ) {
         if !failures_by_test.is_empty() {
             for (name, failures) in failures_by_test {
