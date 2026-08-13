@@ -710,17 +710,12 @@ mod failure_summary {
     ///
     /// Returns `None` when the run ID is unknown (i.e. outside of GitHub
     /// Actions), since the viewer is keyed on it.
-    fn log_viewer_url(
-        run_id: Option<&str>,
-        log_artifact_name: &str,
-        test: &FailedTest,
-    ) -> Option<String> {
-        let run_id = run_id?;
-        Some(format!(
-            "{LOG_VIEWER_BASE_URL}/#/runs/{run_id}/{}/{}",
+    fn log_viewer_url(run_id_attempt: &str, log_artifact_name: &str, test: &FailedTest) -> String {
+        format!(
+            "{LOG_VIEWER_BASE_URL}/#/runs/{run_id_attempt}/{}/{}",
             percent_encode(log_artifact_name),
             percent_encode(&test.dir_name),
-        ))
+        )
     }
 
     /// Renders the per-failure detail written to the job log.
@@ -730,7 +725,7 @@ mod failure_summary {
     fn render_job_log(
         failures: &[FailedTest],
         is_github: bool,
-        run_id: Option<&str>,
+        run_id_attempt: Option<&str>,
         log_artifact_name: &str,
     ) -> String {
         use std::fmt::Write as _;
@@ -760,8 +755,12 @@ mod failure_summary {
                 }
             }
 
-            if let Some(url) = log_viewer_url(run_id, log_artifact_name, test) {
-                let _ = writeln!(out, "  full logs: {url}");
+            if let Some(run_id_attempt) = run_id_attempt {
+                let _ = writeln!(
+                    out,
+                    "  full logs: {}",
+                    log_viewer_url(run_id_attempt, log_artifact_name, test)
+                );
             }
 
             if is_github {
@@ -774,7 +773,7 @@ mod failure_summary {
     /// Renders the markdown table appended to the GitHub Actions job summary.
     fn render_job_summary(
         failures: &[FailedTest],
-        run_id: Option<&str>,
+        run_id_attempt: Option<&str>,
         log_artifact_name: &str,
     ) -> String {
         use std::fmt::Write as _;
@@ -785,8 +784,11 @@ mod failure_summary {
         let _ = writeln!(out, "| Test | Result | Reason | Logs |");
         let _ = writeln!(out, "| --- | --- | --- | --- |");
         for test in failures {
-            let logs = match log_viewer_url(run_id, log_artifact_name, test) {
-                Some(url) => format!("[view]({url})"),
+            let logs = match run_id_attempt {
+                Some(run_id_attempt) => format!(
+                    "[view]({})",
+                    log_viewer_url(run_id_attempt, log_artifact_name, test)
+                ),
                 None => format!("`{log_artifact_name}` artifact"),
             };
             // Escape pipes so a reason containing one can't break the table.
@@ -820,15 +822,24 @@ mod failure_summary {
         // log artifacts once the whole run completes, so these links only
         // become live after the run finishes.
         let run_id = std::env::var("GITHUB_RUN_ID").ok();
+        let run_attempt = std::env::var("GITHUB_RUN_ATTEMPT").ok();
+        let run_id_attempt = run_id
+            .zip(run_attempt)
+            .map(|(id, attempt)| format!("{id}_{attempt}"));
         print!(
             "{}",
-            render_job_log(failures, is_github, run_id.as_deref(), log_artifact_name)
+            render_job_log(
+                failures,
+                is_github,
+                run_id_attempt.as_deref(),
+                log_artifact_name
+            )
         );
 
         let Ok(summary_path) = std::env::var("GITHUB_STEP_SUMMARY") else {
             return;
         };
-        let summary = render_job_summary(failures, run_id.as_deref(), log_artifact_name);
+        let summary = render_job_summary(failures, run_id_attempt.as_deref(), log_artifact_name);
         // Other steps may have already appended to the summary file.
         let write_summary = || -> std::io::Result<()> {
             let mut file = fs_err::OpenOptions::new()
@@ -926,6 +937,7 @@ mod failure_summary {
         failures_by_test: BTreeMap<String, BTreeMap<&'static str, Vec<PathBuf>>>,
         failures_by_mode: BTreeMap<&'static str, BTreeMap<String, Vec<PathBuf>>>,
     ) {
+        println!("\nFailures by test\n");
         if !failures_by_test.is_empty() {
             for (name, failures) in failures_by_test {
                 let total_failures: usize = failures.values().map(|x| x.len()).sum();
@@ -937,7 +949,11 @@ mod failure_summary {
                     name,
                 );
                 for (error, log_dirs) in failures {
-                    println!("  error: {error}");
+                    println!(
+                        "  error occured {} times in this test: {}",
+                        log_dirs.len(),
+                        error
+                    );
                     for dir in log_dirs {
                         println!("    {}", dir.to_string_lossy());
                     }
@@ -946,6 +962,7 @@ mod failure_summary {
             }
         }
 
+        println!("\nFailures by mode\n");
         if !failures_by_mode.is_empty() {
             for (error, tests) in failures_by_mode {
                 let total_failures: usize = tests.values().map(|x| x.len()).sum();
@@ -957,7 +974,11 @@ mod failure_summary {
                     error
                 );
                 for (name, log_dirs) in tests {
-                    println!("  test: {name}");
+                    println!(
+                        "  test failed {} times in this way: {}",
+                        log_dirs.len(),
+                        name
+                    );
                     for dir in log_dirs {
                         println!("    {}", dir.to_string_lossy());
                     }
