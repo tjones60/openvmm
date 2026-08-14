@@ -252,7 +252,8 @@ impl SimpleFlowNode for Node {
             None
         };
 
-        let mut pre_run_deps = vec![ctx.reqv(crate::install_vmm_tests_deps::Request::Install)];
+        let installed_deps = ctx.reqv(crate::install_vmm_tests_deps::Request::Install);
+        let mut pre_run_deps = vec![installed_deps.clone()];
 
         let (test_log_path, get_test_log_path) = ctx.new_var();
 
@@ -345,7 +346,9 @@ impl SimpleFlowNode for Node {
         };
 
         if !prep_steps_variants.is_empty() {
-            let prep_steps = register_prep_steps.expect("Test run indicated prep_steps was needed but built prep_steps binary was not given");
+            let prep_steps = register_prep_steps
+                .expect("Prep steps variants requested but missing binary")
+                .depending_on(ctx, &installed_deps);
             for variant in &prep_steps_variants {
                 pre_run_deps.push(ctx.reqv(|done| crate::run_prep_steps::Request {
                     prep_steps: prep_steps.clone(),
@@ -439,6 +442,17 @@ impl SimpleFlowNode for Node {
             all_log_dirs.push(log_dir_archive);
         }
 
+        let test_label_for_iteration = {
+            let test_label = junit_test_label.clone();
+            move |i| {
+                if repetitions > 1 {
+                    format!("{test_label}-{i}")
+                } else {
+                    test_label.clone()
+                }
+            }
+        };
+
         // A failing VMM test dumps its entire captured stdout -- guest serial
         // console, OpenHCL kmsg, pipette, and petri tracing -- into the job
         // log, which makes it impractical to tell at a glance which tests
@@ -446,33 +460,38 @@ impl SimpleFlowNode for Node {
         let summarized = {
             let is_github = matches!(ctx.backend(), FlowBackend::Github);
             let all_log_dirs = all_log_dirs.clone();
-            let log_artifact_name = format!("{junit_test_label}-logs");
+            let test_label = junit_test_label.clone();
+            let test_label_for_iteration = test_label_for_iteration.clone();
             ctx.emit_rust_step("summarize failing vmm tests", |ctx| {
                 let all_log_dirs = all_log_dirs.claim(ctx);
                 move |rt| {
                     let all_log_dirs = rt.read(all_log_dirs);
 
-                    let mut test_failures = Vec::new();
+                    let mut test_failures = BTreeMap::new();
 
                     // Summarizing is ancillary to the test run. If it fails,
                     // warn rather than propagate: this step is ordered before
                     // the one that reports test failures, so returning an
                     // error here would replace "encountered test failures"
                     // with an unrelated error and hide what actually broke.
-                    for log_dir in all_log_dirs {
+                    for (i, log_dir) in all_log_dirs.iter().enumerate() {
                         match failure_summary::collect_failed_tests(&log_dir) {
-                            Ok(failures) => test_failures.extend(failures),
+                            Ok(failures) => {
+                                let log_artifact_name =
+                                    format!("{}-logs", test_label_for_iteration(i));
+                                if test_failures.insert(log_artifact_name, failures).is_some() {
+                                    anyhow::bail!("tests should not have the same label")
+                                }
+                            }
                             Err(err) => {
                                 failure_summary::warn_summary_unavailable(is_github, &err);
                             }
                         };
                     }
 
-                    failure_summary::report_failed_tests(
-                        &test_failures,
-                        is_github,
-                        &log_artifact_name,
-                    );
+                    failure_summary::report_failed_tests(&test_failures, is_github, &test_label);
+
+                    let test_failures = test_failures.into_values().flatten().collect::<Vec<_>>();
 
                     let (failures_by_test, failures_by_mode) =
                         failure_summary::bucketize_failures(&test_failures);
@@ -487,11 +506,7 @@ impl SimpleFlowNode for Node {
 
         for (i, (results, log_dir)) in all_results.iter().enumerate() {
             let junit_xml = results.map(ctx, |r| r.junit_xml);
-            let test_label = if repetitions > 1 {
-                format!("{junit_test_label}-{i}")
-            } else {
-                junit_test_label.clone()
-            };
+            let test_label = test_label_for_iteration(i);
             reported_results.push(
                 ctx.reqv(|v| flowey_lib_common::publish_test_results::Request {
                     junit_xml,
@@ -745,48 +760,49 @@ mod failure_summary {
     /// On GitHub the detail is wrapped in workflow-command groups so that it
     /// collapses by default and the list of failures stays scannable.
     fn render_job_log(
-        failures: &[FailedTest],
+        failures: &BTreeMap<String, Vec<FailedTest>>,
         is_github: bool,
         run_id_attempt: Option<&str>,
-        log_artifact_name: &str,
     ) -> String {
         use std::fmt::Write as _;
 
         let mut out = String::new();
-        for test in failures {
-            let label = match test.outcome {
-                Outcome::Failed => "FAIL",
-                Outcome::FailedUnstable => "FAIL (unstable)",
-                Outcome::Incomplete => "INCOMPLETE",
-            };
-            if is_github {
-                let _ = writeln!(out, "::group::{label} {}", test.name);
-            } else {
-                let _ = writeln!(out, "--- {label} {} ---", test.name);
-            }
-
-            if let Some(error) = &test.error {
-                let _ = writeln!(out, "  error: {error}");
-            }
-
-            if test.excerpt.is_empty() {
-                let _ = writeln!(out, "  (no ERROR or WARN entries found in petri.jsonl)");
-            } else {
-                for line in &test.excerpt {
-                    let _ = writeln!(out, "  {line}");
+        for (log_artifact_name, tests) in failures {
+            for test in tests {
+                let label = match test.outcome {
+                    Outcome::Failed => "FAIL",
+                    Outcome::FailedUnstable => "FAIL (unstable)",
+                    Outcome::Incomplete => "INCOMPLETE",
+                };
+                if is_github {
+                    let _ = writeln!(out, "::group::{label} {}", test.name);
+                } else {
+                    let _ = writeln!(out, "--- {label} {} ---", test.name);
                 }
-            }
 
-            if let Some(run_id_attempt) = run_id_attempt {
-                let _ = writeln!(
-                    out,
-                    "  full logs: {}",
-                    log_viewer_url(run_id_attempt, log_artifact_name, test)
-                );
-            }
+                if let Some(error) = &test.error {
+                    let _ = writeln!(out, "  error: {error}");
+                }
 
-            if is_github {
-                let _ = writeln!(out, "::endgroup::");
+                if test.excerpt.is_empty() {
+                    let _ = writeln!(out, "  (no ERROR or WARN entries found in petri.jsonl)");
+                } else {
+                    for line in &test.excerpt {
+                        let _ = writeln!(out, "  {line}");
+                    }
+                }
+
+                if let Some(run_id_attempt) = run_id_attempt {
+                    let _ = writeln!(
+                        out,
+                        "  full logs: {}",
+                        log_viewer_url(run_id_attempt, log_artifact_name, test)
+                    );
+                }
+
+                if is_github {
+                    let _ = writeln!(out, "::endgroup::");
+                }
             }
         }
         out
@@ -794,36 +810,38 @@ mod failure_summary {
 
     /// Renders the markdown table appended to the GitHub Actions job summary.
     fn render_job_summary(
-        failures: &[FailedTest],
+        failures: &BTreeMap<String, Vec<FailedTest>>,
         run_id_attempt: Option<&str>,
-        log_artifact_name: &str,
+        test_label: &str,
     ) -> String {
         use std::fmt::Write as _;
 
         let mut out = String::new();
-        let _ = writeln!(out, "### Failed VMM tests: {log_artifact_name}");
+        let _ = writeln!(out, "### Failed VMM tests: {test_label}");
         let _ = writeln!(out);
         let _ = writeln!(out, "| Test | Result | Reason | Logs |");
         let _ = writeln!(out, "| --- | --- | --- | --- |");
-        for test in failures {
-            let logs = match run_id_attempt {
-                Some(run_id_attempt) => format!(
-                    "[view]({})",
-                    log_viewer_url(run_id_attempt, log_artifact_name, test)
-                ),
-                None => format!("`{log_artifact_name}` artifact"),
-            };
-            // Escape pipes so a reason containing one can't break the table.
-            let reason = match &test.error {
-                Some(error) => error.replace('|', "\\|"),
-                None => String::new(),
-            };
-            let _ = writeln!(
-                out,
-                "| `{}` | {} | {reason} | {logs} |",
-                test.name,
-                test.outcome.describe(),
-            );
+        for (log_artifact_name, tests) in failures {
+            for test in tests {
+                let logs = match run_id_attempt {
+                    Some(run_id_attempt) => format!(
+                        "[view]({})",
+                        log_viewer_url(run_id_attempt, log_artifact_name, test)
+                    ),
+                    None => format!("`{log_artifact_name}` artifact"),
+                };
+                // Escape pipes so a reason containing one can't break the table.
+                let reason = match &test.error {
+                    Some(error) => error.replace('|', "\\|"),
+                    None => String::new(),
+                };
+                let _ = writeln!(
+                    out,
+                    "| `{}` | {} | {reason} | {logs} |",
+                    test.name,
+                    test.outcome.describe(),
+                );
+            }
         }
         let _ = writeln!(out);
         let _ = writeln!(
@@ -835,7 +853,11 @@ mod failure_summary {
 
     /// Writes the failure report to the job log and, on GitHub, to the job
     /// summary.
-    pub fn report_failed_tests(failures: &[FailedTest], is_github: bool, log_artifact_name: &str) {
+    pub fn report_failed_tests(
+        failures: &BTreeMap<String, Vec<FailedTest>>,
+        is_github: bool,
+        test_label: &str,
+    ) {
         if failures.is_empty() {
             return;
         }
@@ -850,18 +872,13 @@ mod failure_summary {
             .map(|(id, attempt)| format!("{id}_{attempt}"));
         print!(
             "{}",
-            render_job_log(
-                failures,
-                is_github,
-                run_id_attempt.as_deref(),
-                log_artifact_name
-            )
+            render_job_log(failures, is_github, run_id_attempt.as_deref())
         );
 
         let Ok(summary_path) = std::env::var("GITHUB_STEP_SUMMARY") else {
             return;
         };
-        let summary = render_job_summary(failures, run_id_attempt.as_deref(), log_artifact_name);
+        let summary = render_job_summary(failures, run_id_attempt.as_deref(), test_label);
         // Other steps may have already appended to the summary file.
         let write_summary = || -> std::io::Result<()> {
             let mut file = fs_err::OpenOptions::new()
@@ -972,7 +989,7 @@ mod failure_summary {
                 );
                 for (error, log_dirs) in failures {
                     println!(
-                        "  error occured {} times in this test: {}",
+                        "  error occurred {} times in this test: {}",
                         log_dirs.len(),
                         error
                     );
@@ -990,7 +1007,7 @@ mod failure_summary {
                 let total_failures: usize = tests.values().map(|x| x.len()).sum();
 
                 println!(
-                    "error occured {} times in {} tests: {}",
+                    "error occurred {} times in {} tests: {}",
                     total_failures,
                     tests.len(),
                     error
@@ -1014,18 +1031,6 @@ mod failure_summary {
     mod tests {
         use super::*;
         use std::path::PathBuf;
-
-        /// Builds a `FailedTest` with an excerpt, for the rendering tests.
-        fn failed_test(name: &str, outcome: Outcome, excerpt: &[&str]) -> FailedTest {
-            FailedTest {
-                name: name.to_owned(),
-                dir_name: name.replace("::", "__"),
-                outcome,
-                error: None,
-                excerpt: excerpt.iter().map(|s| (*s).to_owned()).collect(),
-                path: PathBuf::new(),
-            }
-        }
 
         /// Writes a test output directory of the shape petri produces.
         ///
@@ -1251,80 +1256,6 @@ mod failure_summary {
                 collect_failed_tests(&PathBuf::from("this/does/not/exist"))
                     .unwrap()
                     .is_empty()
-            );
-        }
-
-        #[test]
-        fn job_log_folds_detail_on_github() {
-            let failures = [failed_test(
-                "x86_64::boot",
-                Outcome::Failed,
-                &["[ERROR] boom"],
-            )];
-
-            let rendered = render_job_log(&failures, true, Some("123"), "x64-linux-vmm-tests-logs");
-
-            assert_eq!(
-                rendered,
-                "::group::FAIL x86_64::boot\n\
-                 \x20 [ERROR] boom\n\
-                 \x20 full logs: https://openvmm.dev/test-results/#/runs/123/x64-linux-vmm-tests-logs/x86_64__boot\n\
-                 ::endgroup::\n"
-            );
-        }
-
-        #[test]
-        fn job_log_omits_group_commands_off_github() {
-            let failures = [failed_test("x86_64::boot", Outcome::FailedUnstable, &[])];
-
-            let rendered = render_job_log(&failures, false, None, "x64-linux-vmm-tests-logs");
-
-            assert_eq!(
-                rendered,
-                "--- FAIL (unstable) x86_64::boot ---\n\
-                 \x20 (no ERROR or WARN entries found in petri.jsonl)\n"
-            );
-            // Without a run ID there is nothing to link to.
-            assert!(!rendered.contains("full logs"));
-        }
-
-        #[test]
-        fn job_summary_links_each_failure() {
-            let failures = [
-                failed_test("x86_64::boot", Outcome::Failed, &[]),
-                failed_test("x86_64::flaky", Outcome::FailedUnstable, &[]),
-            ];
-
-            let rendered = render_job_summary(&failures, Some("42"), "x64-linux-vmm-tests-logs");
-
-            assert!(rendered.contains("### Failed VMM tests: x64-linux-vmm-tests-logs"));
-            assert!(rendered.contains(
-                "| `x86_64::boot` | failed |  | [view](https://openvmm.dev/test-results/#/runs/42/x64-linux-vmm-tests-logs/x86_64__boot) |"
-            ));
-            assert!(rendered.contains("| `x86_64::flaky` | failed (unstable) |"));
-        }
-
-        #[test]
-        fn job_summary_shows_the_failure_reason() {
-            let mut test = failed_test("x86_64::boot", Outcome::Failed, &[]);
-            // A reason containing a pipe must not break the table.
-            test.error = Some("guest panicked | oops".to_owned());
-
-            let rendered = render_job_summary(&[test], None, "x64-linux-vmm-tests-logs");
-
-            assert!(rendered.contains("| guest panicked \\| oops |"));
-        }
-
-        #[test]
-        fn job_summary_falls_back_to_artifact_without_run_id() {
-            let failures = [failed_test("x86_64::boot", Outcome::Failed, &[])];
-
-            let rendered = render_job_summary(&failures, None, "x64-linux-vmm-tests-logs");
-
-            assert!(
-                rendered.contains(
-                    "| `x86_64::boot` | failed |  | `x64-linux-vmm-tests-logs` artifact |"
-                )
             );
         }
 

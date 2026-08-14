@@ -4643,22 +4643,25 @@ jobs:
       $(FLOWEY_BIN) e 19 flowey_lib_common::gen_cargo_nextest_run_cmd 0
       $(FLOWEY_BIN) e 19 flowey_core::pipeline::artifact::resolve 5
     displayName: generate nextest command
+  - bash: |-
+      set -e
+      $(FLOWEY_BIN) e 19 flowey_lib_hvlite::install_vmm_tests_deps 0
+      $(FLOWEY_BIN) e 19 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 3
+    displayName: install vmm tests deps (linux)
   - bash: $(FLOWEY_BIN) e 19 flowey_lib_hvlite::run_prep_steps 0
     displayName: running vmm_test prep_steps
-  - bash: $(FLOWEY_BIN) e 19 flowey_lib_hvlite::install_vmm_tests_deps 0
-    displayName: install vmm tests deps (linux)
   - bash: |-
       set -e
       $(FLOWEY_BIN) e 19 flowey_lib_common::run_cargo_nextest_run 0
       $(FLOWEY_BIN) e 19 flowey_lib_common::run_cargo_nextest_run 1
-      $(FLOWEY_BIN) e 19 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 3
+      $(FLOWEY_BIN) e 19 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 4
     displayName: run 'vmm_tests' nextest tests
-  - bash: $(FLOWEY_BIN) e 19 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 4
+  - bash: $(FLOWEY_BIN) e 19 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 5
     displayName: rename and create new log dir
   - bash: |-
       set -e
-      $(FLOWEY_BIN) e 19 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 5
       $(FLOWEY_BIN) e 19 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 6
+      $(FLOWEY_BIN) e 19 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 7
       $(FLOWEY_BIN) e 19 flowey_lib_common::publish_test_results 1
       $(FLOWEY_BIN) e 19 flowey_lib_common::ado_task_publish_test_results 0
       $(FLOWEY_BIN) e 19 flowey_lib_common::publish_test_results 0
@@ -4676,7 +4679,7 @@ jobs:
       set -e
       $(FLOWEY_BIN) e 19 flowey_lib_common::publish_test_results 2
       $(FLOWEY_BIN) e 19 flowey_lib_common::publish_test_results 3
-      $(FLOWEY_BIN) e 19 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 7
+      $(FLOWEY_BIN) e 19 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 8
     displayName: report test results to overall pipeline status
   - bash: $(FLOWEY_BIN) e 19 flowey_lib_common::cache 3
     displayName: 'validate cache entry: cargo-nextest'
@@ -4951,12 +4954,15 @@ jobs:
       $(FLOWEY_BIN) e 18 flowey_lib_common::gen_cargo_nextest_run_cmd 0
       $(FLOWEY_BIN) e 18 flowey_core::pipeline::artifact::resolve 10
     displayName: generate nextest command
+  - bash: |-
+      set -e
+      $(FLOWEY_BIN) e 18 flowey_lib_hvlite::install_vmm_tests_deps 0
+      $(FLOWEY_BIN) e 18 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 3
+    displayName: install vmm tests deps (windows)
   - bash: $(FLOWEY_BIN) e 18 flowey_lib_hvlite::run_prep_steps 0
     displayName: running vmm_test prep_steps
   - bash: $(FLOWEY_BIN) e 18 flowey_lib_hvlite::run_test_igvm_agent_rpc_server 0
     displayName: starting test_igvm_agent_rpc_server
-  - bash: $(FLOWEY_BIN) e 18 flowey_lib_hvlite::install_vmm_tests_deps 0
-    displayName: install vmm tests deps (windows)
   - bash: |-
       set -e
       $(FLOWEY_BIN) e 18 flowey_lib_common::run_cargo_nextest_run 0
@@ -4965,14 +4971,14 @@ jobs:
   - bash: |-
       set -e
       $(FLOWEY_BIN) e 18 flowey_lib_hvlite::stop_test_igvm_agent_rpc_server 0
-      $(FLOWEY_BIN) e 18 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 3
+      $(FLOWEY_BIN) e 18 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 4
     displayName: stopping test_igvm_agent_rpc_server
-  - bash: $(FLOWEY_BIN) e 18 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 4
+  - bash: $(FLOWEY_BIN) e 18 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 5
     displayName: rename and create new log dir
   - bash: |-
       set -e
-      $(FLOWEY_BIN) e 18 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 5
       $(FLOWEY_BIN) e 18 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 6
+      $(FLOWEY_BIN) e 18 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 7
       $(FLOWEY_BIN) e 18 flowey_lib_common::publish_test_results 1
       $(FLOWEY_BIN) e 18 flowey_lib_common::ado_task_publish_test_results 0
       $(FLOWEY_BIN) e 18 flowey_lib_common::publish_test_results 0
@@ -4990,7 +4996,7 @@ jobs:
       set -e
       $(FLOWEY_BIN) e 18 flowey_lib_common::publish_test_results 2
       $(FLOWEY_BIN) e 18 flowey_lib_common::publish_test_results 3
-      $(FLOWEY_BIN) e 18 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 7
+      $(FLOWEY_BIN) e 18 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 8
     displayName: report test results to overall pipeline status
   - bash: $(FLOWEY_BIN) e 18 flowey_lib_common::cache 3
     displayName: 'validate cache entry: cargo-nextest'
@@ -5574,12 +5580,15 @@ jobs:
       $(FLOWEY_BIN) e 16 flowey_lib_common::gen_cargo_nextest_run_cmd 0
       $(FLOWEY_BIN) e 16 flowey_core::pipeline::artifact::resolve 10
     displayName: generate nextest command
+  - bash: |-
+      set -e
+      $(FLOWEY_BIN) e 16 flowey_lib_hvlite::install_vmm_tests_deps 0
+      $(FLOWEY_BIN) e 16 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 3
+    displayName: install vmm tests deps (windows)
   - bash: $(FLOWEY_BIN) e 16 flowey_lib_hvlite::run_prep_steps 0
     displayName: running vmm_test prep_steps
   - bash: $(FLOWEY_BIN) e 16 flowey_lib_hvlite::run_test_igvm_agent_rpc_server 0
     displayName: starting test_igvm_agent_rpc_server
-  - bash: $(FLOWEY_BIN) e 16 flowey_lib_hvlite::install_vmm_tests_deps 0
-    displayName: install vmm tests deps (windows)
   - bash: |-
       set -e
       $(FLOWEY_BIN) e 16 flowey_lib_common::run_cargo_nextest_run 0
@@ -5588,14 +5597,14 @@ jobs:
   - bash: |-
       set -e
       $(FLOWEY_BIN) e 16 flowey_lib_hvlite::stop_test_igvm_agent_rpc_server 0
-      $(FLOWEY_BIN) e 16 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 3
+      $(FLOWEY_BIN) e 16 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 4
     displayName: stopping test_igvm_agent_rpc_server
-  - bash: $(FLOWEY_BIN) e 16 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 4
+  - bash: $(FLOWEY_BIN) e 16 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 5
     displayName: rename and create new log dir
   - bash: |-
       set -e
-      $(FLOWEY_BIN) e 16 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 5
       $(FLOWEY_BIN) e 16 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 6
+      $(FLOWEY_BIN) e 16 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 7
       $(FLOWEY_BIN) e 16 flowey_lib_common::publish_test_results 1
       $(FLOWEY_BIN) e 16 flowey_lib_common::ado_task_publish_test_results 0
       $(FLOWEY_BIN) e 16 flowey_lib_common::publish_test_results 0
@@ -5613,7 +5622,7 @@ jobs:
       set -e
       $(FLOWEY_BIN) e 16 flowey_lib_common::publish_test_results 2
       $(FLOWEY_BIN) e 16 flowey_lib_common::publish_test_results 3
-      $(FLOWEY_BIN) e 16 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 7
+      $(FLOWEY_BIN) e 16 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 8
     displayName: report test results to overall pipeline status
   - bash: $(FLOWEY_BIN) e 16 flowey_lib_common::cache 3
     displayName: 'validate cache entry: cargo-nextest'
