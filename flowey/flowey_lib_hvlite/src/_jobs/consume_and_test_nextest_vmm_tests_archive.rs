@@ -475,7 +475,7 @@ impl SimpleFlowNode for Node {
                     // error here would replace "encountered test failures"
                     // with an unrelated error and hide what actually broke.
                     for (i, log_dir) in all_log_dirs.iter().enumerate() {
-                        match failure_summary::collect_failed_tests(&log_dir) {
+                        match failure_summary::collect_failed_tests(log_dir) {
                             Ok(failures) => {
                                 let log_artifact_name =
                                     format!("{}-logs", test_label_for_iteration(i));
