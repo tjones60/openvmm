@@ -24,8 +24,6 @@ flowey_request! {
         pub env: ReadVar<BTreeMap<String, String>>,
         /// Completion indicator - signals that the server is ready
         pub done: WriteVar<SideEffect>,
-        /// Used to ensure that the previous test run is complete, if any
-        pub previous_done: Option<ReadVar<SideEffect>>,
     }
 }
 
@@ -37,11 +35,7 @@ impl SimpleFlowNode for Node {
     fn imports(_ctx: &mut ImportCtx<'_>) {}
 
     fn process_request(request: Self::Request, ctx: &mut NodeCtx<'_>) -> anyhow::Result<()> {
-        let Request {
-            env,
-            done,
-            previous_done,
-        } = request;
+        let Request { env, done } = request;
 
         // This node only supports Windows - fail at flow-graph construction time
         // if someone mistakenly tries to use it on another platform.
@@ -55,8 +49,7 @@ impl SimpleFlowNode for Node {
         ctx.emit_rust_step("starting test_igvm_agent_rpc_server", |ctx| {
             let env = env.claim(ctx);
             done.claim(ctx);
-            previous_done.claim(ctx);
-            move |rt| start_rpc_server(rt, env)
+            move |rt| start_rpc_server(rt.read(env))
         });
 
         Ok(())
@@ -64,14 +57,9 @@ impl SimpleFlowNode for Node {
 }
 
 #[cfg(windows)]
-fn start_rpc_server(
-    rt: &mut RustRuntimeServices<'_>,
-    env: ReadVar<BTreeMap<String, String>, VarClaimed>,
-) -> anyhow::Result<()> {
+fn start_rpc_server(env: BTreeMap<String, String>) -> anyhow::Result<()> {
     use std::os::windows::process::CommandExt;
     use std::path::Path;
-
-    let env = rt.read(env);
 
     let test_content_dir = env
         .get("VMM_TESTS_CONTENT_DIR")
@@ -148,10 +136,7 @@ fn start_rpc_server(
 }
 
 #[cfg(not(windows))]
-fn start_rpc_server(
-    _rt: &mut RustRuntimeServices<'_>,
-    _env: ReadVar<BTreeMap<String, String>, VarClaimed>,
-) -> anyhow::Result<()> {
+fn start_rpc_server(_env: BTreeMap<String, String>) -> anyhow::Result<()> {
     // This should never be called - the node rejects non-Windows at construction time.
     // But we need this for compilation on non-Windows hosts.
     anyhow::bail!("run_test_igvm_agent_rpc_server is only supported on Windows")
