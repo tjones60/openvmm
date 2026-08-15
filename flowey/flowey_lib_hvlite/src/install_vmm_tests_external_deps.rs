@@ -1,7 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-//! Hyper-V test pre-reqs
+//! Configure system-wide external dependencies for use with OpenVMM and/or
+//! Hyper-V VMM tests.
 
 use flowey::node::prelude::*;
 use std::collections::BTreeMap;
@@ -20,20 +21,20 @@ const VIRT_REG_PATH: &str = r#"HKLM\Software\Microsoft\Windows NT\CurrentVersion
 const HYPERVISOR_REG_PATH: &str = r#"HKLM\System\CurrentControlSet\Control\Hypervisor"#;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
-pub enum VmmTestsDepSelections {
-    Windows(VmmTestsDepSelectionsWindows),
-    Linux(VmmTestsDepSelectionsLinux),
+pub enum VmmTestsExternalDeps {
+    Windows(VmmTestsExternalDepsWindows),
+    Linux(VmmTestsExternalDepsLinux),
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
-pub struct VmmTestsDepSelectionsWindows {
+pub struct VmmTestsExternalDepsWindows {
     pub hyperv: bool,
     pub whp: bool,
     pub hardware_isolation: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
-pub struct VmmTestsDepSelectionsLinux {
+pub struct VmmTestsExternalDepsLinux {
     /// If set, configure this 2 MiB hugetlb surplus page overcommit limit before running tests.
     pub hugetlb_2mb_overcommit_pages: Option<u64>,
     /// Load vhost-vsock and make `/dev/vhost-vsock` accessible before tests.
@@ -44,7 +45,7 @@ flowey_config! {
     /// Config for the install_vmm_tests_deps node.
     pub struct Config {
         /// Specify the necessary dependencies
-        pub selections: Option<VmmTestsDepSelections>,
+        pub selections: Option<VmmTestsExternalDeps>,
         /// Automatically install dependencies (requires admin privileges).
         ///
         /// When false, skip checks that require admin privileges.
@@ -107,7 +108,7 @@ impl FlowNodeWithConfig for Node {
         let installing = !installed.is_empty();
 
         match selections {
-            VmmTestsDepSelections::Windows(selections) => {
+            VmmTestsExternalDeps::Windows(selections) => {
                 ctx.emit_rust_step("install vmm tests deps (windows)", move |ctx| {
                     installed.claim(ctx);
                     let write_commands = write_commands.claim(ctx);
@@ -123,7 +124,7 @@ impl FlowNodeWithConfig for Node {
                     }
                 });
             }
-            VmmTestsDepSelections::Linux(selections) => {
+            VmmTestsExternalDeps::Linux(selections) => {
                 ctx.emit_rust_step("install vmm tests deps (linux)", |ctx| {
                     installed.claim(ctx);
                     let write_commands = write_commands.claim(ctx);
@@ -143,10 +144,10 @@ fn install_windows_deps(
     rt: &mut RustRuntimeServices<'_>,
     installing: bool,
     auto_install: bool,
-    selections: VmmTestsDepSelectionsWindows,
+    selections: VmmTestsExternalDepsWindows,
     write_commands: Vec<WriteVar<Vec<String>, VarClaimed>>,
 ) -> anyhow::Result<()> {
-    let VmmTestsDepSelectionsWindows {
+    let VmmTestsExternalDepsWindows {
         hyperv,
         whp,
         hardware_isolation,
@@ -393,10 +394,10 @@ fn install_linux_deps(
     rt: &mut RustRuntimeServices<'_>,
     installing: bool,
     auto_install: bool,
-    selections: VmmTestsDepSelectionsLinux,
+    selections: VmmTestsExternalDepsLinux,
     write_commands: Vec<WriteVar<Vec<String>, VarClaimed>>,
 ) -> anyhow::Result<()> {
-    let VmmTestsDepSelectionsLinux {
+    let VmmTestsExternalDepsLinux {
         hugetlb_2mb_overcommit_pages,
         prepare_vhost_vsock,
     } = selections;
