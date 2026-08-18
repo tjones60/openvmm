@@ -59,6 +59,8 @@ flowey_request! {
     pub enum Request {
         /// Install the dependencies
         Install(WriteVar<SideEffect>),
+        // TODO: rip this out since it is broken and not used anymore
+        // with the introduction of `vmm_tests_run_target`
         /// Generate a list of commands that would install the dependencies
         GetCommands(WriteVar<Vec<String>>),
     }

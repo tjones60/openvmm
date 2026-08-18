@@ -641,6 +641,9 @@ impl SimpleFlowNode for Node {
                 needs_release_igvm,
                 done: v,
             }));
+            // TODO: build flowey_hvlite for the target and copy it to the test
+            // dir, then write a script containing a command with all of the
+            // appropriate command line arguments for `vmm_tests_run_target`
         } else {
             init_artifacts_dir(ctx, &test_content_dir, skip_vhd_prompt)?;
 
