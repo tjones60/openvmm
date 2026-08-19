@@ -12,6 +12,7 @@ use flowey::node::prelude::*;
 use std::collections::BTreeMap;
 use vmm_test_images::KnownTestArtifacts;
 
+#[expect(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize)]
 pub enum TestContentConfig {
     Initialized {
