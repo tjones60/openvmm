@@ -115,7 +115,9 @@ impl IntoPipeline for VmmTestsRunTargetCli {
 
         let target = resolve_target(target, backend_hint)?;
 
-        let incubator_profile = resolve_incubator(incubator, &target)?;
+        let incubator_profile = incubator
+            .map(|i| resolve_incubator(i, &target))
+            .transpose()?;
 
         let external_deps = match target.as_triple().operating_system {
             target_lexicon::OperatingSystem::Windows => {

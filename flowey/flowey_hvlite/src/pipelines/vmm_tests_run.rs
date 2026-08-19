@@ -225,7 +225,9 @@ impl IntoPipeline for VmmTestsRunCli {
 
         let repo_root = crate::repo_root();
 
-        let incubator_profile = resolve_incubator(incubator, &target)?;
+        let incubator_profile = incubator
+            .map(|i| resolve_incubator(i, &target))
+            .transpose()?;
 
         // Artifact discovery only needs to execute the test binary far enough
         // to dump its static artifact metadata (`--list-required-artifacts`),
@@ -305,7 +307,7 @@ impl IntoPipeline for VmmTestsRunCli {
         } else {
             let mut hyperv_tests: usize = 0;
             let mut hyperv_artifacts = Vec::new();
-            for (_, suite) in suites.iter() {
+            for suite in suites.values() {
                 let hyperv_testcases: Vec<_> = suite
                     .testcases
                     .iter()
@@ -954,14 +956,13 @@ impl ResolvedArtifactSelections {
 /// Resolve the incubator profile path. `--incubator` with no value uses
 /// the default profile for the target; `--incubator <PATH>` overrides.
 pub(crate) fn resolve_incubator(
-    incubator: Option<Option<PathBuf>>,
+    incubator: Option<PathBuf>,
     target: &CommonTriple,
-) -> anyhow::Result<Option<IncubatorProfileNameOrPath>> {
+) -> anyhow::Result<IncubatorProfileNameOrPath> {
     Ok(match incubator {
-        None => None,
-        Some(Some(path)) => Some(IncubatorProfileNameOrPath::Path(path)),
-        Some(None) => Some(IncubatorProfileNameOrPath::Name(
-            flowey_lib_hvlite::build_incubator::default_incubator_profile(&target)
+        Some(path) => IncubatorProfileNameOrPath::Path(path),
+        None => IncubatorProfileNameOrPath::Name(
+            flowey_lib_hvlite::build_incubator::default_incubator_profile(target)
                 .ok_or_else(|| {
                     anyhow::anyhow!(
                         "no default incubator profile for target {}; \
@@ -970,6 +971,6 @@ pub(crate) fn resolve_incubator(
                     )
                 })?
                 .into(),
-        )),
+        ),
     })
 }
