@@ -92,6 +92,7 @@ impl SimpleFlowNode for Node {
         ctx.import::<crate::test_nextest_vmm_tests_archive::Node>();
         ctx.import::<crate::write_incubator_target_runner::Node>();
         ctx.import::<flowey_lib_common::publish_test_results::Node>();
+        ctx.import::<crate::resolve_vmm_tests_pipeline_artifacts::Node>();
     }
 
     fn process_request(request: Self::Request, ctx: &mut NodeCtx<'_>) -> anyhow::Result<()> {
@@ -162,7 +163,9 @@ impl SimpleFlowNode for Node {
                     .expect("nextest_vmm_tests_archive is always required");
                 let incubator = built_artifacts.incubator.take();
                 let prep_steps = built_artifacts.prep_steps.take();
-                let test_igvm_agent_rpc_server = built_artifacts.test_igvm_agent_rpc_server.take();
+                // clone instead of take here since petri expects the test igvm
+                // agent to be present in the test content dir even though it doesn't use it
+                let test_igvm_agent_rpc_server = built_artifacts.test_igvm_agent_rpc_server.clone();
 
                 let initialized = ctx.reqv(|v| crate::init_vmm_tests_content_dir::Request {
                     test_content_dir: test_content_dir.clone(),

@@ -774,9 +774,9 @@ impl IntoPipeline for CheckinGatesCli {
                 pipeline.new_typed_artifact(format!("{arch_tag}-linux-musl-openvmm_vhost"));
             let (pub_prep_steps, use_prep_steps) =
                 pipeline.new_typed_artifact(format!("{arch_tag}-linux-prep_steps"));
-            let (pub_vmm_tests_archive_linux, use_vmm_tests_archive_linux) =
+            let (pub_vmm_tests_archive, use_vmm_tests_archive) =
                 pipeline.new_typed_artifact(format!("{arch_tag}-linux-vmm-tests-archive"));
-            let (pub_vmm_tests_archive_linux_musl, use_vmm_tests_archive_linux_musl) =
+            let (pub_vmm_tests_archive_musl, use_vmm_tests_archive_musl) =
                 pipeline.new_typed_artifact(format!("{arch_tag}-linux-musl-vmm-tests-archive"));
 
             // skim off interesting artifacts required by the VMM tests job
@@ -792,15 +792,15 @@ impl IntoPipeline for CheckinGatesCli {
                     vmm_tests_artifacts_linux_musl_x86.use_prep_steps =
                         Some(use_prep_steps.clone());
                     vmm_tests_artifacts_linux_x86.use_nextest_vmm_tests_archive =
-                        Some(use_vmm_tests_archive_linux.clone());
+                        Some(use_vmm_tests_archive.clone());
                     vmm_tests_artifacts_linux_musl_x86.use_nextest_vmm_tests_archive =
-                        Some(use_vmm_tests_archive_linux_musl.clone());
+                        Some(use_vmm_tests_archive_musl.clone());
                 }
                 CommonArch::Aarch64 => {
                     vmm_tests_artifacts_linux_aarch64_tcg.use_openvmm =
                         Some(use_openvmm_musl.clone());
                     vmm_tests_artifacts_linux_aarch64_tcg.use_nextest_vmm_tests_archive =
-                        Some(use_vmm_tests_archive_linux_musl.clone());
+                        Some(use_vmm_tests_archive_musl.clone());
                 }
             }
 
@@ -937,7 +937,7 @@ impl IntoPipeline for CheckinGatesCli {
                         profile: CommonProfile::from_release(release),
                         prep_steps,
                     }
-                }).publish(pub_vmm_tests_archive_linux, |archive| {
+                }).publish(pub_vmm_tests_archive, |archive| {
                         flowey_lib_hvlite::build_nextest_vmm_tests::Request {
                             target: CommonTriple::Common {
                                 arch,
@@ -948,7 +948,7 @@ impl IntoPipeline for CheckinGatesCli {
                                 archive,
                             ),
                         }
-                    }).publish(pub_vmm_tests_archive_linux_musl, |archive| {
+                    }).publish(pub_vmm_tests_archive_musl, |archive| {
                         flowey_lib_hvlite::build_nextest_vmm_tests::Request {
                             target: CommonTriple::Common {
                                 arch,

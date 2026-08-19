@@ -313,6 +313,11 @@ impl SimpleFlowNode for Node {
                     }
                 }
 
+                if let Some(archive) = nextest_vmm_tests_archive {
+                    let NextestVmmTestsArchive { archive_file } = rt.read(archive);
+                    fs_err::copy(archive_file, test_content_dir.join("vmm_tests.tar.zst"))?;
+                }
+
                 if let Some(openvmm) = openvmm {
                     match rt.read(openvmm) {
                         OpenvmmOutput::WindowsBin { exe, pdb: _ } => {
