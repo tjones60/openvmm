@@ -1,7 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-//! A local-only job that builds everything needed and runs the VMM tests
+//! A local-only job that runs the VMM tests out of a directory populated
+//! by local_build_and_run_nextest_vmm_tests with the build_only option.
 
 use crate::_jobs::consume_and_test_nextest_vmm_tests_archive::TestContentConfig;
 use crate::_jobs::local_build_and_run_nextest_vmm_tests::build_test_label;

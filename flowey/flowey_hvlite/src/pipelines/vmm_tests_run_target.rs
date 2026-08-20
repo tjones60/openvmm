@@ -84,7 +84,7 @@ pub struct VmmTestsRunTargetCli {
 impl IntoPipeline for VmmTestsRunTargetCli {
     fn into_pipeline(self, backend_hint: PipelineBackendHint) -> anyhow::Result<Pipeline> {
         if !matches!(backend_hint, PipelineBackendHint::Local) {
-            anyhow::bail!("vmm-tests-run is for local use only")
+            anyhow::bail!("vmm-tests-run-target is for local use only")
         }
 
         let Self {
