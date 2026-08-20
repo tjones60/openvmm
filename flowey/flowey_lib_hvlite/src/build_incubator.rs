@@ -88,6 +88,17 @@ impl IncubatorProfileNameOrPath {
     }
 }
 
+impl std::fmt::Display for IncubatorProfileNameOrPath {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            IncubatorProfileNameOrPath::Name(name) => f.write_str(name),
+            IncubatorProfileNameOrPath::Path(path) => {
+                f.write_str(&path.to_string_lossy().to_string())
+            }
+        }
+    }
+}
+
 pub fn incubator_profile_dir() -> PathBuf {
     PathBuf::new()
         .join("petri")

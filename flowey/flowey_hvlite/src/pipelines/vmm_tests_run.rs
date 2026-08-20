@@ -960,6 +960,10 @@ pub(crate) fn resolve_incubator(
     target: &CommonTriple,
 ) -> anyhow::Result<IncubatorProfileNameOrPath> {
     Ok(match incubator {
+        // If no separators or extension, assume it is a profile name
+        Some(path) if path.components().count() == 1 && path.extension().is_none() => {
+            IncubatorProfileNameOrPath::Name(path.to_string_lossy().to_string())
+        }
         Some(path) => IncubatorProfileNameOrPath::Path(path),
         None => IncubatorProfileNameOrPath::Name(
             flowey_lib_hvlite::build_incubator::default_incubator_profile(target)

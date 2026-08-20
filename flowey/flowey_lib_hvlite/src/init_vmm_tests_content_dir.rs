@@ -3,6 +3,7 @@
 
 //! Setup directory structure that the VMM tests require to run.
 
+use crate::build_flowey_hvlite::FloweyHvliteOutput;
 use crate::build_guest_test_uefi::GuestTestUefiOutput;
 use crate::build_incubator::IncubatorOutput;
 use crate::build_incubator::incubator_profile_dir;
@@ -24,6 +25,7 @@ use flowey::node::prelude::*;
 #[derive(Serialize, Deserialize, Default)]
 pub struct VmmTestsBuiltArtifacts {
     // artifacts used at the pipeline level
+    pub flowey_hvlite: Option<ReadVar<FloweyHvliteOutput>>,
     pub nextest_vmm_tests_archive: Option<ReadVar<NextestVmmTestsArchive>>,
     pub incubator: Option<ReadVar<IncubatorOutput>>,
     pub prep_steps: Option<ReadVar<PrepStepsOutput>>,
@@ -177,6 +179,7 @@ impl SimpleFlowNode for Node {
         };
 
         let VmmTestsBuiltArtifacts {
+            flowey_hvlite,
             nextest_vmm_tests_archive,
             incubator,
             prep_steps,
@@ -216,6 +219,7 @@ impl SimpleFlowNode for Node {
                     test_content_dir,
                     openvmm_repo_path,
                     // built artifacts - pipeline
+                    flowey_hvlite,
                     nextest_vmm_tests_archive,
                     incubator,
                     prep_steps,
@@ -309,6 +313,19 @@ impl SimpleFlowNode for Node {
                                     .join(profile.file_name().context("no file name")?);
                                 fs_err::copy(profile, dst)?;
                             }
+                        }
+                    }
+                }
+
+                if let Some(flowey_hvlite) = flowey_hvlite {
+                    match rt.read(flowey_hvlite) {
+                        FloweyHvliteOutput::WindowsBin { exe, .. } => {
+                            fs_err::copy(exe, test_content_dir.join("flowey_hvlite.exe"))?;
+                        }
+                        FloweyHvliteOutput::LinuxBin { bin, .. } => {
+                            let dst = test_content_dir.join("flowey_hvlite");
+                            fs_err::copy(bin, &dst)?;
+                            dst.make_executable()?;
                         }
                     }
                 }

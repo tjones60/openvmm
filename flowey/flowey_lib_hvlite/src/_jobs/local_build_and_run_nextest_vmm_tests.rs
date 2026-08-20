@@ -20,6 +20,8 @@ use crate::init_vmm_tests_env::PetriParams;
 use crate::install_vmm_tests_external_deps::VmmTestsExternalDeps;
 use flowey::node::prelude::*;
 use std::collections::BTreeSet;
+use std::ffi::OsStr;
+use std::ffi::OsString;
 use std::num::NonZeroU64;
 use vmm_test_images::KnownTestArtifacts;
 
@@ -130,6 +132,7 @@ impl SimpleFlowNode for Node {
         ctx.import::<crate::build_vmgstool::Node>();
         ctx.import::<crate::_jobs::build_and_publish_openhcl_igvm_from_recipe::Node>();
         ctx.import::<crate::_jobs::consume_and_test_nextest_vmm_tests_archive::Node>();
+        ctx.import::<crate::build_flowey_hvlite::Node>();
     }
 
     fn process_request(request: Self::Request, ctx: &mut NodeCtx<'_>) -> anyhow::Result<()> {
@@ -575,41 +578,69 @@ impl SimpleFlowNode for Node {
                 build_mode: crate::build_nextest_vmm_tests::BuildNextestVmmTestsMode::Archive(v),
             });
 
+        let register_flowey_hvlite = build_only.then(|| {
+            let output = ctx.reqv(|v| crate::build_flowey_hvlite::Request {
+                target: target.clone(),
+                flowey_hvlite: v,
+            });
+
+            if copy_extras {
+                copy_to_dir.push((
+                    extras_dir.to_owned(),
+                    output.map(ctx, |x| match x {
+                        crate::build_flowey_hvlite::FloweyHvliteOutput::WindowsBin {
+                            exe: _,
+                            pdb,
+                        } => pdb,
+                        crate::build_flowey_hvlite::FloweyHvliteOutput::LinuxBin {
+                            bin: _,
+                            dbg,
+                        } => dbg,
+                    }),
+                ));
+            }
+            output
+        });
+
         let mut side_effects = Vec::new();
 
-        side_effects.push(
-            ctx.emit_rust_step("copy additional files to test content dir", |ctx| {
-                let copy_to_dir = copy_to_dir
-                    .into_iter()
-                    .map(|(dst, src)| (dst, src.claim(ctx)))
-                    .collect::<Vec<_>>();
-                let test_content_dir = test_content_dir.clone();
+        if !copy_to_dir.is_empty() {
+            side_effects.push(ctx.emit_rust_step(
+                "copy additional files to test content dir",
+                |ctx| {
+                    let copy_to_dir = copy_to_dir
+                        .into_iter()
+                        .map(|(dst, src)| (dst, src.claim(ctx)))
+                        .collect::<Vec<_>>();
+                    let test_content_dir = test_content_dir.clone();
 
-                move |rt| {
-                    for (dst, src) in copy_to_dir {
-                        let src = rt.read(src);
+                    move |rt| {
+                        for (dst, src) in copy_to_dir {
+                            let src = rt.read(src);
 
-                        if let Some(src) = src {
-                            // TODO: specify files names for everything
-                            let dst = if dst.starts_with("extras") {
-                                test_content_dir
-                                    .join(dst)
-                                    .join(src.file_name().context("no file name")?)
-                            } else {
-                                test_content_dir.join(dst)
-                            };
+                            if let Some(src) = src {
+                                // TODO: specify files names for everything
+                                let dst = if dst.starts_with("extras") {
+                                    test_content_dir
+                                        .join(dst)
+                                        .join(src.file_name().context("no file name")?)
+                                } else {
+                                    test_content_dir.join(dst)
+                                };
 
-                            fs_err::create_dir_all(dst.parent().context("no parent")?)?;
-                            fs_err::copy(src, dst)?;
+                                fs_err::create_dir_all(dst.parent().context("no parent")?)?;
+                                fs_err::copy(src, dst)?;
+                            }
                         }
-                    }
 
-                    Ok(())
-                }
-            }),
-        );
+                        Ok(())
+                    }
+                },
+            ));
+        }
 
         let built_artifacts = VmmTestsBuiltArtifacts {
+            flowey_hvlite: register_flowey_hvlite,
             nextest_vmm_tests_archive: Some(register_vmm_tests_nextest_archive),
             incubator: register_incubator,
             prep_steps: register_prep_steps,
@@ -634,16 +665,103 @@ impl SimpleFlowNode for Node {
 
         if build_only {
             side_effects.push(ctx.reqv(|v| crate::init_vmm_tests_content_dir::Request {
-                test_content_dir: ReadVar::from_static(test_content_dir),
-                vmm_tests_target: target_triple,
+                test_content_dir: ReadVar::from_static(test_content_dir.clone()),
+                vmm_tests_target: target_triple.clone(),
                 built_artifacts,
                 is_repo_root: true,
                 needs_release_igvm,
                 done: v,
             }));
-            // TODO: build flowey_hvlite for the target and copy it to the test
-            // dir, then write a script containing a command with all of the
-            // appropriate command line arguments for `vmm_tests_run_target`
+
+            side_effects.push(ctx.emit_rust_step("write script", |_| {
+                move |_| {
+                    let (script_name, flowey_hvlite_bin) = match target_triple.operating_system {
+                        target_lexicon::OperatingSystem::Windows => {
+                            ("run.cmd", ".\\flowey_hvlite.exe")
+                        }
+                        _ => ("run.sh", "./flowey_hvlite"),
+                    };
+
+                    let target_cli = match target {
+                        CommonTriple::AARCH64_WINDOWS_MSVC => "windows-aarch64",
+                        CommonTriple::X86_64_WINDOWS_MSVC => "windows-x64",
+                        CommonTriple::X86_64_LINUX_GNU => "linux-x64",
+                        CommonTriple::AARCH64_LINUX_MUSL => "linux-aarch64-musl",
+                        _ => unreachable!(),
+                    };
+
+                    let mut run_target_args: Vec<OsString> = vec![
+                        flowey_hvlite_bin.into(),
+                        "pipeline".into(),
+                        "run".into(),
+                        "vmm-tests-run-target".into(),
+                        "--target".into(),
+                        target_cli.into(),
+                        "--dir".into(),
+                        ".".into(),
+                        "--filter".into(),
+                        nextest_filter_expr.into(),
+                        "--install-missing-deps".into(),
+                        "--repetitions".into(),
+                        repetitions.get().to_string().into(),
+                    ];
+
+                    if !downloaded_artifacts.is_empty() {
+                        run_target_args.push("--artifacts".into());
+                        run_target_args.push(
+                            downloaded_artifacts
+                                .iter()
+                                .map(|a| a.name())
+                                .collect::<Vec<_>>()
+                                .join(",")
+                                .into(),
+                        );
+                    }
+
+                    if !prep_steps_variants.is_empty() {
+                        run_target_args.push("--prep-steps".into());
+                        run_target_args.push(prep_steps_variants.join(",").into());
+                    }
+
+                    if skip_vhd_prompt {
+                        run_target_args.push("--skip-vhd-prompt".into());
+                    }
+
+                    if matches!(
+                        nextest_profile,
+                        crate::run_cargo_nextest_run::NextestProfile::Ci
+                    ) {
+                        run_target_args.push("--ci-profile".into());
+                    }
+
+                    if !petri_params.reuse_prepped_vhds {
+                        run_target_args.push("--no-reuse-prepped-vhds".into());
+                    }
+
+                    if matches!(
+                        external_deps,
+                        VmmTestsExternalDeps::Windows(ref deps) if deps.hardware_isolation
+                    ) {
+                        run_target_args.push("--needs-hardware-isolation".into());
+                    }
+
+                    if build.test_igvm_agent_rpc_server {
+                        run_target_args.push("--needs-igvm-agent".into());
+                    }
+
+                    if let Some(profile) = &incubator_profile {
+                        run_target_args.push("--incubator".into());
+                        run_target_args.push(profile.to_string().into());
+                    }
+
+                    fs_err::write(
+                        test_content_dir.join(script_name),
+                        run_target_args.join(OsStr::new(" ")).as_encoded_bytes(),
+                    )?;
+
+                    Ok(())
+                }
+            }));
         } else {
             init_artifacts_dir(ctx, &test_content_dir, skip_vhd_prompt)?;
 
