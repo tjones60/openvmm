@@ -42,7 +42,7 @@ pub struct VmmTestsExternalDepsLinux {
 }
 
 flowey_config! {
-    /// Config for the install_vmm_tests_deps node.
+    /// Config for the install_vmm_tests_external_deps node.
     pub struct Config {
         /// Specify the necessary dependencies
         pub selections: Option<VmmTestsExternalDeps>,

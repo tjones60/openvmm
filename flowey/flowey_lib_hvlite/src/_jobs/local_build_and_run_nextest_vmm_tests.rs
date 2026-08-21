@@ -664,22 +664,31 @@ impl SimpleFlowNode for Node {
         };
 
         if build_only {
-            side_effects.push(ctx.reqv(|v| crate::init_vmm_tests_content_dir::Request {
+            let initialized = ctx.reqv(|v| crate::init_vmm_tests_content_dir::Request {
                 test_content_dir: ReadVar::from_static(test_content_dir.clone()),
                 vmm_tests_target: target_triple.clone(),
                 built_artifacts,
                 is_repo_root: true,
                 needs_release_igvm,
                 done: v,
-            }));
+            });
 
-            side_effects.push(ctx.emit_rust_step("write script", |_| {
-                move |_| {
-                    let (script_name, flowey_hvlite_bin) = match target_triple.operating_system {
+            side_effects.push(initialized.clone());
+
+            side_effects.push(ctx.emit_rust_step("write script", |ctx| {
+                // place this job at the end so the log is visible for convenience
+                initialized.claim(ctx);
+                move |rt| {
+                    let (script_name, dir, flowey_hvlite_bin) = match target_triple.operating_system
+                    {
                         target_lexicon::OperatingSystem::Windows => {
-                            ("run.cmd", ".\\flowey_hvlite.exe")
+                            ("run.ps1", "$PSScriptRoot", ".\\flowey_hvlite.exe")
                         }
-                        _ => ("run.sh", "./flowey_hvlite"),
+                        _ => (
+                            "run.sh",
+                            "\"$(dirname \"${BASH_SOURCE[0]}\")\"",
+                            "./flowey_hvlite",
+                        ),
                     };
 
                     let target_cli = match target {
@@ -691,6 +700,9 @@ impl SimpleFlowNode for Node {
                     };
 
                     let mut run_target_args: Vec<OsString> = vec![
+                        "cd".into(),
+                        dir.into(),
+                        ";".into(),
                         flowey_hvlite_bin.into(),
                         "pipeline".into(),
                         "run".into(),
@@ -700,8 +712,7 @@ impl SimpleFlowNode for Node {
                         "--dir".into(),
                         ".".into(),
                         "--filter".into(),
-                        nextest_filter_expr.into(),
-                        "--install-missing-deps".into(),
+                        format!("'{nextest_filter_expr}'").into(),
                         "--repetitions".into(),
                         repetitions.get().to_string().into(),
                     ];
@@ -754,10 +765,29 @@ impl SimpleFlowNode for Node {
                         run_target_args.push(profile.to_string().into());
                     }
 
+                    let dst = test_content_dir.join(script_name);
+
                     fs_err::write(
-                        test_content_dir.join(script_name),
+                        &dst,
                         run_target_args.join(OsStr::new(" ")).as_encoded_bytes(),
                     )?;
+                    dst.make_executable()?;
+
+                    match target_triple.operating_system {
+                        target_lexicon::OperatingSystem::Windows => {
+                            let dst = if flowey_lib_common::_util::running_in_wsl(rt) {
+                                flowey_lib_common::_util::wslpath::linux_to_win(rt, dst)
+                                    .to_string_lossy()
+                                    .replace("\\", "\\\\")
+                            } else {
+                                dst.to_string_lossy().to_string()
+                            };
+                            log::info!("Run the vmm tests with: powershell.exe {dst}");
+                        }
+                        _ => {
+                            log::info!("Run the vmm tests with: {}", dst.display());
+                        }
+                    }
 
                     Ok(())
                 }
