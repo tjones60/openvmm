@@ -106,13 +106,19 @@ impl FlowNodeWithConfig for Node {
             move |rt| {
                 let output_folder = if let Some(dir) = custom_cache_dir {
                     dir
-                } else if let Some(dir) = std::env::var_os("VMM_TEST_IMAGES") {
+                } else if let Some(dir) =
+                    std::env::var_os("VMM_TEST_IMAGES").and_then(|v| (!v.is_empty()).then_some(v))
+                {
                     PathBuf::from(dir)
                 } else if let Some(dir) = persistent_dir {
                     rt.read(dir)
                 } else {
                     std::env::current_dir()?
                 };
+
+                if output_folder.is_file() {
+                    anyhow::bail!("output dir is a file");
+                }
 
                 if !output_folder.exists() {
                     fs_err::create_dir_all(&output_folder)?;
