@@ -116,13 +116,14 @@ impl FlowNodeWithConfig for Node {
                     std::env::current_dir()?
                 };
 
-                if output_folder.is_file() {
-                    anyhow::bail!("output dir is a file");
+                if output_folder.exists() && !output_folder.is_dir() {
+                    anyhow::bail!(
+                        "output dir path exists but is not a directory: {}",
+                        output_folder.display()
+                    );
                 }
 
-                if !output_folder.exists() {
-                    fs_err::create_dir_all(&output_folder)?;
-                }
+                fs_err::create_dir_all(&output_folder)?;
 
                 rt.write(write_output_folder, &output_folder.absolute()?);
 
