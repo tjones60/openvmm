@@ -37,6 +37,8 @@ impl IntoPipeline for BurnInCli {
             None,
         )?;
 
+        pipeline.gh_set_name("OpenVMM Burn In");
+
         pipeline.inject_all_jobs_with(move |job| {
             job.dep_on(&cfg_common_params)
                 .dep_on(|_| flowey_lib_hvlite::_jobs::cfg_versions::Request::Init)
@@ -63,6 +65,8 @@ impl IntoPipeline for BurnInCli {
             profile: VmmTestsProfile,
         }
 
+        // in the future we will add more burn in tests
+        #[expect(clippy::single_element_loop)]
         for VmmTestJobParams {
             platform,
             arch,
