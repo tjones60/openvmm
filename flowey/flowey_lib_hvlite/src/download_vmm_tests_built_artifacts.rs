@@ -62,7 +62,7 @@ impl SimpleFlowNode for Node {
             },
         );
 
-        let arch_tag = match target.common_arch().unwrap() {
+        let arch_tag = match target.common_arch().expect("unsupported arch") {
             CommonArch::X86_64 => "x64",
             CommonArch::Aarch64 => "aarch64",
         };
@@ -171,7 +171,7 @@ impl SimpleFlowNode for Node {
         if let Some(openhcl_standard_dev) = openhcl_standard_dev {
             download_artifact(
                 ctx,
-                format!("{arch_tag}-devkern-openhcl-igvm"),
+                format!("{arch_tag}-openhcl-igvm-devkern"),
                 run_id.clone(),
                 openhcl_standard_dev,
             );
@@ -180,7 +180,7 @@ impl SimpleFlowNode for Node {
         if let Some(openhcl_cvm) = openhcl_cvm {
             download_artifact(
                 ctx,
-                format!("{arch_tag}-cvm-openhcl-igvm"),
+                format!("{arch_tag}-openhcl-igvm-cvm"),
                 run_id.clone(),
                 openhcl_cvm,
             );
@@ -189,7 +189,7 @@ impl SimpleFlowNode for Node {
         if let Some(openhcl_linux_direct) = openhcl_linux_direct {
             download_artifact(
                 ctx,
-                format!("{arch_tag}-test-linux-direct-openhcl-igvm"),
+                format!("{arch_tag}-openhcl-igvm-test-linux-direct"),
                 run_id.clone(),
                 openhcl_linux_direct,
             );

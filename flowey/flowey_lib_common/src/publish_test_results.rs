@@ -79,7 +79,7 @@ impl FlowNode for Node {
             let artifact_name = format!("{label}-junit-xml");
 
             let should_publish_junit_xml = test_results.map(ctx, move |r| {
-                r.junit_xml.is_some() && (upload_logs_on_success || r.all_tests_passed)
+                r.junit_xml.is_some() && (upload_logs_on_success || !r.all_tests_passed)
             });
 
             match ctx.backend() {
@@ -157,7 +157,7 @@ impl FlowNode for Node {
                     attachment_path
                         .zip(ctx, test_results.clone())
                         .map(ctx, move |(p, r)| {
-                            (upload_logs_on_success || r.all_tests_passed)
+                            (upload_logs_on_success || !r.all_tests_passed)
                                 && p.exists()
                                 && (p.is_file()
                                     || p.read_dir()

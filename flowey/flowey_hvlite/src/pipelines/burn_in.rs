@@ -37,7 +37,12 @@ impl IntoPipeline for BurnInCli {
             None,
         )?;
 
-        pipeline.gh_set_name("OpenVMM Burn In");
+        pipeline
+            .gh_set_name("OpenVMM Burn In")
+            .gh_set_pr_triggers(GhPrTriggers {
+                branches: vec!["main".into(), "release/*".into()],
+                ..GhPrTriggers::new_draftable()
+            });
 
         pipeline.inject_all_jobs_with(move |job| {
             job.dep_on(&cfg_common_params)
