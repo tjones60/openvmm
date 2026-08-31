@@ -2,6 +2,12 @@
 // Licensed under the MIT License.
 
 //! Download pre-built artifacts and run cargo-nextest based VMM tests.
+//
+// Unforunately, this follows a different pattern than the normal VMM tests
+// flow where VmmTestsBuiltArtifacts is constructed at the pipeline level.
+// This is necessary because flowey does not yet support dependencies within
+// a job.
+// TODO: unify these two paths for running VMM tests in CI.
 
 use crate::_jobs::consume_and_test_nextest_vmm_tests_archive::TestContentConfig;
 use crate::common::CommonTriple;
@@ -36,9 +42,17 @@ impl VmmTestsProfile {
             VmmTestsProfile::X64WindowsAll => {
                 let (built_artifacts, built_artifacts_write) =
                     VmmTestsArtifactsBuilderWindowsX86::pair(ctx);
+                let mut nextest_filter_expr = "all()".to_string();
+                // self-hosted runners don't have HvlDeviceHost installed
+                // TODO: configure runners and remove this exclusion
+                nextest_filter_expr.push_str(" & !test(storvsp_nvme_hyperv)");
+                // self-hosted runners don't have a Hyper-V switch configured
+                // TODO: configure runners and remove this exclusion
+                nextest_filter_expr.push_str(" & !test(dio_nic)");
+
                 VmmTestsParameters {
                     target: CommonTriple::X86_64_WINDOWS_MSVC,
-                    nextest_filter_expr: "all()".into(),
+                    nextest_filter_expr,
                     built_artifacts,
                     built_artifacts_write,
                     downloaded_artifacts: vec![
@@ -116,7 +130,7 @@ impl SimpleFlowNode for Node {
                 test_content_config: TestContentConfig::Uninitialized {
                     test_content_dir: None,
                     built_artifacts,
-                    needs_release_igvm: true,
+                    needs_release_igvm: true, // TODO
                 },
                 downloaded_artifacts,
                 prep_steps_variants,
@@ -125,6 +139,7 @@ impl SimpleFlowNode for Node {
                 upload_logs_on_success: false,
                 fail_job_on_test_fail: true,
                 repetitions,
+                // TODO
                 petri_params: PetriParams {
                     disable_remote_artifacts: true,
                     reuse_prepped_vhds: false,

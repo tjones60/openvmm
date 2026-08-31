@@ -334,7 +334,7 @@ impl SimpleFlowNode for Node {
         // invocation) so that there are not duplicate flowey steps for this.
         let nextest_bin = ctx.reqv(|v| {
             flowey_lib_common::download_cargo_nextest::Request::Get(
-                ReadVar::from_static(target.clone()),
+                ReadVar::from_static(target_lexicon::Triple::host()),
                 v,
             )
         });

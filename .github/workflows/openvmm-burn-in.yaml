@@ -20,6 +20,8 @@ on:
     - synchronize
     - reopened
     - ready_for_review
+  schedule:
+  - cron: 0 19 * * 1-5
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

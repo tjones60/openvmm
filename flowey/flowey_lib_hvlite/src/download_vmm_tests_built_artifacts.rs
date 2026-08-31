@@ -53,6 +53,7 @@ impl SimpleFlowNode for Node {
             target,
         } = request;
 
+        // TODO: make this configurable with pipeline parameters
         let run_id = ctx.reqv(
             |v| flowey_lib_common::gh_latest_completed_workflow_id::Request {
                 repo: "microsoft/openvmm".into(),
