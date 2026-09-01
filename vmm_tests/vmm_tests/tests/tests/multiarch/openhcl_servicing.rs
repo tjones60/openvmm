@@ -61,6 +61,7 @@ use storvsp_resources::ScsiControllerHandle;
 use storvsp_resources::ScsiDeviceAndPath;
 use storvsp_resources::ScsiPath;
 use vm_resource::IntoResource;
+use vmgs_resources::GuestStateEncryptionPolicy;
 use vmm_test_macros::openvmm_test;
 use vmm_test_macros::vmm_test;
 use zerocopy::IntoBytes;
@@ -382,6 +383,61 @@ async fn servicing_downgrade<T: PetriVmmBackend>(
         config
             .with_custom_openhcl(from_igvm)
             .with_guest_state_lifetime(PetriGuestStateLifetime::Disk),
+        to_igvm,
+        flags,
+        DEFAULT_SERVICING_COUNT,
+    )
+    .await
+}
+
+/// Upgrade a VM with encryption enabled
+#[openvmm_test(
+    openvmm_openhcl_uefi_x64(vhd(ubuntu_2504_server_x64))[LATEST_STANDARD_X64, LATEST_RELEASE_STANDARD_X64],
+)]
+async fn tpm_encryption_servicing_upgrade<T: PetriVmmBackend>(
+    config: PetriVmBuilder<T>,
+    (to_igvm, from_igvm): (
+        ResolvedArtifact<impl petri_artifacts_common::tags::IsOpenhclIgvm>,
+        ResolvedArtifact<impl petri_artifacts_common::tags::IsOpenhclIgvm>,
+    ),
+) -> anyhow::Result<()> {
+    let mut flags = config.default_servicing_flags();
+    flags.enable_mana_keepalive = false; // MANA keepalive not supported until current main 
+    openhcl_servicing_core(
+        config
+            .with_custom_openhcl(from_igvm)
+            .with_tpm(true)
+            .with_tpm_state_persistence(true)
+            .with_guest_state_lifetime(PetriGuestStateLifetime::Disk)
+            .with_guest_state_encryption(GuestStateEncryptionPolicy::GspById(true)),
+        to_igvm,
+        flags,
+        DEFAULT_SERVICING_COUNT,
+    )
+    .await
+}
+
+/// Downgrade a VM with encryption enabled
+#[openvmm_test(
+    openvmm_openhcl_uefi_x64(vhd(ubuntu_2504_server_x64))[LATEST_STANDARD_X64, LATEST_RELEASE_STANDARD_X64],
+)]
+async fn tpm_encryption_servicing_downgrade<T: PetriVmmBackend>(
+    config: PetriVmBuilder<T>,
+    (from_igvm, to_igvm): (
+        ResolvedArtifact<impl petri_artifacts_common::tags::IsOpenhclIgvm>,
+        ResolvedArtifact<impl petri_artifacts_common::tags::IsOpenhclIgvm>,
+    ),
+) -> anyhow::Result<()> {
+    let mut flags = config.default_servicing_flags();
+    flags.enable_nvme_keepalive = false; // NVMe keepalive not supported in 2505 release
+    flags.enable_mana_keepalive = false; // MANA keepalive not supported until current main
+    openhcl_servicing_core(
+        config
+            .with_custom_openhcl(from_igvm)
+            .with_tpm(true)
+            .with_tpm_state_persistence(true)
+            .with_guest_state_lifetime(PetriGuestStateLifetime::Disk)
+            .with_guest_state_encryption(GuestStateEncryptionPolicy::GspById(true)),
         to_igvm,
         flags,
         DEFAULT_SERVICING_COUNT,
