@@ -41,11 +41,6 @@ impl IntoPipeline for BurnInCli {
             .gh_set_name("OpenVMM Burn In")
             .gh_add_schedule_trigger(GhScheduleTriggers {
                 cron: "0 19 * * 1-5".into(),
-            })
-            // remove before merge
-            .gh_set_pr_triggers(GhPrTriggers {
-                branches: vec!["main".into(), "release/*".into()],
-                ..GhPrTriggers::new_draftable()
             });
 
         pipeline.inject_all_jobs_with(move |job| {
@@ -96,8 +91,7 @@ impl IntoPipeline for BurnInCli {
                     flowey_lib_hvlite::_jobs::download_and_run_nextest_vmm_tests::Params {
                         label: label.into(),
                         profile,
-                        // change to 25 before merge
-                        repetitions: std::num::NonZeroU64::new(3).unwrap(),
+                        repetitions: std::num::NonZeroU64::new(25).unwrap(),
                         done: ctx.new_done_handle(),
                     }
                 })
