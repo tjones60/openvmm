@@ -20,9 +20,9 @@ impl IntoPipeline for BurnInCli {
         let mut pipeline = Pipeline::new();
 
         let openvmm_repo_source = match backend_hint {
-            PipelineBackendHint::Local => todo!("local"),
+            PipelineBackendHint::Local => anyhow::bail!("local backend unsupported"),
             PipelineBackendHint::Github => RepoSource::GithubSelf,
-            PipelineBackendHint::Ado => panic!("ado unsupported"),
+            PipelineBackendHint::Ado => anyhow::bail!("ado backend unsupported"),
         };
 
         if let RepoSource::GithubSelf = &openvmm_repo_source {

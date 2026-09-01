@@ -3,7 +3,7 @@
 
 //! Download pre-built artifacts and run cargo-nextest based VMM tests.
 //
-// Unforunately, this follows a different pattern than the normal VMM tests
+// Unfortunately, this follows a different pattern than the normal VMM tests
 // flow where VmmTestsBuiltArtifacts is constructed at the pipeline level.
 // This is necessary because flowey does not yet support dependencies within
 // a job.

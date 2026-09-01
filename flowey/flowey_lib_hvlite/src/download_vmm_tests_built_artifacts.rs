@@ -63,7 +63,7 @@ impl SimpleFlowNode for Node {
             },
         );
 
-        let arch_tag = match target.common_arch().expect("unsupported arch") {
+        let arch_tag = match target.common_arch()? {
             CommonArch::X86_64 => "x64",
             CommonArch::Aarch64 => "aarch64",
         };
