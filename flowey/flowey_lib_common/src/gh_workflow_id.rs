@@ -17,37 +17,28 @@ pub struct GithubWorkflow {
     pub commit: String,
 }
 
-/// Common parameters for all workflow queries
 #[derive(Serialize, Deserialize)]
-pub struct WorkflowQueryParams {
-    pub github_commit_hash: ReadVar<String>,
-    pub repo_path: ReadVar<PathBuf>,
-    pub pipeline_name: String,
-    pub gh_workflow: WriteVar<GithubWorkflow>,
-}
-
-/// Basic workflow query with default settings
-#[derive(Serialize, Deserialize)]
-pub struct BasicQuery {
-    #[serde(flatten)]
-    pub params: WorkflowQueryParams,
-}
-
-/// Query with custom status and specific job name
-#[derive(Serialize, Deserialize)]
-pub struct QueryWithStatusAndJob {
-    #[serde(flatten)]
-    pub params: WorkflowQueryParams,
-    pub gh_run_status: GhRunStatus,
-    pub gh_run_job_name: String,
+pub enum GitCommitOrBranch {
+    Commit(ReadVar<String>),
+    Branch(ReadVar<String>),
 }
 
 flowey_request! {
-    pub enum Request {
-        /// Get workflow ID with default settings (success status)
-        Basic(BasicQuery),
-        /// Get workflow ID with custom status and specific job name
-        WithStatusAndJob(QueryWithStatusAndJob),
+    pub struct Request {
+        /// First component of a github repo path
+        pub repo_owner: String,
+        /// Second component of a github repo path
+        pub repo_name: String,
+        /// Commit hash or branch name
+        pub commit_or_branch: GitCommitOrBranch,
+        /// Pipeline name (the .yaml file)
+        pub pipeline_name: String,
+        /// Require that the run have a certain status
+        pub require_run_status: Option<GhRunStatus>,
+        /// Require that a certain job within the run be successful
+        pub require_sucessful_job_with_name: Option<String>,
+        /// Output workflow id and associated commit hash
+        pub gh_workflow: WriteVar<GithubWorkflow>,
     }
 }
 
@@ -62,42 +53,64 @@ impl FlowNode for Node {
 
     fn emit(requests: Vec<Self::Request>, ctx: &mut NodeCtx<'_>) -> anyhow::Result<()> {
         for request in requests {
-            let (params, gh_run_status, gh_run_job_name) = match request {
-                Request::Basic(BasicQuery { params }) => (params, GhRunStatus::Success, None),
-                Request::WithStatusAndJob(QueryWithStatusAndJob {
-                    params,
-                    gh_run_status,
-                    gh_run_job_name,
-                }) => (params, gh_run_status, Some(gh_run_job_name)),
-            };
-
-            let WorkflowQueryParams {
-                github_commit_hash,
-                repo_path,
+            let Request {
+                repo_owner,
+                repo_name,
+                commit_or_branch,
                 pipeline_name,
+                require_run_status,
+                require_sucessful_job_with_name,
                 gh_workflow,
-            } = params;
+            } = request;
 
             let pipeline_name = pipeline_name.clone();
             let gh_cli = ctx.reqv(crate::use_gh_cli::Request::Get);
 
+            let commit_hash = match commit_or_branch {
+                GitCommitOrBranch::Commit(commit) => commit,
+                GitCommitOrBranch::Branch(branch) => {
+                    ctx.emit_rust_stepv("get latest commit by branch", |ctx| {
+                        let branch = branch.claim(ctx);
+                        let gh_cli = gh_cli.clone().claim(ctx);
+                        let repo_owner = repo_owner.clone();
+                        let repo_name = repo_name.clone();
+
+                        move |rt| {
+                            let branch = rt.read(branch);
+                            let gh_cli = rt.read(gh_cli);
+
+                            let commit_hash = flowey::shell_cmd!(
+                                rt,
+                                "{gh_cli} api repos/{repo_owner}/{repo_name}/commits/{branch} --jq .sha"
+                            )
+                            .read()?;
+                            Ok(commit_hash)
+                        }
+                    })
+                }
+            };
+
+            let (run_status_flag, run_status_value) = require_run_status
+                .map(|s| {
+                    (
+                        "-s",
+                        match s {
+                            GhRunStatus::Completed => "completed",
+                            GhRunStatus::Success => "success",
+                        },
+                    )
+                })
+                .unzip();
+
             ctx.emit_rust_step("get action id by commit", |ctx| {
                 let gh_workflow = gh_workflow.claim(ctx);
-                let github_commit_hash = github_commit_hash.claim(ctx);
-                let repo_path = repo_path.claim(ctx);
+                let commit_hash = commit_hash.claim(ctx);
                 let pipeline_name = pipeline_name.clone();
                 let gh_cli = gh_cli.claim(ctx);
 
                 move |rt| {
-                    let mut github_commit_hash = rt.read(github_commit_hash);
-                    let repo_path = rt.read(repo_path);
+                    let mut commit_hash = rt.read(commit_hash);
                     let gh_cli = rt.read(gh_cli);
-                    let gh_run_status = match gh_run_status {
-                        GhRunStatus::Completed => "completed",
-                        GhRunStatus::Success => "success",
-                    };
-
-                    rt.sh.change_dir(repo_path);
 
                     let handle_output = |output: Result<String, xshell::Error>, error_msg: &str| -> Option<String> {
                         match output {
@@ -115,9 +128,10 @@ impl FlowNode for Node {
                         let output = flowey::shell_cmd!(
                             rt,
                             "{gh_cli} run list
+                            -R {repo_owner}/{repo_name}
                             --commit {commit}
                             -w {pipeline_name}
-                            -s {gh_run_status}
+                            {run_status_flag...} {run_status_value...}
                             -L 1
                             --json databaseId
                             --jq .[].databaseId"
@@ -135,6 +149,7 @@ impl FlowNode for Node {
                         let output = flowey::shell_cmd!(
                             rt,
                             "{gh_cli} run view {action_id}
+                            -R {repo_owner}/{repo_name}
                             --json jobs
                             --jq={select}"
                         )
@@ -148,14 +163,14 @@ impl FlowNode for Node {
                         let action_id = get_action_id_for_commit(&commit)?;
 
                         // If a specific job name is required, verify the job exists with correct status
-                        if let Some(job_name) = &gh_run_job_name {
+                        if let Some(job_name) = &require_sucessful_job_with_name {
                             verify_job_exists(&action_id, job_name)?;
                         }
 
                         Some(action_id)
                     };
 
-                    let mut action_id = get_action_id(github_commit_hash.clone());
+                    let mut action_id = get_action_id(commit_hash.clone());
                     let mut loop_count = 0;
 
                     // CI may not have finished the build for the merge base, so loop through commits
@@ -163,16 +178,16 @@ impl FlowNode for Node {
                     while action_id.is_none() {
                         println!(
                             "Unable to get action id for commit {}, trying again",
-                            github_commit_hash
+                            commit_hash
                         );
 
                         if loop_count > 4 {
                             anyhow::bail!("Failed to get action id after 5 attempts");
                         }
 
-                        github_commit_hash =
-                            flowey::shell_cmd!(rt, "git rev-parse {github_commit_hash}^").read()?;
-                        action_id = get_action_id(github_commit_hash.clone());
+                        commit_hash =
+                            flowey::shell_cmd!(rt, "{gh_cli} api repos/{repo_owner}/{repo_name}/commits/{commit_hash} --jq .parents[0].sha").read()?;
+                        action_id = get_action_id(commit_hash.clone());
 
                         loop_count += 1;
                     }
@@ -180,12 +195,12 @@ impl FlowNode for Node {
                     // We have an action id or we would've bailed in the loop above
                     let id = action_id.context("failed to get action id")?;
 
-                    println!("Got action id {id}, commit {github_commit_hash}");
+                    println!("Got action id {id}, commit {commit_hash}");
                     rt.write(
                         gh_workflow,
                         &GithubWorkflow {
                             id,
-                            commit: github_commit_hash,
+                            commit: commit_hash,
                         },
                     );
 
