@@ -3047,8 +3047,7 @@ mod tests {
             .fcbs
             .get(&FileId::BIOS_NVRAM)
             .unwrap()
-            .encryption_key
-            .clone();
+            .encryption_key;
         assert_ne!(bios_nvram_key, VmgsDatastoreKey::new_zeroed());
 
         let metadata_key = vmgs
@@ -3056,8 +3055,7 @@ mod tests {
             .fcbs
             .get(&FileId::EXTENDED_FILE_TABLE)
             .unwrap()
-            .encryption_key
-            .clone();
+            .encryption_key;
         let extended_file_table_data = vmgs
             .read_file_internal(FileId::EXTENDED_FILE_TABLE, true, None)
             .await
