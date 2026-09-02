@@ -63,7 +63,7 @@ impl SimpleFlowNode for Node {
             )),
             pipeline_name: "openvmm-ci.yaml".into(),
             require_run_status: Some(gh_workflow_id::GhRunStatus::Success),
-            require_sucessful_job_with_name: None,
+            require_successful_job_with_name: None,
             gh_workflow: v,
         });
         let run_id = run.map(ctx, |r| r.id);

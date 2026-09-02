@@ -93,7 +93,7 @@ impl SimpleFlowNode for Node {
             commit_or_branch: gh_workflow_id::GitCommitOrBranch::Commit(merge_commit),
             pipeline_name,
             require_run_status: Some(gh_workflow_id::GhRunStatus::Completed),
-            require_sucessful_job_with_name: Some(job_name),
+            require_successful_job_with_name: Some(job_name),
             gh_workflow: v,
         });
 
