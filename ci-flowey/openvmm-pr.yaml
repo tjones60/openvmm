@@ -2012,6 +2012,8 @@ jobs:
       echo "$(FLOWEY_TEMP_DIR)/publish_artifacts/x64-linux-musl-openvmm" | $FLOWEY_BIN v 9 'artifact_publish_from_x64-linux-musl-openvmm' --is-raw-string update
       mkdir -p "$(AgentTempDirNormal)/publish_artifacts/x64-linux-musl-openvmm_vhost"
       echo "$(FLOWEY_TEMP_DIR)/publish_artifacts/x64-linux-musl-openvmm_vhost" | $FLOWEY_BIN v 9 'artifact_publish_from_x64-linux-musl-openvmm_vhost' --is-raw-string update
+      mkdir -p "$(AgentTempDirNormal)/publish_artifacts/x64-linux-musl-vmm-perf-runner"
+      echo "$(FLOWEY_TEMP_DIR)/publish_artifacts/x64-linux-musl-vmm-perf-runner" | $FLOWEY_BIN v 9 'artifact_publish_from_x64-linux-musl-vmm-perf-runner' --is-raw-string update
       mkdir -p "$(AgentTempDirNormal)/publish_artifacts/x64-linux-musl-vmm-tests-archive"
       echo "$(FLOWEY_TEMP_DIR)/publish_artifacts/x64-linux-musl-vmm-tests-archive" | $FLOWEY_BIN v 9 'artifact_publish_from_x64-linux-musl-vmm-tests-archive' --is-raw-string update
       mkdir -p "$(AgentTempDirNormal)/publish_artifacts/x64-linux-ohcldiag-dev"
@@ -2028,6 +2030,8 @@ jobs:
       echo "$(FLOWEY_TEMP_DIR)/publish_artifacts/x64-linux-vmgstool" | $FLOWEY_BIN v 9 'artifact_publish_from_x64-linux-vmgstool' --is-raw-string update
       mkdir -p "$(AgentTempDirNormal)/publish_artifacts/x64-linux-vmgstool-dev"
       echo "$(FLOWEY_TEMP_DIR)/publish_artifacts/x64-linux-vmgstool-dev" | $FLOWEY_BIN v 9 'artifact_publish_from_x64-linux-vmgstool-dev' --is-raw-string update
+      mkdir -p "$(AgentTempDirNormal)/publish_artifacts/x64-linux-vmm-perf-runner"
+      echo "$(FLOWEY_TEMP_DIR)/publish_artifacts/x64-linux-vmm-perf-runner" | $FLOWEY_BIN v 9 'artifact_publish_from_x64-linux-vmm-perf-runner' --is-raw-string update
       mkdir -p "$(AgentTempDirNormal)/publish_artifacts/x64-linux-vmm-tests-archive"
       echo "$(FLOWEY_TEMP_DIR)/publish_artifacts/x64-linux-vmm-tests-archive" | $FLOWEY_BIN v 9 'artifact_publish_from_x64-linux-vmm-tests-archive' --is-raw-string update
     displayName: 🌼🛫 Initialize job
@@ -2179,7 +2183,7 @@ jobs:
       $(FLOWEY_BIN) e 9 flowey_lib_hvlite::run_cargo_build 1
       $(FLOWEY_BIN) e 9 flowey_lib_hvlite::build_igvmfilegen 0
       $(FLOWEY_BIN) e 9 flowey_core::pipeline::artifact::publish 5
-      $(FLOWEY_BIN) e 9 flowey_lib_hvlite::init_cross_build 7
+      $(FLOWEY_BIN) e 9 flowey_lib_hvlite::init_cross_build 8
     displayName: split debug symbols
   - bash: |-
       set -e
@@ -2198,7 +2202,7 @@ jobs:
   - bash: |-
       set -e
       $(FLOWEY_BIN) e 9 flowey_lib_hvlite::init_openvmm_magicpath_openhcl_sysroot 0
-      $(FLOWEY_BIN) e 9 flowey_lib_hvlite::init_cross_build 9
+      $(FLOWEY_BIN) e 9 flowey_lib_hvlite::init_cross_build 10
     displayName: extract X86_64 sysroot.tar.gz
   - bash: |-
       set -e
@@ -2211,7 +2215,7 @@ jobs:
       $(FLOWEY_BIN) e 9 flowey_lib_hvlite::run_cargo_build 7
       $(FLOWEY_BIN) e 9 flowey_lib_hvlite::build_openvmm 1
       $(FLOWEY_BIN) e 9 flowey_core::pipeline::artifact::publish 7
-      $(FLOWEY_BIN) e 9 flowey_lib_hvlite::init_cross_build 10
+      $(FLOWEY_BIN) e 9 flowey_lib_hvlite::init_cross_build 11
     displayName: split debug symbols
   - bash: |-
       set -e
@@ -2224,7 +2228,7 @@ jobs:
       $(FLOWEY_BIN) e 9 flowey_lib_hvlite::run_cargo_build 11
       $(FLOWEY_BIN) e 9 flowey_lib_hvlite::build_openvmm_vhost 1
       $(FLOWEY_BIN) e 9 flowey_core::pipeline::artifact::publish 8
-      $(FLOWEY_BIN) e 9 flowey_lib_hvlite::init_cross_build 11
+      $(FLOWEY_BIN) e 9 flowey_lib_hvlite::init_cross_build 12
     displayName: split debug symbols
   - bash: |-
       set -e
@@ -2276,14 +2280,40 @@ jobs:
       $(FLOWEY_BIN) e 9 flowey_lib_common::run_cargo_nextest_archive 0
       $(FLOWEY_BIN) e 9 flowey_lib_hvlite::build_nextest_vmm_tests 0
       $(FLOWEY_BIN) e 9 flowey_core::pipeline::artifact::publish 10
-      $(FLOWEY_BIN) e 9 flowey_lib_hvlite::init_cross_build 8
+      $(FLOWEY_BIN) e 9 flowey_lib_hvlite::init_cross_build 9
     displayName: build + archive 'vmm_tests' nextests
   - bash: |-
       set -e
       $(FLOWEY_BIN) e 9 flowey_lib_common::run_cargo_nextest_archive 1
       $(FLOWEY_BIN) e 9 flowey_lib_hvlite::build_nextest_vmm_tests 1
       $(FLOWEY_BIN) e 9 flowey_core::pipeline::artifact::publish 11
+      $(FLOWEY_BIN) e 9 flowey_lib_hvlite::init_cross_build 7
     displayName: build + archive 'vmm_tests' nextests
+  - bash: |-
+      set -e
+      $(FLOWEY_BIN) e 9 flowey_lib_common::run_cargo_build 10
+      $(FLOWEY_BIN) e 9 flowey_lib_hvlite::run_cargo_build 19
+    displayName: cargo build vmm_perf
+  - bash: |-
+      set -e
+      $(FLOWEY_BIN) e 9 flowey_lib_hvlite::run_split_debug_info 9
+      $(FLOWEY_BIN) e 9 flowey_lib_hvlite::run_cargo_build 20
+      $(FLOWEY_BIN) e 9 flowey_lib_hvlite::build_vmm_perf 0
+      $(FLOWEY_BIN) e 9 flowey_core::pipeline::artifact::publish 12
+      $(FLOWEY_BIN) e 9 flowey_lib_hvlite::init_cross_build 13
+    displayName: split debug symbols
+  - bash: |-
+      set -e
+      $(FLOWEY_BIN) e 9 flowey_lib_common::run_cargo_build 11
+      $(FLOWEY_BIN) e 9 flowey_lib_hvlite::run_cargo_build 21
+    displayName: cargo build vmm_perf
+  - bash: |-
+      set -e
+      $(FLOWEY_BIN) e 9 flowey_lib_hvlite::run_split_debug_info 10
+      $(FLOWEY_BIN) e 9 flowey_lib_hvlite::run_cargo_build 22
+      $(FLOWEY_BIN) e 9 flowey_lib_hvlite::build_vmm_perf 1
+      $(FLOWEY_BIN) e 9 flowey_core::pipeline::artifact::publish 13
+    displayName: split debug symbols
   - bash: $(FLOWEY_BIN) e 9 flowey_lib_common::cache 3
     displayName: 'validate cache entry: cargo-nextest'
   - bash: $(FLOWEY_BIN) e 9 flowey_lib_common::cache 7
@@ -2297,6 +2327,9 @@ jobs:
   - publish: $(FLOWEY_TEMP_DIR)/publish_artifacts/x64-linux-musl-openvmm_vhost
     displayName: 🌼📦 Publish x64-linux-musl-openvmm_vhost
     artifact: x64-linux-musl-openvmm_vhost
+  - publish: $(FLOWEY_TEMP_DIR)/publish_artifacts/x64-linux-musl-vmm-perf-runner
+    displayName: 🌼📦 Publish x64-linux-musl-vmm-perf-runner
+    artifact: x64-linux-musl-vmm-perf-runner
   - publish: $(FLOWEY_TEMP_DIR)/publish_artifacts/x64-linux-musl-vmm-tests-archive
     displayName: 🌼📦 Publish x64-linux-musl-vmm-tests-archive
     artifact: x64-linux-musl-vmm-tests-archive
@@ -2321,6 +2354,9 @@ jobs:
   - publish: $(FLOWEY_TEMP_DIR)/publish_artifacts/x64-linux-vmgstool-dev
     displayName: 🌼📦 Publish x64-linux-vmgstool-dev
     artifact: x64-linux-vmgstool-dev
+  - publish: $(FLOWEY_TEMP_DIR)/publish_artifacts/x64-linux-vmm-perf-runner
+    displayName: 🌼📦 Publish x64-linux-vmm-perf-runner
+    artifact: x64-linux-vmm-perf-runner
   - publish: $(FLOWEY_TEMP_DIR)/publish_artifacts/x64-linux-vmm-tests-archive
     displayName: 🌼📦 Publish x64-linux-vmm-tests-archive
     artifact: x64-linux-vmm-tests-archive
@@ -2366,6 +2402,8 @@ jobs:
       echo "$(FLOWEY_TEMP_DIR)/publish_artifacts/aarch64-linux-musl-openvmm" | $FLOWEY_BIN v 8 'artifact_publish_from_aarch64-linux-musl-openvmm' --is-raw-string update
       mkdir -p "$(AgentTempDirNormal)/publish_artifacts/aarch64-linux-musl-openvmm_vhost"
       echo "$(FLOWEY_TEMP_DIR)/publish_artifacts/aarch64-linux-musl-openvmm_vhost" | $FLOWEY_BIN v 8 'artifact_publish_from_aarch64-linux-musl-openvmm_vhost' --is-raw-string update
+      mkdir -p "$(AgentTempDirNormal)/publish_artifacts/aarch64-linux-musl-vmm-perf-runner"
+      echo "$(FLOWEY_TEMP_DIR)/publish_artifacts/aarch64-linux-musl-vmm-perf-runner" | $FLOWEY_BIN v 8 'artifact_publish_from_aarch64-linux-musl-vmm-perf-runner' --is-raw-string update
       mkdir -p "$(AgentTempDirNormal)/publish_artifacts/aarch64-linux-musl-vmm-tests-archive"
       echo "$(FLOWEY_TEMP_DIR)/publish_artifacts/aarch64-linux-musl-vmm-tests-archive" | $FLOWEY_BIN v 8 'artifact_publish_from_aarch64-linux-musl-vmm-tests-archive' --is-raw-string update
       mkdir -p "$(AgentTempDirNormal)/publish_artifacts/aarch64-linux-ohcldiag-dev"
@@ -2382,6 +2420,8 @@ jobs:
       echo "$(FLOWEY_TEMP_DIR)/publish_artifacts/aarch64-linux-vmgstool" | $FLOWEY_BIN v 8 'artifact_publish_from_aarch64-linux-vmgstool' --is-raw-string update
       mkdir -p "$(AgentTempDirNormal)/publish_artifacts/aarch64-linux-vmgstool-dev"
       echo "$(FLOWEY_TEMP_DIR)/publish_artifacts/aarch64-linux-vmgstool-dev" | $FLOWEY_BIN v 8 'artifact_publish_from_aarch64-linux-vmgstool-dev' --is-raw-string update
+      mkdir -p "$(AgentTempDirNormal)/publish_artifacts/aarch64-linux-vmm-perf-runner"
+      echo "$(FLOWEY_TEMP_DIR)/publish_artifacts/aarch64-linux-vmm-perf-runner" | $FLOWEY_BIN v 8 'artifact_publish_from_aarch64-linux-vmm-perf-runner' --is-raw-string update
       mkdir -p "$(AgentTempDirNormal)/publish_artifacts/aarch64-linux-vmm-tests-archive"
       echo "$(FLOWEY_TEMP_DIR)/publish_artifacts/aarch64-linux-vmm-tests-archive" | $FLOWEY_BIN v 8 'artifact_publish_from_aarch64-linux-vmm-tests-archive' --is-raw-string update
     displayName: 🌼🛫 Initialize job
@@ -2529,7 +2569,7 @@ jobs:
       $(FLOWEY_BIN) e 8 flowey_lib_hvlite::run_cargo_build 1
       $(FLOWEY_BIN) e 8 flowey_lib_hvlite::build_igvmfilegen 0
       $(FLOWEY_BIN) e 8 flowey_core::pipeline::artifact::publish 5
-      $(FLOWEY_BIN) e 8 flowey_lib_hvlite::init_cross_build 7
+      $(FLOWEY_BIN) e 8 flowey_lib_hvlite::init_cross_build 8
     displayName: split debug symbols
   - bash: |-
       set -e
@@ -2548,7 +2588,7 @@ jobs:
   - bash: |-
       set -e
       $(FLOWEY_BIN) e 8 flowey_lib_hvlite::init_openvmm_magicpath_openhcl_sysroot 0
-      $(FLOWEY_BIN) e 8 flowey_lib_hvlite::init_cross_build 9
+      $(FLOWEY_BIN) e 8 flowey_lib_hvlite::init_cross_build 10
     displayName: extract Aarch64 sysroot.tar.gz
   - bash: |-
       set -e
@@ -2561,7 +2601,7 @@ jobs:
       $(FLOWEY_BIN) e 8 flowey_lib_hvlite::run_cargo_build 7
       $(FLOWEY_BIN) e 8 flowey_lib_hvlite::build_openvmm 1
       $(FLOWEY_BIN) e 8 flowey_core::pipeline::artifact::publish 7
-      $(FLOWEY_BIN) e 8 flowey_lib_hvlite::init_cross_build 10
+      $(FLOWEY_BIN) e 8 flowey_lib_hvlite::init_cross_build 11
     displayName: split debug symbols
   - bash: |-
       set -e
@@ -2574,7 +2614,7 @@ jobs:
       $(FLOWEY_BIN) e 8 flowey_lib_hvlite::run_cargo_build 11
       $(FLOWEY_BIN) e 8 flowey_lib_hvlite::build_openvmm_vhost 1
       $(FLOWEY_BIN) e 8 flowey_core::pipeline::artifact::publish 8
-      $(FLOWEY_BIN) e 8 flowey_lib_hvlite::init_cross_build 11
+      $(FLOWEY_BIN) e 8 flowey_lib_hvlite::init_cross_build 12
     displayName: split debug symbols
   - bash: |-
       set -e
@@ -2626,14 +2666,40 @@ jobs:
       $(FLOWEY_BIN) e 8 flowey_lib_common::run_cargo_nextest_archive 0
       $(FLOWEY_BIN) e 8 flowey_lib_hvlite::build_nextest_vmm_tests 0
       $(FLOWEY_BIN) e 8 flowey_core::pipeline::artifact::publish 10
-      $(FLOWEY_BIN) e 8 flowey_lib_hvlite::init_cross_build 8
+      $(FLOWEY_BIN) e 8 flowey_lib_hvlite::init_cross_build 9
     displayName: build + archive 'vmm_tests' nextests
   - bash: |-
       set -e
       $(FLOWEY_BIN) e 8 flowey_lib_common::run_cargo_nextest_archive 1
       $(FLOWEY_BIN) e 8 flowey_lib_hvlite::build_nextest_vmm_tests 1
       $(FLOWEY_BIN) e 8 flowey_core::pipeline::artifact::publish 11
+      $(FLOWEY_BIN) e 8 flowey_lib_hvlite::init_cross_build 7
     displayName: build + archive 'vmm_tests' nextests
+  - bash: |-
+      set -e
+      $(FLOWEY_BIN) e 8 flowey_lib_common::run_cargo_build 10
+      $(FLOWEY_BIN) e 8 flowey_lib_hvlite::run_cargo_build 19
+    displayName: cargo build vmm_perf
+  - bash: |-
+      set -e
+      $(FLOWEY_BIN) e 8 flowey_lib_hvlite::run_split_debug_info 9
+      $(FLOWEY_BIN) e 8 flowey_lib_hvlite::run_cargo_build 20
+      $(FLOWEY_BIN) e 8 flowey_lib_hvlite::build_vmm_perf 0
+      $(FLOWEY_BIN) e 8 flowey_core::pipeline::artifact::publish 12
+      $(FLOWEY_BIN) e 8 flowey_lib_hvlite::init_cross_build 13
+    displayName: split debug symbols
+  - bash: |-
+      set -e
+      $(FLOWEY_BIN) e 8 flowey_lib_common::run_cargo_build 11
+      $(FLOWEY_BIN) e 8 flowey_lib_hvlite::run_cargo_build 21
+    displayName: cargo build vmm_perf
+  - bash: |-
+      set -e
+      $(FLOWEY_BIN) e 8 flowey_lib_hvlite::run_split_debug_info 10
+      $(FLOWEY_BIN) e 8 flowey_lib_hvlite::run_cargo_build 22
+      $(FLOWEY_BIN) e 8 flowey_lib_hvlite::build_vmm_perf 1
+      $(FLOWEY_BIN) e 8 flowey_core::pipeline::artifact::publish 13
+    displayName: split debug symbols
   - bash: $(FLOWEY_BIN) e 8 flowey_lib_common::cache 3
     displayName: 'validate cache entry: cargo-nextest'
   - bash: $(FLOWEY_BIN) e 8 flowey_lib_common::cache 7
@@ -2647,6 +2713,9 @@ jobs:
   - publish: $(FLOWEY_TEMP_DIR)/publish_artifacts/aarch64-linux-musl-openvmm_vhost
     displayName: 🌼📦 Publish aarch64-linux-musl-openvmm_vhost
     artifact: aarch64-linux-musl-openvmm_vhost
+  - publish: $(FLOWEY_TEMP_DIR)/publish_artifacts/aarch64-linux-musl-vmm-perf-runner
+    displayName: 🌼📦 Publish aarch64-linux-musl-vmm-perf-runner
+    artifact: aarch64-linux-musl-vmm-perf-runner
   - publish: $(FLOWEY_TEMP_DIR)/publish_artifacts/aarch64-linux-musl-vmm-tests-archive
     displayName: 🌼📦 Publish aarch64-linux-musl-vmm-tests-archive
     artifact: aarch64-linux-musl-vmm-tests-archive
@@ -2671,6 +2740,9 @@ jobs:
   - publish: $(FLOWEY_TEMP_DIR)/publish_artifacts/aarch64-linux-vmgstool-dev
     displayName: 🌼📦 Publish aarch64-linux-vmgstool-dev
     artifact: aarch64-linux-vmgstool-dev
+  - publish: $(FLOWEY_TEMP_DIR)/publish_artifacts/aarch64-linux-vmm-perf-runner
+    displayName: 🌼📦 Publish aarch64-linux-vmm-perf-runner
+    artifact: aarch64-linux-vmm-perf-runner
   - publish: $(FLOWEY_TEMP_DIR)/publish_artifacts/aarch64-linux-vmm-tests-archive
     displayName: 🌼📦 Publish aarch64-linux-vmm-tests-archive
     artifact: aarch64-linux-vmm-tests-archive
@@ -5175,6 +5247,9 @@ jobs:
       EOF
       $(FLOWEY_BIN) e 17 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 1
       $(FLOWEY_BIN) e 17 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 2
+      $(FLOWEY_BIN) e 17 flowey_core::pipeline::artifact::resolve 14
+      $(FLOWEY_BIN) e 17 flowey_core::pipeline::artifact::resolve 15
+      $(FLOWEY_BIN) e 17 flowey_core::pipeline::artifact::resolve 13
       $(FLOWEY_BIN) e 17 flowey_core::pipeline::artifact::resolve 3
       $(FLOWEY_BIN) e 17 flowey_core::pipeline::artifact::resolve 11
       $(FLOWEY_BIN) e 17 flowey_core::pipeline::artifact::resolve 4
@@ -5187,9 +5262,6 @@ jobs:
       $(FLOWEY_BIN) e 17 flowey_core::pipeline::artifact::resolve 8
       $(FLOWEY_BIN) e 17 flowey_core::pipeline::artifact::resolve 9
       $(FLOWEY_BIN) e 17 flowey_core::pipeline::artifact::resolve 12
-      $(FLOWEY_BIN) e 17 flowey_core::pipeline::artifact::resolve 14
-      $(FLOWEY_BIN) e 17 flowey_core::pipeline::artifact::resolve 15
-      $(FLOWEY_BIN) e 17 flowey_core::pipeline::artifact::resolve 13
     displayName: remove leftover Hyper-V VMs
   - bash: $(FLOWEY_BIN) e 17 flowey_lib_hvlite::resolve_openvmm_test_initrd 0
     displayName: unpack openvmm-test-initrd archives
