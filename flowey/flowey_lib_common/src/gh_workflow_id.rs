@@ -242,8 +242,6 @@ fn get_action_id_by_commit(
     // We have an action id or we would've bailed in the loop above
     let id = action_id.context("failed to get action id")?;
 
-    println!("Got action id {id}, commit {commit_hash}");
-
     Ok(GithubWorkflow {
         id,
         commit: commit_hash,
