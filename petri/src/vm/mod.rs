@@ -6,6 +6,7 @@
 pub mod hyperv;
 /// OpenVMM VM management
 pub mod openvmm;
+pub mod qemu;
 pub mod vtl2_settings;
 
 use crate::PetriLogSource;
@@ -2350,6 +2351,18 @@ pub trait PetriVmFramebufferAccess: Send + 'static {
     /// returning the dimensions and color type.
     async fn screenshot(&mut self, image: &mut Vec<u8>)
     -> anyhow::Result<Option<VmScreenshotMeta>>;
+}
+
+/// Use this for the associated type if not supported
+pub struct NoPetriVmFramebufferAcces;
+#[async_trait]
+impl PetriVmFramebufferAccess for NoPetriVmFramebufferAcces {
+    async fn screenshot(
+        &mut self,
+        _image: &mut Vec<u8>,
+    ) -> anyhow::Result<Option<VmScreenshotMeta>> {
+        unreachable!()
+    }
 }
 
 /// Common processor topology information for the VM.
