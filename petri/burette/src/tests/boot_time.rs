@@ -111,7 +111,8 @@ impl BootProfile {
         let initrd = pal_async::DefaultPool::run_with(async |driver| {
             let builder = petri::PetriVmBuilder::minimal(params, artifacts, &driver)?;
             builder.prepare_initrd().context("failed to prepare initrd")
-        })?;
+        })?
+        .0; // TODO: use rdinit path
 
         Ok(Some(initrd))
     }
@@ -183,7 +184,8 @@ impl BootTimeTest {
         let initrd = pal_async::DefaultPool::run_with(async |driver| {
             let builder = petri::PetriVmBuilder::minimal(params, artifacts, &driver)?;
             builder.prepare_initrd().context("failed to prepare initrd")
-        })?;
+        })?
+        .0; // TODO: use rdinit path
 
         Ok(Self {
             profile,

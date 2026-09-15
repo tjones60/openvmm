@@ -25,11 +25,13 @@ use flowey_lib_hvlite::common::CommonPlatform;
 use flowey_lib_hvlite::common::CommonProfile;
 use flowey_lib_hvlite::common::CommonTriple;
 use flowey_lib_hvlite::init_vmm_tests_content_dir::ResolveVmmTestsBuiltArtifacts;
+use flowey_lib_hvlite::init_vmm_tests_content_dir::VmmTestsPreBuiltArtifactsSelections;
 use flowey_lib_hvlite::init_vmm_tests_content_dir::vmm_tests_artifact_builders;
 use flowey_lib_hvlite::init_vmm_tests_env::PetriParams;
 use flowey_lib_hvlite::install_vmm_tests_external_deps::VmmTestsExternalDeps;
 use flowey_lib_hvlite::install_vmm_tests_external_deps::VmmTestsExternalDepsLinux;
 use flowey_lib_hvlite::install_vmm_tests_external_deps::VmmTestsExternalDepsWindows;
+use flowey_lib_hvlite::resolve_openvmm_test_linux_kernel::OpenvmmTestKernelFile;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use target_lexicon::Triple;
@@ -400,14 +402,14 @@ impl IntoPipeline for CheckinGatesCli {
                     vmm_tests_artifacts_linux_musl_x86.use_guest_test_uefi =
                         Some(use_guest_test_uefi.clone());
                     vmm_tests_artifacts_linux_musl_x86.use_tmks = Some(use_tmks.clone());
-                    vmm_tests_artifacts_windows_x86.use_pipette_linux_musl =
+                    vmm_tests_artifacts_windows_x86.use_pipette_linux_musl_x64 =
                         Some(use_pipette_linux_musl.clone());
-                    vmm_tests_artifacts_linux_x86.use_pipette_linux_musl =
+                    vmm_tests_artifacts_linux_x86.use_pipette_linux_musl_x64 =
                         Some(use_pipette_linux_musl.clone());
                     vmm_tests_artifacts_linux_x86.use_tmk_vmm = Some(use_tmk_vmm.clone());
                     vmm_tests_artifacts_windows_x86.use_tmk_vmm_linux_musl =
                         Some(use_tmk_vmm.clone());
-                    vmm_tests_artifacts_linux_musl_x86.use_pipette_linux_musl =
+                    vmm_tests_artifacts_linux_musl_x86.use_pipette_linux_musl_x64 =
                         Some(use_pipette_linux_musl.clone());
                     vmm_tests_artifacts_linux_musl_x86.use_tmk_vmm = Some(use_tmk_vmm.clone());
                 }
@@ -415,14 +417,14 @@ impl IntoPipeline for CheckinGatesCli {
                     vmm_tests_artifacts_windows_aarch64.use_guest_test_uefi =
                         Some(use_guest_test_uefi.clone());
                     vmm_tests_artifacts_windows_aarch64.use_tmks = Some(use_tmks.clone());
-                    vmm_tests_artifacts_windows_aarch64.use_pipette_linux_musl =
+                    vmm_tests_artifacts_windows_aarch64.use_pipette_linux_musl_aarch64 =
                         Some(use_pipette_linux_musl.clone());
                     vmm_tests_artifacts_windows_aarch64.use_tmk_vmm_linux_musl =
                         Some(use_tmk_vmm.clone());
                     vmm_tests_artifacts_linux_aarch64_tcg.use_guest_test_uefi =
                         Some(use_guest_test_uefi.clone());
                     vmm_tests_artifacts_linux_aarch64_tcg.use_tmks = Some(use_tmks.clone());
-                    vmm_tests_artifacts_linux_aarch64_tcg.use_pipette_linux_musl =
+                    vmm_tests_artifacts_linux_aarch64_tcg.use_pipette_linux_musl_aarch64 =
                         Some(use_pipette_linux_musl.clone());
                     vmm_tests_artifacts_linux_aarch64_tcg.use_tmk_vmm = Some(use_tmk_vmm.clone());
                 }
@@ -1767,8 +1769,17 @@ impl IntoPipeline for CheckinGatesCli {
                 })
             );
 
-            // TODO: figure out when this is actually needed
-            let needs_release_igvm = !matches!(backend_hint, PipelineBackendHint::Ado);
+            // TODO: figure out when these are actually needed
+            let prebuilt_artifacts = VmmTestsPreBuiltArtifactsSelections {
+                test_linux_initrd: true,
+                test_linux_kernel: true,
+                test_linux_bzimage: OpenvmmTestKernelFile::BzImage
+                    .is_available_for(target.common_arch()?),
+                uefi: true,
+                virtio_win_drivers: true,
+                release_igvm: !matches!(backend_hint, PipelineBackendHint::Ado),
+                qemu_system_aarch64: false,
+            };
 
             vmm_tests_run_job = vmm_tests_run_job.dep_on(|ctx| {
                 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive::Params {
@@ -1779,7 +1790,7 @@ impl IntoPipeline for CheckinGatesCli {
                     test_content_config: TestContentConfig::Uninitialized {
                         test_content_dir: None,
                         built_artifacts: resolve_vmm_tests_artifacts(ctx),
-                        needs_release_igvm,
+                        prebuilt_artifacts,
                     },
                     downloaded_artifacts,
                     prep_steps_variants,
