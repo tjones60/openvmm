@@ -134,8 +134,13 @@ macro_rules! vmm_tests_built_artifacts_builder {
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct VmmTestsPreBuiltArtifactsSelections {
-    pub test_linux_initrd: bool,
-    pub test_linux_kernel: bool,
+    // Specify arch for initrd and kernel here as a hack to bring up qemu support
+    // TODO: have a VmmTestsPreBuiltArtifacts for each target with corresponding
+    // test content sub-dir.
+    pub test_linux_initrd_x64: bool,
+    pub test_linux_kernel_x64: bool,
+    pub test_linux_initrd_aarch64: bool,
+    pub test_linux_kernel_aarch64: bool,
     pub test_linux_bzimage: bool,
     pub uefi: bool,
     pub virtio_win_drivers: bool,
@@ -199,14 +204,27 @@ impl SimpleFlowNode for Node {
 
         let arch = CommonArch::from_architecture(vmm_tests_target.architecture)?;
 
-        let test_linux_initrd = prebuilt_artifacts
-            .test_linux_initrd
-            .then(|| ctx.reqv(|v| crate::resolve_openvmm_test_initrd::Request::Get(arch, v)));
-        let test_linux_kernel = prebuilt_artifacts.test_linux_kernel.then(|| {
+        let test_linux_initrd_x64 = prebuilt_artifacts.test_linux_initrd_x64.then(|| {
+            ctx.reqv(|v| crate::resolve_openvmm_test_initrd::Request::Get(CommonArch::X86_64, v))
+        });
+        let test_linux_initrd_aarch64 = prebuilt_artifacts.test_linux_initrd_x64.then(|| {
+            ctx.reqv(|v| crate::resolve_openvmm_test_initrd::Request::Get(CommonArch::Aarch64, v))
+        });
+        let test_linux_kernel_x64 = prebuilt_artifacts.test_linux_kernel_x64.then(|| {
             ctx.reqv(|v| {
                 crate::resolve_openvmm_test_linux_kernel::Request::Get(
                     crate::resolve_openvmm_test_linux_kernel::OpenvmmTestKernelFile::Kernel,
-                    arch,
+                    CommonArch::X86_64,
+                    crate::resolve_openvmm_test_linux_kernel::DEFAULT_LINUX_TEST_KERNEL_VERSION,
+                    v,
+                )
+            })
+        });
+        let test_linux_kernel_aarch64 = prebuilt_artifacts.test_linux_kernel_aarch64.then(|| {
+            ctx.reqv(|v| {
+                crate::resolve_openvmm_test_linux_kernel::Request::Get(
+                    crate::resolve_openvmm_test_linux_kernel::OpenvmmTestKernelFile::Kernel,
+                    CommonArch::Aarch64,
                     crate::resolve_openvmm_test_linux_kernel::DEFAULT_LINUX_TEST_KERNEL_VERSION,
                     v,
                 )
@@ -314,8 +332,10 @@ impl SimpleFlowNode for Node {
                     tpm_guest_tests_windows,
                     tpm_guest_tests_linux,
                     // downloaded artifacts
-                    test_linux_initrd,
-                    test_linux_kernel,
+                    test_linux_initrd_x64,
+                    test_linux_kernel_x64,
+                    test_linux_initrd_aarch64,
+                    test_linux_kernel_aarch64,
                     test_linux_bzimage,
                     uefi,
                     virtio_win_dir,
@@ -327,13 +347,20 @@ impl SimpleFlowNode for Node {
             done.claim(ctx);
 
             move |rt| {
-                let test_linux_initrd = rt.read(test_linux_initrd);
-                let test_linux_kernel = rt.read(test_linux_kernel);
-                let test_linux_bzimage = test_linux_bzimage.map(|v| rt.read(v));
-                let uefi = rt.read(uefi);
-                let release_igvm_files_dir = rt.read(release_igvm_files);
-                let qemu_system_aarch64 = rt.read(qemu_system_aarch64);
-                let test_content_dir = rt.read(test_content_dir);
+                read_vars!(
+                    rt,
+                    (
+                        test_linux_initrd_x64,
+                        test_linux_kernel_x64,
+                        test_linux_initrd_aarch64,
+                        test_linux_kernel_aarch64,
+                        test_linux_bzimage,
+                        uefi,
+                        release_igvm_files,
+                        qemu_system_aarch64,
+                        test_content_dir
+                    )
+                );
 
                 if !test_content_dir.exists() {
                     fs_err::create_dir_all(&test_content_dir)?
@@ -584,7 +611,7 @@ impl SimpleFlowNode for Node {
                     };
                 }
 
-                if let Some(release_igvm_files) = release_igvm_files_dir {
+                if let Some(release_igvm_files) = release_igvm_files {
                     let latest_release_version = OpenhclReleaseVersion::latest();
 
                     if let Some(src) = &release_igvm_files.openhcl {
@@ -610,21 +637,33 @@ impl SimpleFlowNode for Node {
                     )?;
                 }
 
-                let (arch_dir, kernel_file_name) = match arch {
-                    CommonArch::X86_64 => ("x64", "vmlinux"),
-                    CommonArch::Aarch64 => ("aarch64", "Image"),
+                let arch_dir = match arch {
+                    CommonArch::X86_64 => "x64",
+                    CommonArch::Aarch64 => "aarch64",
                 };
                 fs_err::create_dir_all(test_content_dir.join(arch_dir))?;
-                if let Some(test_linux_initrd) = test_linux_initrd {
+                if let Some(test_linux_initrd_x64) = test_linux_initrd_x64 {
                     fs_err::copy(
-                        test_linux_initrd,
-                        test_content_dir.join(arch_dir).join("initrd"),
+                        test_linux_initrd_x64,
+                        test_content_dir.join("x64").join("initrd"),
                     )?;
                 }
-                if let Some(test_linux_kernel) = test_linux_kernel {
+                if let Some(test_linux_initrd_aarch64) = test_linux_initrd_aarch64 {
                     fs_err::copy(
-                        test_linux_kernel,
-                        test_content_dir.join(arch_dir).join(kernel_file_name),
+                        test_linux_initrd_aarch64,
+                        test_content_dir.join("aarch64").join("initrd"),
+                    )?;
+                }
+                if let Some(test_linux_kernel_x64) = test_linux_kernel_x64 {
+                    fs_err::copy(
+                        test_linux_kernel_x64,
+                        test_content_dir.join("x64").join("vmlinux"),
+                    )?;
+                }
+                if let Some(test_linux_kernel_aarch64) = test_linux_kernel_aarch64 {
+                    fs_err::copy(
+                        test_linux_kernel_aarch64,
+                        test_content_dir.join("aarch64").join("Image"),
                     )?;
                 }
                 if let Some(bzimage_path) = test_linux_bzimage {

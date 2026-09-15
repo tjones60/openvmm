@@ -69,7 +69,7 @@ impl petri_artifacts_core::ResolveTestArtifact for OpenvmmKnownPathsTestArtifact
             _ if id == OPENVMM_VHOST_NATIVE => openvmm_vhost_native_executable_path(),
 
             _ if id == QEMU_SYSTEM_AARCH64 => qemu_system_aarch64_path(),
-            
+
             _ if id == loadable::LINUX_DIRECT_TEST_KERNEL_X64 => linux_direct_x64_test_kernel_path(),
             _ if id == loadable::LINUX_DIRECT_TEST_BZIMAGE_X64 => linux_direct_x64_test_bzimage_path(),
             _ if id == loadable::LINUX_DIRECT_TEST_KERNEL_AARCH64 => linux_direct_arm_image_path(),

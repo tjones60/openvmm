@@ -90,6 +90,7 @@ pub struct OpenVmmPetriBackend {
 impl PetriVmmBackend for OpenVmmPetriBackend {
     type VmmConfig = PetriVmConfigOpenVmm;
     type VmRuntime = PetriVmOpenVmm;
+    const SUPPORTS_VMBUS: bool = true;
 
     fn check_compat(firmware: &Firmware, arch: MachineArch) -> bool {
         arch == MachineArch::host()

@@ -1771,14 +1771,19 @@ impl IntoPipeline for CheckinGatesCli {
 
             // TODO: figure out when these are actually needed
             let prebuilt_artifacts = VmmTestsPreBuiltArtifactsSelections {
-                test_linux_initrd: true,
-                test_linux_kernel: true,
+                test_linux_initrd_x64: true,
+                test_linux_kernel_x64: true,
+                test_linux_initrd_aarch64: true,
+                test_linux_kernel_aarch64: true,
                 test_linux_bzimage: OpenvmmTestKernelFile::BzImage
                     .is_available_for(target.common_arch()?),
                 uefi: true,
                 virtio_win_drivers: true,
                 release_igvm: !matches!(backend_hint, PipelineBackendHint::Ado),
-                qemu_system_aarch64: false,
+                qemu_system_aarch64: matches!(
+                    target.as_triple().operating_system,
+                    target_lexicon::OperatingSystem::Linux
+                ),
             };
 
             vmm_tests_run_job = vmm_tests_run_job.dep_on(|ctx| {
