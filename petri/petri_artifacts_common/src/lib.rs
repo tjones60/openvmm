@@ -45,15 +45,15 @@ pub mod artifacts {
 
     declare_artifacts! {
         /// Pipette windows x86_64 executable
-        PIPETTE_WINDOWS_X64,
+        PIPETTE_WINDOWS_X64("pipette.exe"),
         /// Pipette linux x86_64 executable
-        PIPETTE_LINUX_X64,
+        PIPETTE_LINUX_X64("pipette"),
         /// Pipette windows aarch64 executable
-        PIPETTE_WINDOWS_AARCH64,
+        PIPETTE_WINDOWS_AARCH64("pipette.exe"),
         /// Pipette linux aarch64 executable
-        PIPETTE_LINUX_AARCH64,
+        PIPETTE_LINUX_AARCH64("pipette"),
         /// Directory to put petri test logs in
-        TEST_LOG_DIRECTORY,
+        TEST_LOG_DIRECTORY("test_results"),
     }
 }
 
@@ -179,4 +179,13 @@ pub mod tags {
 
     /// Artifact is a VmgsTool binary
     pub trait IsVmgsTool: ArtifactId {}
+
+    /// Artifact is a bootable test VHD file
+    pub trait IsHostBinary: ArtifactId {
+        /// What [`OsFlavor`] this image boots into.
+        const OS_FLAVOR: OsFlavor;
+
+        /// What [`MachineArch`] this image supports.
+        const ARCH: MachineArch;
+    }
 }
