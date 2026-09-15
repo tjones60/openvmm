@@ -10,8 +10,9 @@ use crate::init_vmm_tests_env::PetriParams;
 use crate::install_vmm_tests_external_deps::VmmTestsExternalDeps;
 use crate::run_cargo_nextest_run::NextestProfile;
 use flowey::node::prelude::*;
+use petri_artifacts_core::ArtifactTarget;
+use petri_artifacts_vmm_test::ErasedVmmTestImage;
 use std::collections::BTreeMap;
-use vmm_test_images::KnownTestArtifacts;
 
 #[expect(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize)]
@@ -31,6 +32,11 @@ pub enum TestContentConfig {
         built_artifacts: VmmTestsBuiltArtifacts,
         /// Artifacts to download that are pre-built as part of OpenVMM deps
         prebuilt_artifacts: VmmTestsPreBuiltArtifactsSelections,
+
+        // TODO: refactor these last to use one artifact per arch so that they can
+        // be part of `VmmTestsPreBuiltArtifactsSelections`.
+        needs_virtio_win_drivers: bool,
+        needs_release_igvm: bool,
     },
 }
 
@@ -47,7 +53,7 @@ flowey_request! {
         /// Information about the test content directory to use for the tests
         pub test_content_config: TestContentConfig,
         /// Test artifacts to download
-        pub downloaded_artifacts: Vec<KnownTestArtifacts>,
+        pub downloaded_artifacts: Vec<ErasedVmmTestImage>,
         /// Which prep_steps variants to run before tests (e.g. "standard", "no-vmbus").
         /// Empty means no prep steps are needed.
         pub prep_steps_variants: Vec<String>,
@@ -158,6 +164,8 @@ impl SimpleFlowNode for Node {
                 test_content_dir,
                 mut built_artifacts,
                 prebuilt_artifacts,
+                needs_virtio_win_drivers,
+                needs_release_igvm,
             } => {
                 // use a test content dir with
                 // - short path name to avoid issues with long paths
@@ -179,24 +187,39 @@ impl SimpleFlowNode for Node {
                 };
 
                 let nextest_vmm_tests_archive = built_artifacts
-                    .nextest_vmm_tests_archive
+                    .nextest_vmm_tests_archive(ArtifactTarget::Triple(target.clone()))?
                     .take()
                     .expect("nextest_vmm_tests_archive is always required");
-                let incubator = built_artifacts.incubator.take();
-                let prep_steps = built_artifacts.prep_steps.take();
+                let incubator = built_artifacts
+                    .incubator(ArtifactTarget::Triple(target.clone()))
+                    .ok()
+                    .map(|a| a.take())
+                    .flatten();
+                let prep_steps = built_artifacts
+                    .prep_steps(ArtifactTarget::Triple(target.clone()))
+                    .ok()
+                    .map(|a| a.take())
+                    .flatten();
                 // clone instead of take here since petri expects the test igvm
                 // agent to be present in the test content dir even though it doesn't use it
-                let test_igvm_agent_rpc_server = built_artifacts.test_igvm_agent_rpc_server.clone();
+                let test_igvm_agent_rpc_server = built_artifacts
+                    .test_igvm_agent_rpc_server(ArtifactTarget::Triple(target.clone()))
+                    .ok()
+                    .map(|a| a.clone())
+                    .flatten();
 
-                let initialized = ctx.reqv(|v| crate::init_vmm_tests_content_dir::Request {
-                    test_content_dir: test_content_dir.clone(),
-                    vmm_tests_target: target.clone(),
-                    built_artifacts,
-                    prebuilt_artifacts,
-                    is_repo_root: test_content_dir_as_repo_root,
-                    needs_incubator_profiles: needs_incubator,
-                    done: v,
-                });
+                let initialized: ReadVar<()> =
+                    ctx.reqv(|v| crate::init_vmm_tests_content_dir::Request {
+                        test_content_dir: test_content_dir.clone(),
+                        vmm_tests_target: target.clone(),
+                        built_artifacts,
+                        prebuilt_artifacts,
+                        is_repo_root: test_content_dir_as_repo_root,
+                        needs_incubator_profiles: needs_incubator,
+                        needs_virtio_win_drivers,
+                        needs_release_igvm,
+                        done: v,
+                    });
 
                 let test_content_dir = test_content_dir.depending_on(ctx, &initialized);
                 pre_run_deps.push(initialized);

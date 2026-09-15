@@ -555,7 +555,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "petri",
- "petri_artifact_resolver_openvmm_known_paths",
+ "petri_artifacts_core",
  "petri_artifacts_vmm_test",
  "tempfile",
  "tracing",
@@ -2343,7 +2343,6 @@ dependencies = [
  "serde",
  "serde_json",
  "target-lexicon",
- "vmm_test_images",
 ]
 
 [[package]]
@@ -2378,6 +2377,9 @@ dependencies = [
  "log",
  "opentmk_disk",
  "paste",
+ "petri_artifacts_common",
+ "petri_artifacts_core",
+ "petri_artifacts_vmm_test",
  "powershell_builder",
  "serde",
  "serde_json",
@@ -2385,7 +2387,6 @@ dependencies = [
  "target-lexicon",
  "tempfile",
  "toml_edit",
- "vmm_test_images",
  "which 8.0.0",
 ]
 
@@ -6674,7 +6675,6 @@ dependencies = [
  "petri_artifacts_common",
  "petri_artifacts_core",
  "petri_artifacts_vmm_test",
- "vmm_test_images",
 ]
 
 [[package]]
@@ -6682,6 +6682,7 @@ name = "petri_artifacts_common"
 version = "0.0.0"
 dependencies = [
  "petri_artifacts_core",
+ "target-lexicon",
 ]
 
 [[package]]
@@ -6689,16 +6690,21 @@ name = "petri_artifacts_core"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "linkme",
  "paste",
  "serde",
+ "target-lexicon",
 ]
 
 [[package]]
 name = "petri_artifacts_vmm_test"
 version = "0.0.0"
 dependencies = [
+ "linkme",
+ "paste",
  "petri_artifacts_common",
  "petri_artifacts_core",
+ "serde",
 ]
 
 [[package]]
@@ -10849,16 +10855,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vmm_test_images"
-version = "0.0.0"
-dependencies = [
- "clap",
- "petri_artifacts_core",
- "petri_artifacts_vmm_test",
- "serde",
-]
-
-[[package]]
 name = "vmm_test_macros"
 version = "0.0.0"
 dependencies = [
@@ -12018,10 +12014,10 @@ dependencies = [
  "ignore",
  "log",
  "object 0.37.3",
+ "petri_artifacts_vmm_test",
  "serde",
  "serde_json",
  "toml_edit",
- "vmm_test_images",
  "walkdir",
  "which 8.0.0",
  "xshell",
