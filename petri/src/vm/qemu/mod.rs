@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+pub mod devices;
+
 use crate::Drive;
 use crate::Firmware;
 use crate::ModifyFn;
@@ -9,6 +11,7 @@ use crate::NoPetriVmInspector;
 use crate::OpenHclServicingFlags;
 use crate::PetriHaltReason;
 use crate::PetriHaltReasonDetail;
+use crate::PetriInitrd;
 use crate::PetriVmConfig;
 use crate::PetriVmResources;
 use crate::PetriVmRuntime;
@@ -20,6 +23,7 @@ use crate::openhcl_diag::OpenHclDiagHandler;
 use crate::vm::PetriVmProperties;
 use anyhow::Context;
 use async_trait::async_trait;
+use devices::DeviceConfig;
 use futures::lock::Mutex;
 use futures_concurrency::future::Race;
 use get_resources::ged::FirmwareEvent;
@@ -49,6 +53,13 @@ pub struct QemuPetriBackend {
     qemu_path: ResolvedArtifact,
 }
 
+/// QEMU-specific emulator configuration.
+#[derive(Debug, Default)]
+pub struct QemuPetriConfig {
+    share_9p: Option<PathBuf>,
+    devices: Vec<DeviceConfig>,
+}
+
 /// Resources needed at runtime for a QEMU Petri VM
 pub struct QemuPetriRuntime {
     driver: DefaultDriver,
@@ -60,8 +71,9 @@ pub struct QemuPetriRuntime {
 
 #[async_trait]
 impl PetriVmmBackend for QemuPetriBackend {
-    type VmmConfig = ();
+    type VmmConfig = QemuPetriConfig;
     type VmRuntime = QemuPetriRuntime;
+    const SUPPORTS_VMBUS: bool = false;
 
     fn check_compat(_firmware: &Firmware, _arch: MachineArch) -> bool {
         // Our QEMU binary is only published for linux at this time
@@ -113,7 +125,7 @@ impl PetriVmmBackend for QemuPetriBackend {
     async fn run(
         self,
         config: PetriVmConfig,
-        _modify_vmm_config: Option<ModifyFn<Self::VmmConfig>>,
+        modify_vmm_config: Option<ModifyFn<Self::VmmConfig>>,
         resources: &PetriVmResources,
         _properties: PetriVmProperties,
     ) -> anyhow::Result<(Self::VmRuntime, PetriVmRuntimeConfig)> {
@@ -123,13 +135,21 @@ impl PetriVmmBackend for QemuPetriBackend {
             prebuilt_initrd,
         } = resources;
 
+        let mut qemu_config = QemuPetriConfig::default();
+        if let Some(f) = modify_vmm_config {
+            qemu_config = f.0(qemu_config);
+        }
+
         let host_pipette_port = pick_free_port().context("failed to find a free port")?;
 
         let mut cmd = build_qemu_command(
             self.qemu_path.get(),
             &config,
+            &qemu_config,
             host_pipette_port,
-            prebuilt_initrd.as_ref().unwrap().as_ref().to_path_buf(),
+            prebuilt_initrd
+                .as_ref()
+                .expect("QEMU requires a prebuilt initrd"),
         )?;
         cmd.stdin(std::process::Stdio::null());
         cmd.stdout(std::process::Stdio::piped());
@@ -175,6 +195,20 @@ impl PetriVmmBackend for QemuPetriBackend {
                 .firmware
                 .into_runtime_config(config.vmbus_storage_controllers),
         ))
+    }
+}
+
+impl QemuPetriConfig {
+    /// Share a directory with the guest via 9p.
+    pub fn with_share_9p(mut self, path: impl AsRef<Path>) -> Self {
+        self.share_9p = Some(path.as_ref().to_path_buf());
+        self
+    }
+
+    /// Add a devices to the emulator configuration.
+    pub fn with_devices(mut self, devices: impl IntoIterator<Item = DeviceConfig>) -> Self {
+        self.devices.extend(devices);
+        self
     }
 }
 
@@ -365,44 +399,60 @@ fn pick_free_port() -> anyhow::Result<u16> {
     Ok(port)
 }
 
+/// First PCI device number (`addr=`) used for extra-device root ports.
+///
+/// QEMU's built-in devices use low device numbers. We start at 16 (0x10)
+/// to avoid collisions. The root port for the i-th extra device has
+/// devfn = `(EXTRA_DEVICE_ADDR_BASE + i) << 3`.
+pub const EXTRA_DEVICE_ADDR_BASE: usize = 16;
+
+/// Mount tag for the host 9P share
+pub const SHARE_9P_MOUNT_TAG: &str = "hostshare";
+
 /// Build the QEMU command line for a TCG launch.
 pub fn build_qemu_command(
     binary: &Path,
     config: &PetriVmConfig,
+    qemu_config: &QemuPetriConfig,
     host_pipette_port: u16,
-    prebuilt_initrd: PathBuf,
+    prebuilt_initrd: &PetriInitrd,
 ) -> anyhow::Result<Command> {
     let mut cmd = Command::new(binary);
 
     cmd.arg("-machine")
         .arg("virt,virtualization=on,iommu=smmuv3,gic-version=3");
     cmd.arg("-cpu").arg("max");
+    // TODO: more complex memory topologies
     cmd.arg("-m")
         .arg((config.memory.startup_bytes / (1024 * 1024)).to_string());
+    // TODO: more complex CPU topologis
     cmd.arg("-smp")
         .arg(config.proc_topology.vp_count.to_string());
     cmd.arg("-nographic");
 
+    let PetriInitrd { path, rdinit_param } = prebuilt_initrd;
+
     match &config.firmware {
         Firmware::LinuxDirect { kernel, .. } => {
             cmd.arg("-kernel").arg(kernel);
-            cmd.arg("-initrd").arg(prebuilt_initrd);
+            cmd.arg("-initrd").arg(path.as_ref());
         }
         _ => anyhow::bail!("qemu backend only supports linux direct"),
     };
 
-    cmd.arg("-append").arg("rdinit=/custom-init.sh"); // TODO: pass in file name
+    cmd.arg("-append").arg(format!("rdinit={rdinit_param}"));
     cmd.arg("-no-reboot");
 
     // 9p: share the host directory into the guest
-    /* TODO
-    cmd.arg("-fsdev").arg(format!(
-        "local,id=fsdev0,path={},security_model=none",
-        share_dir.display()
-    ));
-    cmd.arg("-device")
-        .arg("virtio-9p-pci,fsdev=fsdev0,mount_tag=hostshare");
-    */
+    if let Some(share_dir) = qemu_config.share_9p.as_ref() {
+        cmd.arg("-fsdev").arg(format!(
+            "local,id=fsdev0,path={},security_model=none",
+            share_dir.display()
+        ));
+        cmd.arg("-device").arg(format!(
+            "virtio-9p-pci,fsdev=fsdev0,mount_tag={SHARE_9P_MOUNT_TAG}"
+        ));
+    }
 
     // User-mode networking with port forwarding for pipette TCP
     cmd.arg("-netdev").arg(format!(
@@ -419,8 +469,7 @@ pub fn build_qemu_command(
     // Each device gets its own PCIe root port at a known PCI device number
     // (`addr=`), so the VFIO setup code can find the bridge by its devfn
     // in sysfs and enumerate the child behind it.
-    /* TODO
-    for (i, device) in devices.iter().enumerate() {
+    for (i, device) in qemu_config.devices.iter().enumerate() {
         let rp_id = format!("hosting_rp{i}");
         let addr = EXTRA_DEVICE_ADDR_BASE + i;
         // Each root port needs a unique `slot` within its chassis. QEMU
@@ -435,8 +484,7 @@ pub fn build_qemu_command(
         match device {
             DeviceConfig::VirtioBlk(cfg) => {
                 let node_name = format!("disk{i}");
-                let size_bytes = parse_size(&cfg.size)
-                    .with_context(|| format!("invalid size for device '{}'", cfg.name))?;
+                let size_bytes = cfg.size;
                 cmd.arg("-blockdev")
                     .arg(format!("null-co,node-name={node_name},size={size_bytes}"));
                 cmd.arg("-device")
@@ -449,7 +497,7 @@ pub fn build_qemu_command(
                 // default would clamp them).
                 let mut dev = format!("edu,bus={rp_id}");
                 if let Some(mask) = &cfg.dma_mask {
-                    dev.push_str(&format!(",dma_mask={mask}"));
+                    dev.push_str(&format!(",dma_mask={mask:#x}"));
                 }
                 cmd.arg("-device").arg(dev);
             }
@@ -457,8 +505,7 @@ pub fn build_qemu_command(
                 // BAR2 is a prefetchable, RAM-backed memory window served by a
                 // host memory backend — a valid P2P DMA target BAR.
                 let mem_id = format!("ivshmem_mem{i}");
-                let size_bytes = parse_size(&cfg.size)
-                    .with_context(|| format!("invalid size for device '{}'", cfg.name))?;
+                let size_bytes = cfg.size;
                 cmd.arg("-object")
                     .arg(format!("memory-backend-ram,id={mem_id},size={size_bytes}"));
                 cmd.arg("-device")
@@ -466,7 +513,6 @@ pub fn build_qemu_command(
             }
         }
     }
-    */
 
     Ok(cmd)
 }

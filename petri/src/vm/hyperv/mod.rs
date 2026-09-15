@@ -82,6 +82,7 @@ pub struct HyperVPetriRuntime {
 impl PetriVmmBackend for HyperVPetriBackend {
     type VmmConfig = ();
     type VmRuntime = HyperVPetriRuntime;
+    const SUPPORTS_VMBUS: bool = true;
 
     fn check_compat(firmware: &Firmware, arch: MachineArch) -> bool {
         arch == MachineArch::host()

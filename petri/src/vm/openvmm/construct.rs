@@ -160,7 +160,7 @@ impl PetriVmConfigOpenVmm {
             tpm_config: tpm_config.as_ref(),
             mesh: &mesh,
             openvmm_path,
-            uses_pipette_as_init: properties.uses_pipette_as_init,
+            pipette_rdinit_param: prebuilt_initrd.as_ref().map(|x| x.rdinit_param.clone()),
             enable_serial: properties.enable_serial,
             use_virtio_vsock: properties.use_virtio_vsock,
             no_vmbus: properties.no_vmbus,
@@ -196,10 +196,10 @@ impl PetriVmConfigOpenVmm {
                 let prebuilt = prebuilt_initrd
                     .as_ref()
                     .expect("uses_pipette_as_init requires prebuilt_initrd");
-                let file = std::fs::File::open(prebuilt).with_context(|| {
+                let file = std::fs::File::open(prebuilt.path.as_ref()).with_context(|| {
                     format!(
                         "failed to open prebuilt initrd at {}",
-                        prebuilt.as_ref().display()
+                        prebuilt.path.as_ref().display()
                     )
                 })?;
                 *initrd = Some(file);
@@ -794,7 +794,7 @@ struct PetriVmConfigSetupCore<'a> {
     tpm_config: Option<&'a TpmConfig>,
     mesh: &'a Mesh,
     openvmm_path: &'a ResolvedArtifact,
-    uses_pipette_as_init: bool,
+    pipette_rdinit_param: Option<String>,
     enable_serial: bool,
     use_virtio_vsock: bool,
     no_vmbus: bool,
@@ -846,7 +846,7 @@ impl PetriVmConfigSetupCore<'_> {
             None
         };
 
-        if self.firmware.is_linux_direct() && !self.uses_pipette_as_init {
+        if self.firmware.is_linux_direct() && self.pipette_rdinit_param.is_none() {
             // Non-pipette-as-init Linux direct: create serial1 and a serial
             // agent so we can send shell commands to launch pipette.
             let (serial1_host, serial1) = self.create_serial_stream()?;
@@ -907,11 +907,10 @@ impl PetriVmConfigSetupCore<'_> {
                     .context("Failed to open initrd")?
                     .into();
 
-                let init = if self.uses_pipette_as_init {
-                    "/pipette"
-                } else {
-                    "/bin/sh"
-                };
+                let init = self
+                    .pipette_rdinit_param
+                    .as_ref()
+                    .map_or("/bin/sh", |s| s.as_str());
 
                 let serial_args = if self.enable_serial {
                     format!("{console} debug ")

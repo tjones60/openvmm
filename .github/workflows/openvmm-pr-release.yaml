@@ -1977,11 +1977,8 @@ jobs:
       run: flowey e 15 flowey_lib_common::run_cargo_clippy 7
       shell: bash
     - name: cargo clippy
-      run: flowey e 15 flowey_lib_common::run_cargo_clippy 6
-      shell: bash
-    - name: cargo clippy
       run: |-
-        flowey e 15 flowey_lib_common::run_cargo_clippy 8
+        flowey e 15 flowey_lib_common::run_cargo_clippy 6
         flowey e 15 flowey_lib_hvlite::init_cross_build 0
       shell: bash
     - name: cargo build xtask
@@ -3022,11 +3019,8 @@ jobs:
       run: flowey e 18 flowey_lib_common::run_cargo_clippy 7
       shell: bash
     - name: cargo clippy
-      run: flowey e 18 flowey_lib_common::run_cargo_clippy 6
-      shell: bash
-    - name: cargo clippy
       run: |-
-        flowey e 18 flowey_lib_common::run_cargo_clippy 8
+        flowey e 18 flowey_lib_common::run_cargo_clippy 6
         flowey e 18 flowey_lib_hvlite::init_cross_build 0
       shell: bash
     - name: cargo build xtask
@@ -5134,6 +5128,9 @@ jobs:
         flowey e 24 flowey_lib_common::download_gh_artifact 0
         flowey e 24 flowey_lib_hvlite::download_release_igvm_files_from_gh::resolve 1
       shell: bash
+    - name: unpack QEMU archive
+      run: flowey e 24 flowey_lib_hvlite::resolve_openvmm_qemu 0
+      shell: bash
     - name: setting up vmm_tests content dir
       run: |-
         flowey e 24 flowey_lib_hvlite::init_vmm_tests_content_dir 0
@@ -5460,6 +5457,9 @@ jobs:
       run: |-
         flowey e 25 flowey_lib_common::download_gh_artifact 0
         flowey e 25 flowey_lib_hvlite::download_release_igvm_files_from_gh::resolve 1
+      shell: bash
+    - name: unpack QEMU archive
+      run: flowey e 25 flowey_lib_hvlite::resolve_openvmm_qemu 0
       shell: bash
     - name: setting up vmm_tests content dir
       run: |-

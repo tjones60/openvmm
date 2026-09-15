@@ -417,11 +417,9 @@ jobs:
     displayName: cargo clippy
   - bash: $(FLOWEY_BIN) e 15 flowey_lib_common::run_cargo_clippy 7
     displayName: cargo clippy
-  - bash: $(FLOWEY_BIN) e 15 flowey_lib_common::run_cargo_clippy 6
-    displayName: cargo clippy
   - bash: |-
       set -e
-      $(FLOWEY_BIN) e 15 flowey_lib_common::run_cargo_clippy 8
+      $(FLOWEY_BIN) e 15 flowey_lib_common::run_cargo_clippy 6
       $(FLOWEY_BIN) e 15 flowey_lib_hvlite::init_cross_build 0
     displayName: cargo clippy
   - bash: |-
@@ -4714,6 +4712,8 @@ jobs:
     displayName: unpack mu_msvm package (x64)
   - bash: $(FLOWEY_BIN) e 19 flowey_lib_hvlite::resolve_openvmm_test_virtio_win 0
     displayName: unpack openvmm-test-virtio-win archive
+  - bash: $(FLOWEY_BIN) e 19 flowey_lib_hvlite::resolve_openvmm_qemu 0
+    displayName: unpack QEMU archive
   - bash: |-
       set -e
       $(FLOWEY_BIN) e 19 flowey_lib_hvlite::init_vmm_tests_content_dir 0
