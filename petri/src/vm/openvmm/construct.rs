@@ -137,7 +137,11 @@ impl PetriVmConfigOpenVmm {
 
         tracing::debug!(?firmware, ?arch, "Petri VM firmware configuration");
 
-        let PetriVmResources { driver, log_source } = resources;
+        let PetriVmResources {
+            driver,
+            log_source,
+            prebuilt_initrd,
+        } = resources;
         #[cfg(target_os = "linux")]
         let vhost_vsock_guest_cid = properties.vhost_vsock_guest_cid;
         #[cfg(not(target_os = "linux"))]
@@ -189,12 +193,14 @@ impl PetriVmConfigOpenVmm {
         // prebuilt_initrd is set when uses_pipette_as_init is true.
         if properties.uses_pipette_as_init {
             if let LoadMode::Linux { initrd, .. } = &mut load_mode {
-                let prebuilt = properties
-                    .prebuilt_initrd
+                let prebuilt = prebuilt_initrd
                     .as_ref()
                     .expect("uses_pipette_as_init requires prebuilt_initrd");
                 let file = std::fs::File::open(prebuilt).with_context(|| {
-                    format!("failed to open prebuilt initrd at {}", prebuilt.display())
+                    format!(
+                        "failed to open prebuilt initrd at {}",
+                        prebuilt.as_ref().display()
+                    )
                 })?;
                 *initrd = Some(file);
             }
