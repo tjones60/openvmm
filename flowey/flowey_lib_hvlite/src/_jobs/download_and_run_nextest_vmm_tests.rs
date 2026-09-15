@@ -133,8 +133,10 @@ impl SimpleFlowNode for Node {
                     built_artifacts,
                     prebuilt_artifacts: VmmTestsPreBuiltArtifactsSelections {
                         // TODO: figure out which are actually needed
-                        test_linux_initrd: true,
-                        test_linux_kernel: true,
+                        test_linux_initrd_x64: true,
+                        test_linux_kernel_x64: true,
+                        test_linux_initrd_aarch64: true,
+                        test_linux_kernel_aarch64: true,
                         test_linux_bzimage: true,
                         uefi: true,
                         virtio_win_drivers: true,

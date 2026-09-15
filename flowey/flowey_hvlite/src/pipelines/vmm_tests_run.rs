@@ -854,13 +854,17 @@ impl ResolvedArtifactSelections {
             }
 
             // Loadable firmware artifacts (these come from deps, not built)
-            loadable::LINUX_DIRECT_TEST_KERNEL_X64::GLOBAL_UNIQUE_ID
-            | loadable::LINUX_DIRECT_TEST_KERNEL_AARCH64::GLOBAL_UNIQUE_ID => {
-                self.prebuilt_artifacts.test_linux_kernel = true;
+            loadable::LINUX_DIRECT_TEST_KERNEL_X64::GLOBAL_UNIQUE_ID => {
+                self.prebuilt_artifacts.test_linux_kernel_x64 = true;
             }
-            loadable::LINUX_DIRECT_TEST_INITRD_X64::GLOBAL_UNIQUE_ID
-            | loadable::LINUX_DIRECT_TEST_INITRD_AARCH64::GLOBAL_UNIQUE_ID => {
-                self.prebuilt_artifacts.test_linux_initrd = true;
+            loadable::LINUX_DIRECT_TEST_KERNEL_AARCH64::GLOBAL_UNIQUE_ID => {
+                self.prebuilt_artifacts.test_linux_kernel_aarch64 = true;
+            }
+            loadable::LINUX_DIRECT_TEST_INITRD_X64::GLOBAL_UNIQUE_ID => {
+                self.prebuilt_artifacts.test_linux_initrd_x64 = true;
+            }
+            loadable::LINUX_DIRECT_TEST_INITRD_AARCH64::GLOBAL_UNIQUE_ID => {
+                self.prebuilt_artifacts.test_linux_initrd_aarch64 = true;
             }
             loadable::LINUX_DIRECT_TEST_BZIMAGE_X64::GLOBAL_UNIQUE_ID => {
                 self.prebuilt_artifacts.test_linux_bzimage = true;
