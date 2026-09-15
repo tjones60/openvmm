@@ -5,20 +5,20 @@
 
 #![forbid(unsafe_code)]
 
-pub mod new;
-
 use anyhow::Context;
 use fs_err::PathExt;
 use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_core::ArtifactSource;
 use petri_artifacts_core::AsArtifactHandle;
 use petri_artifacts_core::ErasedArtifactHandle;
+use petri_artifacts_vmm_test::artifacts::QEMU_SYSTEM_AARCH64;
 use std::env::consts::EXE_EXTENSION;
 use std::path::Path;
 use std::path::PathBuf;
 use vmm_test_images::CONTAINER;
 use vmm_test_images::KnownTestArtifacts;
 use vmm_test_images::STORAGE_ACCOUNT;
+use petri_artifacts_core::ArtifactId;
 
 /// Returns the Cargo build profile directory name for cross-compiled
 /// artifacts (e.g., pipette).
@@ -57,8 +57,8 @@ impl petri_artifacts_core::ResolveTestArtifact for OpenvmmKnownPathsTestArtifact
         use petri_artifacts_vmm_test::artifacts::*;
         use petri_artifacts_vmm_test::tags::IsHostedOnHvliteAzureBlobStore;
 
-        match id {
-            _ if id == common::PIPETTE_WINDOWS_X64 => pipette_path(MachineArch::X86_64, PipetteFlavor::Windows),
+        match id.global_unique_id().as_str() {
+            common::PIPETTE_WINDOWS_X64::GLOBAL_UNIQUE_ID => pipette_path(MachineArch::X86_64, PipetteFlavor::Windows),
             _ if id == common::PIPETTE_LINUX_X64 => pipette_path(MachineArch::X86_64, PipetteFlavor::Linux),
             _ if id == common::PIPETTE_WINDOWS_AARCH64 => pipette_path(MachineArch::Aarch64, PipetteFlavor::Windows),
             _ if id == common::PIPETTE_LINUX_AARCH64 => pipette_path(MachineArch::Aarch64, PipetteFlavor::Linux),
@@ -69,8 +69,8 @@ impl petri_artifacts_core::ResolveTestArtifact for OpenvmmKnownPathsTestArtifact
             #[cfg(target_os = "linux")]
             _ if id == OPENVMM_VHOST_NATIVE => openvmm_vhost_native_executable_path(),
 
-            _ if id == QEMU_SYSTEM_AARCH64_LINUX_X64 => qemu_system_aarch64_path(),
-
+            _ if id == QEMU_SYSTEM_AARCH64 => qemu_system_aarch64_path(),
+            
             _ if id == loadable::LINUX_DIRECT_TEST_KERNEL_X64 => linux_direct_x64_test_kernel_path(),
             _ if id == loadable::LINUX_DIRECT_TEST_BZIMAGE_X64 => linux_direct_x64_test_bzimage_path(),
             _ if id == loadable::LINUX_DIRECT_TEST_KERNEL_AARCH64 => linux_direct_arm_image_path(),
@@ -231,7 +231,7 @@ pub fn resolve_bundle_name(id: ErasedArtifactHandle) -> Option<&'static str> {
         } else {
             "openvmm"
         }),
-        _ if id == QEMU_SYSTEM_AARCH64_LINUX_X64 => Some("qemu-system-aarch64"),
+        _ if id == QEMU_SYSTEM_AARCH64 => Some("qemu-system-aarch64"),
         _ if id == loadable::LINUX_DIRECT_TEST_KERNEL_X64 => Some("x64/vmlinux"),
         _ if id == loadable::LINUX_DIRECT_TEST_BZIMAGE_X64 => Some("x64/bzImage"),
         _ if id == loadable::LINUX_DIRECT_TEST_KERNEL_AARCH64 => Some("aarch64/Image"),
@@ -386,10 +386,7 @@ fn openvmm_vhost_native_executable_path() -> anyhow::Result<PathBuf> {
 fn qemu_system_aarch64_path() -> anyhow::Result<PathBuf> {
     get_path(
         ".packages/underhill-deps-private",
-        resolve_bundle_name(
-            petri_artifacts_vmm_test::artifacts::QEMU_SYSTEM_AARCH64_LINUX_X64.erase(),
-        )
-        .unwrap(),
+        resolve_bundle_name(QEMU_SYSTEM_AARCH64.erase()).unwrap(),
         MissingCommand::Restore {
             description: "qemu-system-aarch64",
         },

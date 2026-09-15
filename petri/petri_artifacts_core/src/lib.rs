@@ -55,6 +55,9 @@ pub trait ArtifactId: 'static {
     #[doc(hidden)]
     const SUPPORTS_BLOB_DISK: bool;
 
+    /// Filename to use when writing the artifact to the test content directory.
+    const FILENAME: &'static str;
+
     /// ...in case you decide to flaunt the trait-level docs regarding manually
     /// implementing this trait.
     #[doc(hidden)]
@@ -381,14 +384,14 @@ macro_rules! declare_artifacts {
     (
         $(
             $(#[$doc:meta])*
-            $name:ident
+            $name:ident($filename:literal)
         ),*
         $(,)?
     ) => {
         $crate::declare_artifacts_inner!(
             $(
                 $(#[$doc])*
-                $name(false),
+                $name(false, $filename),
             )*
         );
     };
@@ -400,14 +403,14 @@ macro_rules! declare_blob_artifacts {
     (
         $(
             $(#[$doc:meta])*
-            $name:ident
+            $name:ident($filename:literal)
         ),*
         $(,)?
     ) => {
         $crate::declare_artifacts_inner!(
             $(
                 $(#[$doc])*
-                $name(true),
+                $name(true, $filename),
             )*
         );
     };
@@ -420,7 +423,7 @@ macro_rules! declare_artifacts_inner {
     (
         $(
             $(#[$doc:meta])*
-            $name:ident($supports_blob_disk:literal)
+            $name:ident($supports_blob_disk:literal, $filename:literal)
         ),*
         $(,)?
     ) => {
@@ -440,6 +443,7 @@ macro_rules! declare_artifacts_inner {
                     impl $crate::ArtifactId for super::$name {
                         const GLOBAL_UNIQUE_ID: &'static str = module_path!();
                         const SUPPORTS_BLOB_DISK: bool = $supports_blob_disk;
+                        const FILENAME: &'static str = $filename;
                         fn i_know_what_im_doing_with_this_manual_impl_instead_of_using_the_declare_artifacts_macro() {}
                     }
                 }
