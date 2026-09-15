@@ -125,6 +125,10 @@ impl PetriVmmBackend for OpenVmmPetriBackend {
         Ok(None) // TODO #2403
     }
 
+    fn build_custom_init_script(_pipette_path: &str) -> Option<String> {
+        None
+    }
+
     fn new(resolver: &ArtifactResolver<'_>) -> Self {
         OpenVmmPetriBackend {
             openvmm_path: resolver

@@ -162,6 +162,10 @@ impl PetriVmmBackend for HyperVPetriBackend {
         Ok(Some((crash_disk_path, disk_opener)))
     }
 
+    fn build_custom_init_script(_pipette_path: &str) -> Option<String> {
+        None
+    }
+
     fn new(_resolver: &ArtifactResolver<'_>) -> Self {
         HyperVPetriBackend {}
     }

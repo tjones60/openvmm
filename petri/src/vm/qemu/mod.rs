@@ -1,15 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use crate::Disk;
 use crate::Drive;
 use crate::Firmware;
-use crate::IsolationType;
 use crate::ModifyFn;
 use crate::NoPetriVmFramebufferAcces;
 use crate::NoPetriVmInspector;
 use crate::OpenHclServicingFlags;
-use crate::OpenvmmLogConfig;
 use crate::PetriHaltReason;
 use crate::PetriHaltReasonDetail;
 use crate::PetriVmConfig;
@@ -18,25 +15,21 @@ use crate::PetriVmRuntime;
 use crate::PetriVmRuntimeConfig;
 use crate::PetriVmmBackend;
 use crate::ShutdownKind;
-use crate::UefiConfig;
-use crate::VmbusStorageController;
 use crate::VmmQuirks;
-use crate::kmsg_log_task;
 use crate::openhcl_diag::OpenHclDiagHandler;
 use crate::vm::PetriVmProperties;
-use crate::vm::append_cmdline;
 use anyhow::Context;
 use async_trait::async_trait;
+use futures::lock::Mutex;
 use futures_concurrency::future::Race;
-use futures_concurrency::future::RaceOk;
 use get_resources::ged::FirmwareEvent;
 use guid::Guid;
 use pal_async::DefaultDriver;
 use pal_async::pipe::PolledPipe;
 use pal_async::process::PolledChild;
-use pal_async::socket::PolledSocket;
 use pal_async::task::Spawn;
 use pal_async::task::Task;
+use pal_async::timer::PolledTimer;
 use petri_artifacts_common::tags::GuestQuirksInner;
 use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_core::ArtifactResolver;
@@ -59,9 +52,9 @@ pub struct QemuPetriBackend {
 /// Resources needed at runtime for a QEMU Petri VM
 pub struct QemuPetriRuntime {
     driver: DefaultDriver,
-    qemu_process: PolledChild<std::process::Child>,
+    qemu_process: Arc<Mutex<PolledChild<std::process::Child>>>,
     host_pipette_port: u16,
-    log_stream_tasks: Vec<Task<anyhow::Result<()>>>,
+    log_tasks: Vec<Task<anyhow::Result<()>>>,
     output_dir: PathBuf,
 }
 
@@ -71,7 +64,8 @@ impl PetriVmmBackend for QemuPetriBackend {
     type VmRuntime = QemuPetriRuntime;
 
     fn check_compat(_firmware: &Firmware, _arch: MachineArch) -> bool {
-        true
+        // Our QEMU binary is only published for linux at this time
+        !cfg!(windows)
     }
 
     fn quirks(_firmware: &Firmware) -> (GuestQuirksInner, VmmQuirks) {
@@ -96,10 +90,22 @@ impl PetriVmmBackend for QemuPetriBackend {
         Ok(None)
     }
 
+    fn build_custom_init_script(pipette_path: &str) -> Option<String> {
+        Some(format!(
+            "#!/bin/sh\n\
+            ip link set eth0 up\n\
+            ip addr add 10.0.2.15/24 dev eth0\n\
+            ip route add default via 10.0.2.2\n\
+            echo 'nameserver 10.0.2.3' > /etc/resolv.conf\n\
+            exec '/{}' --transport tcp\n",
+            pipette_path.replace('\'', "'\\''")
+        ))
+    }
+
     fn new(resolver: &ArtifactResolver<'_>) -> Self {
         QemuPetriBackend {
             qemu_path: resolver
-                .require(petri_artifacts_vmm_test::artifacts::OPENVMM_NATIVE) // TODO
+                .require(petri_artifacts_vmm_test::artifacts::QEMU_SYSTEM_AARCH64)
                 .erase(),
         }
     }
@@ -109,21 +115,27 @@ impl PetriVmmBackend for QemuPetriBackend {
         config: PetriVmConfig,
         _modify_vmm_config: Option<ModifyFn<Self::VmmConfig>>,
         resources: &PetriVmResources,
-        properties: PetriVmProperties,
+        _properties: PetriVmProperties,
     ) -> anyhow::Result<(Self::VmRuntime, PetriVmRuntimeConfig)> {
-        let PetriVmResources { driver, log_source } = resources;
+        let PetriVmResources {
+            driver,
+            log_source,
+            prebuilt_initrd,
+        } = resources;
 
         let host_pipette_port = pick_free_port().context("failed to find a free port")?;
-        let machine = match config.arch {
-            MachineArch::Aarch64 => "virt,virtualization=on,iommu=smmuv3,gic-version=3",
-            _ => todo!(),
-        };
-        let mut cmd =
-            build_qemu_command(self.qemu_path.get(), machine, &config, host_pipette_port)?;
+
+        let mut cmd = build_qemu_command(
+            self.qemu_path.get(),
+            &config,
+            host_pipette_port,
+            prebuilt_initrd.as_ref().unwrap().as_ref().to_path_buf(),
+        )?;
         cmd.stdin(std::process::Stdio::null());
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::piped());
 
+        tracing::info!(?cmd, "launching qemu");
         let mut qemu_process = cmd.spawn().context("failed to launch QEMU")?;
         let qemu_stdout = qemu_process.stdout.take().expect("stdout should be piped");
         let qemu_stderr = qemu_process.stderr.take().expect("stderr should be piped");
@@ -131,7 +143,7 @@ impl PetriVmmBackend for QemuPetriBackend {
         let qemu_process = PolledChild::<std::process::Child>::new(driver, qemu_process)
             .context("failed to create PolledChild")?;
 
-        let mut log_stream_tasks = Vec::new();
+        let mut log_tasks = Vec::new();
 
         let qemu_stdout_pipe = PolledPipe::new(driver, child_pipe_to_file(qemu_stdout))
             .context("failed to create polled pipe for qemu stdout")?;
@@ -140,7 +152,7 @@ impl PetriVmmBackend for QemuPetriBackend {
             "qemu_stdout",
             crate::log_task(qemu_stdout_log_file, qemu_stdout_pipe, "qemu_stdout"),
         );
-        log_stream_tasks.push(qemu_stdout_task);
+        log_tasks.push(qemu_stdout_task);
 
         let qemu_stderr_pipe = PolledPipe::new(driver, child_pipe_to_file(qemu_stderr))
             .context("failed to create polled pipe for qemu stdout")?;
@@ -149,14 +161,14 @@ impl PetriVmmBackend for QemuPetriBackend {
             "qemu_stderr",
             crate::log_task(qemu_stderr_log_file, qemu_stderr_pipe, "qemu_stderr"),
         );
-        log_stream_tasks.push(qemu_stderr_task);
+        log_tasks.push(qemu_stderr_task);
 
         Ok((
             QemuPetriRuntime {
                 driver: driver.clone(),
-                qemu_process,
+                qemu_process: Arc::new(Mutex::new(qemu_process)),
                 host_pipette_port,
-                log_stream_tasks,
+                log_tasks,
                 output_dir: log_source.output_dir().to_owned(),
             },
             config
@@ -172,18 +184,57 @@ impl PetriVmRuntime for QemuPetriRuntime {
     type VmFramebufferAccess = NoPetriVmFramebufferAcces;
 
     async fn teardown(mut self) -> anyhow::Result<()> {
+        futures::future::join_all(self.log_tasks.into_iter().map(|t| t.cancel())).await;
+        let mut qemu_process = self.qemu_process.lock().await;
+        qemu_process
+            .get_mut()
+            .kill()
+            .context("unable to kill qemu process")?;
         Ok(())
     }
 
     async fn wait_for_halt(&mut self, _allow_reset: bool) -> anyhow::Result<PetriHaltReasonDetail> {
-        todo!()
+        let status = self.qemu_process.lock().await.wait().await?;
+        Ok(PetriHaltReasonDetail {
+            reason: if status.success() {
+                PetriHaltReason::PowerOff
+            } else {
+                PetriHaltReason::Other
+            },
+            detail: format!("QEMU exited with status: {:?}", status.code()),
+        })
     }
 
     async fn wait_for_agent(&mut self, _set_high_vtl: bool) -> anyhow::Result<PipetteClient> {
-        todo!()
+        let driver = self.driver.clone();
+        let output_dir = self.output_dir.clone();
+        let addr = std::net::SocketAddr::from(([127, 0, 0, 1], self.host_pipette_port));
+        let client_core = async move || {
+            tracing::debug!("connecting to pipette");
+            let socket = pal_async::socket::PolledSocket::connect_tcp(&driver, addr)
+                .await
+                .context("failed to connect to pipette")?;
+            tracing::debug!("handshaking with pipette");
+            PipetteClient::new(&driver, socket, &output_dir)
+                .await
+                .context("failed to create pipette client")
+        };
+
+        self.poll_until_exit_or_timeout(None, async move |_| match client_core().await {
+            Ok(client) => {
+                tracing::info!("completed pipette handshake");
+                Ok(Some(client))
+            }
+            Err(_err) => {
+                tracing::debug!("failed to connect to pipette server, retrying");
+                Ok(None)
+            }
+        })
+        .await
     }
 
     fn openhcl_diag(&self) -> Option<OpenHclDiagHandler> {
+        // QEMU doesn't support OpenHCL
         None
     }
 
@@ -191,23 +242,24 @@ impl PetriVmRuntime for QemuPetriRuntime {
         &mut self,
         _timeout: Option<Duration>,
     ) -> anyhow::Result<Option<FirmwareEvent>> {
-        todo!()
+        anyhow::bail!("QEMU backend only supports linux direct, which doesn't emit a boot event")
     }
 
     async fn wait_for_enlightened_shutdown_ready(&mut self) -> anyhow::Result<()> {
-        todo!()
+        tracing::info!("QEMU doesn't support enlightened shutdown, immediately returning");
+        Ok(())
     }
 
-    async fn send_enlightened_shutdown(&mut self, kind: ShutdownKind) -> anyhow::Result<()> {
-        todo!()
+    async fn send_enlightened_shutdown(&mut self, _kind: ShutdownKind) -> anyhow::Result<()> {
+        anyhow::bail!("QEMU doesn't support enlightened shutdown")
     }
 
     async fn restart_openhcl(
         &mut self,
-        new_openhcl: &ResolvedArtifact,
-        flags: OpenHclServicingFlags,
+        _new_openhcl: &ResolvedArtifact,
+        _flags: OpenHclServicingFlags,
     ) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!("QEMU doesn't support OpenHCL")
     }
 
     async fn save_openhcl(
@@ -215,11 +267,11 @@ impl PetriVmRuntime for QemuPetriRuntime {
         _new_openhcl: &ResolvedArtifact,
         _flags: OpenHclServicingFlags,
     ) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!("QEMU doesn't support OpenHCL")
     }
 
     async fn restore_openhcl(&mut self) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!("QEMU doesn't support OpenHCL")
     }
 
     async fn update_command_line(&mut self, _command_line: &str) -> anyhow::Result<()> {
@@ -227,7 +279,7 @@ impl PetriVmRuntime for QemuPetriRuntime {
     }
 
     fn take_framebuffer_access(&mut self) -> Option<NoPetriVmFramebufferAcces> {
-        todo!()
+        None
     }
 
     async fn reset(&mut self) -> anyhow::Result<()> {
@@ -239,7 +291,7 @@ impl PetriVmRuntime for QemuPetriRuntime {
     }
 
     async fn set_vtl2_settings(&mut self, _settings: &Vtl2Settings) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!("QEMU doesn't support OpenHCL")
     }
 
     async fn set_vmbus_drive(
@@ -248,39 +300,38 @@ impl PetriVmRuntime for QemuPetriRuntime {
         _controller_id: &Guid,
         _controller_location: u32,
     ) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!("QEMU doesn't support VMBus")
     }
 }
 
 impl QemuPetriRuntime {
-    async fn client_core(&self) -> anyhow::Result<PipetteClient> {
-        let addr = std::net::SocketAddr::from(([127, 0, 0, 1], self.host_pipette_port));
-        let conn = pal_async::socket::PolledSocket::connect_tcp(&self.driver, addr)
-            .await
-            .context("failed to connect to pipette")?;
-        PipetteClient::new(&self.driver, conn, &self.output_dir)
-            .await
-            .context("failed to create pipette client")
-    }
-
     /// Poll `f` until it produces a value, failing if the QEMU process exits
     /// first and giving up once `timeout` has elapsed.
     async fn poll_until_exit_or_timeout<T>(
         &mut self,
         timeout: Option<Duration>,
         f: impl AsyncFn(&Self) -> anyhow::Result<Option<T>>,
-    ) -> anyhow::Result<Option<T>> {
+    ) -> anyhow::Result<T> {
+        let mut qemu_process = self.qemu_process.lock().await;
         (
-            f(self),
             async {
-                let status = self.qemu_process.wait().await?;
+                let mut timer = PolledTimer::new(&self.driver);
+                loop {
+                    if let Some(v) = f(self).await? {
+                        return Ok(v);
+                    }
+                    timer.sleep(Duration::from_secs(10)).await;
+                }
+            },
+            async {
+                let status = qemu_process.wait().await?;
                 Err(anyhow::anyhow!(
                     "QEMU exited unexpectedly (status: {status})"
                 ))
             },
             async {
-                pal_async::timer::PolledTimer::new(&self.driver)
-                    .sleep(timeout.unwrap_or(Duration::MAX))
+                PolledTimer::new(&self.driver)
+                    .sleep(timeout.unwrap_or(Duration::from_mins(10)))
                     .await;
                 Err(anyhow::anyhow!("Timed out waiting for operation"))
             },
@@ -317,34 +368,30 @@ fn pick_free_port() -> anyhow::Result<u16> {
 /// Build the QEMU command line for a TCG launch.
 pub fn build_qemu_command(
     binary: &Path,
-    machine: &str,
     config: &PetriVmConfig,
     host_pipette_port: u16,
+    prebuilt_initrd: PathBuf,
 ) -> anyhow::Result<Command> {
     let mut cmd = Command::new(binary);
 
-    cmd.arg("-machine").arg(&machine);
-    cmd.arg("-cpu")
-        .arg(config.proc_topology.vp_count.to_string());
-    cmd.arg("-m").arg(config.memory.startup_bytes.to_string());
+    cmd.arg("-machine")
+        .arg("virt,virtualization=on,iommu=smmuv3,gic-version=3");
+    cmd.arg("-cpu").arg("max");
+    cmd.arg("-m")
+        .arg((config.memory.startup_bytes / (1024 * 1024)).to_string());
     cmd.arg("-smp")
-        .arg(if config.proc_topology.enable_smt.is_some_and(|x| x) {
-            "2"
-        } else {
-            "1"
-        });
+        .arg(config.proc_topology.vp_count.to_string());
     cmd.arg("-nographic");
 
     match &config.firmware {
-        Firmware::LinuxDirect { kernel, initrd } => {
+        Firmware::LinuxDirect { kernel, .. } => {
             cmd.arg("-kernel").arg(kernel);
-            cmd.arg("-initrd").arg(initrd);
+            cmd.arg("-initrd").arg(prebuilt_initrd);
         }
         _ => anyhow::bail!("qemu backend only supports linux direct"),
     };
 
-    // cmd.arg("-append")
-    //     .arg(format!("{} rdinit=/{INIT_SCRIPT_NAME}", config.cmdline));
+    cmd.arg("-append").arg("rdinit=/custom-init.sh"); // TODO: pass in file name
     cmd.arg("-no-reboot");
 
     // 9p: share the host directory into the guest
@@ -422,54 +469,4 @@ pub fn build_qemu_command(
     */
 
     Ok(cmd)
-}
-
-/// Wait for pipette to signal readiness via the serial console relay
-/// task. Races against QEMU exit and a timeout.
-pub async fn wait_for_pipette_ready(
-    driver: &impl pal_async::driver::Driver,
-    timeout: Duration,
-    qemu_child: &mut PolledChild<std::process::Child>,
-    ready_rx: mesh::OneshotReceiver<()>,
-) -> anyhow::Result<()> {
-    enum Event {
-        Ready,
-        QemuExited(std::process::ExitStatus),
-        Timeout,
-    }
-
-    let event = (
-        async {
-            match ready_rx.await {
-                Ok(()) => Event::Ready,
-                // Sender dropped without sending — relay task exited
-                // without seeing the marker (QEMU likely crashed).
-                Err(_) => Event::QemuExited(std::process::ExitStatus::default()),
-            }
-        },
-        async {
-            match qemu_child.wait().await {
-                Ok(status) => Event::QemuExited(status),
-                Err(_) => Event::QemuExited(std::process::ExitStatus::default()),
-            }
-        },
-        async {
-            pal_async::timer::PolledTimer::new(driver)
-                .sleep(timeout)
-                .await;
-            Event::Timeout
-        },
-    )
-        .race()
-        .await;
-
-    match event {
-        Event::Ready => Ok(()),
-        Event::QemuExited(status) => {
-            anyhow::bail!("QEMU exited before pipette was ready (status: {status})");
-        }
-        Event::Timeout => {
-            anyhow::bail!("timed out waiting for pipette ready signal");
-        }
-    }
 }

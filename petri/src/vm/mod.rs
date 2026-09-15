@@ -6,6 +6,7 @@
 pub mod hyperv;
 /// OpenVMM VM management
 pub mod openvmm;
+/// QEMU full machine emulation management
 pub mod qemu;
 pub mod vtl2_settings;
 
@@ -20,6 +21,7 @@ use crate::vtl2_settings::ControllerType;
 use crate::vtl2_settings::Vtl2LunBuilder;
 use crate::vtl2_settings::Vtl2StorageBackingDeviceBuilder;
 use crate::vtl2_settings::Vtl2StorageControllerBuilder;
+use anyhow::Context;
 use async_trait::async_trait;
 use futures::FutureExt as _;
 use get_resources::ged::FirmwareEvent;
@@ -49,6 +51,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::hash::Hasher;
+use std::io::Write;
 use std::panic::AssertUnwindSafe;
 use std::path::Path;
 use std::path::PathBuf;
@@ -184,8 +187,6 @@ pub struct PetriVmBuilder<T: PetriVmmBackend> {
     enable_serial: bool,
     // Enable periodic framebuffer screenshots.
     enable_screenshots: bool,
-    // Pre-built initrd with pipette already injected (skips runtime injection).
-    prebuilt_initrd: Option<PathBuf>,
     // Use virtio vsock instead of VMBus-based hvsocket for guest communication.
     use_virtio_vsock: bool,
     // Use the Linux kernel vhost-vsock backend with this guest CID.
@@ -220,7 +221,6 @@ impl<T: PetriVmmBackend> Debug for PetriVmBuilder<T> {
             .field("minimal_mode", &self.minimal_mode)
             .field("enable_serial", &self.enable_serial)
             .field("enable_screenshots", &self.enable_screenshots)
-            .field("prebuilt_initrd", &self.prebuilt_initrd)
             .field("use_virtio_vsock", &self.use_virtio_vsock)
             .field("no_vmbus", &self.no_vmbus)
             .field("no_hv", &self.no_hv)
@@ -316,8 +316,6 @@ pub struct PetriVmProperties {
     pub uses_pipette_as_init: bool,
     /// Enable serial output even in minimal mode
     pub enable_serial: bool,
-    /// Pre-built initrd path with pipette already injected
-    pub prebuilt_initrd: Option<PathBuf>,
     /// Whether the VM has a CIDATA agent disk attached
     pub has_agent_disk: bool,
     /// Use virtio vsock instead of VMBus-based hvsocket
@@ -344,8 +342,12 @@ pub struct PetriVmRuntimeConfig {
 /// Resources used by a Petri VM during contruction and runtime
 #[derive(Debug)]
 pub struct PetriVmResources {
-    driver: DefaultDriver,
-    log_source: PetriLogSource,
+    /// Driver to use for async tasks during VM construction and runtime
+    pub driver: DefaultDriver,
+    /// Log source
+    pub log_source: PetriLogSource,
+    /// Pre-built initrd with pipette already injected (skips runtime injection).
+    pub prebuilt_initrd: Option<TempOrPersistentPath>,
 }
 
 /// Trait for VMM-specific contruction and runtime resources
@@ -375,6 +377,10 @@ pub trait PetriVmmBackend: Debug {
             Box<dyn FnOnce() -> anyhow::Result<Box<dyn fatfs::ReadWriteSeek>>>,
         )>,
     >;
+
+    /// Generate an rdinit script that does the necessary configuration to
+    /// launch pipette for linux direct
+    fn build_custom_init_script(pipette_path: &str) -> Option<String>;
 
     /// Resolve any artifacts needed to use this backend
     fn new(resolver: &ArtifactResolver<'_>) -> Self;
@@ -571,6 +577,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             resources: PetriVmResources {
                 driver: driver.clone(),
                 log_source: params.logger.clone(),
+                prebuilt_initrd: None,
             },
 
             guest_quirks,
@@ -587,7 +594,6 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             pipette_binary: artifacts.pipette_binary,
             enable_serial: true,
             enable_screenshots: true,
-            prebuilt_initrd: None,
             use_virtio_vsock: false,
             #[cfg(target_os = "linux")]
             vhost_vsock_guest_cid: None,
@@ -655,6 +661,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             resources: PetriVmResources {
                 driver: driver.clone(),
                 log_source: params.logger.clone(),
+                prebuilt_initrd: None,
             },
 
             guest_quirks,
@@ -671,7 +678,6 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             pipette_binary: artifacts.pipette_binary,
             enable_serial: false,
             enable_screenshots: true,
-            prebuilt_initrd: None,
             use_virtio_vsock: false,
             #[cfg(target_os = "linux")]
             vhost_vsock_guest_cid: None,
@@ -693,7 +699,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
     /// [`prepare_initrd`](Self::prepare_initrd) to build the initrd
     /// ahead of time.
     pub fn with_prebuilt_initrd(mut self, path: PathBuf) -> Self {
-        self.prebuilt_initrd = Some(path);
+        self.resources.prebuilt_initrd = Some(TempOrPersistentPath::Persistent(path));
         self
     }
 
@@ -707,9 +713,17 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
     /// Call this once before timing, then pass the path to
     /// [`with_prebuilt_initrd`](Self::with_prebuilt_initrd) for each
     /// iteration.
-    pub fn prepare_initrd(&self) -> anyhow::Result<TempPath> {
-        use anyhow::Context;
-        use std::io::Write;
+    pub fn prepare_initrd(&self) -> anyhow::Result<(TempPath, String)> {
+        self.prepare_custom_initrd(|_| None)
+    }
+
+    /// Prepare an initrd with a custom script
+    pub fn prepare_custom_initrd(
+        &self,
+        build_custom_init_script: impl FnOnce(&str) -> Option<String>,
+    ) -> anyhow::Result<(TempPath, String)> {
+        const PIPETTE_PATH: &str = "pipette";
+        const INIT_SCRIPT_NAME: &str = "custom-init.sh";
 
         let initrd_path = self
             .config
@@ -731,15 +745,30 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         })?;
 
         let merged_gz =
-            initrd_cpio::inject_into_initrd(&initrd_gz, "pipette", &pipette_data, 0o100755)
+            initrd_cpio::inject_into_initrd(&initrd_gz, PIPETTE_PATH, &pipette_data, 0o100755)
                 .context("failed to inject pipette into initrd")?;
+
+        let (merged_gz, rdinit) = if let Some(file_data) = build_custom_init_script(PIPETTE_PATH) {
+            (
+                initrd_cpio::inject_into_initrd(
+                    &merged_gz,
+                    INIT_SCRIPT_NAME,
+                    file_data.as_bytes(),
+                    0o100755, // regular file, rwxr-xr-x
+                )
+                .context("failed to inject init script into initrd")?,
+                INIT_SCRIPT_NAME.to_string(),
+            )
+        } else {
+            (merged_gz, PIPETTE_PATH.to_string())
+        };
 
         let mut tmp = tempfile::NamedTempFile::new()
             .context("failed to create temp file for pre-built initrd")?;
         tmp.write_all(&merged_gz)
             .context("failed to write pre-built initrd")?;
 
-        Ok(tmp.into_temp_path())
+        Ok((tmp.into_temp_path(), rdinit))
     }
 
     /// Enable serial port output even in minimal mode.
@@ -1141,7 +1170,6 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             minimal_mode: self.minimal_mode,
             uses_pipette_as_init: self.uses_pipette_as_init(),
             enable_serial: self.enable_serial,
-            prebuilt_initrd: self.prebuilt_initrd.clone(),
             has_agent_disk: self.has_agent_disk(),
             use_virtio_vsock: self.use_virtio_vsock,
             #[cfg(target_os = "linux")]
@@ -1196,14 +1224,10 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         // Auto-prepare the initrd with pipette injected if needed.
         // This centralizes the injection logic so backends only ever
         // receive a prebuilt_initrd path.
-        let _prepared_initrd_guard =
-            if self.uses_pipette_as_init() && self.prebuilt_initrd.is_none() {
-                let tmp = self.prepare_initrd()?;
-                self.prebuilt_initrd = Some(tmp.to_path_buf());
-                Some(tmp)
-            } else {
-                None
-            };
+        if self.uses_pipette_as_init() && self.resources.prebuilt_initrd.is_none() {
+            let (tmp, _rdinit) = self.prepare_custom_initrd(T::build_custom_init_script)?;
+            self.resources.prebuilt_initrd = Some(TempOrPersistentPath::Temp(tmp));
+        }
 
         tracing::debug!(builder = ?self);
 
@@ -3464,6 +3488,24 @@ pub enum Disk {
     Persistent(PathBuf),
     /// Disk backed by a temporary VHD
     Temporary(Arc<TempPath>),
+}
+
+/// A path that can be either temporary or persistent
+#[derive(Debug)]
+pub enum TempOrPersistentPath {
+    /// Temporary path
+    Temp(TempPath),
+    /// Persistent path
+    Persistent(PathBuf),
+}
+
+impl AsRef<Path> for TempOrPersistentPath {
+    fn as_ref(&self) -> &Path {
+        match self {
+            TempOrPersistentPath::Temp(temp_path) => temp_path.as_ref(),
+            TempOrPersistentPath::Persistent(path_buf) => path_buf.as_ref(),
+        }
+    }
 }
 
 /// Petri VMGS disk
