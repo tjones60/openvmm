@@ -118,8 +118,6 @@ impl PetriVmmBackend for QemuPetriBackend {
         // QEMU bachend only supports linux X64 with an aarch64 guest
         // TODO: we should have QEMU_SYSTEM_<GUEST_ARCH>_NATIVE symbols
         // and match here based on guest arch.
-        assert_eq!(MachineArch::host(), MachineArch::X86_64);
-        assert!(cfg!(target_os = "linux"));
         assert_eq!(arch, MachineArch::Aarch64);
         QemuPetriBackend {
             qemu_path: resolver
