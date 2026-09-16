@@ -207,7 +207,7 @@ impl SimpleFlowNode for Node {
         let test_linux_initrd_x64 = prebuilt_artifacts.test_linux_initrd_x64.then(|| {
             ctx.reqv(|v| crate::resolve_openvmm_test_initrd::Request::Get(CommonArch::X86_64, v))
         });
-        let test_linux_initrd_aarch64 = prebuilt_artifacts.test_linux_initrd_x64.then(|| {
+        let test_linux_initrd_aarch64 = prebuilt_artifacts.test_linux_initrd_aarch64.then(|| {
             ctx.reqv(|v| crate::resolve_openvmm_test_initrd::Request::Get(CommonArch::Aarch64, v))
         });
         let test_linux_kernel_x64 = prebuilt_artifacts.test_linux_kernel_x64.then(|| {
@@ -459,38 +459,44 @@ impl SimpleFlowNode for Node {
                     dst.make_executable()?;
                 }
 
-                if let Some(pipette_win) = pipette_windows {
-                    match rt.read(pipette_win) {
-                        PipetteOutput::WindowsBin { exe, pdb: _ } => {
-                            fs_err::copy(exe, test_content_dir.join("pipette.exe"))?;
+                let mut write_pipette = |target: CommonTriple, pipette| -> anyhow::Result<()> {
+                    let target_dir = test_content_dir.join(target.to_string());
+                    let pipette = rt.read(pipette);
+                    fs_err::create_dir_all(&target_dir)?;
+                    let (src, dst) = match target.as_triple().operating_system {
+                        target_lexicon::OperatingSystem::Windows => {
+                            if let PipetteOutput::WindowsBin { exe, pdb: _ } = pipette {
+                                Ok((exe, target_dir.join("pipette.exe")))
+                            } else {
+                                Err(anyhow::anyhow!("expected windows bin"))
+                            }
                         }
-                        _ => anyhow::bail!("did not find `pipette.exe` in RegisterPipetteWindows"),
-                    }
-                }
-
-                let mut write_pipette_linux = |target: CommonTriple, pipette| match rt.read(pipette)
-                {
-                    PipetteOutput::LinuxBin { bin, dbg: _ } => {
-                        let target_dir = test_content_dir.join(target.to_string());
-                        let dst = target_dir.join("pipette");
-                        fs_err::create_dir_all(&target_dir)?;
-                        fs_err::copy(&bin, &dst)?;
-                        dst.make_executable()?;
-                        Ok(())
-                    }
-                    _ => {
-                        anyhow::bail!("did not find `pipette` in RegisterPipetteLinuxMusl")
-                    }
+                        _ => {
+                            if let PipetteOutput::LinuxBin { bin, dbg: _ } = pipette {
+                                Ok((bin, target_dir.join("pipette")))
+                            } else {
+                                Err(anyhow::anyhow!("expected linux bin"))
+                            }
+                        }
+                    }?;
+                    fs_err::copy(&src, &dst)?;
+                    Ok(())
                 };
 
+                if let Some(pipette_windows) = pipette_windows {
+                    write_pipette(
+                        match arch {
+                            CommonArch::X86_64 => CommonTriple::X86_64_WINDOWS_MSVC,
+                            CommonArch::Aarch64 => CommonTriple::AARCH64_WINDOWS_MSVC,
+                        },
+                        pipette_windows,
+                    )?;
+                }
                 if let Some(pipette_linux_musl_x64) = pipette_linux_musl_x64 {
-                    write_pipette_linux(CommonTriple::X86_64_LINUX_MUSL, pipette_linux_musl_x64)?;
+                    write_pipette(CommonTriple::X86_64_LINUX_MUSL, pipette_linux_musl_x64)?;
                 }
                 if let Some(pipette_linux_musl_aarch64) = pipette_linux_musl_aarch64 {
-                    write_pipette_linux(
-                        CommonTriple::AARCH64_LINUX_MUSL,
-                        pipette_linux_musl_aarch64,
-                    )?;
+                    write_pipette(CommonTriple::AARCH64_LINUX_MUSL, pipette_linux_musl_aarch64)?;
                 }
 
                 if let Some(guest_test_uefi) = guest_test_uefi {
@@ -726,6 +732,7 @@ pub mod vmm_tests_artifact_builders {
             openvmm => OpenvmmOutput,
             openvmm_vhost => OpenvmmVhostOutput,
             pipette_linux_musl_x64 => PipetteOutput,
+            pipette_linux_musl_aarch64 => PipetteOutput,
             prep_steps => PrepStepsOutput,
             // any machine
             guest_test_uefi => GuestTestUefiOutput,

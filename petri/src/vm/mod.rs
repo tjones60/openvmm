@@ -102,7 +102,7 @@ impl<T: PetriVmmBackend> PetriVmArtifacts<T> {
         };
 
         Some(Self {
-            backend: T::new(resolver),
+            backend: T::new(resolver, arch),
             arch,
             agent_image: Some(if with_vtl0_pipette {
                 AgentImage::new(firmware.os_flavor()).with_pipette(resolver, arch)
@@ -355,8 +355,14 @@ pub trait PetriVmmBackend: Debug {
     /// Whether the backend supports VMBus.
     const SUPPORTS_VMBUS: bool;
 
-    /// Check whether the combination of firmware and architecture is
-    /// supported on the VMM.
+    /// Check whether the combination of guest firmware, guest architecture, and
+    /// internally determined host properties is supported by the backend.
+    ///
+    /// Any combinations that return false will be silently skipped. This should
+    /// not be used to skip configurations that are never valid (for example,
+    /// PCAT AARCH64 should always result in an error), and only be used if the
+    /// configuration is sometimes valid (for example, OpenVMM + OpenHCL is only
+    /// valid on Windows X64 hosts).
     fn check_compat(firmware: &Firmware, arch: MachineArch) -> bool;
 
     /// Select backend specific quirks guest and vmm quirks.
@@ -379,7 +385,10 @@ pub trait PetriVmmBackend: Debug {
     fn build_custom_init_script(pipette_path: &str) -> Option<String>;
 
     /// Resolve any artifacts needed to use this backend
-    fn new(resolver: &ArtifactResolver<'_>) -> Self;
+    ///
+    /// The architecture here is that of the guest, which may or may not be the
+    /// same as the host.
+    fn new(resolver: &ArtifactResolver<'_>, arch: MachineArch) -> Self;
 
     /// Create and start VM from the generic config using the VMM backend
     async fn run(
@@ -563,8 +572,8 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
     ///
     /// Reads the original initrd from the firmware artifacts, injects
     /// the pipette binary via CPIO, and writes the result to a temp file.
-    /// Returns the path to the temp file. The caller must keep the
-    /// `TempPath` alive until after the VM boots.
+    /// Returns a [`PetriInitrd`] struct that contains a `TempFile` that
+    /// must not be dropped until after the VM boots.
     ///
     /// Call this once before timing, then pass the path to
     /// [`with_prebuilt_initrd`](Self::with_prebuilt_initrd) for each
@@ -2331,9 +2340,9 @@ pub trait PetriVmFramebufferAccess: Send + 'static {
 }
 
 /// Use this for the associated type if not supported
-pub struct NoPetriVmFramebufferAcces;
+pub struct NoPetriVmFramebufferAccess;
 #[async_trait]
-impl PetriVmFramebufferAccess for NoPetriVmFramebufferAcces {
+impl PetriVmFramebufferAccess for NoPetriVmFramebufferAccess {
     async fn screenshot(
         &mut self,
         _image: &mut Vec<u8>,

@@ -59,8 +59,8 @@ pub mod artifacts {
     }
 
     declare_artifacts! {
-        /// QEMU Aarch64 system emulator for x86_64
-        QEMU_SYSTEM_AARCH64,
+        /// QEMU Aarch64 system emulator for x86_64 Linux
+        QEMU_SYSTEM_AARCH64_LINUX_X64,
     }
 
     /// Guest-side tools used by the VMM tests.

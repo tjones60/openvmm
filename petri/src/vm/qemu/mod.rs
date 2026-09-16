@@ -6,7 +6,7 @@ pub mod devices;
 use crate::Drive;
 use crate::Firmware;
 use crate::ModifyFn;
-use crate::NoPetriVmFramebufferAcces;
+use crate::NoPetriVmFramebufferAccess;
 use crate::NoPetriVmInspector;
 use crate::OpenHclServicingFlags;
 use crate::PetriHaltReason;
@@ -76,8 +76,8 @@ impl PetriVmmBackend for QemuPetriBackend {
     const SUPPORTS_VMBUS: bool = false;
 
     fn check_compat(_firmware: &Firmware, _arch: MachineArch) -> bool {
-        // Our QEMU binary is only published for linux at this time
-        !cfg!(windows)
+        // Our QEMU bachend only supports linux X64 at this time
+        MachineArch::X86_64 == MachineArch::host() && cfg!(target_os = "linux")
     }
 
     fn quirks(_firmware: &Firmware) -> (GuestQuirksInner, VmmQuirks) {
@@ -114,10 +114,16 @@ impl PetriVmmBackend for QemuPetriBackend {
         ))
     }
 
-    fn new(resolver: &ArtifactResolver<'_>) -> Self {
+    fn new(resolver: &ArtifactResolver<'_>, arch: MachineArch) -> Self {
+        // QEMU bachend only supports linux X64 with an aarch64 guest
+        // TODO: we should have QEMU_SYSTEM_<GUEST_ARCH>_NATIVE symbols
+        // and match here based on guest arch.
+        assert_eq!(MachineArch::host(), MachineArch::X86_64);
+        assert!(cfg!(target_os = "linux"));
+        assert_eq!(arch, MachineArch::Aarch64);
         QemuPetriBackend {
             qemu_path: resolver
-                .require(petri_artifacts_vmm_test::artifacts::QEMU_SYSTEM_AARCH64)
+                .require(petri_artifacts_vmm_test::artifacts::QEMU_SYSTEM_AARCH64_LINUX_X64)
                 .erase(),
         }
     }
@@ -149,7 +155,7 @@ impl PetriVmmBackend for QemuPetriBackend {
             host_pipette_port,
             prebuilt_initrd
                 .as_ref()
-                .expect("QEMU requires a prebuilt initrd"),
+                .context("QEMU requires a prebuilt initrd")?,
         )?;
         cmd.stdin(std::process::Stdio::null());
         cmd.stdout(std::process::Stdio::piped());
@@ -167,7 +173,8 @@ impl PetriVmmBackend for QemuPetriBackend {
 
         let qemu_stdout_pipe = PolledPipe::new(driver, child_pipe_to_file(qemu_stdout))
             .context("failed to create polled pipe for qemu stdout")?;
-        let qemu_stdout_log_file = log_source.log_file("qemu_stdout")?;
+        // Since we pass `-serial mon:stdio` to qemu, the guest outputs to stdout.
+        let qemu_stdout_log_file = log_source.log_file("guest")?;
         let qemu_stdout_task = driver.spawn(
             "qemu_stdout",
             crate::log_task(qemu_stdout_log_file, qemu_stdout_pipe, "qemu_stdout"),
@@ -175,8 +182,9 @@ impl PetriVmmBackend for QemuPetriBackend {
         log_tasks.push(qemu_stdout_task);
 
         let qemu_stderr_pipe = PolledPipe::new(driver, child_pipe_to_file(qemu_stderr))
-            .context("failed to create polled pipe for qemu stdout")?;
-        let qemu_stderr_log_file = log_source.log_file("qemu_stderr")?;
+            .context("failed to create polled pipe for qemu stderr")?;
+        // QEMU error messages are printed to stderr.
+        let qemu_stderr_log_file = log_source.log_file("qemu")?;
         let qemu_stderr_task = driver.spawn(
             "qemu_stderr",
             crate::log_task(qemu_stderr_log_file, qemu_stderr_pipe, "qemu_stderr"),
@@ -215,7 +223,7 @@ impl QemuPetriConfig {
 #[async_trait]
 impl PetriVmRuntime for QemuPetriRuntime {
     type VmInspector = NoPetriVmInspector;
-    type VmFramebufferAccess = NoPetriVmFramebufferAcces;
+    type VmFramebufferAccess = NoPetriVmFramebufferAccess;
 
     async fn teardown(mut self) -> anyhow::Result<()> {
         futures::future::join_all(self.log_tasks.into_iter().map(|t| t.cancel())).await;
@@ -312,7 +320,7 @@ impl PetriVmRuntime for QemuPetriRuntime {
         todo!()
     }
 
-    fn take_framebuffer_access(&mut self) -> Option<NoPetriVmFramebufferAcces> {
+    fn take_framebuffer_access(&mut self) -> Option<NoPetriVmFramebufferAccess> {
         None
     }
 
@@ -383,6 +391,9 @@ pub fn child_pipe_to_file(pipe: impl Into<std::os::unix::io::OwnedFd>) -> std::f
     std::fs::File::from(pipe.into())
 }
 
+/// Convert a child process's stdout/stderr pipe into a [`std::fs::File`] so it
+/// can be wrapped in a [`PolledPipe`]. The owned-handle type differs by
+/// platform, but the conversion is otherwise identical.
 #[cfg(windows)]
 pub fn child_pipe_to_file(pipe: impl Into<std::os::windows::io::OwnedHandle>) -> std::fs::File {
     std::fs::File::from(pipe.into())
@@ -425,7 +436,7 @@ pub fn build_qemu_command(
     // TODO: more complex memory topologies
     cmd.arg("-m")
         .arg((config.memory.startup_bytes / (1024 * 1024)).to_string());
-    // TODO: more complex CPU topologis
+    // TODO: more complex CPU topologies
     cmd.arg("-smp")
         .arg(config.proc_topology.vp_count.to_string());
     cmd.arg("-nographic");

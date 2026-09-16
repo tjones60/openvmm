@@ -95,7 +95,6 @@ impl PetriVmmBackend for OpenVmmPetriBackend {
     fn check_compat(firmware: &Firmware, arch: MachineArch) -> bool {
         arch == MachineArch::host()
             && !(firmware.is_openhcl() && (!cfg!(windows) || arch == MachineArch::Aarch64))
-            && !(firmware.is_pcat() && arch == MachineArch::Aarch64)
     }
 
     fn quirks(firmware: &Firmware) -> (GuestQuirksInner, VmmQuirks) {
@@ -130,7 +129,9 @@ impl PetriVmmBackend for OpenVmmPetriBackend {
         None
     }
 
-    fn new(resolver: &ArtifactResolver<'_>) -> Self {
+    fn new(resolver: &ArtifactResolver<'_>, arch: MachineArch) -> Self {
+        // OpenVMM guests must have the same arch as the host
+        assert_eq!(arch, MachineArch::host());
         OpenVmmPetriBackend {
             openvmm_path: resolver
                 .require(petri_artifacts_vmm_test::artifacts::OPENVMM_NATIVE)

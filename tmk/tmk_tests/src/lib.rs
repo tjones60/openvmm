@@ -260,7 +260,7 @@ mod hyperv {
         driver: DefaultDriver,
         artifacts: OpenhclTmkArtifacts<HyperVPetriBackend>,
     ) -> anyhow::Result<()> {
-        let logger = params.logger.clone();
+        let logger = params.log_source.clone();
         let mut vm = petri::PetriVmBuilder::new(params, artifacts.vm, &driver)?
             .with_openhcl_command_line(OPENHCL_COMMAND_LINE)
             .with_expect_no_boot_event()
