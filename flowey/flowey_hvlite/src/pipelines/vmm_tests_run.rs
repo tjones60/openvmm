@@ -757,8 +757,7 @@ impl ResolvedArtifactSelections {
             OPENVMM_WIN_X64::GLOBAL_UNIQUE_ID
             | OPENVMM_LINUX_X64::GLOBAL_UNIQUE_ID
             | OPENVMM_WIN_AARCH64::GLOBAL_UNIQUE_ID
-            | OPENVMM_LINUX_AARCH64::GLOBAL_UNIQUE_ID
-            | OPENVMM_MACOS_AARCH64::GLOBAL_UNIQUE_ID => {
+            | OPENVMM_LINUX_AARCH64::GLOBAL_UNIQUE_ID => {
                 self.build.openvmm = true;
             }
 
@@ -810,15 +809,16 @@ impl ResolvedArtifactSelections {
 
             // TMK VMM
             tmks::TMK_VMM_WIN_X64::GLOBAL_UNIQUE_ID
-            | tmks::TMK_VMM_WIN_AARCH64::GLOBAL_UNIQUE_ID
-            | tmks::TMK_VMM_LINUX_X64::GLOBAL_UNIQUE_ID
-            | tmks::TMK_VMM_LINUX_AARCH64::GLOBAL_UNIQUE_ID
-            | tmks::TMK_VMM_MACOS_AARCH64::GLOBAL_UNIQUE_ID => {
+            | tmks::TMK_VMM_WIN_AARCH64::GLOBAL_UNIQUE_ID => {
                 self.build.tmk_vmm = true;
             }
 
             tmks::TMK_VMM_LINUX_X64_MUSL::GLOBAL_UNIQUE_ID
-            | tmks::TMK_VMM_LINUX_AARCH64_MUSL::GLOBAL_UNIQUE_ID => {
+            | tmks::TMK_VMM_LINUX_AARCH64_MUSL::GLOBAL_UNIQUE_ID
+            // throwing the non-musl variants in here is a hack to get around
+            // the lack of multi-target artifact resolution
+            | tmks::TMK_VMM_LINUX_X64::GLOBAL_UNIQUE_ID
+            | tmks::TMK_VMM_LINUX_AARCH64::GLOBAL_UNIQUE_ID => {
                 self.build.tmk_vmm_linux_musl = true;
             }
 
@@ -826,8 +826,7 @@ impl ResolvedArtifactSelections {
             vmgstool::VMGSTOOL_WIN_X64::GLOBAL_UNIQUE_ID
             | vmgstool::VMGSTOOL_WIN_AARCH64::GLOBAL_UNIQUE_ID
             | vmgstool::VMGSTOOL_LINUX_X64::GLOBAL_UNIQUE_ID
-            | vmgstool::VMGSTOOL_LINUX_AARCH64::GLOBAL_UNIQUE_ID
-            | vmgstool::VMGSTOOL_MACOS_AARCH64::GLOBAL_UNIQUE_ID => {
+            | vmgstool::VMGSTOOL_LINUX_AARCH64::GLOBAL_UNIQUE_ID => {
                 self.build.vmgstool = true;
             }
 
@@ -835,8 +834,7 @@ impl ResolvedArtifactSelections {
             vmgstool::VMGSTOOL_DEV_WIN_X64::GLOBAL_UNIQUE_ID
             | vmgstool::VMGSTOOL_DEV_WIN_AARCH64::GLOBAL_UNIQUE_ID
             | vmgstool::VMGSTOOL_DEV_LINUX_X64::GLOBAL_UNIQUE_ID
-            | vmgstool::VMGSTOOL_DEV_LINUX_AARCH64::GLOBAL_UNIQUE_ID
-            | vmgstool::VMGSTOOL_DEV_MACOS_AARCH64::GLOBAL_UNIQUE_ID => {
+            | vmgstool::VMGSTOOL_DEV_LINUX_AARCH64::GLOBAL_UNIQUE_ID => {
                 self.build.vmgstool_dev = true;
             }
 
