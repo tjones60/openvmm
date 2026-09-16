@@ -11,7 +11,6 @@ use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_core::ArtifactSource;
 use petri_artifacts_core::AsArtifactHandle;
 use petri_artifacts_core::ErasedArtifactHandle;
-use petri_artifacts_vmm_test::artifacts::QEMU_SYSTEM_AARCH64;
 use std::env::consts::EXE_EXTENSION;
 use std::path::Path;
 use std::path::PathBuf;
@@ -68,7 +67,7 @@ impl petri_artifacts_core::ResolveTestArtifact for OpenvmmKnownPathsTestArtifact
             #[cfg(target_os = "linux")]
             _ if id == OPENVMM_VHOST_NATIVE => openvmm_vhost_native_executable_path(),
 
-            _ if id == QEMU_SYSTEM_AARCH64 => qemu_system_aarch64_path(),
+            _ if id == QEMU_SYSTEM_AARCH64_LINUX_X64 => qemu_system_aarch64_path(),
 
             _ if id == loadable::LINUX_DIRECT_TEST_KERNEL_X64 => linux_direct_x64_test_kernel_path(),
             _ if id == loadable::LINUX_DIRECT_TEST_BZIMAGE_X64 => linux_direct_x64_test_bzimage_path(),
@@ -230,7 +229,7 @@ pub fn resolve_bundle_name(id: ErasedArtifactHandle) -> Option<&'static str> {
         } else {
             "openvmm"
         }),
-        _ if id == QEMU_SYSTEM_AARCH64 => Some("qemu-system-aarch64"),
+        _ if id == QEMU_SYSTEM_AARCH64_LINUX_X64 => Some("qemu-system-aarch64"),
         _ if id == loadable::LINUX_DIRECT_TEST_KERNEL_X64 => Some("x64/vmlinux"),
         _ if id == loadable::LINUX_DIRECT_TEST_BZIMAGE_X64 => Some("x64/bzImage"),
         _ if id == loadable::LINUX_DIRECT_TEST_KERNEL_AARCH64 => Some("aarch64/Image"),
@@ -385,7 +384,10 @@ fn openvmm_vhost_native_executable_path() -> anyhow::Result<PathBuf> {
 fn qemu_system_aarch64_path() -> anyhow::Result<PathBuf> {
     get_path(
         ".packages/underhill-deps-private",
-        resolve_bundle_name(QEMU_SYSTEM_AARCH64.erase()).unwrap(),
+        resolve_bundle_name(
+            petri_artifacts_vmm_test::artifacts::QEMU_SYSTEM_AARCH64_LINUX_X64.erase(),
+        )
+        .unwrap(),
         MissingCommand::Restore {
             description: "qemu-system-aarch64",
         },
