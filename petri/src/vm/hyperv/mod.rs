@@ -84,10 +84,8 @@ impl PetriVmmBackend for HyperVPetriBackend {
     type VmRuntime = HyperVPetriRuntime;
     const SUPPORTS_VMBUS: bool = true;
 
-    fn check_compat(firmware: &Firmware, arch: MachineArch) -> bool {
+    fn check_compat(_firmware: &Firmware, arch: MachineArch) -> bool {
         arch == MachineArch::host()
-            && !firmware.is_linux_direct()
-            && !(firmware.is_pcat() && arch == MachineArch::Aarch64)
     }
 
     fn quirks(firmware: &Firmware) -> (GuestQuirksInner, VmmQuirks) {
@@ -167,7 +165,9 @@ impl PetriVmmBackend for HyperVPetriBackend {
         None
     }
 
-    fn new(_resolver: &ArtifactResolver<'_>) -> Self {
+    fn new(_resolver: &ArtifactResolver<'_>, arch: MachineArch) -> Self {
+        // Hyper-V guests must have the same arch as the host
+        assert_eq!(arch, MachineArch::host());
         HyperVPetriBackend {}
     }
 
@@ -178,7 +178,11 @@ impl PetriVmmBackend for HyperVPetriBackend {
         resources: &PetriVmResources,
         properties: PetriVmProperties,
     ) -> anyhow::Result<(Self::VmRuntime, PetriVmRuntimeConfig)> {
-        let PetriVmResources { driver, log_source } = resources;
+        let PetriVmResources {
+            driver,
+            log_source,
+            prebuilt_initrd: _, // Hyper-V doesn't support linux direct
+        } = resources;
 
         assert!(matches!(
             config.host_log_levels,

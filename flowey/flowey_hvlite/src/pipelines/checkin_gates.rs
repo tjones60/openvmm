@@ -414,6 +414,10 @@ impl IntoPipeline for CheckinGatesCli {
                     vmm_tests_artifacts_linux_musl_x86.use_tmk_vmm = Some(use_tmk_vmm.clone());
                 }
                 CommonArch::Aarch64 => {
+                    vmm_tests_artifacts_linux_musl_x86.use_pipette_linux_musl_aarch64 =
+                        Some(use_pipette_linux_musl.clone());
+                    vmm_tests_artifacts_linux_x86.use_pipette_linux_musl_aarch64 =
+                        Some(use_pipette_linux_musl.clone());
                     vmm_tests_artifacts_windows_aarch64.use_guest_test_uefi =
                         Some(use_guest_test_uefi.clone());
                     vmm_tests_artifacts_windows_aarch64.use_tmks = Some(use_tmks.clone());

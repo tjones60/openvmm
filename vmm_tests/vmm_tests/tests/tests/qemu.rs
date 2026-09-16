@@ -84,7 +84,7 @@ async fn validate_emulator(config: PetriVmBuilder<QemuPetriBackend>) -> anyhow::
             TEST_FILE_DATA_OUT.as_bytes(),
         )
         .await
-        .context("failed to read file from the outside on the inside")?;
+        .context("failed to write file on the inside")?;
     let out_file_data = fs_err::read(share_path.join(TEST_FILE_NAME_OUT))?;
     if out_file_data != TEST_FILE_DATA_OUT.as_bytes() {
         anyhow::bail!("data from inside does not match outside");

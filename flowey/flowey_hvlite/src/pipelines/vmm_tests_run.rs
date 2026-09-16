@@ -769,7 +769,7 @@ impl ResolvedArtifactSelections {
             }
 
             // QEMU
-            QEMU_SYSTEM_AARCH64::GLOBAL_UNIQUE_ID => {
+            QEMU_SYSTEM_AARCH64_LINUX_X64::GLOBAL_UNIQUE_ID => {
                 self.prebuilt_artifacts.qemu_system_aarch64 = true;
             }
 
