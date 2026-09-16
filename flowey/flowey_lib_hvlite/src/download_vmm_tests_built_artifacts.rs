@@ -151,7 +151,7 @@ impl SimpleFlowNode for Node {
         if let Some(pipette_linux_musl_x64) = pipette_linux_musl_x64 {
             download_artifact(
                 ctx,
-                format!("x64-linux-musl-pipette"),
+                "x64-linux-musl-pipette".into(),
                 run_id.clone(),
                 pipette_linux_musl_x64,
             );
@@ -160,7 +160,7 @@ impl SimpleFlowNode for Node {
         if let Some(pipette_linux_musl_aarch64) = pipette_linux_musl_aarch64 {
             download_artifact(
                 ctx,
-                format!("aarch64-linux-musl-pipette"),
+                "aarch64-linux-musl-pipette".into(),
                 run_id.clone(),
                 pipette_linux_musl_aarch64,
             );
