@@ -463,23 +463,26 @@ impl SimpleFlowNode for Node {
                     let target_dir = test_content_dir.join(target.to_string());
                     let pipette = rt.read(pipette);
                     fs_err::create_dir_all(&target_dir)?;
-                    let (src, dst) = match target.as_triple().operating_system {
+                    match target.as_triple().operating_system {
                         target_lexicon::OperatingSystem::Windows => {
                             if let PipetteOutput::WindowsBin { exe, pdb: _ } = pipette {
-                                Ok((exe, target_dir.join("pipette.exe")))
+                                let dst = target_dir.join("pipette.exe");
+                                fs_err::copy(&exe, &dst)?;
                             } else {
-                                Err(anyhow::anyhow!("expected windows bin"))
+                                anyhow::bail!("expected windows bin");
                             }
                         }
                         _ => {
                             if let PipetteOutput::LinuxBin { bin, dbg: _ } = pipette {
-                                Ok((bin, target_dir.join("pipette")))
+                                let dst = target_dir.join("pipette");
+                                fs_err::copy(&bin, &dst)?;
+                                dst.make_executable()?;
                             } else {
-                                Err(anyhow::anyhow!("expected linux bin"))
+                                anyhow::bail!("expected linux bin");
                             }
                         }
-                    }?;
-                    fs_err::copy(&src, &dst)?;
+                    }
+
                     Ok(())
                 };
 
