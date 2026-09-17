@@ -41,9 +41,9 @@ pub mod capabilities {
 
 /// Artifact declarations
 pub mod artifacts {
-    use petri_artifacts_core::declare_artifacts;
+    use petri_artifacts_core::declare_artifacts_with_filename;
 
-    declare_artifacts! {
+    declare_artifacts_with_filename! {
         /// Pipette windows x86_64 executable
         PIPETTE_WINDOWS_X64("pipette.exe"),
         /// Pipette linux x86_64 executable
@@ -179,13 +179,4 @@ pub mod tags {
 
     /// Artifact is a VmgsTool binary
     pub trait IsVmgsTool: ArtifactId {}
-
-    /// Artifact is a bootable test VHD file
-    pub trait IsHostBinary: ArtifactId {
-        /// What [`OsFlavor`] this image boots into.
-        const OS_FLAVOR: OsFlavor;
-
-        /// What [`MachineArch`] this image supports.
-        const ARCH: MachineArch;
-    }
 }

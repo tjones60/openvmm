@@ -90,7 +90,7 @@ const fn meta<T: ArtifactId + IsHostedOnHvliteAzureBlobStore>(
     KnownTestArtifactMeta {
         variant,
         handle_fn: || petri_artifacts_core::ArtifactHandle::<T>::new().erase(),
-        filename: T::FILENAME,
+        filename: T::REMOTE_FILENAME,
         size: T::SIZE,
         download_name: T::DOWNLOAD_NAME,
         supports_blob_disk: T::SUPPORTS_BLOB_DISK,
