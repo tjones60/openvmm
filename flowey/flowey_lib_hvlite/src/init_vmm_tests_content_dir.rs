@@ -141,7 +141,7 @@ pub struct VmmTestsPreBuiltArtifactsSelections {
     pub test_linux_kernel_x64: bool,
     pub test_linux_initrd_aarch64: bool,
     pub test_linux_kernel_aarch64: bool,
-    pub test_linux_bzimage: bool,
+    pub test_linux_bzimage_x64: bool,
     pub uefi: bool,
     pub virtio_win_drivers: bool,
     pub release_igvm: bool,
@@ -230,11 +230,11 @@ impl SimpleFlowNode for Node {
                 )
             })
         });
-        let test_linux_bzimage = prebuilt_artifacts.test_linux_bzimage.then(|| {
+        let test_linux_bzimage_x64 = prebuilt_artifacts.test_linux_bzimage_x64.then(|| {
             ctx.reqv(|v| {
                 crate::resolve_openvmm_test_linux_kernel::Request::Get(
                     crate::resolve_openvmm_test_linux_kernel::OpenvmmTestKernelFile::BzImage,
-                    arch,
+                    CommonArch::X86_64,
                     crate::resolve_openvmm_test_linux_kernel::DEFAULT_LINUX_TEST_KERNEL_VERSION,
                     v,
                 )
@@ -336,7 +336,7 @@ impl SimpleFlowNode for Node {
                     test_linux_kernel_x64,
                     test_linux_initrd_aarch64,
                     test_linux_kernel_aarch64,
-                    test_linux_bzimage,
+                    test_linux_bzimage_x64,
                     uefi,
                     virtio_win_dir,
                     release_igvm_files,
@@ -354,7 +354,7 @@ impl SimpleFlowNode for Node {
                         test_linux_kernel_x64,
                         test_linux_initrd_aarch64,
                         test_linux_kernel_aarch64,
-                        test_linux_bzimage,
+                        test_linux_bzimage_x64,
                         uefi,
                         release_igvm_files,
                         qemu_system_aarch64,
@@ -643,39 +643,57 @@ impl SimpleFlowNode for Node {
                     )?;
                 }
 
-                let arch_dir = match arch {
+                let arch_dir = |arch| match arch {
                     CommonArch::X86_64 => "x64",
                     CommonArch::Aarch64 => "aarch64",
                 };
-                fs_err::create_dir_all(test_content_dir.join(arch_dir))?;
+                if test_linux_initrd_x64.is_some()
+                    || test_linux_kernel_x64.is_some()
+                    || test_linux_bzimage_x64.is_some()
+                {
+                    fs_err::create_dir_all(test_content_dir.join(arch_dir(CommonArch::X86_64)))?;
+                }
+                if test_linux_initrd_aarch64.is_some() || test_linux_kernel_aarch64.is_some() {
+                    fs_err::create_dir_all(test_content_dir.join(arch_dir(CommonArch::Aarch64)))?;
+                }
                 if let Some(test_linux_initrd_x64) = test_linux_initrd_x64 {
                     fs_err::copy(
                         test_linux_initrd_x64,
-                        test_content_dir.join("x64").join("initrd"),
+                        test_content_dir
+                            .join(arch_dir(CommonArch::X86_64))
+                            .join("initrd"),
                     )?;
                 }
                 if let Some(test_linux_initrd_aarch64) = test_linux_initrd_aarch64 {
                     fs_err::copy(
                         test_linux_initrd_aarch64,
-                        test_content_dir.join("aarch64").join("initrd"),
+                        test_content_dir
+                            .join(arch_dir(CommonArch::Aarch64))
+                            .join("initrd"),
                     )?;
                 }
                 if let Some(test_linux_kernel_x64) = test_linux_kernel_x64 {
                     fs_err::copy(
                         test_linux_kernel_x64,
-                        test_content_dir.join("x64").join("vmlinux"),
+                        test_content_dir
+                            .join(arch_dir(CommonArch::X86_64))
+                            .join("vmlinux"),
                     )?;
                 }
                 if let Some(test_linux_kernel_aarch64) = test_linux_kernel_aarch64 {
                     fs_err::copy(
                         test_linux_kernel_aarch64,
-                        test_content_dir.join("aarch64").join("Image"),
+                        test_content_dir
+                            .join(arch_dir(CommonArch::Aarch64))
+                            .join("Image"),
                     )?;
                 }
-                if let Some(bzimage_path) = test_linux_bzimage {
+                if let Some(test_linux_bzimage_x64) = test_linux_bzimage_x64 {
                     fs_err::copy(
-                        bzimage_path,
-                        test_content_dir.join(arch_dir).join("bzImage"),
+                        test_linux_bzimage_x64,
+                        test_content_dir
+                            .join(arch_dir(CommonArch::X86_64))
+                            .join("bzImage"),
                     )?;
                 }
 

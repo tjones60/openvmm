@@ -31,7 +31,6 @@ use flowey_lib_hvlite::init_vmm_tests_env::PetriParams;
 use flowey_lib_hvlite::install_vmm_tests_external_deps::VmmTestsExternalDeps;
 use flowey_lib_hvlite::install_vmm_tests_external_deps::VmmTestsExternalDepsLinux;
 use flowey_lib_hvlite::install_vmm_tests_external_deps::VmmTestsExternalDepsWindows;
-use flowey_lib_hvlite::resolve_openvmm_test_linux_kernel::OpenvmmTestKernelFile;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use target_lexicon::Triple;
@@ -1774,13 +1773,19 @@ impl IntoPipeline for CheckinGatesCli {
             );
 
             // TODO: figure out when these are actually needed
+            let target_architecture = target.common_arch()?;
+            let target_is_linux = matches!(
+                target.as_triple().operating_system,
+                target_lexicon::OperatingSystem::Linux
+            );
             let prebuilt_artifacts = VmmTestsPreBuiltArtifactsSelections {
-                test_linux_initrd_x64: true,
-                test_linux_kernel_x64: true,
-                test_linux_initrd_aarch64: true,
-                test_linux_kernel_aarch64: true,
-                test_linux_bzimage: OpenvmmTestKernelFile::BzImage
-                    .is_available_for(target.common_arch()?),
+                test_linux_initrd_x64: matches!(target_architecture, CommonArch::X86_64),
+                test_linux_kernel_x64: matches!(target_architecture, CommonArch::X86_64),
+                test_linux_initrd_aarch64: matches!(target_architecture, CommonArch::Aarch64)
+                    || target_is_linux,
+                test_linux_kernel_aarch64: matches!(target_architecture, CommonArch::Aarch64)
+                    || target_is_linux,
+                test_linux_bzimage_x64: matches!(target_architecture, CommonArch::X86_64),
                 uefi: true,
                 virtio_win_drivers: true,
                 release_igvm: !matches!(backend_hint, PipelineBackendHint::Ado),

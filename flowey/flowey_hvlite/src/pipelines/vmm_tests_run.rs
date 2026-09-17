@@ -865,7 +865,7 @@ impl ResolvedArtifactSelections {
                 self.prebuilt_artifacts.test_linux_initrd_aarch64 = true;
             }
             loadable::LINUX_DIRECT_TEST_BZIMAGE_X64::GLOBAL_UNIQUE_ID => {
-                self.prebuilt_artifacts.test_linux_bzimage = true;
+                self.prebuilt_artifacts.test_linux_bzimage_x64 = true;
             }
             loadable::UEFI_FIRMWARE_X64::GLOBAL_UNIQUE_ID
             | loadable::UEFI_FIRMWARE_AARCH64::GLOBAL_UNIQUE_ID => {
