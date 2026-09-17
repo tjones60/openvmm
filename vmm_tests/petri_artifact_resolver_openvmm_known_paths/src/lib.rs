@@ -5,8 +5,6 @@
 
 #![forbid(unsafe_code)]
 
-pub mod new;
-
 use anyhow::Context;
 use fs_err::PathExt;
 use petri_artifacts_common::tags::MachineArch;
@@ -103,7 +101,7 @@ impl petri_artifacts_core::ResolveTestArtifact for OpenvmmKnownPathsTestArtifact
             _ if id == test_vhd::GUEST_TEST_UEFI_AARCH64 => guest_test_uefi_disk_path(MachineArch::Aarch64),
 
             _ if id == test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64_PREPPED => {
-                let base_filename = test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64::FILENAME;
+                let base_filename = test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64::REMOTE_FILENAME;
                 let prepped_filename = base_filename.replace(".vhd", "-prepped.vhd");
                 let images_dir = std::env::var("VMM_TEST_IMAGES");
                 let full_path = Path::new(images_dir.as_deref().unwrap_or("images"));
@@ -118,7 +116,7 @@ impl petri_artifacts_core::ResolveTestArtifact for OpenvmmKnownPathsTestArtifact
             }
 
             _ if id == test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64_NO_VMBUS_PREPPED => {
-                let base_filename = test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64::FILENAME;
+                let base_filename = test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64::REMOTE_FILENAME;
                 let prepped_filename = base_filename.replace(".vhd", "-no-vmbus-prepped.vhd");
                 let images_dir = std::env::var("VMM_TEST_IMAGES");
                 let full_path = Path::new(images_dir.as_deref().unwrap_or("images"));

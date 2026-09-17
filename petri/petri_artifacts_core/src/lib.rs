@@ -55,8 +55,9 @@ pub trait ArtifactId: 'static {
     #[doc(hidden)]
     const SUPPORTS_BLOB_DISK: bool;
 
-    /// Filename to use when writing the artifact to the test content directory.
-    const FILENAME: &'static str;
+    /// Filename to use when the artifact is being written to or resolved from
+    /// the test content directory.
+    fn filename(&self) -> &'static str;
 
     /// ...in case you decide to flaunt the trait-level docs regarding manually
     /// implementing this trait.
@@ -384,6 +385,25 @@ macro_rules! declare_artifacts {
     (
         $(
             $(#[$doc:meta])*
+            $name:ident
+        ),*
+        $(,)?
+    ) => {
+        $crate::declare_artifacts_inner!(
+            $(
+                $(#[$doc])*
+                $name(false, ""),
+            )*
+        );
+    };
+}
+
+/// Declare one or more type-safe artifacts that do not support blob disk.
+#[macro_export]
+macro_rules! declare_artifacts_with_filename {
+    (
+        $(
+            $(#[$doc:meta])*
             $name:ident($filename:literal)
         ),*
         $(,)?
@@ -403,14 +423,14 @@ macro_rules! declare_blob_artifacts {
     (
         $(
             $(#[$doc:meta])*
-            $name:ident($filename:literal)
+            $name:ident
         ),*
         $(,)?
     ) => {
         $crate::declare_artifacts_inner!(
             $(
                 $(#[$doc])*
-                $name(true, $filename),
+                $name(true, ""),
             )*
         );
     };
@@ -436,14 +456,21 @@ macro_rules! declare_artifacts_inner {
                 #[doc = concat!("Type-tag for [`",  stringify!($name), "`]")]
                 #[expect(non_camel_case_types)]
                 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-                pub enum $name {}
+                pub struct $name {}
+
+                impl $name {
+                    #[doc = concat!("Create a new [`",  stringify!($name), "`] for querying tags")]
+                    pub fn new() -> Self {
+                        Self {}
+                    }
+                }
 
                 #[expect(non_snake_case)]
                 mod [< $name __ty >] {
                     impl $crate::ArtifactId for super::$name {
                         const GLOBAL_UNIQUE_ID: &'static str = module_path!();
                         const SUPPORTS_BLOB_DISK: bool = $supports_blob_disk;
-                        const FILENAME: &'static str = $filename;
+                        fn filename(&self) -> &'static str { $filename }
                         fn i_know_what_im_doing_with_this_manual_impl_instead_of_using_the_declare_artifacts_macro() {}
                     }
                 }
