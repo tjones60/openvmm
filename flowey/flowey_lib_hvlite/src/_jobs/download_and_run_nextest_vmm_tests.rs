@@ -137,7 +137,7 @@ impl SimpleFlowNode for Node {
                         test_linux_kernel_x64: true,
                         test_linux_initrd_aarch64: true,
                         test_linux_kernel_aarch64: true,
-                        test_linux_bzimage: true,
+                        test_linux_bzimage_x64: true,
                         uefi: true,
                         virtio_win_drivers: true,
                         release_igvm: true,
