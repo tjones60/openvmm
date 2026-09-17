@@ -1,6 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+//! QEMU backend for Petri. Currently only supports Aarch64 CPU emulation on
+//! Linux x64 hosts, but could be modified to support more qemu-system-<arch>
+//! configurations in the future.
+
 pub mod devices;
 
 use crate::Drive;
