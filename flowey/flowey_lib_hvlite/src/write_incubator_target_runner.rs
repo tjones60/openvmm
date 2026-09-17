@@ -169,7 +169,9 @@ impl SimpleFlowNode for Node {
                     initrd: initrd.as_deref(),
                     share_root: &share_root,
                     output_dir: &output_dir,
-                    guest_pipette: &format!("{guest_test_content_dir}/pipette"),
+                    guest_pipette: &format!(
+                        "{guest_test_content_dir}/aarch64-unknown-linux-musl/pipette"
+                    ),
                     guest_current_dir: &guest_test_content_dir,
                     qemu_binary: qemu_binary.as_deref(),
                     tmp_dir: &tmp_dir,
