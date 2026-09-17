@@ -678,7 +678,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
     /// [`with_prebuilt_initrd`](Self::with_prebuilt_initrd) for each
     /// iteration.
     pub fn prepare_initrd(&self) -> anyhow::Result<PetriInitrd> {
-        self.prepare_custom_initrd(|_| None)
+        self.prepare_custom_initrd(T::build_custom_init_script)
     }
 
     /// Prepare an initrd with a custom script
@@ -1192,8 +1192,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         // This centralizes the injection logic so backends only ever
         // receive a prebuilt_initrd path.
         if self.uses_pipette_as_init() && self.resources.prebuilt_initrd.is_none() {
-            self.resources.prebuilt_initrd =
-                Some(self.prepare_custom_initrd(T::build_custom_init_script)?);
+            self.resources.prebuilt_initrd = Some(self.prepare_initrd()?);
         }
 
         tracing::debug!(builder = ?self);
