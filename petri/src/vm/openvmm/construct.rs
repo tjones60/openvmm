@@ -120,6 +120,7 @@ impl PetriVmConfigOpenVmm {
             host_log_levels,
             firmware,
             hibernation_enabled,
+            ipmi_enabled,
             memory,
             proc_topology,
             vmgs,
@@ -148,6 +149,7 @@ impl PetriVmConfigOpenVmm {
             arch,
             firmware: &firmware,
             hibernation_enabled,
+            ipmi_enabled,
             driver,
             logger: log_source,
             vmgs: &vmgs,
@@ -294,6 +296,7 @@ impl PetriVmConfigOpenVmm {
         }
 
         let (firmware_event_send, firmware_event_recv) = mesh::mpsc_channel();
+        let (ipmi_sel_event_send, ipmi_sel_event_recv) = mesh::mpsc_channel();
 
         let make_vsock_listener = || -> anyhow::Result<(UnixListener, TempPath)> {
             Ok(tempfile::Builder::new()
@@ -307,6 +310,7 @@ impl PetriVmConfigOpenVmm {
                     &mut emulated_serial_config,
                     &mut vmbus_devices,
                     &firmware_event_send,
+                    &ipmi_sel_event_send,
                     framebuffer.is_some(),
                 )
                 .await?;
@@ -742,6 +746,7 @@ impl PetriVmConfigOpenVmm {
             resources: PetriVmResourcesOpenVmm {
                 log_stream_tasks,
                 firmware_event_recv,
+                ipmi_sel_event_recv,
                 shutdown_ic_send,
                 kvp_ic_send,
                 ged_send,
@@ -776,6 +781,7 @@ struct PetriVmConfigSetupCore<'a> {
     arch: MachineArch,
     firmware: &'a Firmware,
     hibernation_enabled: bool,
+    ipmi_enabled: bool,
     driver: &'a DefaultDriver,
     logger: &'a PetriLogSource,
     vmgs: &'a PetriVmgsResource,
@@ -1108,6 +1114,7 @@ impl PetriVmConfigSetupCore<'_> {
         serial: &mut [Option<Resource<SerialBackendHandle>>],
         devices: &mut impl Extend<(DeviceVtl, Resource<VmbusDeviceHandleKind>)>,
         firmware_event_send: &mesh::Sender<FirmwareEvent>,
+        ipmi_sel_event_send: &mesh::Sender<get_resources::ged::IpmiSelEvent>,
         framebuffer: bool,
     ) -> anyhow::Result<(
         get_resources::ged::GuestEmulationDeviceHandle,
@@ -1186,6 +1193,7 @@ impl PetriVmConfigSetupCore<'_> {
             guest_request_recv,
             tpm_version: self.tpm_config.map(|c| c.version.into() ),
             firmware_event_send: Some(firmware_event_send.clone()),
+            ipmi_sel_event_send: Some(ipmi_sel_event_send.clone()),
             secure_boot_enabled: *secure_boot_enabled,
             secure_boot_template: match secure_boot_template {
                 Some(SecureBootTemplate::MicrosoftWindows) => {
@@ -1198,6 +1206,7 @@ impl PetriVmConfigSetupCore<'_> {
             },
             enable_battery: false,
             enable_hibernation: self.hibernation_enabled,
+            enable_ipmi: self.ipmi_enabled,
             no_persistent_secrets: self.tpm_config.as_ref().is_some_and(|c| c.no_persistent_secrets),
             igvm_attest_test_config: None,
             test_gsp_by_id,
