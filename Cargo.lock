@@ -2378,6 +2378,9 @@ dependencies = [
  "log",
  "opentmk_disk",
  "paste",
+ "petri_artifacts_common",
+ "petri_artifacts_core",
+ "petri_artifacts_vmm_test",
  "powershell_builder",
  "serde",
  "serde_json",
@@ -6687,8 +6690,10 @@ name = "petri_artifacts_core"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "linkme",
  "paste",
  "serde",
+ "target-lexicon",
 ]
 
 [[package]]

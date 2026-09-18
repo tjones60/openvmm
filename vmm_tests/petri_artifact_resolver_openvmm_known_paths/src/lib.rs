@@ -131,8 +131,8 @@ impl petri_artifacts_core::ResolveTestArtifact for OpenvmmKnownPathsTestArtifact
             }
 
             _ if id == tmks::TMK_VMM_NATIVE => tmk_vmm_native_executable_path(),
-            _ if id == tmks::TMK_VMM_LINUX_X64 => tmk_vmm_linux_path(MachineArch::X86_64),
-            _ if id == tmks::TMK_VMM_LINUX_AARCH64 =>
+            _ if id == tmks::TMK_VMM_LINUX_X64_MUSL => tmk_vmm_linux_path(MachineArch::X86_64),
+            _ if id == tmks::TMK_VMM_LINUX_AARCH64_MUSL =>
                 env_path_or(OPENVMM_CCA_TMK_VMM_ENV_VAR, || {
                     tmk_vmm_linux_path(MachineArch::Aarch64)
                 }),
