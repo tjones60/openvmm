@@ -93,7 +93,7 @@ fn resolve_cca_runtime(resolver: &petri::ArtifactResolver<'_>) -> Option<CcaRunt
             .require(petri_artifacts_vmm_test::artifacts::cca::RESIZE2FS)
             .erase(),
         tmk_vmm_bin: resolver
-            .require(petri_artifacts_vmm_test::artifacts::tmks::TMK_VMM_LINUX_AARCH64)
+            .require(petri_artifacts_vmm_test::artifacts::tmks::TMK_VMM_LINUX_AARCH64_MUSL)
             .erase(),
         simple_tmk_bin: resolver
             .require(petri_artifacts_vmm_test::artifacts::tmks::SIMPLE_TMK_AARCH64)

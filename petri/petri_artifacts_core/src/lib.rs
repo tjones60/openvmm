@@ -6,7 +6,7 @@
 //!
 //! NOTE: this crate does not define any concrete Artifact types itself.
 
-#![forbid(unsafe_code)]
+// #![forbid(unsafe_code)]
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -15,6 +15,9 @@ use std::sync::Arc;
 // exported to support the `declare_artifacts!` macro
 #[doc(hidden)]
 pub use paste;
+#[doc(hidden)]
+pub use target_lexicon::Triple;
+
 use std::cell::RefCell;
 use std::ffi::OsStr;
 use std::marker::PhantomData;
@@ -55,14 +58,94 @@ pub trait ArtifactId: 'static {
     #[doc(hidden)]
     const SUPPORTS_BLOB_DISK: bool;
 
-    /// Filename to use when the artifact is being written to or resolved from
-    /// the test content directory.
-    fn filename(&self) -> &'static str;
+    /// Filename to use when this artifact is being written to or resolved
+    /// from the test content dir.
+    const FILENAME: &'static str;
+
+    /// Target compatible with this artifact, if target specific.
+    const TARGET: Option<Triple>;
 
     /// ...in case you decide to flaunt the trait-level docs regarding manually
     /// implementing this trait.
     #[doc(hidden)]
     fn i_know_what_im_doing_with_this_manual_impl_instead_of_using_the_declare_artifacts_macro();
+}
+
+/// Generate the subdir the artifact should be stored/found in
+pub fn artifact_subdir<T: ArtifactId>() -> String {
+    if let Some(target) = T::TARGET {
+        target.to_string()
+    } else {
+        "any".to_string()
+    }
+}
+
+/// Artifact info for use in the lookup table
+pub struct ArtifactInfo {
+    /// A globally unique ID corresponding to this artifact.
+    pub global_unique_id: &'static str,
+    /// Whether this artifact can be backed by blob disk.
+    pub supports_blob_disk: bool,
+    /// Filename to use when this artifact is being written to or resolved
+    /// from the test content dir.
+    pub filename: &'static str,
+    /// OS flavor compatible with this artifact, if OS specific.
+    pub os_flavor: Option<OsFlavor>,
+    /// Architecture compatible with this artifact, if architecture specific.
+    pub arch: Option<MachineArch>,
+}
+
+/// A coarse-grained label used to differentiate between different OS
+/// environments.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[expect(missing_docs)] // Self-describing names.
+pub enum OsFlavor {
+    Windows,
+    Linux,
+    FreeBsd,
+    Uefi,
+}
+
+// impl OsFlavor {
+//     fn as_str(&self) -> &'static str {
+//         match self {
+//             OsFlavor::Windows => "windows",
+//             OsFlavor::Linux => "linux",
+//             OsFlavor::FreeBsd => "freebsd",
+//             OsFlavor::Uefi => "uefi",
+//         }
+//     }
+// }
+
+/// The machine architecture supported by the artifact or VM.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[expect(missing_docs)] // Self describing names
+pub enum MachineArch {
+    X86_64,
+    Aarch64,
+}
+
+impl MachineArch {
+    /// Returns the host's architecture.
+    pub fn host() -> Self {
+        // xtask-fmt allow-target-arch oneoff-petri-host-arch
+        if cfg!(target_arch = "x86_64") {
+            Self::X86_64
+        }
+        // xtask-fmt allow-target-arch oneoff-petri-host-arch
+        else if cfg!(target_arch = "aarch64") {
+            Self::Aarch64
+        } else {
+            panic!("unsupported host architecture")
+        }
+    }
+
+    // fn as_str(&self) -> &'static str {
+    //     match self {
+    //         Self::X86_64 => "x64",
+    //         Self::Aarch64 => "aarch64",
+    //     }
+    // }
 }
 
 /// A type-safe handle to a particular Artifact, as declared using the
@@ -392,7 +475,7 @@ macro_rules! declare_artifacts {
         $crate::declare_artifacts_inner!(
             $(
                 $(#[$doc])*
-                $name(false, ""),
+                $name(false, "", None),
             )*
         );
     };
@@ -411,7 +494,7 @@ macro_rules! declare_artifacts_with_filename {
         $crate::declare_artifacts_inner!(
             $(
                 $(#[$doc])*
-                $name(false, $filename),
+                $name(false, $filename, None),
             )*
         );
     };
@@ -430,10 +513,41 @@ macro_rules! declare_blob_artifacts {
         $crate::declare_artifacts_inner!(
             $(
                 $(#[$doc])*
-                $name(true, ""),
+                $name(true, "", None),
             )*
         );
     };
+}
+
+#[doc(hidden)]
+pub mod artifacts_macro_support {
+    // UNSAFETY: Needed for linkme.
+    #![expect(unsafe_code)]
+
+    use crate::ArtifactInfo;
+    pub use linkme;
+
+    #[linkme::distributed_slice]
+    pub static ARTIFACTS: [ArtifactInfo];
+
+    // Always have at least one entry to work around linker bugs.
+    //
+    // See <https://github.com/llvm/llvm-project/issues/65855>.
+    #[linkme::distributed_slice(ARTIFACTS)]
+    static WORKAROUND: ArtifactInfo = ArtifactInfo {
+        global_unique_id: "",
+        supports_blob_disk: false,
+        filename: "",
+        os_flavor: None,
+        arch: None,
+    };
+}
+
+/// Get info about an artifact from its global unique ID
+pub fn get_artifact_info_by_id(global_unique_id: &str) -> Option<&ArtifactInfo> {
+    artifacts_macro_support::ARTIFACTS
+        .iter()
+        .find(|i| i.global_unique_id == global_unique_id)
 }
 
 /// Declare one or more type-safe artifacts, specifying whether each supports
@@ -443,7 +557,7 @@ macro_rules! declare_artifacts_inner {
     (
         $(
             $(#[$doc:meta])*
-            $name:ident($supports_blob_disk:literal, $filename:literal)
+            $name:ident($supports_blob_disk:literal, $filename:literal, $target:expr)
         ),*
         $(,)?
     ) => {
@@ -456,23 +570,30 @@ macro_rules! declare_artifacts_inner {
                 #[doc = concat!("Type-tag for [`",  stringify!($name), "`]")]
                 #[expect(non_camel_case_types)]
                 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-                pub struct $name {}
-
-                impl $name {
-                    #[doc = concat!("Create a new [`",  stringify!($name), "`] for querying tags")]
-                    pub fn new() -> Self {
-                        Self {}
-                    }
-                }
+                pub enum $name {}
 
                 #[expect(non_snake_case)]
                 mod [< $name __ty >] {
                     impl $crate::ArtifactId for super::$name {
                         const GLOBAL_UNIQUE_ID: &'static str = module_path!();
                         const SUPPORTS_BLOB_DISK: bool = $supports_blob_disk;
-                        fn filename(&self) -> &'static str { $filename }
+                        const FILENAME: &'static str = $filename;
+                        const TARGET: Option<$crate::Triple> = $target;
                         fn i_know_what_im_doing_with_this_manual_impl_instead_of_using_the_declare_artifacts_macro() {}
                     }
+
+                    const _: () = {
+                        use $crate::artifacts_macro_support::linkme;
+                        #[linkme::distributed_slice($crate::artifacts_macro_support::ARTIFACTS)]
+                        #[linkme(crate = linkme)]
+                        static ARTIFACT: $crate::ArtifactInfo = $crate::ArtifactInfo {
+                            global_unique_id: module_path!(),
+                            supports_blob_disk: $supports_blob_disk,
+                            filename: $filename,
+                            os_flavor: None,
+                            arch: None,
+                        };
+                    };
                 }
             }
         )*

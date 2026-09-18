@@ -10,23 +10,25 @@ pub mod artifacts {
     use petri_artifacts_core::declare_artifacts;
 
     macro_rules! openvmm_native {
-        ($id_ty:ty, $os:literal, $arch:literal) => {
+        ($id_ty:ty, $os:literal, $arch:literal, $env:literal) => {
             /// openvmm "native" executable (i.e:
             /// [`OPENVMM_WIN_X64`](const@OPENVMM_WIN_X64) when compiled on windows x86_64,
             /// [`OPENVMM_LINUX_AARCH64`](const@OPENVMM_LINUX_AARCH64) when compiled on linux aarch64,
             /// etc...)
             // xtask-fmt allow-target-arch oneoff-petri-native-test-deps
-            #[cfg(all(target_os = $os, target_arch = $arch))]
+            #[cfg(all(target_os = $os, target_arch = $arch, target_env = $env))]
             pub const OPENVMM_NATIVE: petri_artifacts_core::ArtifactHandle<$id_ty> =
                 petri_artifacts_core::ArtifactHandle::new();
         };
     }
 
-    openvmm_native!(OPENVMM_WIN_X64, "windows", "x86_64");
-    openvmm_native!(OPENVMM_LINUX_X64, "linux", "x86_64");
-    openvmm_native!(OPENVMM_WIN_AARCH64, "windows", "aarch64");
-    openvmm_native!(OPENVMM_LINUX_AARCH64, "linux", "aarch64");
-    openvmm_native!(OPENVMM_MACOS_AARCH64, "macos", "aarch64");
+    openvmm_native!(OPENVMM_WIN_X64, "windows", "x86_64", "msvc");
+    openvmm_native!(OPENVMM_LINUX_X64, "linux", "x86_64", "gnu");
+    openvmm_native!(OPENVMM_LINUX_X64_MUSL, "linux", "x86_64", "musl");
+    openvmm_native!(OPENVMM_WIN_AARCH64, "windows", "aarch64", "msvc");
+    openvmm_native!(OPENVMM_LINUX_AARCH64, "linux", "aarch64", "gnu");
+    openvmm_native!(OPENVMM_LINUX_AARCH64_MUSL, "linux", "aarch64", "musl");
+    openvmm_native!(OPENVMM_MACOS_AARCH64, "macos", "aarch64", "macabi");
 
     /// openvmm_vhost "native" executable — the vhost-user backend binary.
     /// Only available on Linux (vhost-user requires Unix sockets).
@@ -46,16 +48,24 @@ pub mod artifacts {
         OPENVMM_WIN_X64,
         /// openvmm linux x86_64 executable
         OPENVMM_LINUX_X64,
+        /// openvmm linux x86_64 musl executable
+        OPENVMM_LINUX_X64_MUSL,
         /// openvmm windows aarch64 executable
         OPENVMM_WIN_AARCH64,
         /// openvmm linux aarch64 executable
         OPENVMM_LINUX_AARCH64,
+        /// openvmm linux aarch64 musl executable
+        OPENVMM_LINUX_AARCH64_MUSL,
         /// openvmm macos aarch64 executable
         OPENVMM_MACOS_AARCH64,
         /// openvmm_vhost linux x86_64 executable
         OPENVMM_VHOST_LINUX_X64,
+        /// openvmm_vhost linux x86_64 musl executable
+        OPENVMM_VHOST_LINUX_X64_MUSL,
         /// openvmm_vhost linux aarch64 executable
         OPENVMM_VHOST_LINUX_AARCH64,
+        /// openvmm_vhost linux aarch64 musl executable
+        OPENVMM_VHOST_LINUX_AARCH64_MUSL,
     }
 
     declare_artifacts! {
@@ -92,6 +102,28 @@ pub mod artifacts {
         declare_artifacts! {
             /// Windows x86_64 build of the `test_igvm_agent_rpc_server` executable.
             TEST_IGVM_AGENT_RPC_SERVER_WINDOWS_X64,
+            /// Windows x86_64 build of `flowey_hvlite`
+            FLOWEY_HVLITE_WIN_X64,
+            /// Linux x86_64 build of `flowey_hvlite`
+            FLOWEY_HVLITE_LINUX_X64,
+            /// Windows Aarch64 build of `flowey_hvlite`
+            FLOWEY_HVLITE_WIN_AARCH64,
+            /// Linux x86_64 build of the `incubator` binary.
+            INCUBATOR_LINUX_X64,
+            /// Windows x86_64 build of the `prep_steps` binary.
+            PREP_STEPS_WINDOWS_X64,
+            /// Linux x86_64 build of the `prep_steps` binary.
+            PREP_STEPS_LINUX_X64,
+            /// Prebuilt cargo-nextest VMM tests archive (Windows x86_64 target).
+            NEXTEST_VMM_TESTS_ARCHIVE_WINDOWS_X64,
+            /// Prebuilt cargo-nextest VMM tests archive (Windows aarch64 target).
+            NEXTEST_VMM_TESTS_ARCHIVE_WINDOWS_AARCH64,
+            /// Prebuilt cargo-nextest VMM tests archive (Linux x86_64 target).
+            NEXTEST_VMM_TESTS_ARCHIVE_LINUX_X64,
+            /// Prebuilt cargo-nextest VMM tests archive (Linux musl x86_64 target).
+            NEXTEST_VMM_TESTS_ARCHIVE_LINUX_MUSL_X64,
+            /// Prebuilt cargo-nextest VMM tests archive (Linux musl aarch64 target).
+            NEXTEST_VMM_TESTS_ARCHIVE_LINUX_MUSL_AARCH64,
         }
     }
 
@@ -675,20 +707,16 @@ pub mod artifacts {
         }
 
         tmk_native!(TMK_VMM_WIN_X64, "windows", "x86_64");
-        tmk_native!(TMK_VMM_LINUX_X64, "linux", "x86_64");
+        tmk_native!(TMK_VMM_LINUX_X64_MUSL, "linux", "x86_64");
         tmk_native!(TMK_VMM_WIN_AARCH64, "windows", "aarch64");
-        tmk_native!(TMK_VMM_LINUX_AARCH64, "linux", "aarch64");
+        tmk_native!(TMK_VMM_LINUX_AARCH64_MUSL, "linux", "aarch64");
         tmk_native!(TMK_VMM_MACOS_AARCH64, "macos", "aarch64");
 
         declare_artifacts! {
             /// TMK VMM for Windows x64
             TMK_VMM_WIN_X64,
-            /// TMK VMM for Linux x64
-            TMK_VMM_LINUX_X64,
             /// TMK VMM for MacOS x64
             TMK_VMM_WIN_AARCH64,
-            /// TMK VMM for Linux aarch64
-            TMK_VMM_LINUX_AARCH64,
             /// TMK VMM for MacOS aarch64
             TMK_VMM_MACOS_AARCH64,
             /// TMK VMM for Linux musl x64

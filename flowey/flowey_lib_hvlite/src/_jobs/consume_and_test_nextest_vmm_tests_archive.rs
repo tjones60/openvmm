@@ -179,14 +179,26 @@ impl SimpleFlowNode for Node {
                 };
 
                 let nextest_vmm_tests_archive = built_artifacts
-                    .nextest_vmm_tests_archive
+                    .nextest_vmm_tests_archive(Some(target.clone()))?
                     .take()
                     .expect("nextest_vmm_tests_archive is always required");
-                let incubator = built_artifacts.incubator.take();
-                let prep_steps = built_artifacts.prep_steps.take();
+                let incubator = built_artifacts
+                    .incubator(Some(target.clone()))
+                    .ok()
+                    .map(|a| a.take())
+                    .flatten();
+                let prep_steps = built_artifacts
+                    .prep_steps(Some(target.clone()))
+                    .ok()
+                    .map(|a| a.take())
+                    .flatten();
                 // clone instead of take here since petri expects the test igvm
                 // agent to be present in the test content dir even though it doesn't use it
-                let test_igvm_agent_rpc_server = built_artifacts.test_igvm_agent_rpc_server.clone();
+                let test_igvm_agent_rpc_server = built_artifacts
+                    .test_igvm_agent_rpc_server(Some(target.clone()))
+                    .ok()
+                    .map(|a| a.clone())
+                    .flatten();
 
                 let initialized = ctx.reqv(|v| crate::init_vmm_tests_content_dir::Request {
                     test_content_dir: test_content_dir.clone(),
