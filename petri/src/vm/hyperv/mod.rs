@@ -181,7 +181,7 @@ impl PetriVmmBackend for HyperVPetriBackend {
         let PetriVmResources {
             driver,
             log_source,
-            prebuilt_initrd: _, // Hyper-V doesn't support linux direct
+            prebuilt_initrd: _, // Hyper-V petri backend doesn't support linux direct
         } = resources;
 
         assert!(matches!(
