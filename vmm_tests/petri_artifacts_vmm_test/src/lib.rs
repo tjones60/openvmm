@@ -112,8 +112,8 @@ pub mod artifacts {
             INCUBATOR_LINUX_X64,
             /// Windows x86_64 build of the `prep_steps` binary.
             PREP_STEPS_WINDOWS_X64,
-            /// Linux x86_64 build of the `prep_steps` binary.
-            PREP_STEPS_LINUX_X64,
+            /// Linux musl x86_64 build of the `prep_steps` binary.
+            PREP_STEPS_LINUX_X64_MUSL,
             /// Prebuilt cargo-nextest VMM tests archive (Windows x86_64 target).
             NEXTEST_VMM_TESTS_ARCHIVE_WINDOWS_X64,
             /// Prebuilt cargo-nextest VMM tests archive (Windows aarch64 target).
@@ -121,9 +121,9 @@ pub mod artifacts {
             /// Prebuilt cargo-nextest VMM tests archive (Linux x86_64 target).
             NEXTEST_VMM_TESTS_ARCHIVE_LINUX_X64,
             /// Prebuilt cargo-nextest VMM tests archive (Linux musl x86_64 target).
-            NEXTEST_VMM_TESTS_ARCHIVE_LINUX_MUSL_X64,
+            NEXTEST_VMM_TESTS_ARCHIVE_LINUX_X64_MUSL,
             /// Prebuilt cargo-nextest VMM tests archive (Linux musl aarch64 target).
-            NEXTEST_VMM_TESTS_ARCHIVE_LINUX_MUSL_AARCH64,
+            NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL,
         }
     }
 

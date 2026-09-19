@@ -720,7 +720,8 @@ fn selections_from_resolved(
         needs_hyperv,
         needs_hardware_isolation,
     } = resolved;
-    let needs_whp = build.openvmm;
+    let needs_whp = build.openvmm_native().expect("no native openvmm");
+
     VmmTestSelections {
         filter,
         downloaded_artifacts: downloads.into_iter().collect(),
@@ -753,39 +754,11 @@ impl ResolvedArtifactSelections {
         use petri_artifacts_vmm_test::artifacts::*;
 
         match id {
-            // OpenVMM binary
-            OPENVMM_WIN_X64::GLOBAL_UNIQUE_ID
-            | OPENVMM_LINUX_X64::GLOBAL_UNIQUE_ID
-            | OPENVMM_WIN_AARCH64::GLOBAL_UNIQUE_ID
-            | OPENVMM_LINUX_AARCH64::GLOBAL_UNIQUE_ID => {
-                self.build.openvmm = true;
-            }
-
-            // OpenVMM vhost binary (Linux only)
-            OPENVMM_VHOST_LINUX_X64::GLOBAL_UNIQUE_ID
-            | OPENVMM_VHOST_LINUX_AARCH64::GLOBAL_UNIQUE_ID => {
-                self.build.openvmm_vhost = true;
-            }
+            _ if self.build.resolve_artifact(id) => {}
 
             // QEMU
             QEMU_SYSTEM_AARCH64_LINUX_X64::GLOBAL_UNIQUE_ID => {
                 self.prebuilt_artifacts.qemu_system_aarch64 = true;
-            }
-
-            // OpenHCL IGVM files
-            openhcl_igvm::LATEST_STANDARD_X64::GLOBAL_UNIQUE_ID
-            | openhcl_igvm::LATEST_STANDARD_AARCH64::GLOBAL_UNIQUE_ID => {
-                self.build.openhcl_standard = true;
-            }
-            openhcl_igvm::LATEST_STANDARD_DEV_KERNEL_X64::GLOBAL_UNIQUE_ID
-            | openhcl_igvm::LATEST_STANDARD_DEV_KERNEL_AARCH64::GLOBAL_UNIQUE_ID => {
-                self.build.openhcl_standard_dev = true;
-            }
-            openhcl_igvm::LATEST_CVM_X64::GLOBAL_UNIQUE_ID => {
-                self.build.openhcl_cvm = true;
-            }
-            openhcl_igvm::LATEST_LINUX_DIRECT_TEST_X64::GLOBAL_UNIQUE_ID => {
-                self.build.openhcl_linux_direct = true;
             }
 
             // Release IGVM files (downloaded, not built)
@@ -794,61 +767,6 @@ impl ResolvedArtifactSelections {
             | openhcl_igvm::LATEST_RELEASE_STANDARD_AARCH64::GLOBAL_UNIQUE_ID => {
                 // These are downloaded from GitHub releases, not built
                 self.prebuilt_artifacts.release_igvm = true;
-            }
-
-            // Guest test UEFI
-            test_vhd::GUEST_TEST_UEFI_X64::GLOBAL_UNIQUE_ID
-            | test_vhd::GUEST_TEST_UEFI_AARCH64::GLOBAL_UNIQUE_ID => {
-                self.build.guest_test_uefi = true;
-            }
-
-            // TMKs
-            tmks::SIMPLE_TMK_X64::GLOBAL_UNIQUE_ID | tmks::SIMPLE_TMK_AARCH64::GLOBAL_UNIQUE_ID => {
-                self.build.tmks = true;
-            }
-
-            // TMK VMM
-            tmks::TMK_VMM_WIN_X64::GLOBAL_UNIQUE_ID
-            | tmks::TMK_VMM_WIN_AARCH64::GLOBAL_UNIQUE_ID => {
-                self.build.tmk_vmm = true;
-            }
-
-            tmks::TMK_VMM_LINUX_X64_MUSL::GLOBAL_UNIQUE_ID
-            | tmks::TMK_VMM_LINUX_AARCH64_MUSL::GLOBAL_UNIQUE_ID
-            // throwing the non-musl variants in here is a hack to get around
-            // the lack of multi-target artifact resolution
-            | tmks::TMK_VMM_LINUX_X64::GLOBAL_UNIQUE_ID
-            | tmks::TMK_VMM_LINUX_AARCH64::GLOBAL_UNIQUE_ID => {
-                self.build.tmk_vmm_linux_musl = true;
-            }
-
-            // VmgsTool
-            vmgstool::VMGSTOOL_WIN_X64::GLOBAL_UNIQUE_ID
-            | vmgstool::VMGSTOOL_WIN_AARCH64::GLOBAL_UNIQUE_ID
-            | vmgstool::VMGSTOOL_LINUX_X64::GLOBAL_UNIQUE_ID
-            | vmgstool::VMGSTOOL_LINUX_AARCH64::GLOBAL_UNIQUE_ID => {
-                self.build.vmgstool = true;
-            }
-
-            // VmgsTool-Dev
-            vmgstool::VMGSTOOL_DEV_WIN_X64::GLOBAL_UNIQUE_ID
-            | vmgstool::VMGSTOOL_DEV_WIN_AARCH64::GLOBAL_UNIQUE_ID
-            | vmgstool::VMGSTOOL_DEV_LINUX_X64::GLOBAL_UNIQUE_ID
-            | vmgstool::VMGSTOOL_DEV_LINUX_AARCH64::GLOBAL_UNIQUE_ID => {
-                self.build.vmgstool_dev = true;
-            }
-
-            // TPM guest tests
-            guest_tools::TPM_GUEST_TESTS_WINDOWS_X64::GLOBAL_UNIQUE_ID => {
-                self.build.tpm_guest_tests_windows = true;
-            }
-            guest_tools::TPM_GUEST_TESTS_LINUX_X64::GLOBAL_UNIQUE_ID => {
-                self.build.tpm_guest_tests_linux = true;
-            }
-
-            // Host tools
-            host_tools::TEST_IGVM_AGENT_RPC_SERVER_WINDOWS_X64::GLOBAL_UNIQUE_ID => {
-                self.build.test_igvm_agent_rpc_server = true;
             }
 
             // Loadable firmware artifacts (these come from deps, not built)
@@ -891,8 +809,8 @@ impl ResolvedArtifactSelections {
                     .insert(KnownTestArtifacts::Gen2WindowsDataCenterCore2025X64Vhd);
             }
             test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64_PREPPED::GLOBAL_UNIQUE_ID => {
-                self.build.openvmm = true;
-                self.build.prep_steps = true;
+                self.build.require_openvmm_native()?;
+                self.build.require_prep_steps_native()?;
                 self.prep_steps_variants.push("standard".into());
                 // prep_steps needs actual VHD files on disk to copy them.
                 // Force download even when lazy fetch is enabled.
@@ -902,8 +820,8 @@ impl ResolvedArtifactSelections {
                     .insert(KnownTestArtifacts::Gen2WindowsDataCenterCore2025X64Vhd);
             }
             test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64_NO_VMBUS_PREPPED::GLOBAL_UNIQUE_ID => {
-                self.build.openvmm = true;
-                self.build.prep_steps = true;
+                self.build.require_openvmm_native()?;
+                self.build.require_prep_steps_native()?;
                 self.prep_steps_variants.push("no-vmbus".into());
                 self.force_downloads
                     .insert(KnownTestArtifacts::Gen2WindowsDataCenterCore2022X64Vhd);
@@ -951,7 +869,7 @@ impl ResolvedArtifactSelections {
             // OpenHCL usermode binaries (built as part of IGVM)
             openhcl_igvm::um_bin::LATEST_LINUX_DIRECT_TEST_X64::GLOBAL_UNIQUE_ID
             | openhcl_igvm::um_dbg::LATEST_LINUX_DIRECT_TEST_X64::GLOBAL_UNIQUE_ID => {
-                self.build.openhcl_linux_direct = true;
+                self.build.openhcl_linux_direct_x64 = true;
             }
 
             // Common artifacts (always available, no build needed)
@@ -960,16 +878,6 @@ impl ResolvedArtifactSelections {
             // Virtio-win drivers (downloaded from openvmm-deps)
             virtio_win::VIRTIO_WIN_DRIVERS::GLOBAL_UNIQUE_ID => {
                 self.prebuilt_artifacts.virtio_win_drivers = true;
-            }
-
-            // Pipette binaries (from petri_artifacts_common)
-            PIPETTE_LINUX_X64::GLOBAL_UNIQUE_ID => self.build.pipette_linux_musl_x64 = true,
-
-            PIPETTE_LINUX_AARCH64::GLOBAL_UNIQUE_ID => {
-                self.build.pipette_linux_musl_aarch64 = true;
-            }
-            PIPETTE_WINDOWS_X64::GLOBAL_UNIQUE_ID | PIPETTE_WINDOWS_AARCH64::GLOBAL_UNIQUE_ID => {
-                self.build.pipette_windows = true;
             }
 
             _ => anyhow::bail!("unknown artifact: {id}"),

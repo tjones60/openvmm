@@ -6683,6 +6683,7 @@ name = "petri_artifacts_common"
 version = "0.0.0"
 dependencies = [
  "petri_artifacts_core",
+ "target-lexicon",
 ]
 
 [[package]]

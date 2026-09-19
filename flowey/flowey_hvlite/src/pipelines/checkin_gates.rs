@@ -200,7 +200,7 @@ impl IntoPipeline for CheckinGatesCli {
         let mut vmm_tests_artifacts_linux_x86 =
             vmm_tests_artifact_builders::VmmTestsArtifactsBuilderLinuxX86::default();
         let mut vmm_tests_artifacts_linux_musl_x86 =
-            vmm_tests_artifact_builders::VmmTestsArtifactsBuilderLinuxX86::default();
+            vmm_tests_artifact_builders::VmmTestsArtifactsBuilderLinuxMuslX86::default();
         let mut vmm_tests_artifacts_windows_x86 =
             vmm_tests_artifact_builders::VmmTestsArtifactsBuilderWindowsX86::default();
         let mut vmm_tests_artifacts_windows_aarch64 =
@@ -330,15 +330,15 @@ impl IntoPipeline for CheckinGatesCli {
             // filter off artifacts required by the VMM tests job
             match arch {
                 CommonArch::X86_64 => {
-                    vmm_tests_artifacts_linux_x86.use_pipette_windows =
+                    vmm_tests_artifacts_linux_x86.use_pipette_windows_x64 =
                         Some(use_pipette_windows.clone());
-                    vmm_tests_artifacts_linux_musl_x86.use_pipette_windows =
+                    vmm_tests_artifacts_linux_musl_x86.use_pipette_windows_x64 =
                         Some(use_pipette_windows.clone());
-                    vmm_tests_artifacts_windows_x86.use_pipette_windows =
+                    vmm_tests_artifacts_windows_x86.use_pipette_windows_x64 =
                         Some(use_pipette_windows.clone());
                 }
                 CommonArch::Aarch64 => {
-                    vmm_tests_artifacts_windows_aarch64.use_pipette_windows =
+                    vmm_tests_artifacts_windows_aarch64.use_pipette_windows_aarch64 =
                         Some(use_pipette_windows.clone());
                 }
             }
@@ -390,46 +390,49 @@ impl IntoPipeline for CheckinGatesCli {
 
             match arch {
                 CommonArch::X86_64 => {
-                    vmm_tests_artifacts_linux_x86.use_guest_test_uefi =
+                    vmm_tests_artifacts_linux_x86.use_guest_test_uefi_x64 =
                         Some(use_guest_test_uefi.clone());
-                    vmm_tests_artifacts_windows_x86.use_guest_test_uefi =
+                    vmm_tests_artifacts_windows_x86.use_guest_test_uefi_x64 =
                         Some(use_guest_test_uefi.clone());
-                    vmm_tests_artifacts_windows_x86.use_tmks = Some(use_tmks.clone());
-                    vmm_tests_artifacts_linux_x86.use_tmks = Some(use_tmks.clone());
-                    vmm_tests_artifacts_windows_x86.use_tpm_guest_tests_linux =
+                    vmm_tests_artifacts_windows_x86.use_tmks_x64 = Some(use_tmks.clone());
+                    vmm_tests_artifacts_linux_x86.use_tmks_x64 = Some(use_tmks.clone());
+                    vmm_tests_artifacts_windows_x86.use_tpm_guest_tests_linux_x64 =
                         Some(use_tpm_guest_tests.clone());
-                    vmm_tests_artifacts_linux_musl_x86.use_guest_test_uefi =
+                    vmm_tests_artifacts_linux_musl_x86.use_guest_test_uefi_x64 =
                         Some(use_guest_test_uefi.clone());
-                    vmm_tests_artifacts_linux_musl_x86.use_tmks = Some(use_tmks.clone());
+                    vmm_tests_artifacts_linux_musl_x86.use_tmks_x64 = Some(use_tmks.clone());
                     vmm_tests_artifacts_windows_x86.use_pipette_linux_musl_x64 =
                         Some(use_pipette_linux_musl.clone());
                     vmm_tests_artifacts_linux_x86.use_pipette_linux_musl_x64 =
                         Some(use_pipette_linux_musl.clone());
-                    vmm_tests_artifacts_linux_x86.use_tmk_vmm = Some(use_tmk_vmm.clone());
-                    vmm_tests_artifacts_windows_x86.use_tmk_vmm_linux_musl =
+                    vmm_tests_artifacts_linux_x86.use_tmk_vmm_linux_musl_x64 =
+                        Some(use_tmk_vmm.clone());
+                    vmm_tests_artifacts_windows_x86.use_tmk_vmm_linux_musl_x64 =
                         Some(use_tmk_vmm.clone());
                     vmm_tests_artifacts_linux_musl_x86.use_pipette_linux_musl_x64 =
                         Some(use_pipette_linux_musl.clone());
-                    vmm_tests_artifacts_linux_musl_x86.use_tmk_vmm = Some(use_tmk_vmm.clone());
+                    vmm_tests_artifacts_linux_musl_x86.use_tmk_vmm_linux_musl_x64 =
+                        Some(use_tmk_vmm.clone());
                 }
                 CommonArch::Aarch64 => {
                     vmm_tests_artifacts_linux_musl_x86.use_pipette_linux_musl_aarch64 =
                         Some(use_pipette_linux_musl.clone());
                     vmm_tests_artifacts_linux_x86.use_pipette_linux_musl_aarch64 =
                         Some(use_pipette_linux_musl.clone());
-                    vmm_tests_artifacts_windows_aarch64.use_guest_test_uefi =
+                    vmm_tests_artifacts_windows_aarch64.use_guest_test_uefi_aarch64 =
                         Some(use_guest_test_uefi.clone());
-                    vmm_tests_artifacts_windows_aarch64.use_tmks = Some(use_tmks.clone());
+                    vmm_tests_artifacts_windows_aarch64.use_tmks_aarch64 = Some(use_tmks.clone());
                     vmm_tests_artifacts_windows_aarch64.use_pipette_linux_musl_aarch64 =
                         Some(use_pipette_linux_musl.clone());
-                    vmm_tests_artifacts_windows_aarch64.use_tmk_vmm_linux_musl =
+                    vmm_tests_artifacts_windows_aarch64.use_tmk_vmm_linux_musl_aarch64 =
                         Some(use_tmk_vmm.clone());
-                    vmm_tests_artifacts_linux_aarch64_tcg.use_guest_test_uefi =
+                    vmm_tests_artifacts_linux_aarch64_tcg.use_guest_test_uefi_aarch64 =
                         Some(use_guest_test_uefi.clone());
-                    vmm_tests_artifacts_linux_aarch64_tcg.use_tmks = Some(use_tmks.clone());
+                    vmm_tests_artifacts_linux_aarch64_tcg.use_tmks_aarch64 = Some(use_tmks.clone());
                     vmm_tests_artifacts_linux_aarch64_tcg.use_pipette_linux_musl_aarch64 =
                         Some(use_pipette_linux_musl.clone());
-                    vmm_tests_artifacts_linux_aarch64_tcg.use_tmk_vmm = Some(use_tmk_vmm.clone());
+                    vmm_tests_artifacts_linux_aarch64_tcg.use_tmk_vmm_linux_musl_aarch64 =
+                        Some(use_tmk_vmm.clone());
                 }
             }
 
@@ -447,7 +450,7 @@ impl IntoPipeline for CheckinGatesCli {
         // Must be created before the shared_linux_job builder to avoid
         // borrowing `pipeline` while the job builder holds a mutable borrow.
         let (pub_incubator, use_incubator) = pipeline.new_typed_artifact("x64-linux-incubator");
-        vmm_tests_artifacts_linux_aarch64_tcg.use_incubator = Some(use_incubator);
+        vmm_tests_artifacts_linux_aarch64_tcg.use_incubator_linux_x64 = Some(use_incubator);
 
         let mut shared_linux_job = pipeline
             .new_job(
@@ -564,28 +567,36 @@ impl IntoPipeline for CheckinGatesCli {
             // filter off interesting artifacts required by the VMM tests job
             match arch {
                 CommonArch::X86_64 => {
-                    vmm_tests_artifacts_windows_x86.use_openvmm = Some(use_openvmm.clone());
-                    vmm_tests_artifacts_windows_x86.use_tmk_vmm = Some(use_tmk_vmm.clone());
-                    vmm_tests_artifacts_windows_x86.use_prep_steps = Some(use_prep_steps.clone());
-                    vmm_tests_artifacts_windows_x86.use_vmgstool = Some(use_vmgstool.clone());
-                    vmm_tests_artifacts_windows_x86.use_vmgstool_dev =
+                    vmm_tests_artifacts_windows_x86.use_openvmm_windows_x64 =
+                        Some(use_openvmm.clone());
+                    vmm_tests_artifacts_windows_x86.use_tmk_vmm_windows_x64 =
+                        Some(use_tmk_vmm.clone());
+                    vmm_tests_artifacts_windows_x86.use_prep_steps_windows_x64 =
+                        Some(use_prep_steps.clone());
+                    vmm_tests_artifacts_windows_x86.use_vmgstool_windows_x64 =
+                        Some(use_vmgstool.clone());
+                    vmm_tests_artifacts_windows_x86.use_vmgstool_dev_windows_x64 =
                         Some(use_vmgstool_dev.clone());
-                    vmm_tests_artifacts_windows_x86.use_tpm_guest_tests_windows =
+                    vmm_tests_artifacts_windows_x86.use_tpm_guest_tests_windows_x64 =
                         Some(use_tpm_guest_tests_windows.clone());
-                    vmm_tests_artifacts_windows_x86.use_test_igvm_agent_rpc_server =
+                    vmm_tests_artifacts_windows_x86.use_test_igvm_agent_rpc_server_windows_x64 =
                         Some(use_test_igvm_agent_rpc_server.clone());
-                    vmm_tests_artifacts_windows_x86.use_nextest_vmm_tests_archive =
+                    vmm_tests_artifacts_windows_x86.use_nextest_vmm_tests_archive_windows_x64 =
                         Some(use_vmm_tests_archive.clone());
                     use_vmm_perf_runner_windows_x64 = Some(use_vmm_perf);
                     use_vmm_perf_openvmm_windows_x64 = Some(use_openvmm.clone());
                 }
                 CommonArch::Aarch64 => {
-                    vmm_tests_artifacts_windows_aarch64.use_openvmm = Some(use_openvmm.clone());
-                    vmm_tests_artifacts_windows_aarch64.use_tmk_vmm = Some(use_tmk_vmm.clone());
-                    vmm_tests_artifacts_windows_aarch64.use_vmgstool = Some(use_vmgstool.clone());
-                    vmm_tests_artifacts_windows_aarch64.use_vmgstool_dev =
+                    vmm_tests_artifacts_windows_aarch64.use_openvmm_windows_aarch64 =
+                        Some(use_openvmm.clone());
+                    vmm_tests_artifacts_windows_aarch64.use_tmk_vmm_windows_aarch64 =
+                        Some(use_tmk_vmm.clone());
+                    vmm_tests_artifacts_windows_aarch64.use_vmgstool_windows_aarch64 =
+                        Some(use_vmgstool.clone());
+                    vmm_tests_artifacts_windows_aarch64.use_vmgstool_dev_windows_aarch64 =
                         Some(use_vmgstool_dev.clone());
-                    vmm_tests_artifacts_windows_aarch64.use_nextest_vmm_tests_archive =
+                    vmm_tests_artifacts_windows_aarch64
+                        .use_nextest_vmm_tests_archive_windows_aarch64 =
                         Some(use_vmm_tests_archive.clone());
                 }
             }
@@ -817,18 +828,21 @@ impl IntoPipeline for CheckinGatesCli {
             // skim off interesting artifacts required by the VMM tests job
             match arch {
                 CommonArch::X86_64 => {
-                    vmm_tests_artifacts_linux_x86.use_openvmm = Some(use_openvmm.clone());
-                    vmm_tests_artifacts_linux_x86.use_openvmm_vhost =
+                    vmm_tests_artifacts_linux_x86.use_openvmm_linux_x64 = Some(use_openvmm.clone());
+                    vmm_tests_artifacts_linux_x86.use_openvmm_vhost_linux_x64 =
                         Some(use_openvmm_vhost.clone());
-                    vmm_tests_artifacts_linux_x86.use_prep_steps = Some(use_prep_steps.clone());
-                    vmm_tests_artifacts_linux_musl_x86.use_openvmm = Some(use_openvmm_musl.clone());
-                    vmm_tests_artifacts_linux_musl_x86.use_openvmm_vhost =
-                        Some(use_openvmm_vhost_musl.clone());
-                    vmm_tests_artifacts_linux_musl_x86.use_prep_steps =
+                    vmm_tests_artifacts_linux_x86.use_prep_steps_linux_musl_x64 =
                         Some(use_prep_steps.clone());
-                    vmm_tests_artifacts_linux_x86.use_nextest_vmm_tests_archive =
+                    vmm_tests_artifacts_linux_musl_x86.use_openvmm_linux_musl_x64 =
+                        Some(use_openvmm_musl.clone());
+                    vmm_tests_artifacts_linux_musl_x86.use_openvmm_vhost_linux_musl_x64 =
+                        Some(use_openvmm_vhost_musl.clone());
+                    vmm_tests_artifacts_linux_musl_x86.use_prep_steps_linux_musl_x64 =
+                        Some(use_prep_steps.clone());
+                    vmm_tests_artifacts_linux_x86.use_nextest_vmm_tests_archive_linux_x64 =
                         Some(use_vmm_tests_archive.clone());
-                    vmm_tests_artifacts_linux_musl_x86.use_nextest_vmm_tests_archive =
+                    vmm_tests_artifacts_linux_musl_x86
+                        .use_nextest_vmm_tests_archive_linux_musl_x64 =
                         Some(use_vmm_tests_archive_musl.clone());
                     use_vmm_perf_runner_gnu_x64 = Some(use_vmm_perf_gnu);
                     use_vmm_perf_runner_musl_x64 = Some(use_vmm_perf_musl);
@@ -836,9 +850,10 @@ impl IntoPipeline for CheckinGatesCli {
                     use_vmm_perf_openvmm_musl_x64 = Some(use_openvmm_musl.clone());
                 }
                 CommonArch::Aarch64 => {
-                    vmm_tests_artifacts_linux_aarch64_tcg.use_openvmm =
+                    vmm_tests_artifacts_linux_aarch64_tcg.use_openvmm_linux_musl_aarch64 =
                         Some(use_openvmm_musl.clone());
-                    vmm_tests_artifacts_linux_aarch64_tcg.use_nextest_vmm_tests_archive =
+                    vmm_tests_artifacts_linux_aarch64_tcg
+                        .use_nextest_vmm_tests_archive_linux_musl_aarch64 =
                         Some(use_vmm_tests_archive_musl.clone());
                 }
             }
@@ -1084,13 +1099,14 @@ impl IntoPipeline for CheckinGatesCli {
             // skim off interesting artifacts required by the VMM tests job
             match (arch, mi_secure) {
                 (CommonArch::X86_64, false) => {
-                    vmm_tests_artifacts_windows_x86.use_openhcl_standard =
+                    vmm_tests_artifacts_windows_x86.use_openhcl_standard_x64 =
                         use_openhcl_igvms.get(&OpenhclIgvmRecipe::X64).cloned();
-                    vmm_tests_artifacts_windows_x86.use_openhcl_cvm =
+                    vmm_tests_artifacts_windows_x86.use_openhcl_cvm_x64 =
                         use_openhcl_igvms.get(&OpenhclIgvmRecipe::X64Cvm).cloned();
-                    vmm_tests_artifacts_windows_x86.use_openhcl_linux_direct = use_openhcl_igvms
-                        .get(&OpenhclIgvmRecipe::X64TestLinuxDirect)
-                        .cloned();
+                    vmm_tests_artifacts_windows_x86.use_openhcl_linux_direct_x64 =
+                        use_openhcl_igvms
+                            .get(&OpenhclIgvmRecipe::X64TestLinuxDirect)
+                            .cloned();
                 }
                 (CommonArch::X86_64, true) => {
                     // we'll skim these off later so we can reuse most of the
@@ -1098,7 +1114,7 @@ impl IntoPipeline for CheckinGatesCli {
                     use_openhcl_igvm_files_mi_secure_x86 = use_openhcl_igvms;
                 }
                 (CommonArch::Aarch64, false) => {
-                    vmm_tests_artifacts_windows_aarch64.use_openhcl_standard =
+                    vmm_tests_artifacts_windows_aarch64.use_openhcl_standard_aarch64 =
                         use_openhcl_igvms.get(&OpenhclIgvmRecipe::Aarch64).cloned();
                 }
                 _ => unreachable!(),
@@ -1382,13 +1398,13 @@ impl IntoPipeline for CheckinGatesCli {
             })?;
         let vmm_tests_artifacts_windows_intel_mi_secure_x86 = {
             let mut builder = vmm_tests_artifacts_windows_x86.clone();
-            builder.use_openhcl_standard = use_openhcl_igvm_files_mi_secure_x86
+            builder.use_openhcl_standard_x64 = use_openhcl_igvm_files_mi_secure_x86
                 .get(&OpenhclIgvmRecipe::X64)
                 .cloned();
-            builder.use_openhcl_cvm = use_openhcl_igvm_files_mi_secure_x86
+            builder.use_openhcl_cvm_x64 = use_openhcl_igvm_files_mi_secure_x86
                 .get(&OpenhclIgvmRecipe::X64Cvm)
                 .cloned();
-            builder.use_openhcl_linux_direct = use_openhcl_igvm_files_mi_secure_x86
+            builder.use_openhcl_linux_direct_x64 = use_openhcl_igvm_files_mi_secure_x86
                 .get(&OpenhclIgvmRecipe::X64TestLinuxDirect)
                 .cloned();
             builder

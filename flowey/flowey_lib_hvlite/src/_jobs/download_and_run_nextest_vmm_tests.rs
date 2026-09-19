@@ -119,7 +119,6 @@ impl SimpleFlowNode for Node {
 
         ctx.req(crate::download_vmm_tests_built_artifacts::Request {
             built_artifacts_write,
-            target: target.clone(),
         });
 
         ctx.req(
