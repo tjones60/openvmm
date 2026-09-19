@@ -41,19 +41,23 @@ pub mod capabilities {
 
 /// Artifact declarations
 pub mod artifacts {
-    use petri_artifacts_core::declare_artifacts_with_filename;
+    use petri_artifacts_core::declare_artifacts_with_filename_and_target;
 
-    declare_artifacts_with_filename! {
+    declare_artifacts_with_filename_and_target! {
         /// Pipette windows x86_64 executable
-        PIPETTE_WINDOWS_X64("pipette.exe"),
+        PIPETTE_WINDOWS_X64("pipette.exe", WINDOWS_X64),
         /// Pipette linux x86_64 executable
-        PIPETTE_LINUX_X64("pipette"),
+        PIPETTE_LINUX_X64("pipette", LINUX_X64),
+        /// Pipette linux x86_64 musl executable
+        PIPETTE_LINUX_X64_MUSL("pipette", LINUX_X64_MUSL),
         /// Pipette windows aarch64 executable
-        PIPETTE_WINDOWS_AARCH64("pipette.exe"),
+        PIPETTE_WINDOWS_AARCH64("pipette.exe", WINDOWS_AARCH64),
         /// Pipette linux aarch64 executable
-        PIPETTE_LINUX_AARCH64("pipette"),
+        PIPETTE_LINUX_AARCH64("pipette", LINUX_AARCH64),
+        /// Pipette linux aarch64 musl executable
+        PIPETTE_LINUX_AARCH64_MUSL("pipette", LINUX_AARCH64_MUSL),
         /// Directory to put petri test logs in
-        TEST_LOG_DIRECTORY("test_results"),
+        TEST_LOG_DIRECTORY("test_results", ANY),
     }
 }
 

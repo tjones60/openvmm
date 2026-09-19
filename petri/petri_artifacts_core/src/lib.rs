@@ -16,7 +16,7 @@ use std::sync::Arc;
 #[doc(hidden)]
 pub use paste;
 #[doc(hidden)]
-pub use target_lexicon::Triple;
+pub use target_lexicon;
 
 use std::cell::RefCell;
 use std::ffi::OsStr;
@@ -63,7 +63,7 @@ pub trait ArtifactId: 'static {
     const FILENAME: &'static str;
 
     /// Target compatible with this artifact, if target specific.
-    const TARGET: Option<Triple>;
+    const TARGET: Option<target_lexicon::Triple>;
 
     /// ...in case you decide to flaunt the trait-level docs regarding manually
     /// implementing this trait.
@@ -475,7 +475,7 @@ macro_rules! declare_artifacts {
         $crate::declare_artifacts_inner!(
             $(
                 $(#[$doc])*
-                $name(false, "", None),
+                $name(false, "", ANY),
             )*
         );
     };
@@ -483,18 +483,18 @@ macro_rules! declare_artifacts {
 
 /// Declare one or more type-safe artifacts that do not support blob disk.
 #[macro_export]
-macro_rules! declare_artifacts_with_filename {
+macro_rules! declare_artifacts_with_filename_and_target {
     (
         $(
             $(#[$doc:meta])*
-            $name:ident($filename:literal)
+            $name:ident($filename:literal, $target:ident)
         ),*
         $(,)?
     ) => {
         $crate::declare_artifacts_inner!(
             $(
                 $(#[$doc])*
-                $name(false, $filename, None),
+                $name(false, $filename, $target),
             )*
         );
     };
@@ -513,7 +513,7 @@ macro_rules! declare_blob_artifacts {
         $crate::declare_artifacts_inner!(
             $(
                 $(#[$doc])*
-                $name(true, "", None),
+                $name(true, "", ANY),
             )*
         );
     };
@@ -557,7 +557,7 @@ macro_rules! declare_artifacts_inner {
     (
         $(
             $(#[$doc:meta])*
-            $name:ident($supports_blob_disk:literal, $filename:literal, $target:expr)
+            $name:ident($supports_blob_disk:literal, $filename:literal, $target:ident)
         ),*
         $(,)?
     ) => {
@@ -578,7 +578,7 @@ macro_rules! declare_artifacts_inner {
                         const GLOBAL_UNIQUE_ID: &'static str = module_path!();
                         const SUPPORTS_BLOB_DISK: bool = $supports_blob_disk;
                         const FILENAME: &'static str = $filename;
-                        const TARGET: Option<$crate::Triple> = $target;
+                        const TARGET: Option<$crate::target_lexicon::Triple> = $crate::targets::$target;
                         fn i_know_what_im_doing_with_this_manual_impl_instead_of_using_the_declare_artifacts_macro() {}
                     }
 
@@ -791,4 +791,64 @@ pub struct ArtifactListOutput {
     pub required: Vec<String>,
     /// List of unique optional artifact IDs across all matching tests.
     pub optional: Vec<String>,
+}
+
+/// Targets for the artifacts
+pub mod targets {
+    /// Artifact can be used on any target system
+    pub const ANY: Option<target_lexicon::Triple> = None;
+    /// x86_64-pc-windows-msvc
+    pub const WINDOWS_X64: Option<target_lexicon::Triple> = Some(target_lexicon::Triple {
+        architecture: target_lexicon::Architecture::X86_64,
+        vendor: target_lexicon::Vendor::Pc,
+        operating_system: target_lexicon::OperatingSystem::Windows,
+        environment: target_lexicon::Environment::Msvc,
+        binary_format: target_lexicon::BinaryFormat::Unknown,
+    });
+    /// x86_64-unknown-linux-gnu
+    pub const LINUX_X64: Option<target_lexicon::Triple> = Some(target_lexicon::Triple {
+        architecture: target_lexicon::Architecture::X86_64,
+        vendor: target_lexicon::Vendor::Unknown,
+        operating_system: target_lexicon::OperatingSystem::Linux,
+        environment: target_lexicon::Environment::Gnu,
+        binary_format: target_lexicon::BinaryFormat::Elf,
+    });
+    /// x86_64-unknown-linux-musl
+    pub const LINUX_X64_MUSL: Option<target_lexicon::Triple> = Some(target_lexicon::Triple {
+        architecture: target_lexicon::Architecture::X86_64,
+        vendor: target_lexicon::Vendor::Unknown,
+        operating_system: target_lexicon::OperatingSystem::Linux,
+        environment: target_lexicon::Environment::Musl,
+        binary_format: target_lexicon::BinaryFormat::Elf,
+    });
+    /// aarch64-pc-windows-msvc
+    pub const WINDOWS_AARCH64: Option<target_lexicon::Triple> = Some(target_lexicon::Triple {
+        architecture: target_lexicon::Architecture::Aarch64(
+            target_lexicon::Aarch64Architecture::Aarch64,
+        ),
+        vendor: target_lexicon::Vendor::Pc,
+        operating_system: target_lexicon::OperatingSystem::Windows,
+        environment: target_lexicon::Environment::Msvc,
+        binary_format: target_lexicon::BinaryFormat::Unknown,
+    });
+    /// aarch64-unknown-linux-gnu
+    pub const LINUX_AARCH64: Option<target_lexicon::Triple> = Some(target_lexicon::Triple {
+        architecture: target_lexicon::Architecture::Aarch64(
+            target_lexicon::Aarch64Architecture::Aarch64,
+        ),
+        vendor: target_lexicon::Vendor::Unknown,
+        operating_system: target_lexicon::OperatingSystem::Linux,
+        environment: target_lexicon::Environment::Gnu,
+        binary_format: target_lexicon::BinaryFormat::Elf,
+    });
+    /// aarch64-unknown-linux-musl
+    pub const LINUX_AARCH64_MUSL: Option<target_lexicon::Triple> = Some(target_lexicon::Triple {
+        architecture: target_lexicon::Architecture::Aarch64(
+            target_lexicon::Aarch64Architecture::Aarch64,
+        ),
+        vendor: target_lexicon::Vendor::Unknown,
+        operating_system: target_lexicon::OperatingSystem::Linux,
+        environment: target_lexicon::Environment::Musl,
+        binary_format: target_lexicon::BinaryFormat::Elf,
+    });
 }

@@ -19,7 +19,6 @@ use crate::build_tmks::TmksOutput;
 use crate::build_tpm_guest_tests::TpmGuestTestsOutput;
 use crate::build_vmgstool::VmgstoolOutput;
 use crate::common::CommonArch;
-use crate::common::CommonTriple;
 use crate::download_release_igvm_files_from_gh::OpenhclReleaseVersion;
 use flowey::node::prelude::*;
 use petri_artifacts_common::artifacts::*;
@@ -60,13 +59,18 @@ macro_rules! define_vmm_tests_built_artifacts {
                     )*)*}
                 }
 
-                $(pub fn $artifact(&mut self, target: Option<target_lexicon::Triple>) -> ::anyhow::Result<&mut Option<::flowey::node::prelude::ReadVar<$output>>> {
+                $(pub fn $artifact(&mut self, target: Option<::target_lexicon::Triple>) -> ::anyhow::Result<&mut Option<::flowey::node::prelude::ReadVar<$output>>> {
                     #[allow(unreachable_patterns)]
                     match target {
                         $($artifact_ty::TARGET => Ok(&mut self.[<$artifact _ $variant>]),)*
                         _ => Err(::anyhow::anyhow!(concat!("target does not exist for ", stringify!($artifact)))),
                     }
                 })*
+
+                $($(pub fn [<$artifact _ $variant _target>]() -> ::target_lexicon::Triple {
+                    // All built artifacts should have a target
+                    $artifact_ty::TARGET.unwrap()
+                })*)*
             }
 
             impl VmmTestsBuiltArtifacts<VarClaimed> {
@@ -101,14 +105,48 @@ macro_rules! define_vmm_tests_built_artifacts {
             }
 
             #[derive(Serialize, Deserialize, Default)]
-            pub struct VmmTestsBuiltArtifactsWrite {
-                $($(pub [<$artifact _ $variant>]: Option<::flowey::node::prelude::WriteVar<$output>>,)*)*
-            }
+            pub struct VmmTestsBuiltArtifactsWrite {$($(
+                pub [<$artifact _ $variant>]: Option<::flowey::node::prelude::WriteVar<$output>>,
+            )*)*}
 
             #[derive(Serialize, Deserialize, Default, Debug)]
-            pub struct VmmTestsBuiltArtifactsSelections {
-                $(pub $artifact: bool,)*
+            pub struct VmmTestsBuiltArtifactsSelections {$($(
+                pub [<$artifact _ $variant>]: bool,
+            )*)*}
+
+            impl VmmTestsBuiltArtifactsSelections {
+                pub fn resolve_artifact(&mut self, id: &str) -> bool {
+                    match id {
+                        $($($artifact_ty::GLOBAL_UNIQUE_ID => {
+                            self.[<$artifact _ $variant>] = true;
+                            true
+                        })*)*
+                        _ => false
+                    }
+                }
+
+                $(pub fn [<$artifact _native>](&self) -> ::anyhow::Result<bool>{
+                    #[allow(unreachable_patterns)]
+                    match Some(::target_lexicon::Triple::host()) {
+                        $($artifact_ty::TARGET => {
+                            Ok(self.[<$artifact _ $variant>])
+                        })*
+                        _ => Err(::anyhow::anyhow!(concat!("host target does not exist for ", stringify!($artifact)))),
+                    }
+                }
+
+                pub fn [<require_ $artifact _native>](&mut self) -> ::anyhow::Result<()>{
+                    #[allow(unreachable_patterns)]
+                    match Some(::target_lexicon::Triple::host()) {
+                        $($artifact_ty::TARGET => {
+                            self.[<$artifact _ $variant>] = true;
+                        })*
+                        _ => ::anyhow::bail!(concat!("host target does not exist for ", stringify!($artifact))),
+                    }
+                    Ok(())
+                })*
             }
+
         }
     };
 }
@@ -143,12 +181,12 @@ define_vmm_tests_built_artifacts!(
         linux_musl_x64(
             NextestVmmTestsArchive,
             archive_file,
-            host_tools::NEXTEST_VMM_TESTS_ARCHIVE_LINUX_MUSL_X64
+            host_tools::NEXTEST_VMM_TESTS_ARCHIVE_LINUX_X64_MUSL
         ),
         linux_musl_aarch64(
             NextestVmmTestsArchive,
             archive_file,
-            host_tools::NEXTEST_VMM_TESTS_ARCHIVE_LINUX_MUSL_AARCH64
+            host_tools::NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL
         ),
     ) => NextestVmmTestsArchive,
     incubator(
@@ -156,7 +194,7 @@ define_vmm_tests_built_artifacts!(
     ) => IncubatorOutput,
     prep_steps(
         windows_x64(PrepStepsOutput::WindowsBin, exe, host_tools::PREP_STEPS_WINDOWS_X64),
-        linux_x64(PrepStepsOutput::LinuxBin, bin, host_tools::PREP_STEPS_LINUX_X64),
+        linux_musl_x64(PrepStepsOutput::LinuxBin, bin, host_tools::PREP_STEPS_LINUX_X64_MUSL),
     ) => PrepStepsOutput,
     test_igvm_agent_rpc_server(
         windows_x64(
@@ -178,18 +216,18 @@ define_vmm_tests_built_artifacts!(
     openvmm_vhost(
         linux_x64(OpenvmmVhostOutput, bin, OPENVMM_VHOST_LINUX_X64),
         linux_aarch64(OpenvmmVhostOutput, bin, OPENVMM_VHOST_LINUX_AARCH64),
-        linux_x64_musl(OpenvmmVhostOutput, bin, OPENVMM_VHOST_LINUX_X64_MUSL),
-        linux_aarch64_musl(OpenvmmVhostOutput, bin, OPENVMM_VHOST_LINUX_AARCH64_MUSL),
+        linux_musl_x64(OpenvmmVhostOutput, bin, OPENVMM_VHOST_LINUX_X64_MUSL),
+        linux_musl_aarch64(OpenvmmVhostOutput, bin, OPENVMM_VHOST_LINUX_AARCH64_MUSL),
     ) => OpenvmmVhostOutput,
     pipette(
         windows_x64(PipetteOutput::WindowsBin, exe, PIPETTE_WINDOWS_X64),
         windows_aarch64(PipetteOutput::WindowsBin, exe, PIPETTE_WINDOWS_AARCH64),
         linux_x64(PipetteOutput::LinuxBin, bin, PIPETTE_LINUX_X64),
-        linux_musl_x64(PipetteOutput::LinuxBin, bin, PIPETTE_LINUX_X64),
+        linux_musl_x64(PipetteOutput::LinuxBin, bin, PIPETTE_LINUX_X64_MUSL),
         linux_musl_aarch64(
             PipetteOutput::LinuxBin,
             bin,
-            PIPETTE_LINUX_AARCH64
+            PIPETTE_LINUX_AARCH64_MUSL
         ),
     ) => PipetteOutput,
     guest_test_uefi(
@@ -716,7 +754,27 @@ pub mod vmm_tests_artifact_builders {
             openvmm_linux_x64 => OpenvmmOutput,
             openvmm_vhost_linux_x64 => OpenvmmVhostOutput,
             pipette_linux_musl_x64 => PipetteOutput,
-            prep_steps_linux_x64 => PrepStepsOutput,
+            pipette_linux_musl_aarch64 => PipetteOutput,
+            prep_steps_linux_musl_x64 => PrepStepsOutput,
+            tmk_vmm_linux_musl_x64 => TmkVmmOutput,
+            // any machine
+            guest_test_uefi_x64 => GuestTestUefiOutput,
+            tmks_x64 => TmksOutput,
+        )
+    );
+
+    vmm_tests_built_artifacts_builder!(
+        VmmTestsArtifactsBuilderLinuxMuslX86,
+        (
+            // windows build machine
+            pipette_windows_x64 => PipetteOutput,
+            // linux build machine
+            nextest_vmm_tests_archive_linux_musl_x64 => NextestVmmTestsArchive,
+            openvmm_linux_musl_x64 => OpenvmmOutput,
+            openvmm_vhost_linux_musl_x64 => OpenvmmVhostOutput,
+            pipette_linux_musl_x64 => PipetteOutput,
+            pipette_linux_musl_aarch64 => PipetteOutput,
+            prep_steps_linux_musl_x64 => PrepStepsOutput,
             tmk_vmm_linux_musl_x64 => TmkVmmOutput,
             // any machine
             guest_test_uefi_x64 => GuestTestUefiOutput,
