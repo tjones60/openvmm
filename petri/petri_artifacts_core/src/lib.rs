@@ -6,7 +6,7 @@
 //!
 //! NOTE: this crate does not define any concrete Artifact types itself.
 
-// #![forbid(unsafe_code)]
+#![forbid(unsafe_code)]
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -127,74 +127,6 @@ pub trait ArtifactId: 'static {
     /// implementing this trait.
     #[doc(hidden)]
     fn i_know_what_im_doing_with_this_manual_impl_instead_of_using_the_declare_artifacts_macro();
-}
-
-/// Artifact info for use in the lookup table
-pub struct ArtifactInfo {
-    /// A globally unique ID corresponding to this artifact.
-    pub global_unique_id: &'static str,
-    /// Whether this artifact can be backed by blob disk.
-    pub supports_blob_disk: bool,
-    /// Filename to use when this artifact is being written to or resolved
-    /// from the test content dir.
-    pub filename: &'static str,
-    /// OS flavor compatible with this artifact, if OS specific.
-    pub os_flavor: Option<OsFlavor>,
-    /// Architecture compatible with this artifact, if architecture specific.
-    pub arch: Option<MachineArch>,
-}
-
-/// A coarse-grained label used to differentiate between different OS
-/// environments.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[expect(missing_docs)] // Self-describing names.
-pub enum OsFlavor {
-    Windows,
-    Linux,
-    FreeBsd,
-    Uefi,
-}
-
-// impl OsFlavor {
-//     fn as_str(&self) -> &'static str {
-//         match self {
-//             OsFlavor::Windows => "windows",
-//             OsFlavor::Linux => "linux",
-//             OsFlavor::FreeBsd => "freebsd",
-//             OsFlavor::Uefi => "uefi",
-//         }
-//     }
-// }
-
-/// The machine architecture supported by the artifact or VM.
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-#[expect(missing_docs)] // Self describing names
-pub enum MachineArch {
-    X86_64,
-    Aarch64,
-}
-
-impl MachineArch {
-    /// Returns the host's architecture.
-    pub fn host() -> Self {
-        // xtask-fmt allow-target-arch oneoff-petri-host-arch
-        if cfg!(target_arch = "x86_64") {
-            Self::X86_64
-        }
-        // xtask-fmt allow-target-arch oneoff-petri-host-arch
-        else if cfg!(target_arch = "aarch64") {
-            Self::Aarch64
-        } else {
-            panic!("unsupported host architecture")
-        }
-    }
-
-    // fn as_str(&self) -> &'static str {
-    //     match self {
-    //         Self::X86_64 => "x64",
-    //         Self::Aarch64 => "aarch64",
-    //     }
-    // }
 }
 
 /// A type-safe handle to a particular Artifact, as declared using the
@@ -559,28 +491,15 @@ impl<A: ArtifactId> AsArtifactHandle for ArtifactHandle<A> {
     }
 }
 
-/// Declare one or more type-safe artifacts that do not support blob disk.
+/// Declare one or more type-safe artifacts.
+///
+/// This macro assumes that the artifacts to not support blob disk and that
+/// they have an associated filename and target. It does not implement any
+/// additional trait. For more granular control and automatic trait
+/// implementation, create a new wrapper around [`declare_artifacts_inner`]
+/// for your kind of artifact.
 #[macro_export]
 macro_rules! declare_artifacts {
-    (
-        $(
-            $(#[$doc:meta])*
-            $name:ident
-        ),*
-        $(,)?
-    ) => {
-        $crate::declare_artifacts_inner!(
-            $(
-                $(#[$doc])*
-                $name(None::<$crate::ArtifactBlobStorage>, "", ANY),
-            )*
-        );
-    };
-}
-
-/// Declare one or more type-safe artifacts that do not support blob disk.
-#[macro_export]
-macro_rules! declare_artifacts_with_filename_and_target {
     (
         $(
             $(#[$doc:meta])*
@@ -588,44 +507,11 @@ macro_rules! declare_artifacts_with_filename_and_target {
         ),*
         $(,)?
     ) => {
-        $crate::declare_artifacts_inner!(
-            $(
-                $(#[$doc])*
-                $name(None::<$crate::ArtifactBlobStorage>, $filename, $target),
-            )*
-        );
+        $crate::declare_artifacts_inner!($(
+            $(#[$doc])*
+            $name($crate::DOES_NOT_SUPPORT_BLOB_DISK, $filename, $target),
+        )*);
     };
-}
-
-#[doc(hidden)]
-pub mod artifacts_macro_support {
-    // UNSAFETY: Needed for linkme.
-    #![expect(unsafe_code)]
-
-    use crate::ArtifactInfo;
-    pub use linkme;
-
-    #[linkme::distributed_slice]
-    pub static ARTIFACTS: [ArtifactInfo];
-
-    // Always have at least one entry to work around linker bugs.
-    //
-    // See <https://github.com/llvm/llvm-project/issues/65855>.
-    #[linkme::distributed_slice(ARTIFACTS)]
-    static WORKAROUND: ArtifactInfo = ArtifactInfo {
-        global_unique_id: "",
-        supports_blob_disk: false,
-        filename: "",
-        os_flavor: None,
-        arch: None,
-    };
-}
-
-/// Get info about an artifact from its global unique ID
-pub fn get_artifact_info_by_id(global_unique_id: &str) -> Option<&ArtifactInfo> {
-    artifacts_macro_support::ARTIFACTS
-        .iter()
-        .find(|i| i.global_unique_id == global_unique_id)
 }
 
 /// Declare one or more type-safe artifacts, specifying whether each supports
@@ -635,46 +521,31 @@ macro_rules! declare_artifacts_inner {
     (
         $(
             $(#[$doc:meta])*
-            $name:ident($url:expr, $filename:literal, $target:ident)
+            $name:ident($blob_storage:path, $filename:literal, $target:ident)
         ),*
         $(,)?
     ) => {
-        $(
-            $crate::paste::paste! {
-                $(#[$doc])*
-                #[expect(non_camel_case_types)]
-                pub const $name: $crate::ArtifactHandle<$name> = $crate::ArtifactHandle::new();
+        $($crate::paste::paste! {
+            $(#[$doc])*
+            #[expect(non_camel_case_types)]
+            pub const $name: $crate::ArtifactHandle<$name> = $crate::ArtifactHandle::new();
 
-                #[doc = concat!("Type-tag for [`",  stringify!($name), "`]")]
-                #[expect(non_camel_case_types)]
-                #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-                pub enum $name {}
+            #[doc = concat!("Type-tag for [`",  stringify!($name), "`]")]
+            #[expect(non_camel_case_types)]
+            #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+            pub enum $name {}
 
-                #[expect(non_snake_case)]
-                mod [< $name __ty >] {
-                    impl $crate::ArtifactId for super::$name {
-                        const GLOBAL_UNIQUE_ID: &'static str = module_path!();
-                        const BLOB_STORAGE: Option<$crate::ArtifactBlobStorage> = $url;
-                        const FILENAME: &'static str = $filename;
-                        const TARGET: &'static $crate::ArtifactTarget = &$crate::targets::$target;
-                        fn i_know_what_im_doing_with_this_manual_impl_instead_of_using_the_declare_artifacts_macro() {}
-                    }
-
-                    const _: () = {
-                        use $crate::artifacts_macro_support::linkme;
-                        #[linkme::distributed_slice($crate::artifacts_macro_support::ARTIFACTS)]
-                        #[linkme(crate = linkme)]
-                        static ARTIFACT: $crate::ArtifactInfo = $crate::ArtifactInfo {
-                            global_unique_id: module_path!(),
-                            supports_blob_disk: $url.is_some(),
-                            filename: $filename,
-                            os_flavor: None,
-                            arch: None,
-                        };
-                    };
+            #[expect(non_snake_case)]
+            mod [< $name __ty >] {
+                impl $crate::ArtifactId for super::$name {
+                    const GLOBAL_UNIQUE_ID: &'static str = module_path!();
+                    const BLOB_STORAGE: Option<$crate::ArtifactBlobStorage> = $blob_storage;
+                    const FILENAME: &'static str = $filename;
+                    const TARGET: &'static $crate::ArtifactTarget = &$crate::targets::$target;
+                    fn i_know_what_im_doing_with_this_manual_impl_instead_of_using_the_declare_artifacts_macro() {}
                 }
             }
-        )*
+        })*
     };
 }
 
@@ -952,3 +823,6 @@ pub mod targets {
         binary_format: target_lexicon::BinaryFormat::Macho,
     });
 }
+
+/// The artifact does not support being backed by blob disk
+pub const DOES_NOT_SUPPORT_BLOB_DISK: Option<ArtifactBlobStorage> = None;

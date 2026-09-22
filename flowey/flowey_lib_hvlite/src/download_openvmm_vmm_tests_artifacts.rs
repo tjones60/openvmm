@@ -6,6 +6,8 @@
 //! If persistent storage is available, caches downloaded artifacts locally.
 
 use flowey::node::prelude::*;
+use petri_artifacts_vmm_test::ErasedVmmTestImage;
+use petri_artifacts_vmm_test::vmm_test_image_from_filename;
 use std::collections::BTreeSet;
 use std::io::IsTerminal;
 
@@ -35,7 +37,7 @@ flowey_config! {
 flowey_request! {
     pub enum Request {
         /// Download test artifacts into the download folder
-        Download(Vec<KnownTestArtifacts>),
+        Download(Vec<ErasedVmmTestImage>),
         /// Get path to folder containing all downloaded artifacts
         GetDownloadFolder(WriteVar<PathBuf>),
     }
@@ -141,7 +143,7 @@ impl FlowNodeWithConfig for Node {
                         continue;
                     };
 
-                    if let Some(vhd) = KnownTestArtifacts::from_filename(filename) {
+                    if let Some(vhd) = vmm_test_image_from_filename(filename) {
                         let size = e.metadata()?.len();
                         let expected_size = vhd.file_size();
                         if size != expected_size {
@@ -340,6 +342,9 @@ fn download_blobs_from_azure(
     files_to_download: Vec<(String, u64)>,
     output_folder: &Path,
 ) -> anyhow::Result<()> {
+    use petri_artifacts_vmm_test::artifacts::CONTAINER;
+    use petri_artifacts_vmm_test::artifacts::STORAGE_ACCOUNT;
+
     //
     // Use azcopy to download the files
     //

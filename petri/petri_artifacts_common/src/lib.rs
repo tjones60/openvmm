@@ -41,9 +41,9 @@ pub mod capabilities {
 
 /// Artifact declarations
 pub mod artifacts {
-    use petri_artifacts_core::declare_artifacts_with_filename_and_target;
+    use petri_artifacts_core::declare_artifacts;
 
-    declare_artifacts_with_filename_and_target! {
+    declare_artifacts! {
         /// Pipette windows x86_64 executable
         PIPETTE_WINDOWS_X64("pipette.exe", WINDOWS_X64),
         /// Pipette linux x86_64 musl executable

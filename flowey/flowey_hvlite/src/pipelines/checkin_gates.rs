@@ -31,6 +31,10 @@ use flowey_lib_hvlite::init_vmm_tests_env::PetriParams;
 use flowey_lib_hvlite::install_vmm_tests_external_deps::VmmTestsExternalDeps;
 use flowey_lib_hvlite::install_vmm_tests_external_deps::VmmTestsExternalDepsLinux;
 use flowey_lib_hvlite::install_vmm_tests_external_deps::VmmTestsExternalDepsWindows;
+use petri_artifacts_vmm_test::ErasedVmmTestImage;
+use petri_artifacts_vmm_test::artifacts::test_iso;
+use petri_artifacts_vmm_test::artifacts::test_vhd;
+use petri_artifacts_vmm_test::artifacts::test_vmgs;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use target_lexicon::Triple;
@@ -1463,7 +1467,7 @@ impl IntoPipeline for CheckinGatesCli {
             resolve_vmm_tests_artifacts: ResolveVmmTestsBuiltArtifacts,
             incubator_profile: Option<&'a str>,
             nextest_filter_expr: String,
-            downloaded_artifacts: Vec<KnownTestArtifacts>,
+            downloaded_artifacts: Vec<ErasedVmmTestImage>,
             prep_steps_variants: Vec<String>,
             external_deps: VmmTestsExternalDeps,
         }
@@ -1511,16 +1515,16 @@ impl IntoPipeline for CheckinGatesCli {
         };
 
         let standard_x64_test_artifacts = vec![
-            KnownTestArtifacts::Alpine323X64Vhd,
-            KnownTestArtifacts::FreeBsd13_2X64Vhd,
-            KnownTestArtifacts::FreeBsd13_2X64Iso,
-            KnownTestArtifacts::Gen1WindowsDataCenterCore2022X64Vhd,
-            KnownTestArtifacts::Gen2WindowsDataCenterCore2022X64Vhd,
-            KnownTestArtifacts::Gen2WindowsDataCenterCore2025X64Vhd,
-            KnownTestArtifacts::Ubuntu2404ServerX64Vhd,
-            KnownTestArtifacts::Ubuntu2504ServerX64Vhd,
-            KnownTestArtifacts::VmgsWithBootEntry,
-            KnownTestArtifacts::VmgsWith16kTpm,
+            test_vhd::ALPINE_3_23_X64.into(),
+            test_vhd::FREE_BSD_13_2_X64.into(),
+            test_iso::FREE_BSD_13_2_X64.into(),
+            test_vhd::GEN1_WINDOWS_DATA_CENTER_CORE2022_X64.into(),
+            test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64.into(),
+            test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64.into(),
+            test_vhd::UBUNTU_2404_SERVER_X64.into(),
+            test_vhd::UBUNTU_2504_SERVER_X64.into(),
+            test_vmgs::VMGS_WITH_BOOT_ENTRY.into(),
+            test_vmgs::VMGS_WITH_16K_TPM.into(),
         ];
 
         // Prep variants needed by tests in the standard x64 filter
@@ -1566,11 +1570,11 @@ impl IntoPipeline for CheckinGatesCli {
         );
 
         let cvm_x64_test_artifacts = vec![
-            KnownTestArtifacts::Gen1WindowsDataCenterCore2022X64Vhd,
-            KnownTestArtifacts::Gen2WindowsDataCenterCore2022X64Vhd,
-            KnownTestArtifacts::Gen2WindowsDataCenterCore2025X64Vhd,
-            KnownTestArtifacts::Ubuntu2504ServerX64Vhd,
-            KnownTestArtifacts::VmgsWith16kTpm,
+            test_vhd::GEN1_WINDOWS_DATA_CENTER_CORE2022_X64.into(),
+            test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64.into(),
+            test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64.into(),
+            test_vhd::UBUNTU_2504_SERVER_X64.into(),
+            test_vmgs::VMGS_WITH_16K_TPM.into(),
         ];
 
         for VmmTestJobParams {
@@ -1727,11 +1731,11 @@ impl IntoPipeline for CheckinGatesCli {
                 incubator_profile: None,
                 nextest_filter_expr: "all()".to_string(),
                 downloaded_artifacts: vec![
-                    KnownTestArtifacts::Alpine323Aarch64Vhd,
-                    KnownTestArtifacts::Ubuntu2404ServerAarch64Vhd,
-                    KnownTestArtifacts::Windows11EnterpriseAarch64Vhdx,
-                    KnownTestArtifacts::VmgsWithBootEntry,
-                    KnownTestArtifacts::VmgsWith16kTpm,
+                    test_vhd::ALPINE_3_23_AARCH64.into(),
+                    test_vhd::UBUNTU_2404_SERVER_AARCH64.into(),
+                    test_vhd::WINDOWS_11_ENTERPRISE_AARCH64.into(),
+                    test_vmgs::VMGS_WITH_BOOT_ENTRY.into(),
+                    test_vmgs::VMGS_WITH_16K_TPM.into(),
                 ],
                 prep_steps_variants: Vec::new(),
                 external_deps: VmmTestsExternalDeps::Windows(VmmTestsExternalDepsWindows {
@@ -1753,8 +1757,8 @@ impl IntoPipeline for CheckinGatesCli {
                 incubator_profile: Some("aarch64-tcg-pcie"),
                 nextest_filter_expr: "test(aarch64_tcg)".to_string(),
                 downloaded_artifacts: vec![
-                    KnownTestArtifacts::Alpine323Aarch64Vhd,
-                    KnownTestArtifacts::Ubuntu2404ServerAarch64Vhd,
+                    test_vhd::ALPINE_3_23_AARCH64.into(),
+                    test_vhd::UBUNTU_2404_SERVER_AARCH64.into(),
                 ],
                 prep_steps_variants: Vec::new(),
                 external_deps: VmmTestsExternalDeps::Linux(VmmTestsExternalDepsLinux {

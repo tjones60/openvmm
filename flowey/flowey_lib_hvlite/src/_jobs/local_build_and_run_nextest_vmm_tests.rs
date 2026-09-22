@@ -21,6 +21,7 @@ use crate::init_vmm_tests_content_dir::VmmTestsPreBuiltArtifactsSelections;
 use crate::init_vmm_tests_env::PetriParams;
 use crate::install_vmm_tests_external_deps::VmmTestsExternalDeps;
 use flowey::node::prelude::*;
+use petri_artifacts_vmm_test::ErasedVmmTestImage;
 use std::collections::BTreeSet;
 use std::ffi::OsStr;
 use std::ffi::OsString;
@@ -31,7 +32,7 @@ pub struct VmmTestSelections {
     /// Test filter
     pub filter: String,
     /// List of artifacts to download
-    pub downloaded_artifacts: Vec<KnownTestArtifacts>,
+    pub downloaded_artifacts: Vec<ErasedVmmTestImage>,
     /// List of artifacts to build
     pub build: VmmTestsBuiltArtifactsSelections,
     /// Prebuilt artifacts to download

@@ -10,14 +10,32 @@ use petri_artifacts_core::ArtifactId;
 use petri_artifacts_core::AsArtifactHandle;
 use petri_artifacts_core::ErasedArtifactHandle;
 
-/// Artifact info for use in the lookup table
-#[derive(Copy, Clone, Hash)]
+/// A type-erased artifact that holds references to information about a certain
+/// test image that implements `IsHostedOnHvliteAzureBlobStore`
+#[derive(Copy, Clone, Hash, Debug)]
 pub struct ErasedVmmTestImage {
     artifact_id_str: &'static str,
     filename: &'static str,
     url_fn: fn() -> Option<String>,
     size: u64,
     download_name: &'static str,
+}
+
+impl serde::Serialize for ErasedVmmTestImage {
+    fn serialize<S: serde::Serializer>(&self, ser: S) -> Result<S::Ok, S::Error> {
+        ser.serialize_str(self.global_unique_id())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ErasedVmmTestImage {
+    fn deserialize<D>(d: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let id = serde::Deserialize::deserialize(d)?;
+        vmm_test_image_from_id(id)
+            .ok_or_else(|| serde::de::Error::custom(format_args!("invalid artifact id: {}", id)))
+    }
 }
 
 impl PartialEq<ErasedVmmTestImage> for ErasedVmmTestImage {
@@ -38,6 +56,18 @@ impl<A: ArtifactId> PartialEq<ArtifactHandle<A>> for ErasedVmmTestImage {
     }
 }
 
+impl PartialOrd for ErasedVmmTestImage {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ErasedVmmTestImage {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.artifact_id_str.cmp(other.artifact_id_str)
+    }
+}
+
 impl Eq for ErasedVmmTestImage {}
 
 impl ErasedVmmTestImage {
@@ -52,35 +82,67 @@ impl ErasedVmmTestImage {
     }
 
     /// get the relative path to the artifact
-    pub fn url(&self) -> String {
-        (self.url_fn)().expect("all vmm test images should have an associated url")
+    pub fn url(&self) -> Option<String> {
+        (self.url_fn)()
     }
 
     /// get the size of the artifact
-    pub fn size(&self) -> u64 {
+    pub fn file_size(&self) -> u64 {
         self.size
     }
 
     /// get the download name of the artifact
-    pub fn download_name(&self) -> &'static str {
+    pub fn name(&self) -> &'static str {
         self.download_name
+    }
+
+    /// whether the image supports being backed by blob disk
+    pub fn supports_blob_disk(&self) -> bool {
+        (self.url_fn)().is_some()
     }
 }
 
-/// Get the vmm test image associated with the type (if any).
-pub fn vmm_test_image<T: ArtifactId + tags::IsHostedOnHvliteAzureBlobStore>()
--> Option<ErasedVmmTestImage> {
+impl<T: ArtifactId + tags::IsHostedOnHvliteAzureBlobStore> From<ArtifactHandle<T>>
+    for ErasedVmmTestImage
+{
+    fn from(_value: ArtifactHandle<T>) -> Self {
+        Self {
+            artifact_id_str: T::GLOBAL_UNIQUE_ID,
+            filename: T::FILENAME,
+            url_fn: T::url,
+            size: T::SIZE,
+            download_name: T::DOWNLOAD_NAME,
+        }
+    }
+}
+
+/// parse a vmm test image from a string (from the command line, for example)
+pub fn parse_vmm_test_image(v: &str) -> Result<ErasedVmmTestImage, String> {
+    vmm_test_images()
+        .iter()
+        .find(|&x| v == x.name() || v == x.filename())
+        .ok_or("invalid image name".into())
+        .copied()
+}
+
+/// Get all the VMM test images
+pub fn vmm_test_images() -> &'static [ErasedVmmTestImage] {
+    &vmm_test_images_macro_support::VMM_TEST_IMAGES
+}
+
+/// Get the vmm test image associated with the id (if any).
+pub fn vmm_test_image_from_id(id: &str) -> Option<ErasedVmmTestImage> {
     vmm_test_images_macro_support::VMM_TEST_IMAGES
         .iter()
-        .find(|&x| *x == ArtifactHandle::<T>::new())
+        .find(|&x| x.artifact_id_str == id)
         .copied()
 }
 
 /// Get the vmm test image associated with the id (if any).
-pub fn vmm_test_image_from_id(id: ErasedArtifactHandle) -> Option<ErasedVmmTestImage> {
+pub fn vmm_test_image_from_filename(filename: &str) -> Option<ErasedVmmTestImage> {
     vmm_test_images_macro_support::VMM_TEST_IMAGES
         .iter()
-        .find(|&x| *x == id)
+        .find(|&x| x.filename == filename)
         .copied()
 }
 
@@ -92,6 +154,7 @@ macro_rules! declare_vmm_test_images {
                 $filename:literal,
                 $size:literal,
                 $download_name:literal,
+                $blob_storage:ident,
             )
         ),*
         $(,)?
@@ -99,17 +162,13 @@ macro_rules! declare_vmm_test_images {
         ::petri_artifacts_core::declare_artifacts_inner!($(
             $(#[$doc])*
             $name(
-                Some(::petri_artifacts_core::ArtifactBlobStorage {
-                    storage_account: $crate::artifacts::STORAGE_ACCOUNT,
-                    container: $crate::artifacts::CONTAINER,
-                }),
+                $crate::artifacts::blob_disk::$blob_storage,
                 $filename,
                 ANY
             ),
         )*);
 
         $(impl $crate::tags::IsHostedOnHvliteAzureBlobStore for $name {
-            const REMOTE_FILENAME: &'static str = $filename;
             const SIZE: u64 = $size;
             const DOWNLOAD_NAME: &'static str = $download_name;
         }
@@ -132,9 +191,24 @@ macro_rules! declare_vmm_test_images {
     };
 }
 
+macro_rules! declare_prepped_vmm_test_images {
+    (
+        $(
+            $(#[$doc:meta])*
+            $name:ident($filename:literal)
+        ),*
+        $(,)?
+    ) => {
+        ::petri_artifacts_core::declare_artifacts_inner!($(
+            $(#[$doc])*
+            $name(::petri_artifacts_core::DOES_NOT_SUPPORT_BLOB_DISK, $filename, ANY),
+        )*);
+    };
+}
+
 /// Artifact declarations
 pub mod artifacts {
-    use petri_artifacts_core::declare_artifacts_with_filename_and_target;
+    use petri_artifacts_core::declare_artifacts;
 
     macro_rules! openvmm_native {
         ($id_ty:ty, $os:literal, $arch:literal, $env:literal) => {
@@ -170,7 +244,7 @@ pub mod artifacts {
         OPENVMM_VHOST_LINUX_AARCH64,
     > = petri_artifacts_core::ArtifactHandle::new();
 
-    declare_artifacts_with_filename_and_target! {
+    declare_artifacts! {
         /// openvmm windows x86_64 executable
         OPENVMM_WINDOWS_X64("openvmm.exe", WINDOWS_X64),
         /// openvmm linux x86_64 executable
@@ -195,16 +269,16 @@ pub mod artifacts {
         OPENVMM_VHOST_LINUX_AARCH64_MUSL("openvmm_vhost", LINUX_AARCH64_MUSL),
     }
 
-    declare_artifacts_with_filename_and_target! {
+    declare_artifacts! {
         /// QEMU Aarch64 system emulator for x86_64 Linux
         QEMU_SYSTEM_AARCH64_LINUX_X64("qemu-system-aarch64", LINUX_X64),
     }
 
     /// Guest-side tools used by the VMM tests.
     pub mod guest_tools {
-        use petri_artifacts_core::declare_artifacts_with_filename_and_target;
+        use petri_artifacts_core::declare_artifacts;
 
-        declare_artifacts_with_filename_and_target! {
+        declare_artifacts! {
             /// Windows x86_64 build of the `tpm_guest_tests` utility.
             TPM_GUEST_TESTS_WINDOWS_X64("tpm_guest_tests.exe", WINDOWS_X64),
             /// Linux x86_64 build of the `tpm_guest_tests` utility.
@@ -214,9 +288,9 @@ pub mod artifacts {
 
     /// Virtio-win driver artifacts from openvmm-deps.
     pub mod virtio_win {
-        use petri_artifacts_core::declare_artifacts_with_filename_and_target;
+        use petri_artifacts_core::declare_artifacts;
 
-        declare_artifacts_with_filename_and_target! {
+        declare_artifacts! {
             /// Extracted virtio-win driver package (all OS versions and architectures).
             VIRTIO_WINDOWS_DRIVERS("virtio-win", WINDOWS),
         }
@@ -224,9 +298,9 @@ pub mod artifacts {
 
     /// Host-side tools used by the VMM tests.
     pub mod host_tools {
-        use petri_artifacts_core::declare_artifacts_with_filename_and_target;
+        use petri_artifacts_core::declare_artifacts;
 
-        declare_artifacts_with_filename_and_target! {
+        declare_artifacts! {
             /// Windows x86_64 build of the `test_igvm_agent_rpc_server` executable.
             TEST_IGVM_AGENT_RPC_SERVER_WINDOWS_X64(
                 "test_igvm_agent_rpc_server.exe",
@@ -267,7 +341,7 @@ pub mod artifacts {
     pub mod loadable {
         use petri_artifacts_common::tags::IsLoadable;
         use petri_artifacts_common::tags::MachineArch;
-        use petri_artifacts_core::declare_artifacts_with_filename_and_target;
+        use petri_artifacts_core::declare_artifacts;
 
         macro_rules! linux_direct_native {
             ($id_kernel_ty:ty, $id_initrd_ty:ty, $arch:literal) => {
@@ -304,7 +378,7 @@ pub mod artifacts {
             LINUX_DIRECT_TEST_BZIMAGE_X64,
         > = petri_artifacts_core::ArtifactHandle::new();
 
-        declare_artifacts_with_filename_and_target! {
+        declare_artifacts! {
             /// Test linux direct kernel for x64 (from OpenVMM deps)
             LINUX_DIRECT_TEST_KERNEL_X64("vmlinux", X64),
             /// Test linux direct initrd for x64 (from OpenVMM deps)
@@ -364,9 +438,9 @@ pub mod artifacts {
 
     /// Petritools disk images
     pub mod petritools {
-        use petri_artifacts_core::declare_artifacts_with_filename_and_target;
+        use petri_artifacts_core::declare_artifacts;
 
-        declare_artifacts_with_filename_and_target! {
+        declare_artifacts! {
             /// Petritools erofs image (x64)
             PETRITOOLS_EROFS_X64("petritools.erofs", X64),
             /// Petritools erofs image (aarch64)
@@ -379,9 +453,9 @@ pub mod artifacts {
         use petri_artifacts_common::tags::IsLoadable;
         use petri_artifacts_common::tags::IsOpenhclIgvm;
         use petri_artifacts_common::tags::MachineArch;
-        use petri_artifacts_core::declare_artifacts_with_filename_and_target;
+        use petri_artifacts_core::declare_artifacts;
 
-        declare_artifacts_with_filename_and_target! {
+        declare_artifacts! {
             /// OpenHCL IGVM (standard)
             LATEST_STANDARD_X64("openhcl-x64.bin", X64),
             /// OpenHCL IGVM last release (standard)
@@ -448,9 +522,9 @@ pub mod artifacts {
 
         /// OpenHCL usermode binary
         pub mod um_bin {
-            use petri_artifacts_core::declare_artifacts_with_filename_and_target;
+            use petri_artifacts_core::declare_artifacts;
 
-            declare_artifacts_with_filename_and_target! {
+            declare_artifacts! {
                 /// Usermode binary for Linux direct
                 LATEST_LINUX_DIRECT_TEST_X64("openvmm_hcl_msft", X64)
             }
@@ -458,9 +532,9 @@ pub mod artifacts {
 
         /// OpenHCL debugging symbols for the usermode binary
         pub mod um_dbg {
-            use petri_artifacts_core::declare_artifacts_with_filename_and_target;
+            use petri_artifacts_core::declare_artifacts;
 
-            declare_artifacts_with_filename_and_target! {
+            declare_artifacts! {
                 /// Usermode symbols for Linux direct
                 LATEST_LINUX_DIRECT_TEST_X64("openvmm_hcl_msft.dbg", X64)
             }
@@ -471,6 +545,23 @@ pub mod artifacts {
     pub const STORAGE_ACCOUNT: &str = "hvlitetestvhds";
     /// Azure container where test VHDs, ISOs, and VMGS files are stored
     pub const CONTAINER: &str = "vhds";
+    /// URL of the Azure container where test VHDs, ISOs, and VMGS files are stored
+    pub fn blob_storage_url() -> String {
+        format!("https://{STORAGE_ACCOUNT}.blob.core.windows.net/{CONTAINER}/*")
+    }
+    /// Options to pass into `declare_artifacts_with_filename_and_target`
+    pub mod blob_disk {
+        use crate::artifacts::CONTAINER;
+        use crate::artifacts::STORAGE_ACCOUNT;
+        use petri_artifacts_core::ArtifactBlobStorage;
+
+        /// The artifact supports being backed by blob disk
+        pub const SUPPORTS_BLOB_DISK: Option<ArtifactBlobStorage> = Some(ArtifactBlobStorage {
+            storage_account: STORAGE_ACCOUNT,
+            container: CONTAINER,
+        });
+        pub use petri_artifacts_core::DOES_NOT_SUPPORT_BLOB_DISK;
+    }
 
     /// Test VHD artifacts
     pub mod test_vhd {
@@ -480,9 +571,9 @@ pub mod artifacts {
         use petri_artifacts_common::tags::IsTestVhd;
         use petri_artifacts_common::tags::MachineArch;
         use petri_artifacts_common::tags::OsFlavor;
-        use petri_artifacts_core::declare_artifacts_with_filename_and_target;
+        use petri_artifacts_core::declare_artifacts;
 
-        declare_artifacts_with_filename_and_target! {
+        declare_artifacts! {
             /// guest_test_uefi.img, built for x86_64 from the in-tree `guest_test_uefi` codebase.
             GUEST_TEST_UEFI_X64("guest_test_uefi.img", X64),
             /// guest_test_uefi.img, built for aarch64 from the in-tree `guest_test_uefi` codebase.
@@ -509,6 +600,7 @@ pub mod artifacts {
                 "WindowsServer-2022-datacenter-core-smalldisk-20348.1906.230803.vhd",
                 32214352384,
                 "Gen1WindowsDataCenterCore2022X64Vhd",
+                SUPPORTS_BLOB_DISK,
             )
         }
 
@@ -523,6 +615,7 @@ pub mod artifacts {
                 "WindowsServer-2022-datacenter-core-smalldisk-g2-20348.1906.230803.vhd",
                 32214352384,
                 "Gen2WindowsDataCenterCore2022X64Vhd",
+                SUPPORTS_BLOB_DISK,
             )
         }
 
@@ -537,6 +630,7 @@ pub mod artifacts {
                 "WindowsServer-2025-datacenter-core-smalldisk-g2-26100.3476.250306.vhd",
                 32214352384,
                 "Gen2WindowsDataCenterCore2025X64Vhd",
+                SUPPORTS_BLOB_DISK,
             )
         }
 
@@ -558,6 +652,7 @@ pub mod artifacts {
                 "FreeBSD-13.2-RELEASE-amd64.vhd",
                 6477005312,
                 "FreeBsd13_2X64Vhd",
+                SUPPORTS_BLOB_DISK,
             )
         }
 
@@ -579,6 +674,7 @@ pub mod artifacts {
                 "ubuntu-24.04-server-cloudimg-amd64.vhd",
                 3758211584,
                 "Ubuntu2404ServerX64Vhd",
+                SUPPORTS_BLOB_DISK,
             )
         }
 
@@ -599,6 +695,7 @@ pub mod artifacts {
                 "ubuntu-25.04-server-cloudimg-amd64.vhd",
                 3758211584,
                 "Ubuntu2504ServerX64Vhd",
+                SUPPORTS_BLOB_DISK,
             )
         }
 
@@ -619,6 +716,7 @@ pub mod artifacts {
                 "nocloud_alpine-3.23.2-x86_64-uefi-cloudinit-r0.vhd",
                 224494080,
                 "Alpine323X64Vhd",
+                SUPPORTS_BLOB_DISK,
             )
         }
 
@@ -639,6 +737,7 @@ pub mod artifacts {
                 "nocloud_alpine-3.23.2-aarch64-uefi-cloudinit-r0.vhd",
                 258015744,
                 "Alpine323Aarch64Vhd",
+                SUPPORTS_BLOB_DISK,
             )
         }
 
@@ -659,6 +758,7 @@ pub mod artifacts {
                 "ubuntu-24.04-server-cloudimg-arm64.vhd",
                 3758211584,
                 "Ubuntu2404ServerAarch64Vhd",
+                SUPPORTS_BLOB_DISK,
             )
         }
 
@@ -679,6 +779,8 @@ pub mod artifacts {
                 "windows11preview-arm64-win11-24h2-ent-26100.3775.250406-1.vhdx",
                 24398266368,
                 "Windows11EnterpriseAarch64Vhdx",
+                // blob disk does not support VHDX files
+                DOES_NOT_SUPPORT_BLOB_DISK,
             )
         }
 
@@ -696,11 +798,10 @@ pub mod artifacts {
 
         // VHDs that are created by pre-preparation automation
 
-        declare_artifacts_with_filename_and_target! {
+        declare_prepped_vmm_test_images! {
             /// Generation 2 windows test image
             GEN2_WINDOWS_DATA_CENTER_CORE2025_X64_PREPPED(
-                "WindowsServer-2025-datacenter-core-smalldisk-g2-26100.3476.250306-prepped.vhd",
-                X64
+                "WindowsServer-2025-datacenter-core-smalldisk-g2-26100.3476.250306-prepped.vhd"
             )
         }
 
@@ -713,11 +814,10 @@ pub mod artifacts {
             }
         }
 
-        declare_artifacts_with_filename_and_target! {
+        declare_prepped_vmm_test_images! {
             /// Generation 2 windows test image
             GEN2_WINDOWS_DATA_CENTER_CORE2022_X64_NO_VMBUS_PREPPED(
-                "WindowsServer-2025-datacenter-core-smalldisk-g2-26100.3476.250306-no-vmbus-prepped.vhd",
-                X64
+                "WindowsServer-2022-datacenter-core-smalldisk-g2-20348.1906.230803-no-vmbus-prepped.vhd"
             )
         }
 
@@ -741,6 +841,7 @@ pub mod artifacts {
                 "FreeBSD-13.2-RELEASE-amd64-dvd1.iso",
                 4245487616,
                 "FreeBsd13_2X64Iso",
+                SUPPORTS_BLOB_DISK,
             )
         }
 
@@ -774,6 +875,7 @@ pub mod artifacts {
                 "sample-vmgs.vhd",
                 4194816,
                 "VmgsWithBootEntry",
+                DOES_NOT_SUPPORT_BLOB_DISK,
             ),
             /// VMGS file containing a 16k vTPM blob
             ///
@@ -783,6 +885,7 @@ pub mod artifacts {
                 "tpm-16k-vmgs.vhd",
                 4194816,
                 "VmgsWith16kTpm",
+                DOES_NOT_SUPPORT_BLOB_DISK,
             ),
         }
 
@@ -793,7 +896,7 @@ pub mod artifacts {
 
     /// TMK-related artifacts
     pub mod tmks {
-        use petri_artifacts_core::declare_artifacts_with_filename_and_target;
+        use petri_artifacts_core::declare_artifacts;
 
         macro_rules! tmk_native {
             ($id_ty:ty, $os:literal, $arch:literal) => {
@@ -811,7 +914,7 @@ pub mod artifacts {
         tmk_native!(TMK_VMM_LINUX_AARCH64_MUSL, "linux", "aarch64");
         tmk_native!(TMK_VMM_MACOS_AARCH64, "macos", "aarch64");
 
-        declare_artifacts_with_filename_and_target! {
+        declare_artifacts! {
             /// TMK VMM for Windows x86_64.
             TMK_VMM_WINDOWS_X64("tmk_vmm.exe", WINDOWS_X64),
             /// TMK VMM for Windows aarch64.
@@ -829,36 +932,10 @@ pub mod artifacts {
         }
     }
 
-    /// CCA emulation artifacts used by the CCA Petri test.
-    pub mod cca {
-        use petri_artifacts_core::declare_artifacts;
-
-        declare_artifacts! {
-            /// Arm shrinkwrap executable used to launch CCA emulation
-            SHRINKWRAP,
-            /// Python virtual environment for shrinkwrap
-            VENV,
-            /// Shrinkwrap-built CCA host rootfs image
-            ROOTFS,
-            /// Buildroot host e2fsck binary matching the CCA rootfs
-            E2FSCK,
-            /// Buildroot host resize2fs binary matching the CCA rootfs
-            RESIZE2FS,
-            /// Guest disk image passed into the Realm
-            GUEST_DISK,
-            /// Plane0 Linux kernel image
-            PLANE0_LINUX_IMAGE,
-            /// KVMTOOL EFI firmware image
-            KVMTOOL_EFI,
-            /// kvmtool binary used by the host rootfs to launch the Realm
-            LKVM,
-        }
-    }
-
     /// VmgsTool artifacts
     pub mod vmgstool {
         use petri_artifacts_common::tags::IsVmgsTool;
-        use petri_artifacts_core::declare_artifacts_with_filename_and_target;
+        use petri_artifacts_core::declare_artifacts;
 
         macro_rules! vmgstool_native {
             ($id_ty:ty, $os:literal, $arch:literal) => {
@@ -898,7 +975,7 @@ pub mod artifacts {
         vmgstool_dev_native!(VMGSTOOL_DEV_LINUX_AARCH64, "linux", "aarch64");
         vmgstool_dev_native!(VMGSTOOL_DEV_MACOS_AARCH64, "macos", "aarch64");
 
-        declare_artifacts_with_filename_and_target! {
+        declare_artifacts! {
             /// vmgstool windows x86_64 executable
             VMGSTOOL_WINDOWS_X64("vmgstool.exe", WINDOWS_X64),
             /// vmgstool linux x86_64 executable
@@ -941,8 +1018,6 @@ pub mod tags {
     /// Artifact is associated with a file hosted in HvLite's microsoft-internal
     /// Azure Blob Store.
     pub trait IsHostedOnHvliteAzureBlobStore: ArtifactId {
-        /// Filename in the blob store
-        const REMOTE_FILENAME: &'static str;
         /// Size of the file in bytes
         const SIZE: u64;
         /// CLI name for `cargo xtask guest-test download-image --artifacts <name>`

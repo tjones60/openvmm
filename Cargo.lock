@@ -555,7 +555,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "petri",
- "petri_artifact_resolver_openvmm_known_paths",
+ "petri_artifacts_core",
  "petri_artifacts_vmm_test",
  "tempfile",
  "tracing",
@@ -6702,6 +6702,7 @@ dependencies = [
  "paste",
  "petri_artifacts_common",
  "petri_artifacts_core",
+ "serde",
 ]
 
 [[package]]
@@ -12011,6 +12012,7 @@ dependencies = [
  "ignore",
  "log",
  "object 0.37.3",
+ "petri_artifacts_vmm_test",
  "serde",
  "serde_json",
  "toml_edit",

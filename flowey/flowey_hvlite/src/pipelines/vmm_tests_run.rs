@@ -24,6 +24,8 @@ use flowey_lib_hvlite::install_vmm_tests_external_deps::VmmTestsExternalDepsLinu
 use flowey_lib_hvlite::install_vmm_tests_external_deps::VmmTestsExternalDepsWindows;
 use petri_artifacts_core::ArtifactId;
 use petri_artifacts_core::ArtifactListOutput;
+use petri_artifacts_vmm_test::ErasedVmmTestImage;
+use petri_artifacts_vmm_test::vmm_test_image_from_id;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::io::Write as _;
@@ -161,12 +163,12 @@ struct ResolvedArtifactSelections {
     /// Prebuilt artifacts to download
     prebuilt_artifacts: VmmTestsPreBuiltArtifactsSelections,
     /// Prep steps variants
-    prep_steps_variants: Vec<String>,
+    prep_steps_variants: BTreeSet<String>,
     /// What to download
-    downloads: BTreeSet<KnownTestArtifacts>,
+    downloads: BTreeSet<ErasedVmmTestImage>,
     /// Downloads that must happen even when lazy fetch is enabled (e.g.
     /// VHDs needed by prep_steps, which copies them to create prepped images).
-    force_downloads: BTreeSet<KnownTestArtifacts>,
+    force_downloads: BTreeSet<ErasedVmmTestImage>,
     /// Whether any of the tests require Hyper-V
     needs_hyperv: bool,
     /// Whether any of the tests require hardware isolation
@@ -788,7 +790,7 @@ fn selections_from_resolved(
         downloaded_artifacts: downloads.into_iter().collect(),
         build,
         prebuilt_artifacts,
-        prep_steps_variants,
+        prep_steps_variants: prep_steps_variants.into_iter().collect(),
         external_deps: match target_os {
             target_lexicon::OperatingSystem::Windows => {
                 VmmTestsExternalDeps::Windows(VmmTestsExternalDepsWindows {
@@ -819,6 +821,9 @@ impl ResolvedArtifactSelections {
         match id {
             _ if self.build.resolve_artifact(id) => {}
             _ if self.prebuilt_artifacts.resolve_artifact(id) => {}
+            _ if let Some(image) = vmm_test_image_from_id(id) => {
+                self.downloads.insert(image);
+            }
 
             // Release IGVM files (downloaded, not built)
             openhcl_igvm::LATEST_RELEASE_STANDARD_X64::GLOBAL_UNIQUE_ID
@@ -834,31 +839,18 @@ impl ResolvedArtifactSelections {
                 // on the host (which should always be the case for windows).
             }
 
-            // Test VHDs
-            test_vhd::GEN1_WINDOWS_DATA_CENTER_CORE2022_X64::GLOBAL_UNIQUE_ID => {
-                self.downloads
-                    .insert(KnownTestArtifacts::Gen1WindowsDataCenterCore2022X64Vhd);
-            }
-            test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64::GLOBAL_UNIQUE_ID => {
-                self.downloads
-                    .insert(KnownTestArtifacts::Gen2WindowsDataCenterCore2022X64Vhd);
-            }
-            test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64::GLOBAL_UNIQUE_ID => {
-                self.downloads
-                    .insert(KnownTestArtifacts::Gen2WindowsDataCenterCore2025X64Vhd);
-            }
             test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64_PREPPED::GLOBAL_UNIQUE_ID => {
                 self.require_native_build(VmmTestsBuiltArtifactsSelections::require_openvmm_for)?;
                 self.require_native_build(
                     VmmTestsBuiltArtifactsSelections::require_prep_steps_for,
                 )?;
-                self.prep_steps_variants.push("standard".into());
+                self.prep_steps_variants.insert("standard".into());
                 // prep_steps needs actual VHD files on disk to copy them.
                 // Force download even when lazy fetch is enabled.
                 self.force_downloads
-                    .insert(KnownTestArtifacts::Gen2WindowsDataCenterCore2022X64Vhd);
+                    .insert(test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64.into());
                 self.force_downloads
-                    .insert(KnownTestArtifacts::Gen2WindowsDataCenterCore2025X64Vhd);
+                    .insert(test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64.into());
             }
             test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64_NO_VMBUS_PREPPED::GLOBAL_UNIQUE_ID => {
                 self.require_native_build(VmmTestsBuiltArtifactsSelections::require_openvmm_for)?;
@@ -866,48 +858,9 @@ impl ResolvedArtifactSelections {
                     VmmTestsBuiltArtifactsSelections::require_prep_steps_for,
                 )?;
                 self.needs_virtio_win_drivers = true;
-                self.prep_steps_variants.push("no-vmbus".into());
+                self.prep_steps_variants.insert("no-vmbus".into());
                 self.force_downloads
-                    .insert(KnownTestArtifacts::Gen2WindowsDataCenterCore2022X64Vhd);
-            }
-            test_vhd::FREE_BSD_13_2_X64::GLOBAL_UNIQUE_ID => {
-                self.downloads.insert(KnownTestArtifacts::FreeBsd13_2X64Vhd);
-            }
-            test_vhd::ALPINE_3_23_X64::GLOBAL_UNIQUE_ID => {
-                self.downloads.insert(KnownTestArtifacts::Alpine323X64Vhd);
-            }
-            test_vhd::ALPINE_3_23_AARCH64::GLOBAL_UNIQUE_ID => {
-                self.downloads
-                    .insert(KnownTestArtifacts::Alpine323Aarch64Vhd);
-            }
-            test_vhd::UBUNTU_2404_SERVER_X64::GLOBAL_UNIQUE_ID => {
-                self.downloads
-                    .insert(KnownTestArtifacts::Ubuntu2404ServerX64Vhd);
-            }
-            test_vhd::UBUNTU_2504_SERVER_X64::GLOBAL_UNIQUE_ID => {
-                self.downloads
-                    .insert(KnownTestArtifacts::Ubuntu2504ServerX64Vhd);
-            }
-            test_vhd::UBUNTU_2404_SERVER_AARCH64::GLOBAL_UNIQUE_ID => {
-                self.downloads
-                    .insert(KnownTestArtifacts::Ubuntu2404ServerAarch64Vhd);
-            }
-            test_vhd::WINDOWS_11_ENTERPRISE_AARCH64::GLOBAL_UNIQUE_ID => {
-                self.downloads
-                    .insert(KnownTestArtifacts::Windows11EnterpriseAarch64Vhdx);
-            }
-
-            // Test ISOs (downloaded)
-            test_iso::FREE_BSD_13_2_X64::GLOBAL_UNIQUE_ID => {
-                self.downloads.insert(KnownTestArtifacts::FreeBsd13_2X64Iso);
-            }
-
-            // Test VMGS files
-            test_vmgs::VMGS_WITH_BOOT_ENTRY::GLOBAL_UNIQUE_ID => {
-                self.downloads.insert(KnownTestArtifacts::VmgsWithBootEntry);
-            }
-            test_vmgs::VMGS_WITH_16K_TPM::GLOBAL_UNIQUE_ID => {
-                self.downloads.insert(KnownTestArtifacts::VmgsWith16kTpm);
+                    .insert(test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64.into());
             }
 
             // OpenHCL usermode binaries (built as part of IGVM)
