@@ -50,7 +50,6 @@ impl SimpleFlowNode for Node {
                     openvmm_vhost_linux_musl_aarch64,
                     pipette_windows_x64,
                     pipette_windows_aarch64,
-                    pipette_linux_x64,
                     pipette_linux_musl_x64,
                     pipette_linux_musl_aarch64,
                     guest_test_uefi_x64,
@@ -152,7 +151,6 @@ impl SimpleFlowNode for Node {
 
         download!(pipette_windows_x64, "x64-windows-pipette");
         download!(pipette_windows_aarch64, "aarch64-windows-pipette");
-        download!(pipette_linux_x64, "x64-linux-pipette");
         download!(pipette_linux_musl_x64, "x64-linux-musl-pipette");
         download!(pipette_linux_musl_aarch64, "aarch64-linux-musl-pipette");
 

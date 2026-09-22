@@ -44,6 +44,40 @@ pub enum RemoteAccess {
     LocalOnly,
 }
 
+/// Target compatible with this artifact, if target specific.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ArtifactTarget {
+    /// Artifact can be used on any target system
+    Any,
+    /// Artifact can be loaded on systems with this architecture
+    Architecture(target_lexicon::Architecture),
+    /// Artifact can be loaded on systems with this operating system
+    OperatingSystem(target_lexicon::OperatingSystem),
+    /// Artifact can be loaded on systems with this target triple
+    Triple(target_lexicon::Triple),
+}
+
+impl ArtifactTarget {
+    /// Get the target triple
+    pub fn target_triple(&self) -> Option<target_lexicon::Triple> {
+        match self {
+            ArtifactTarget::Triple(triple) => Some(triple.clone()),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for ArtifactTarget {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ArtifactTarget::Any => write!(f, "any"),
+            ArtifactTarget::Architecture(architecture) => architecture.fmt(f),
+            ArtifactTarget::OperatingSystem(operating_system) => operating_system.fmt(f),
+            ArtifactTarget::Triple(triple) => triple.fmt(f),
+        }
+    }
+}
+
 /// A trait that marks a type as being the type-safe ID for a petri artifact.
 ///
 /// This trait should never be implemented manually! It will be automatically
@@ -63,21 +97,17 @@ pub trait ArtifactId: 'static {
     const FILENAME: &'static str;
 
     /// Target compatible with this artifact, if target specific.
-    const TARGET: Option<target_lexicon::Triple>;
+    const TARGET: &'static ArtifactTarget;
+
+    /// Get the relative path to the artifact
+    fn relative_path() -> PathBuf {
+        PathBuf::from(Self::TARGET.to_string()).join(Self::FILENAME)
+    }
 
     /// ...in case you decide to flaunt the trait-level docs regarding manually
     /// implementing this trait.
     #[doc(hidden)]
     fn i_know_what_im_doing_with_this_manual_impl_instead_of_using_the_declare_artifacts_macro();
-}
-
-/// Generate the subdir the artifact should be stored/found in
-pub fn artifact_subdir<T: ArtifactId>() -> String {
-    if let Some(target) = T::TARGET {
-        target.to_string()
-    } else {
-        "any".to_string()
-    }
 }
 
 /// Artifact info for use in the lookup table
@@ -393,15 +423,53 @@ enum ArtifactResolverInner<'a> {
 
 /// A type-erased handle to a particular Artifact, with no information as to
 /// what exactly the artifact is.
-#[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Hash)]
 pub struct ErasedArtifactHandle {
     artifact_id_str: &'static str,
+    filename: &'static str,
+    target: &'static ArtifactTarget,
+    relative_path_fn: fn() -> PathBuf,
+}
+
+impl PartialEq<ErasedArtifactHandle> for ErasedArtifactHandle {
+    fn eq(&self, other: &ErasedArtifactHandle) -> bool {
+        self.artifact_id_str == other.artifact_id_str
+    }
+}
+
+impl Eq for ErasedArtifactHandle {}
+
+impl PartialOrd for ErasedArtifactHandle {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ErasedArtifactHandle {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.artifact_id_str.cmp(other.artifact_id_str)
+    }
 }
 
 impl ErasedArtifactHandle {
     /// used to serialize the artifact handle when querying petri for test requirements
-    pub fn global_unique_id(&self) -> String {
-        self.artifact_id_str.to_string()
+    pub fn global_unique_id(&self) -> &'static str {
+        self.artifact_id_str
+    }
+
+    /// get the filename of the artifact
+    pub fn filename(&self) -> &'static str {
+        self.filename
+    }
+
+    /// get the target of the artifact
+    pub fn target_triple(&self) -> Option<target_lexicon::Triple> {
+        self.target.target_triple()
+    }
+
+    /// get the relative path to the artifact
+    pub fn relative_path(&self) -> PathBuf {
+        (self.relative_path_fn)()
     }
 }
 
@@ -458,6 +526,9 @@ impl<A: ArtifactId> AsArtifactHandle for ArtifactHandle<A> {
     fn erase(&self) -> ErasedArtifactHandle {
         ErasedArtifactHandle {
             artifact_id_str: A::GLOBAL_UNIQUE_ID,
+            filename: A::FILENAME,
+            target: A::TARGET,
+            relative_path_fn: A::relative_path,
         }
     }
 }
@@ -495,6 +566,25 @@ macro_rules! declare_artifacts_with_filename_and_target {
             $(
                 $(#[$doc])*
                 $name(false, $filename, $target),
+            )*
+        );
+    };
+}
+
+/// Declare one or more type-safe artifacts that do not support blob disk.
+#[macro_export]
+macro_rules! declare_blob_artifacts_with_filename_and_target {
+    (
+        $(
+            $(#[$doc:meta])*
+            $name:ident($filename:literal, $target:ident)
+        ),*
+        $(,)?
+    ) => {
+        $crate::declare_artifacts_inner!(
+            $(
+                $(#[$doc])*
+                $name(true, $filename, $target),
             )*
         );
     };
@@ -578,7 +668,7 @@ macro_rules! declare_artifacts_inner {
                         const GLOBAL_UNIQUE_ID: &'static str = module_path!();
                         const SUPPORTS_BLOB_DISK: bool = $supports_blob_disk;
                         const FILENAME: &'static str = $filename;
-                        const TARGET: Option<$crate::target_lexicon::Triple> = $crate::targets::$target;
+                        const TARGET: &'static $crate::ArtifactTarget = &$crate::targets::$target;
                         fn i_know_what_im_doing_with_this_manual_impl_instead_of_using_the_declare_artifacts_macro() {}
                     }
 
@@ -795,10 +885,22 @@ pub struct ArtifactListOutput {
 
 /// Targets for the artifacts
 pub mod targets {
+    use crate::ArtifactTarget;
+
     /// Artifact can be used on any target system
-    pub const ANY: Option<target_lexicon::Triple> = None;
+    pub const ANY: ArtifactTarget = ArtifactTarget::Any;
+    /// x86_64
+    pub const X64: ArtifactTarget =
+        ArtifactTarget::Architecture(target_lexicon::Architecture::X86_64);
+    /// aarch64
+    pub const AARCH64: ArtifactTarget = ArtifactTarget::Architecture(
+        target_lexicon::Architecture::Aarch64(target_lexicon::Aarch64Architecture::Aarch64),
+    );
+    /// Windows
+    pub const WINDOWS: ArtifactTarget =
+        ArtifactTarget::OperatingSystem(target_lexicon::OperatingSystem::Windows);
     /// x86_64-pc-windows-msvc
-    pub const WINDOWS_X64: Option<target_lexicon::Triple> = Some(target_lexicon::Triple {
+    pub const WINDOWS_X64: ArtifactTarget = ArtifactTarget::Triple(target_lexicon::Triple {
         architecture: target_lexicon::Architecture::X86_64,
         vendor: target_lexicon::Vendor::Pc,
         operating_system: target_lexicon::OperatingSystem::Windows,
@@ -806,7 +908,7 @@ pub mod targets {
         binary_format: target_lexicon::BinaryFormat::Unknown,
     });
     /// x86_64-unknown-linux-gnu
-    pub const LINUX_X64: Option<target_lexicon::Triple> = Some(target_lexicon::Triple {
+    pub const LINUX_X64: ArtifactTarget = ArtifactTarget::Triple(target_lexicon::Triple {
         architecture: target_lexicon::Architecture::X86_64,
         vendor: target_lexicon::Vendor::Unknown,
         operating_system: target_lexicon::OperatingSystem::Linux,
@@ -814,7 +916,7 @@ pub mod targets {
         binary_format: target_lexicon::BinaryFormat::Elf,
     });
     /// x86_64-unknown-linux-musl
-    pub const LINUX_X64_MUSL: Option<target_lexicon::Triple> = Some(target_lexicon::Triple {
+    pub const LINUX_X64_MUSL: ArtifactTarget = ArtifactTarget::Triple(target_lexicon::Triple {
         architecture: target_lexicon::Architecture::X86_64,
         vendor: target_lexicon::Vendor::Unknown,
         operating_system: target_lexicon::OperatingSystem::Linux,
@@ -822,7 +924,7 @@ pub mod targets {
         binary_format: target_lexicon::BinaryFormat::Elf,
     });
     /// aarch64-pc-windows-msvc
-    pub const WINDOWS_AARCH64: Option<target_lexicon::Triple> = Some(target_lexicon::Triple {
+    pub const WINDOWS_AARCH64: ArtifactTarget = ArtifactTarget::Triple(target_lexicon::Triple {
         architecture: target_lexicon::Architecture::Aarch64(
             target_lexicon::Aarch64Architecture::Aarch64,
         ),
@@ -832,7 +934,7 @@ pub mod targets {
         binary_format: target_lexicon::BinaryFormat::Unknown,
     });
     /// aarch64-unknown-linux-gnu
-    pub const LINUX_AARCH64: Option<target_lexicon::Triple> = Some(target_lexicon::Triple {
+    pub const LINUX_AARCH64: ArtifactTarget = ArtifactTarget::Triple(target_lexicon::Triple {
         architecture: target_lexicon::Architecture::Aarch64(
             target_lexicon::Aarch64Architecture::Aarch64,
         ),
@@ -842,7 +944,7 @@ pub mod targets {
         binary_format: target_lexicon::BinaryFormat::Elf,
     });
     /// aarch64-unknown-linux-musl
-    pub const LINUX_AARCH64_MUSL: Option<target_lexicon::Triple> = Some(target_lexicon::Triple {
+    pub const LINUX_AARCH64_MUSL: ArtifactTarget = ArtifactTarget::Triple(target_lexicon::Triple {
         architecture: target_lexicon::Architecture::Aarch64(
             target_lexicon::Aarch64Architecture::Aarch64,
         ),
@@ -850,5 +952,15 @@ pub mod targets {
         operating_system: target_lexicon::OperatingSystem::Linux,
         environment: target_lexicon::Environment::Musl,
         binary_format: target_lexicon::BinaryFormat::Elf,
+    });
+    /// aarch64-apple-darwin
+    pub const MACOS_AARCH64: ArtifactTarget = ArtifactTarget::Triple(target_lexicon::Triple {
+        architecture: target_lexicon::Architecture::Aarch64(
+            target_lexicon::Aarch64Architecture::Aarch64,
+        ),
+        vendor: target_lexicon::Vendor::Apple,
+        operating_system: target_lexicon::OperatingSystem::Darwin(None),
+        environment: target_lexicon::Environment::Unknown,
+        binary_format: target_lexicon::BinaryFormat::Macho,
     });
 }

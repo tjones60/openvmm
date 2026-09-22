@@ -41,6 +41,11 @@ pub struct VmmTestSelections {
     pub prep_steps_variants: Vec<String>,
     /// Dependencies to install
     pub external_deps: VmmTestsExternalDeps,
+
+    // TODO: refactor these last to use one artifact per arch so that they can
+    // be part of `VmmTestsPreBuiltArtifactsSelections`.
+    pub needs_virtio_win_drivers: bool,
+    pub needs_release_igvm: bool,
 }
 
 flowey_request! {
@@ -154,6 +159,8 @@ impl SimpleFlowNode for Node {
             prebuilt_artifacts,
             prep_steps_variants,
             external_deps,
+            needs_virtio_win_drivers,
+            needs_release_igvm,
         } = selections;
 
         // Some things can only be built on linux
@@ -375,11 +382,6 @@ impl SimpleFlowNode for Node {
         let pipette_windows_aarch64 = build.pipette_windows_aarch64.then(|| {
             built_pipette(CommonTriple::Custom(
                 VmmTestsBuiltArtifacts::pipette_windows_aarch64_target(),
-            ))
-        });
-        let pipette_linux_x64 = build.pipette_linux_x64.then(|| {
-            built_pipette(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::pipette_linux_x64_target(),
             ))
         });
         let pipette_linux_musl_x64 = build.pipette_linux_musl_x64.then(|| {
@@ -738,7 +740,6 @@ impl SimpleFlowNode for Node {
             openvmm_vhost_linux_musl_aarch64,
             pipette_windows_x64,
             pipette_windows_aarch64,
-            pipette_linux_x64,
             pipette_linux_musl_x64,
             pipette_linux_musl_aarch64,
             guest_test_uefi_x64,
@@ -810,6 +811,8 @@ impl SimpleFlowNode for Node {
                 prebuilt_artifacts,
                 is_repo_root: true,
                 needs_incubator_profiles: incubator_profile.is_some(),
+                needs_virtio_win_drivers,
+                needs_release_igvm,
                 done: v,
             });
 
@@ -939,6 +942,8 @@ impl SimpleFlowNode for Node {
                 test_content_dir: Some(ReadVar::from_static(test_content_dir)),
                 built_artifacts,
                 prebuilt_artifacts,
+                needs_virtio_win_drivers,
+                needs_release_igvm,
             };
 
             side_effects.push(ctx.reqv(|v| {

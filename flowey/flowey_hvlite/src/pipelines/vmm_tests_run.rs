@@ -170,6 +170,11 @@ struct ResolvedArtifactSelections {
     needs_hyperv: bool,
     /// Whether any of the tests require hardware isolation
     needs_hardware_isolation: bool,
+
+    // TODO: refactor these last to use one artifact per arch so that they can
+    // be part of `VmmTestsPreBuiltArtifactsSelections`.
+    needs_virtio_win_drivers: bool,
+    needs_release_igvm: bool,
 }
 
 impl IntoPipeline for VmmTestsRunCli {
@@ -278,6 +283,10 @@ impl IntoPipeline for VmmTestsRunCli {
 
         // Resolve to build selections
         let mut resolved = ResolvedArtifactSelections::default();
+        // We always need the nextest vmm tests archive
+        resolved
+            .build
+            .require_nextest_vmm_tests_archive_for(target.as_triple())?;
         for artifact in artifacts {
             resolved.resolve_artifact(&artifact)?;
         }
@@ -719,6 +728,8 @@ fn selections_from_resolved(
         force_downloads: _,
         needs_hyperv,
         needs_hardware_isolation,
+        needs_virtio_win_drivers,
+        needs_release_igvm,
     } = resolved;
     let needs_whp = build.openvmm_native().expect("no native openvmm");
 
@@ -744,6 +755,8 @@ fn selections_from_resolved(
             }
             _ => unreachable!(),
         },
+        needs_virtio_win_drivers,
+        needs_release_igvm,
     }
 }
 
@@ -755,40 +768,16 @@ impl ResolvedArtifactSelections {
 
         match id {
             _ if self.build.resolve_artifact(id) => {}
-
-            // QEMU
-            QEMU_SYSTEM_AARCH64_LINUX_X64::GLOBAL_UNIQUE_ID => {
-                self.prebuilt_artifacts.qemu_system_aarch64 = true;
-            }
+            _ if self.prebuilt_artifacts.resolve_artifact(id) => {}
 
             // Release IGVM files (downloaded, not built)
             openhcl_igvm::LATEST_RELEASE_STANDARD_X64::GLOBAL_UNIQUE_ID
             | openhcl_igvm::LATEST_RELEASE_LINUX_DIRECT_X64::GLOBAL_UNIQUE_ID
             | openhcl_igvm::LATEST_RELEASE_STANDARD_AARCH64::GLOBAL_UNIQUE_ID => {
                 // These are downloaded from GitHub releases, not built
-                self.prebuilt_artifacts.release_igvm = true;
+                self.needs_release_igvm = true;
             }
 
-            // Loadable firmware artifacts (these come from deps, not built)
-            loadable::LINUX_DIRECT_TEST_KERNEL_X64::GLOBAL_UNIQUE_ID => {
-                self.prebuilt_artifacts.test_linux_kernel_x64 = true;
-            }
-            loadable::LINUX_DIRECT_TEST_KERNEL_AARCH64::GLOBAL_UNIQUE_ID => {
-                self.prebuilt_artifacts.test_linux_kernel_aarch64 = true;
-            }
-            loadable::LINUX_DIRECT_TEST_INITRD_X64::GLOBAL_UNIQUE_ID => {
-                self.prebuilt_artifacts.test_linux_initrd_x64 = true;
-            }
-            loadable::LINUX_DIRECT_TEST_INITRD_AARCH64::GLOBAL_UNIQUE_ID => {
-                self.prebuilt_artifacts.test_linux_initrd_aarch64 = true;
-            }
-            loadable::LINUX_DIRECT_TEST_BZIMAGE_X64::GLOBAL_UNIQUE_ID => {
-                self.prebuilt_artifacts.test_linux_bzimage_x64 = true;
-            }
-            loadable::UEFI_FIRMWARE_X64::GLOBAL_UNIQUE_ID
-            | loadable::UEFI_FIRMWARE_AARCH64::GLOBAL_UNIQUE_ID => {
-                self.prebuilt_artifacts.uefi = true;
-            }
             loadable::PCAT_FIRMWARE_X64::GLOBAL_UNIQUE_ID
             | loadable::SVGA_FIRMWARE_X64::GLOBAL_UNIQUE_ID => {
                 // We can't legally distribute these, so hope they are already
@@ -876,8 +865,8 @@ impl ResolvedArtifactSelections {
             TEST_LOG_DIRECTORY::GLOBAL_UNIQUE_ID => {}
 
             // Virtio-win drivers (downloaded from openvmm-deps)
-            virtio_win::VIRTIO_WIN_DRIVERS::GLOBAL_UNIQUE_ID => {
-                self.prebuilt_artifacts.virtio_win_drivers = true;
+            virtio_win::VIRTIO_WINDOWS_DRIVERS::GLOBAL_UNIQUE_ID => {
+                self.needs_virtio_win_drivers = true;
             }
 
             _ => anyhow::bail!("unknown artifact: {id}"),

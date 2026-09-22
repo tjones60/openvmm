@@ -1802,13 +1802,9 @@ impl IntoPipeline for CheckinGatesCli {
                 test_linux_kernel_aarch64: matches!(target_architecture, CommonArch::Aarch64)
                     || target_is_linux,
                 test_linux_bzimage_x64: matches!(target_architecture, CommonArch::X86_64),
-                uefi: true,
-                virtio_win_drivers: true,
-                release_igvm: !matches!(backend_hint, PipelineBackendHint::Ado),
-                qemu_system_aarch64: matches!(
-                    target.as_triple().operating_system,
-                    target_lexicon::OperatingSystem::Linux
-                ),
+                uefi_x64: matches!(target_architecture, CommonArch::X86_64),
+                uefi_aarch64: matches!(target_architecture, CommonArch::Aarch64),
+                qemu_system_aarch64_linux_x64: target_is_linux,
             };
 
             vmm_tests_run_job = vmm_tests_run_job.dep_on(|ctx| {
@@ -1821,6 +1817,8 @@ impl IntoPipeline for CheckinGatesCli {
                         test_content_dir: None,
                         built_artifacts: resolve_vmm_tests_artifacts(ctx),
                         prebuilt_artifacts,
+                        needs_virtio_win_drivers: true,
+                        needs_release_igvm: !matches!(backend_hint, PipelineBackendHint::Ado),
                     },
                     downloaded_artifacts,
                     prep_steps_variants,

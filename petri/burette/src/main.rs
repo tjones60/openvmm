@@ -390,8 +390,6 @@ fn cmd_package(args: PackageArgs) -> anyhow::Result<()> {
     let resolver =
         petri_artifact_resolver_openvmm_known_paths::OpenvmmKnownPathsTestArtifactResolver::new("");
 
-    let bundle_name = petri_artifact_resolver_openvmm_known_paths::resolve_bundle_name;
-
     // Collect the union of all artifacts needed by every test, using the
     // same register_artifacts functions that cmd_run uses. This avoids
     // duplicating artifact lists and automatically adapts to the host arch.
@@ -411,7 +409,8 @@ fn cmd_package(args: PackageArgs) -> anyhow::Result<()> {
 
     // Deduplicate: required_artifacts may contain repeats across tests.
     let artifact_ids: Vec<_> = {
-        let mut seen = std::collections::HashSet::new();
+        let mut seen: std::collections::HashSet<petri::ErasedArtifactHandle> =
+            std::collections::HashSet::new();
         requirements
             .required_artifacts()
             .filter(|id| seen.insert(*id))
@@ -424,24 +423,18 @@ fn cmd_package(args: PackageArgs) -> anyhow::Result<()> {
         .resolve(&resolver)
         .context("failed to resolve test artifacts")?;
 
-    let mut files: Vec<(PathBuf, String)> = Vec::new();
+    let mut files: Vec<(PathBuf, PathBuf)> = Vec::new();
 
     // Add burette itself (not an artifact — it's our own binary).
     let burette_path =
-        petri_artifact_resolver_openvmm_known_paths::get_output_executable_path("burette")
+        petri_artifact_resolver_openvmm_known_paths::get_executable_path_relative("burette")
             .context("failed to find burette binary")?;
     files.push((burette_path, "burette".into()));
 
     // Build the file list from resolved artifacts.
     for id in artifact_ids {
         let path = artifacts.get(id).to_path_buf();
-        let dest = if let Some(name) = bundle_name(id) {
-            name.to_string()
-        } else {
-            path.file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_else(|| format!("{:?}", id))
-        };
+        let dest = id.relative_path();
         files.push((path, dest));
     }
 
@@ -455,16 +448,21 @@ fn cmd_package(args: PackageArgs) -> anyhow::Result<()> {
         let dest = bundle.join(name);
         if let Some(parent) = dest.parent() {
             std::fs::create_dir_all(parent)
-                .with_context(|| format!("failed to create dir for {name}"))?;
+                .with_context(|| format!("failed to create dir for {}", name.display()))?;
         }
-        std::fs::copy(src, &dest).with_context(|| format!("failed to copy {name}"))?;
+        std::fs::copy(src, &dest).with_context(|| format!("failed to copy {}", name.display()))?;
 
         // Strip debug symbols from ELF executables to reduce tarball size.
-        if !args.no_strip && matches!(name.as_str(), "burette" | "openvmm" | "pipette") {
+        if !args.no_strip
+            && matches!(
+                name.iter().last().map(|n| n.to_str()).flatten(),
+                Some("burette") | Some("openvmm") | Some("pipette")
+            )
+        {
             let _ = std::process::Command::new("strip").arg(&dest).status();
         }
 
-        println!("  adding {name} ({})", human_size(&dest)?);
+        println!("  adding {} ({})", name.display(), human_size(&dest)?);
     }
 
     // Create tarball using system tar.
