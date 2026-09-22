@@ -93,8 +93,7 @@ impl PetriVmmBackend for OpenVmmPetriBackend {
     const SUPPORTS_VMBUS: bool = true;
 
     fn check_compat(firmware: &Firmware, arch: MachineArch) -> bool {
-        arch == MachineArch::host()
-            && !(firmware.is_openhcl() && (!cfg!(windows) || arch == MachineArch::Aarch64))
+        !(firmware.is_openhcl() && (!cfg!(windows) || arch == MachineArch::Aarch64))
     }
 
     fn quirks(firmware: &Firmware) -> (GuestQuirksInner, VmmQuirks) {
