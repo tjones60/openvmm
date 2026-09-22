@@ -87,7 +87,9 @@ impl<T: PetriVmmBackend> PetriVmArtifacts<T> {
         arch: MachineArch,
         with_vtl0_pipette: bool,
     ) -> Option<Self> {
-        if !T::check_compat(&firmware, arch) {
+        if !(T::SUPPORTS_CPU_EMULATION || arch == MachineArch::host())
+            || !T::check_compat(&firmware, arch)
+        {
             return None;
         }
 
@@ -354,6 +356,12 @@ pub trait PetriVmmBackend: Debug {
 
     /// Whether the backend supports VMBus.
     const SUPPORTS_VMBUS: bool;
+
+    /// Whether the backend supports full CPU emulation
+    ///
+    /// If this is false, then tests are silently skipped if the host
+    /// architecture does not match the guest architecture.
+    const SUPPORTS_CPU_EMULATION: bool = false;
 
     /// Check whether the combination of guest firmware, guest architecture, and
     /// internally determined host properties is supported by the backend.
