@@ -84,8 +84,8 @@ impl PetriVmmBackend for HyperVPetriBackend {
     type VmRuntime = HyperVPetriRuntime;
     const SUPPORTS_VMBUS: bool = true;
 
-    fn check_compat(_firmware: &Firmware, arch: MachineArch) -> bool {
-        arch == MachineArch::host()
+    fn check_compat(_firmware: &Firmware, _arch: MachineArch) -> bool {
+        true
     }
 
     fn quirks(firmware: &Firmware) -> (GuestQuirksInner, VmmQuirks) {
