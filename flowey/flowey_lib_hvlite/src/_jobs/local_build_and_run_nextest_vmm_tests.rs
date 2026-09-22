@@ -25,7 +25,6 @@ use std::collections::BTreeSet;
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::num::NonZeroU64;
-use vmm_test_images::KnownTestArtifacts;
 
 #[derive(Serialize, Deserialize)]
 pub struct VmmTestSelections {

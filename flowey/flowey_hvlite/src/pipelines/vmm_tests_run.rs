@@ -32,7 +32,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
-use vmm_test_images::KnownTestArtifacts;
 
 /// Build and run VMM tests with automatic artifact discovery
 #[derive(clap::Args)]
@@ -153,8 +152,10 @@ struct RustSuite {
 }
 
 /// Result of resolving artifact requirements to build/download selections
-#[derive(Default, Debug)]
+#[derive(Debug)]
 struct ResolvedArtifactSelections {
+    target: target_lexicon::Triple,
+
     /// What to build
     build: VmmTestsBuiltArtifactsSelections,
     /// Prebuilt artifacts to download
@@ -175,6 +176,58 @@ struct ResolvedArtifactSelections {
     // be part of `VmmTestsPreBuiltArtifactsSelections`.
     needs_virtio_win_drivers: bool,
     needs_release_igvm: bool,
+}
+
+impl ResolvedArtifactSelections {
+    fn new(target: target_lexicon::Triple) -> anyhow::Result<Self> {
+        let mut selections = Self {
+            target: target.clone(),
+
+            build: Default::default(),
+            prebuilt_artifacts: Default::default(),
+            prep_steps_variants: Default::default(),
+            downloads: Default::default(),
+            force_downloads: Default::default(),
+            needs_hyperv: Default::default(),
+            needs_hardware_isolation: Default::default(),
+            needs_virtio_win_drivers: Default::default(),
+            needs_release_igvm: Default::default(),
+        };
+
+        selections
+            .build
+            .require_nextest_vmm_tests_archive_for(target)?;
+
+        Ok(selections)
+    }
+
+    fn require_native_build(
+        &mut self,
+        require_fn: impl Fn(
+            &mut VmmTestsBuiltArtifactsSelections,
+            target_lexicon::Triple,
+        ) -> anyhow::Result<()>,
+    ) -> anyhow::Result<()> {
+        let target = self.target.clone();
+        let res = require_fn(&mut self.build, target);
+
+        // Try again with musl target, since some artifacts (for example
+        // prep_steps) are only built for musl to save time. Binaries targeting
+        // musl can also run in gnu environments.
+        if res.is_err()
+            && matches!(
+                self.target.operating_system,
+                target_lexicon::OperatingSystem::Linux
+            )
+            && matches!(self.target.environment, target_lexicon::Environment::Musl)
+        {
+            let mut target = self.target.clone();
+            target.environment = target_lexicon::Environment::Musl;
+            require_fn(&mut self.build, target)
+        } else {
+            res
+        }
+    }
 }
 
 impl IntoPipeline for VmmTestsRunCli {
@@ -282,11 +335,7 @@ impl IntoPipeline for VmmTestsRunCli {
         }
 
         // Resolve to build selections
-        let mut resolved = ResolvedArtifactSelections::default();
-        // We always need the nextest vmm tests archive
-        resolved
-            .build
-            .require_nextest_vmm_tests_archive_for(target.as_triple())?;
+        let mut resolved = ResolvedArtifactSelections::new(target.as_triple())?;
         for artifact in artifacts {
             resolved.resolve_artifact(&artifact)?;
         }
@@ -721,6 +770,7 @@ fn selections_from_resolved(
     target_os: target_lexicon::OperatingSystem,
 ) -> VmmTestSelections {
     let ResolvedArtifactSelections {
+        target,
         build,
         prebuilt_artifacts,
         prep_steps_variants,
@@ -731,7 +781,7 @@ fn selections_from_resolved(
         needs_virtio_win_drivers,
         needs_release_igvm,
     } = resolved;
-    let needs_whp = build.openvmm_native().expect("no native openvmm");
+    let needs_whp = build.openvmm_for(target).expect("no native openvmm");
 
     VmmTestSelections {
         filter,
@@ -798,8 +848,10 @@ impl ResolvedArtifactSelections {
                     .insert(KnownTestArtifacts::Gen2WindowsDataCenterCore2025X64Vhd);
             }
             test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64_PREPPED::GLOBAL_UNIQUE_ID => {
-                self.build.require_openvmm_native()?;
-                self.build.require_prep_steps_native()?;
+                self.require_native_build(VmmTestsBuiltArtifactsSelections::require_openvmm_for)?;
+                self.require_native_build(
+                    VmmTestsBuiltArtifactsSelections::require_prep_steps_for,
+                )?;
                 self.prep_steps_variants.push("standard".into());
                 // prep_steps needs actual VHD files on disk to copy them.
                 // Force download even when lazy fetch is enabled.
@@ -809,8 +861,11 @@ impl ResolvedArtifactSelections {
                     .insert(KnownTestArtifacts::Gen2WindowsDataCenterCore2025X64Vhd);
             }
             test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64_NO_VMBUS_PREPPED::GLOBAL_UNIQUE_ID => {
-                self.build.require_openvmm_native()?;
-                self.build.require_prep_steps_native()?;
+                self.require_native_build(VmmTestsBuiltArtifactsSelections::require_openvmm_for)?;
+                self.require_native_build(
+                    VmmTestsBuiltArtifactsSelections::require_prep_steps_for,
+                )?;
+                self.needs_virtio_win_drivers = true;
                 self.prep_steps_variants.push("no-vmbus".into());
                 self.force_downloads
                     .insert(KnownTestArtifacts::Gen2WindowsDataCenterCore2022X64Vhd);

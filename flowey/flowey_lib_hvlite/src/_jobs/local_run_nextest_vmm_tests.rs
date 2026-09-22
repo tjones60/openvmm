@@ -13,7 +13,6 @@ use crate::init_vmm_tests_env::PetriParams;
 use crate::install_vmm_tests_external_deps::VmmTestsExternalDeps;
 use flowey::node::prelude::*;
 use std::num::NonZeroU64;
-use vmm_test_images::KnownTestArtifacts;
 
 flowey_request! {
     pub struct Params {

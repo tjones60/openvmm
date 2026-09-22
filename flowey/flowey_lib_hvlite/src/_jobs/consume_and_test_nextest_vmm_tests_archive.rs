@@ -11,8 +11,8 @@ use crate::install_vmm_tests_external_deps::VmmTestsExternalDeps;
 use crate::run_cargo_nextest_run::NextestProfile;
 use flowey::node::prelude::*;
 use petri_artifacts_core::ArtifactTarget;
+use petri_artifacts_vmm_test::ErasedVmmTestImage;
 use std::collections::BTreeMap;
-use vmm_test_images::KnownTestArtifacts;
 
 #[expect(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize)]
@@ -53,7 +53,7 @@ flowey_request! {
         /// Information about the test content directory to use for the tests
         pub test_content_config: TestContentConfig,
         /// Test artifacts to download
-        pub downloaded_artifacts: Vec<KnownTestArtifacts>,
+        pub downloaded_artifacts: Vec<ErasedVmmTestImage>,
         /// Which prep_steps variants to run before tests (e.g. "standard", "no-vmbus").
         /// Empty means no prep steps are needed.
         pub prep_steps_variants: Vec<String>,

@@ -78,6 +78,15 @@ impl std::fmt::Display for ArtifactTarget {
     }
 }
 
+/// Information needed (along with the filename) to determine the URL for an
+/// artifact backed by blob storage.
+pub struct ArtifactBlobStorage {
+    /// The storage account the artifact is stored in.
+    pub storage_account: &'static str,
+    /// The container the artifact is stored in.
+    pub container: &'static str,
+}
+
 /// A trait that marks a type as being the type-safe ID for a petri artifact.
 ///
 /// This trait should never be implemented manually! It will be automatically
@@ -85,12 +94,10 @@ impl std::fmt::Display for ArtifactTarget {
 /// [`declare_artifacts!`](crate::declare_artifacts).
 pub trait ArtifactId: 'static {
     /// A globally unique ID corresponding to this artifact.
-    #[doc(hidden)]
     const GLOBAL_UNIQUE_ID: &'static str;
 
-    /// Whether this artifact can be backed by blob disk
-    #[doc(hidden)]
-    const SUPPORTS_BLOB_DISK: bool;
+    /// Storage account and container if this artifact is backed by blob disk
+    const BLOB_STORAGE: Option<ArtifactBlobStorage>;
 
     /// Filename to use when this artifact is being written to or resolved
     /// from the test content dir.
@@ -102,6 +109,18 @@ pub trait ArtifactId: 'static {
     /// Get the relative path to the artifact
     fn relative_path() -> PathBuf {
         PathBuf::from(Self::TARGET.to_string()).join(Self::FILENAME)
+    }
+
+    /// Get the url of the artifact if backed by blob disk
+    fn url() -> Option<String> {
+        Self::BLOB_STORAGE.map(|s| {
+            format!(
+                "https://{}.blob.core.windows.net/{}/{}",
+                s.storage_account,
+                s.container,
+                Self::FILENAME
+            )
+        })
     }
 
     /// ...in case you decide to flaunt the trait-level docs regarding manually
@@ -345,7 +364,7 @@ impl<'a> ArtifactResolver<'a> {
     /// Returns the effective remote access for a given per-call policy,
     /// respecting the resolver-wide policy.
     fn effective_remote<A: ArtifactId>(&self, per_call: RemoteAccess) -> RemoteAccess {
-        if matches!(self.remote_policy, RemoteAccess::LocalOnly) || !A::SUPPORTS_BLOB_DISK {
+        if matches!(self.remote_policy, RemoteAccess::LocalOnly) || A::BLOB_STORAGE.is_none() {
             RemoteAccess::LocalOnly
         } else {
             per_call
@@ -429,6 +448,7 @@ pub struct ErasedArtifactHandle {
     filename: &'static str,
     target: &'static ArtifactTarget,
     relative_path_fn: fn() -> PathBuf,
+    url_fn: fn() -> Option<String>,
 }
 
 impl PartialEq<ErasedArtifactHandle> for ErasedArtifactHandle {
@@ -470,6 +490,11 @@ impl ErasedArtifactHandle {
     /// get the relative path to the artifact
     pub fn relative_path(&self) -> PathBuf {
         (self.relative_path_fn)()
+    }
+
+    /// get the url to the artifact
+    pub fn url(&self) -> Option<String> {
+        (self.url_fn)()
     }
 }
 
@@ -529,6 +554,7 @@ impl<A: ArtifactId> AsArtifactHandle for ArtifactHandle<A> {
             filename: A::FILENAME,
             target: A::TARGET,
             relative_path_fn: A::relative_path,
+            url_fn: A::url,
         }
     }
 }
@@ -546,7 +572,7 @@ macro_rules! declare_artifacts {
         $crate::declare_artifacts_inner!(
             $(
                 $(#[$doc])*
-                $name(false, "", ANY),
+                $name(None::<$crate::ArtifactBlobStorage>, "", ANY),
             )*
         );
     };
@@ -565,45 +591,7 @@ macro_rules! declare_artifacts_with_filename_and_target {
         $crate::declare_artifacts_inner!(
             $(
                 $(#[$doc])*
-                $name(false, $filename, $target),
-            )*
-        );
-    };
-}
-
-/// Declare one or more type-safe artifacts that do not support blob disk.
-#[macro_export]
-macro_rules! declare_blob_artifacts_with_filename_and_target {
-    (
-        $(
-            $(#[$doc:meta])*
-            $name:ident($filename:literal, $target:ident)
-        ),*
-        $(,)?
-    ) => {
-        $crate::declare_artifacts_inner!(
-            $(
-                $(#[$doc])*
-                $name(true, $filename, $target),
-            )*
-        );
-    };
-}
-
-/// Declare one or more type-safe artifacts that support blob disk.
-#[macro_export]
-macro_rules! declare_blob_artifacts {
-    (
-        $(
-            $(#[$doc:meta])*
-            $name:ident
-        ),*
-        $(,)?
-    ) => {
-        $crate::declare_artifacts_inner!(
-            $(
-                $(#[$doc])*
-                $name(true, "", ANY),
+                $name(None::<$crate::ArtifactBlobStorage>, $filename, $target),
             )*
         );
     };
@@ -647,7 +635,7 @@ macro_rules! declare_artifacts_inner {
     (
         $(
             $(#[$doc:meta])*
-            $name:ident($supports_blob_disk:literal, $filename:literal, $target:ident)
+            $name:ident($url:expr, $filename:literal, $target:ident)
         ),*
         $(,)?
     ) => {
@@ -666,7 +654,7 @@ macro_rules! declare_artifacts_inner {
                 mod [< $name __ty >] {
                     impl $crate::ArtifactId for super::$name {
                         const GLOBAL_UNIQUE_ID: &'static str = module_path!();
-                        const SUPPORTS_BLOB_DISK: bool = $supports_blob_disk;
+                        const BLOB_STORAGE: Option<$crate::ArtifactBlobStorage> = $url;
                         const FILENAME: &'static str = $filename;
                         const TARGET: &'static $crate::ArtifactTarget = &$crate::targets::$target;
                         fn i_know_what_im_doing_with_this_manual_impl_instead_of_using_the_declare_artifacts_macro() {}
@@ -678,7 +666,7 @@ macro_rules! declare_artifacts_inner {
                         #[linkme(crate = linkme)]
                         static ARTIFACT: $crate::ArtifactInfo = $crate::ArtifactInfo {
                             global_unique_id: module_path!(),
-                            supports_blob_disk: $supports_blob_disk,
+                            supports_blob_disk: $url.is_some(),
                             filename: $filename,
                             os_flavor: None,
                             arch: None,
@@ -905,7 +893,7 @@ pub mod targets {
         vendor: target_lexicon::Vendor::Pc,
         operating_system: target_lexicon::OperatingSystem::Windows,
         environment: target_lexicon::Environment::Msvc,
-        binary_format: target_lexicon::BinaryFormat::Unknown,
+        binary_format: target_lexicon::BinaryFormat::Coff,
     });
     /// x86_64-unknown-linux-gnu
     pub const LINUX_X64: ArtifactTarget = ArtifactTarget::Triple(target_lexicon::Triple {

@@ -7,9 +7,6 @@ use clap::Parser;
 use clap::ValueEnum;
 use std::path::PathBuf;
 use std::process::Command;
-use vmm_test_images::CONTAINER;
-use vmm_test_images::KnownTestArtifacts;
-use vmm_test_images::STORAGE_ACCOUNT;
 
 /// Download an image from Azure Blob Storage.
 ///

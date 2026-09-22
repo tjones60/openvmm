@@ -123,17 +123,13 @@ macro_rules! define_vmm_tests_built_artifacts {
                     }
                 }
 
-                $(pub fn [<$artifact _native>](&self) -> ::anyhow::Result<bool>{
-                    match &::petri_artifacts_core::ArtifactTarget::Triple(::target_lexicon::Triple::host()) {
+                $(pub fn [<$artifact _for>](&self, target: ::target_lexicon::Triple) -> ::anyhow::Result<bool>{
+                    match &::petri_artifacts_core::ArtifactTarget::Triple(target) {
                         $($artifact_ty::TARGET => {
                             Ok(self.[<$artifact _ $variant>])
                         })*
                         _ => Err(::anyhow::anyhow!(concat!("host target does not exist for ", stringify!($artifact)))),
                     }
-                }
-
-                pub fn [<require_ $artifact _native>](&mut self) -> ::anyhow::Result<()>{
-                    self.[<require_ $artifact _for>](::target_lexicon::Triple::host())
                 }
 
                 pub fn [<require_ $artifact _for>](&mut self, target: ::target_lexicon::Triple) -> ::anyhow::Result<()>{
@@ -487,22 +483,6 @@ define_vmm_tests_built_artifacts!(
     ) => PathBuf,
 );
 
-// #[derive(Serialize, Deserialize, Debug, Default)]
-// pub struct VmmTestsPreBuiltArtifactsSelections {
-//     // Specify arch for initrd and kernel here as a hack to bring up qemu support
-//     // TODO: have a VmmTestsPreBuiltArtifacts for each target with corresponding
-//     // test content sub-dir.
-//     pub test_linux_initrd_x64: bool,
-//     pub test_linux_kernel_x64: bool,
-//     pub test_linux_initrd_aarch64: bool,
-//     pub test_linux_kernel_aarch64: bool,
-//     pub test_linux_bzimage_x64: bool,
-//     pub uefi: bool,
-//     pub virtio_win_drivers: bool,
-//     pub release_igvm: bool,
-//     pub qemu_system_aarch64: bool,
-// }
-
 flowey_request! {
     pub struct Request {
         /// Directory to symlink / copy test contents into. Does not need to be
@@ -735,37 +715,65 @@ impl SimpleFlowNode for Node {
                 prebuilt_artifacts.write(rt, &test_content_dir)?;
 
                 if let Some(release_igvm_files) = release_igvm_files {
-                    let latest_release_version = OpenhclReleaseVersion::latest();
-
                     if let Some(src) = &release_igvm_files.openhcl {
-                        let new_name = format!("{latest_release_version}-x64-openhcl.bin");
-                        fs_err::copy(src, test_content_dir.join(new_name))?;
+                        fs_err::copy(
+                            src,
+                            test_content_dir
+                                .join(openhcl_igvm::LATEST_RELEASE_STANDARD_X64::relative_path()),
+                        )?;
                     }
 
                     if let Some(src) = &release_igvm_files.openhcl_aarch64 {
-                        let new_name = format!("{latest_release_version}-aarch64-openhcl.bin");
-                        fs_err::copy(src, test_content_dir.join(new_name))?;
+                        fs_err::copy(
+                            src,
+                            test_content_dir.join(
+                                openhcl_igvm::LATEST_RELEASE_STANDARD_AARCH64::relative_path(),
+                            ),
+                        )?;
                     }
 
                     if let Some(src) = &release_igvm_files.openhcl_direct {
-                        let new_name = format!("{latest_release_version}-x64-direct-openhcl.bin");
-                        fs_err::copy(src, test_content_dir.join(new_name))?;
+                        fs_err::copy(
+                            src,
+                            test_content_dir.join(
+                                openhcl_igvm::LATEST_RELEASE_LINUX_DIRECT_X64::relative_path(),
+                            ),
+                        )?;
                     }
                 }
 
                 if let Some(virtio_win_dir) = virtio_win_dir {
                     let src = rt.read(virtio_win_dir);
-                    let dst = test_content_dir.join("virtio-win");
+                    let dst =
+                        test_content_dir.join(virtio_win::VIRTIO_WINDOWS_DRIVERS::relative_path());
                     let _ = fs_err::remove_dir_all(&dst);
                     flowey_lib_common::_util::copy_dir_all(&src, &dst)?;
                 }
 
                 // debug log the current contents of the dir
-                log::debug!("final folder content: {}", test_content_dir.display());
-                for entry in test_content_dir.read_dir()? {
-                    let entry = entry?;
-                    log::debug!("contains: {:?}", entry.file_name());
+                log::info!("final folder content: {}", test_content_dir.display());
+                fn list_dir(dir: PathBuf, layer: usize) -> anyhow::Result<()> {
+                    if layer > 2
+                        || dir
+                            .file_name()
+                            .map(|n| n.to_str())
+                            .flatten()
+                            .is_some_and(|n| ["temp", "test_results"].contains(&n))
+                    {
+                        log::info!("{}- ...", " ".repeat(layer * 2));
+                        return Ok(());
+                    }
+                    for entry in dir.read_dir()? {
+                        let entry = entry?;
+                        log::info!("{}- {}", " ".repeat(layer * 2), entry.file_name().display());
+                        let subdir = entry.path();
+                        if subdir.is_dir() {
+                            list_dir(subdir, layer + 1)?;
+                        }
+                    }
+                    Ok(())
                 }
+                list_dir(test_content_dir, 0)?;
 
                 Ok(())
             }

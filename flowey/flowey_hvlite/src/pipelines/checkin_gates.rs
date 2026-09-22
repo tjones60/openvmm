@@ -34,7 +34,6 @@ use flowey_lib_hvlite::install_vmm_tests_external_deps::VmmTestsExternalDepsWind
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use target_lexicon::Triple;
-use vmm_test_images::KnownTestArtifacts;
 
 // This is a cap for surplus 2 MiB hugetlb pages, not a reservation. Keep it
 // generous enough for VMM tests without tying CI provisioning to one test's RAM.

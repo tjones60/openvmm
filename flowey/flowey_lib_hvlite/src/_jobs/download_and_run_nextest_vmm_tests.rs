@@ -20,7 +20,6 @@ use crate::install_vmm_tests_external_deps::VmmTestsExternalDeps;
 use crate::install_vmm_tests_external_deps::VmmTestsExternalDepsWindows;
 use crate::run_cargo_nextest_run::NextestProfile;
 use flowey::node::prelude::*;
-use vmm_test_images::KnownTestArtifacts;
 
 #[derive(Serialize, Deserialize)]
 pub enum VmmTestsProfile {

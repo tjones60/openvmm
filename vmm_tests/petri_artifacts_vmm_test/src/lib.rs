@@ -3,7 +3,134 @@
 
 //! `petri` test artifacts used by in-tree VMM tests
 
-#![forbid(unsafe_code)]
+#![allow(unsafe_code)]
+
+use petri_artifacts_core::ArtifactHandle;
+use petri_artifacts_core::ArtifactId;
+use petri_artifacts_core::AsArtifactHandle;
+use petri_artifacts_core::ErasedArtifactHandle;
+
+/// Artifact info for use in the lookup table
+#[derive(Copy, Clone, Hash)]
+pub struct ErasedVmmTestImage {
+    artifact_id_str: &'static str,
+    filename: &'static str,
+    url_fn: fn() -> Option<String>,
+    size: u64,
+    download_name: &'static str,
+}
+
+impl PartialEq<ErasedVmmTestImage> for ErasedVmmTestImage {
+    fn eq(&self, other: &ErasedVmmTestImage) -> bool {
+        self.global_unique_id() == other.global_unique_id()
+    }
+}
+
+impl PartialEq<ErasedArtifactHandle> for ErasedVmmTestImage {
+    fn eq(&self, other: &ErasedArtifactHandle) -> bool {
+        self.global_unique_id() == other.global_unique_id()
+    }
+}
+
+impl<A: ArtifactId> PartialEq<ArtifactHandle<A>> for ErasedVmmTestImage {
+    fn eq(&self, other: &ArtifactHandle<A>) -> bool {
+        self == &other.erase()
+    }
+}
+
+impl Eq for ErasedVmmTestImage {}
+
+impl ErasedVmmTestImage {
+    /// used to serialize the artifact handle when querying petri for test requirements
+    pub fn global_unique_id(&self) -> &'static str {
+        self.artifact_id_str
+    }
+
+    /// get the filename of the artifact
+    pub fn filename(&self) -> &'static str {
+        self.filename
+    }
+
+    /// get the relative path to the artifact
+    pub fn url(&self) -> String {
+        (self.url_fn)().expect("all vmm test images should have an associated url")
+    }
+
+    /// get the size of the artifact
+    pub fn size(&self) -> u64 {
+        self.size
+    }
+
+    /// get the download name of the artifact
+    pub fn download_name(&self) -> &'static str {
+        self.download_name
+    }
+}
+
+/// Get the vmm test image associated with the type (if any).
+pub fn vmm_test_image<T: ArtifactId + tags::IsHostedOnHvliteAzureBlobStore>()
+-> Option<ErasedVmmTestImage> {
+    vmm_test_images_macro_support::VMM_TEST_IMAGES
+        .iter()
+        .find(|&x| *x == ArtifactHandle::<T>::new())
+        .copied()
+}
+
+/// Get the vmm test image associated with the id (if any).
+pub fn vmm_test_image_from_id(id: ErasedArtifactHandle) -> Option<ErasedVmmTestImage> {
+    vmm_test_images_macro_support::VMM_TEST_IMAGES
+        .iter()
+        .find(|&x| *x == id)
+        .copied()
+}
+
+macro_rules! declare_vmm_test_images {
+    (
+        $(
+            $(#[$doc:meta])*
+            $name:ident(
+                $filename:literal,
+                $size:literal,
+                $download_name:literal,
+            )
+        ),*
+        $(,)?
+    ) => {
+        ::petri_artifacts_core::declare_artifacts_inner!($(
+            $(#[$doc])*
+            $name(
+                Some(::petri_artifacts_core::ArtifactBlobStorage {
+                    storage_account: $crate::artifacts::STORAGE_ACCOUNT,
+                    container: $crate::artifacts::CONTAINER,
+                }),
+                $filename,
+                ANY
+            ),
+        )*);
+
+        $(impl $crate::tags::IsHostedOnHvliteAzureBlobStore for $name {
+            const REMOTE_FILENAME: &'static str = $filename;
+            const SIZE: u64 = $size;
+            const DOWNLOAD_NAME: &'static str = $download_name;
+        }
+
+        const _: () = {
+            use $crate::vmm_test_images_macro_support::linkme;
+            use $crate::tags::IsHostedOnHvliteAzureBlobStore;
+            use ::petri_artifacts_core::ArtifactId;
+
+            #[linkme::distributed_slice($crate::vmm_test_images_macro_support::VMM_TEST_IMAGES)]
+            #[linkme(crate = linkme)]
+            static IMAGE: $crate::ErasedVmmTestImage = $crate::ErasedVmmTestImage {
+                artifact_id_str: $name::GLOBAL_UNIQUE_ID,
+                filename: $name::FILENAME,
+                url_fn: $name::url,
+                size: $name::SIZE,
+                download_name: $name::DOWNLOAD_NAME,
+            };
+        };)*
+    };
+}
 
 /// Artifact declarations
 pub mod artifacts {
@@ -347,7 +474,6 @@ pub mod artifacts {
 
     /// Test VHD artifacts
     pub mod test_vhd {
-        use crate::tags::IsHostedOnHvliteAzureBlobStore;
         use petri_artifacts_common::tags::GuestQuirks;
         use petri_artifacts_common::tags::GuestQuirksInner;
         use petri_artifacts_common::tags::InitialRebootCondition;
@@ -355,7 +481,6 @@ pub mod artifacts {
         use petri_artifacts_common::tags::MachineArch;
         use petri_artifacts_common::tags::OsFlavor;
         use petri_artifacts_core::declare_artifacts_with_filename_and_target;
-        use petri_artifacts_core::declare_blob_artifacts_with_filename_and_target;
 
         declare_artifacts_with_filename_and_target! {
             /// guest_test_uefi.img, built for x86_64 from the in-tree `guest_test_uefi` codebase.
@@ -378,11 +503,12 @@ pub mod artifacts {
         // built just-in-time, using the code that is present in-tree, under
         // `guest_test_uefi`.
 
-        declare_blob_artifacts_with_filename_and_target! {
+        declare_vmm_test_images! {
             /// Generation 1 windows test image
             GEN1_WINDOWS_DATA_CENTER_CORE2022_X64(
                 "WindowsServer-2022-datacenter-core-smalldisk-20348.1906.230803.vhd",
-                X64
+                32214352384,
+                "Gen1WindowsDataCenterCore2022X64Vhd",
             )
         }
 
@@ -391,18 +517,12 @@ pub mod artifacts {
             const ARCH: MachineArch = MachineArch::X86_64;
         }
 
-        impl IsHostedOnHvliteAzureBlobStore for GEN1_WINDOWS_DATA_CENTER_CORE2022_X64 {
-            const REMOTE_FILENAME: &'static str =
-                "WindowsServer-2022-datacenter-core-smalldisk-20348.1906.230803.vhd";
-            const SIZE: u64 = 32214352384;
-            const DOWNLOAD_NAME: &'static str = "Gen1WindowsDataCenterCore2022X64Vhd";
-        }
-
-        declare_blob_artifacts_with_filename_and_target! {
+        declare_vmm_test_images! {
             /// Generation 2 windows test image
             GEN2_WINDOWS_DATA_CENTER_CORE2022_X64(
                 "WindowsServer-2022-datacenter-core-smalldisk-g2-20348.1906.230803.vhd",
-                X64
+                32214352384,
+                "Gen2WindowsDataCenterCore2022X64Vhd",
             )
         }
 
@@ -411,18 +531,12 @@ pub mod artifacts {
             const ARCH: MachineArch = MachineArch::X86_64;
         }
 
-        impl IsHostedOnHvliteAzureBlobStore for GEN2_WINDOWS_DATA_CENTER_CORE2022_X64 {
-            const REMOTE_FILENAME: &'static str =
-                "WindowsServer-2022-datacenter-core-smalldisk-g2-20348.1906.230803.vhd";
-            const SIZE: u64 = 32214352384;
-            const DOWNLOAD_NAME: &'static str = "Gen2WindowsDataCenterCore2022X64Vhd";
-        }
-
-        declare_blob_artifacts_with_filename_and_target! {
+        declare_vmm_test_images! {
             /// Generation 2 windows test image
             GEN2_WINDOWS_DATA_CENTER_CORE2025_X64(
                 "WindowsServer-2025-datacenter-core-smalldisk-g2-26100.3476.250306.vhd",
-                X64
+                32214352384,
+                "Gen2WindowsDataCenterCore2025X64Vhd",
             )
         }
 
@@ -438,16 +552,13 @@ pub mod artifacts {
             }
         }
 
-        impl IsHostedOnHvliteAzureBlobStore for GEN2_WINDOWS_DATA_CENTER_CORE2025_X64 {
-            const REMOTE_FILENAME: &'static str =
-                "WindowsServer-2025-datacenter-core-smalldisk-g2-26100.3476.250306.vhd";
-            const SIZE: u64 = 32214352384;
-            const DOWNLOAD_NAME: &'static str = "Gen2WindowsDataCenterCore2025X64Vhd";
-        }
-
-        declare_blob_artifacts_with_filename_and_target! {
+        declare_vmm_test_images! {
             /// FreeBSD 13.2
-            FREE_BSD_13_2_X64("FreeBSD-13.2-RELEASE-amd64.vhd", X64)
+            FREE_BSD_13_2_X64(
+                "FreeBSD-13.2-RELEASE-amd64.vhd",
+                6477005312,
+                "FreeBsd13_2X64Vhd",
+            )
         }
 
         impl IsTestVhd for FREE_BSD_13_2_X64 {
@@ -462,15 +573,13 @@ pub mod artifacts {
             }
         }
 
-        impl IsHostedOnHvliteAzureBlobStore for FREE_BSD_13_2_X64 {
-            const REMOTE_FILENAME: &'static str = "FreeBSD-13.2-RELEASE-amd64.vhd";
-            const SIZE: u64 = 6477005312;
-            const DOWNLOAD_NAME: &'static str = "FreeBsd13_2X64Vhd";
-        }
-
-        declare_blob_artifacts_with_filename_and_target! {
+        declare_vmm_test_images! {
             /// Ubuntu 24.04 Server X64
-            UBUNTU_2404_SERVER_X64("ubuntu-24.04-server-cloudimg-amd64.vhd", X64)
+            UBUNTU_2404_SERVER_X64(
+                "ubuntu-24.04-server-cloudimg-amd64.vhd",
+                3758211584,
+                "Ubuntu2404ServerX64Vhd",
+            )
         }
 
         impl IsTestVhd for UBUNTU_2404_SERVER_X64 {
@@ -484,15 +593,13 @@ pub mod artifacts {
             }
         }
 
-        impl IsHostedOnHvliteAzureBlobStore for UBUNTU_2404_SERVER_X64 {
-            const REMOTE_FILENAME: &'static str = "ubuntu-24.04-server-cloudimg-amd64.vhd";
-            const SIZE: u64 = 3758211584;
-            const DOWNLOAD_NAME: &'static str = "Ubuntu2404ServerX64Vhd";
-        }
-
-        declare_blob_artifacts_with_filename_and_target! {
+        declare_vmm_test_images! {
             /// Ubuntu 25.04 Server X64
-            UBUNTU_2504_SERVER_X64("ubuntu-25.04-server-cloudimg-amd64.vhd", X64)
+            UBUNTU_2504_SERVER_X64(
+                "ubuntu-25.04-server-cloudimg-amd64.vhd",
+                3758211584,
+                "Ubuntu2504ServerX64Vhd",
+            )
         }
 
         impl IsTestVhd for UBUNTU_2504_SERVER_X64 {
@@ -506,17 +613,12 @@ pub mod artifacts {
             }
         }
 
-        impl IsHostedOnHvliteAzureBlobStore for UBUNTU_2504_SERVER_X64 {
-            const REMOTE_FILENAME: &'static str = "ubuntu-25.04-server-cloudimg-amd64.vhd";
-            const SIZE: u64 = 3758211584;
-            const DOWNLOAD_NAME: &'static str = "Ubuntu2504ServerX64Vhd";
-        }
-
-        declare_blob_artifacts_with_filename_and_target! {
+        declare_vmm_test_images! {
             /// Alpine Linux 3.23.2 x64 UEFI nocloud cloud-init
             ALPINE_3_23_X64(
                 "nocloud_alpine-3.23.2-x86_64-uefi-cloudinit-r0.vhd",
-                X64
+                224494080,
+                "Alpine323X64Vhd",
             )
         }
 
@@ -531,18 +633,12 @@ pub mod artifacts {
             }
         }
 
-        impl IsHostedOnHvliteAzureBlobStore for ALPINE_3_23_X64 {
-            const REMOTE_FILENAME: &'static str =
-                "nocloud_alpine-3.23.2-x86_64-uefi-cloudinit-r0.vhd";
-            const SIZE: u64 = 224494080;
-            const DOWNLOAD_NAME: &'static str = "Alpine323X64Vhd";
-        }
-
-        declare_blob_artifacts_with_filename_and_target! {
+        declare_vmm_test_images! {
             /// Alpine Linux 3.23.2 aarch64 UEFI nocloud cloud-init
             ALPINE_3_23_AARCH64(
                 "nocloud_alpine-3.23.2-aarch64-uefi-cloudinit-r0.vhd",
-                AARCH64
+                258015744,
+                "Alpine323Aarch64Vhd",
             )
         }
 
@@ -557,18 +653,12 @@ pub mod artifacts {
             }
         }
 
-        impl IsHostedOnHvliteAzureBlobStore for ALPINE_3_23_AARCH64 {
-            const REMOTE_FILENAME: &'static str =
-                "nocloud_alpine-3.23.2-aarch64-uefi-cloudinit-r0.vhd";
-            const SIZE: u64 = 258015744;
-            const DOWNLOAD_NAME: &'static str = "Alpine323Aarch64Vhd";
-        }
-
-        declare_blob_artifacts_with_filename_and_target! {
+        declare_vmm_test_images! {
             /// Ubuntu 24.04 Server Aarch64
             UBUNTU_2404_SERVER_AARCH64(
                 "ubuntu-24.04-server-cloudimg-arm64.vhd",
-                AARCH64
+                3758211584,
+                "Ubuntu2404ServerAarch64Vhd",
             )
         }
 
@@ -583,18 +673,12 @@ pub mod artifacts {
             }
         }
 
-        impl IsHostedOnHvliteAzureBlobStore for UBUNTU_2404_SERVER_AARCH64 {
-            const REMOTE_FILENAME: &'static str = "ubuntu-24.04-server-cloudimg-arm64.vhd";
-            const SIZE: u64 = 3758211584;
-            const DOWNLOAD_NAME: &'static str = "Ubuntu2404ServerAarch64Vhd";
-        }
-
-        // blob disk does not support VHDX files.
-        declare_artifacts_with_filename_and_target! {
+        declare_vmm_test_images! {
             /// Windows 11 Enterprise ARM64 24H2
             WINDOWS_11_ENTERPRISE_AARCH64(
                 "windows11preview-arm64-win11-24h2-ent-26100.3775.250406-1.vhdx",
-                AARCH64
+                24398266368,
+                "Windows11EnterpriseAarch64Vhdx",
             )
         }
 
@@ -610,16 +694,9 @@ pub mod artifacts {
             }
         }
 
-        impl IsHostedOnHvliteAzureBlobStore for WINDOWS_11_ENTERPRISE_AARCH64 {
-            const REMOTE_FILENAME: &'static str =
-                "windows11preview-arm64-win11-24h2-ent-26100.3775.250406-1.vhdx";
-            const SIZE: u64 = 24398266368;
-            const DOWNLOAD_NAME: &'static str = "Windows11EnterpriseAarch64Vhdx";
-        }
-
         // VHDs that are created by pre-preparation automation
 
-        declare_blob_artifacts_with_filename_and_target! {
+        declare_artifacts_with_filename_and_target! {
             /// Generation 2 windows test image
             GEN2_WINDOWS_DATA_CENTER_CORE2025_X64_PREPPED(
                 "WindowsServer-2025-datacenter-core-smalldisk-g2-26100.3476.250306-prepped.vhd",
@@ -636,7 +713,7 @@ pub mod artifacts {
             }
         }
 
-        declare_blob_artifacts_with_filename_and_target! {
+        declare_artifacts_with_filename_and_target! {
             /// Generation 2 windows test image
             GEN2_WINDOWS_DATA_CENTER_CORE2022_X64_NO_VMBUS_PREPPED(
                 "WindowsServer-2025-datacenter-core-smalldisk-g2-26100.3476.250306-no-vmbus-prepped.vhd",
@@ -652,17 +729,19 @@ pub mod artifacts {
 
     /// Test ISO artifacts
     pub mod test_iso {
-        use crate::tags::IsHostedOnHvliteAzureBlobStore;
         use petri_artifacts_common::tags::GuestQuirks;
         use petri_artifacts_common::tags::GuestQuirksInner;
         use petri_artifacts_common::tags::IsTestIso;
         use petri_artifacts_common::tags::MachineArch;
         use petri_artifacts_common::tags::OsFlavor;
-        use petri_artifacts_core::declare_blob_artifacts;
 
-        declare_blob_artifacts! {
+        declare_vmm_test_images! {
             /// FreeBSD 13.2
-            FREE_BSD_13_2_X64
+            FREE_BSD_13_2_X64(
+                "FreeBSD-13.2-RELEASE-amd64-dvd1.iso",
+                4245487616,
+                "FreeBsd13_2X64Iso",
+            )
         }
 
         impl IsTestIso for FREE_BSD_13_2_X64 {
@@ -676,50 +755,38 @@ pub mod artifacts {
                 })
             }
         }
-
-        impl IsHostedOnHvliteAzureBlobStore for FREE_BSD_13_2_X64 {
-            const REMOTE_FILENAME: &'static str = "FreeBSD-13.2-RELEASE-amd64-dvd1.iso";
-            const SIZE: u64 = 4245487616;
-            const DOWNLOAD_NAME: &'static str = "FreeBsd13_2X64Iso";
-        }
     }
 
     /// Test VMGS artifacts
     pub mod test_vmgs {
-        use crate::tags::IsHostedOnHvliteAzureBlobStore;
         use petri_artifacts_common::tags::IsTestVmgs;
-        use petri_artifacts_core::declare_artifacts_with_filename_and_target;
 
         // These could support blob disk in some cases, but Petri doesn't support
         // remote VMGS files and they are small, so just disable it for now.
-        declare_artifacts_with_filename_and_target! {
+        declare_vmm_test_images! {
             /// VMGS file containing a UEFI boot entry
             ///
             /// The file was generated by booting an arbitrary Windows VHD
             /// (different from the ones used for testing in CI) in OpenVMM
             /// with a persistent VMGS file enabled. This is useful for testing
             /// whether default_boot_always_attempt works to boot other VHDs.
-            VMGS_WITH_BOOT_ENTRY("sample-vmgs.vhd", ANY),
+            VMGS_WITH_BOOT_ENTRY(
+                "sample-vmgs.vhd",
+                4194816,
+                "VmgsWithBootEntry",
+            ),
             /// VMGS file containing a 16k vTPM blob
             ///
             /// This file was created by creating a 16k vTPM blob and loading
             /// it into file index 3 of a blank VMGS file.
-            VMGS_WITH_16K_TPM("tpm-16k-vmgs.vhd", ANY),
-        }
-
-        impl IsHostedOnHvliteAzureBlobStore for VMGS_WITH_BOOT_ENTRY {
-            const REMOTE_FILENAME: &'static str = "sample-vmgs.vhd";
-            const SIZE: u64 = 4194816;
-            const DOWNLOAD_NAME: &'static str = "VmgsWithBootEntry";
+            VMGS_WITH_16K_TPM(
+                "tpm-16k-vmgs.vhd",
+                4194816,
+                "VmgsWith16kTpm",
+            ),
         }
 
         impl IsTestVmgs for VMGS_WITH_BOOT_ENTRY {}
-
-        impl IsHostedOnHvliteAzureBlobStore for VMGS_WITH_16K_TPM {
-            const REMOTE_FILENAME: &'static str = "tpm-16k-vmgs.vhd";
-            const SIZE: u64 = 4194816;
-            const DOWNLOAD_NAME: &'static str = "VmgsWith16kTpm";
-        }
 
         impl IsTestVmgs for VMGS_WITH_16K_TPM {}
     }
@@ -881,4 +948,28 @@ pub mod tags {
         /// CLI name for `cargo xtask guest-test download-image --artifacts <name>`
         const DOWNLOAD_NAME: &'static str;
     }
+}
+
+#[doc(hidden)]
+mod vmm_test_images_macro_support {
+    // UNSAFETY: Needed for linkme.
+    #![expect(unsafe_code)]
+
+    use crate::ErasedVmmTestImage;
+    pub use linkme;
+
+    #[linkme::distributed_slice]
+    pub static VMM_TEST_IMAGES: [ErasedVmmTestImage];
+
+    // Always have at least one entry to work around linker bugs.
+    //
+    // See <https://github.com/llvm/llvm-project/issues/65855>.
+    #[linkme::distributed_slice(VMM_TEST_IMAGES)]
+    static WORKAROUND: ErasedVmmTestImage = ErasedVmmTestImage {
+        artifact_id_str: "",
+        filename: "",
+        url_fn: || None,
+        size: 0,
+        download_name: "",
+    };
 }

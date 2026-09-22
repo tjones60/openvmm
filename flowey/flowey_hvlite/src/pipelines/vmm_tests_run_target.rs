@@ -15,7 +15,6 @@ use flowey_lib_hvlite::install_vmm_tests_external_deps::VmmTestsExternalDepsLinu
 use flowey_lib_hvlite::install_vmm_tests_external_deps::VmmTestsExternalDepsWindows;
 use std::num::NonZeroU64;
 use std::path::PathBuf;
-use vmm_test_images::KnownTestArtifacts;
 
 /// Run VMM tests on a target system with artifacts built by `VmmTestsRun`.
 #[derive(clap::Args)]
