@@ -190,10 +190,7 @@ impl SimpleFlowNode for Node {
                     .nextest_vmm_tests_archive(ArtifactTarget::Triple(target.clone()))?
                     .take()
                     .expect("nextest_vmm_tests_archive is always required");
-                let incubator = built_artifacts
-                    .incubator(ArtifactTarget::Triple(target_lexicon::Triple::host()))
-                    .ok()
-                    .and_then(|a| a.take());
+                let incubator = built_artifacts.incubator_linux_x64.take();
                 let prep_steps = built_artifacts
                     .prep_steps(ArtifactTarget::Triple(target.clone()))
                     .ok()

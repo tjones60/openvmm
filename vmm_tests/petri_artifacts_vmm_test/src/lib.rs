@@ -236,7 +236,11 @@ pub mod artifacts {
     openvmm_native!(OPENVMM_WINDOWS_AARCH64, "windows", "aarch64", "msvc");
     openvmm_native!(OPENVMM_LINUX_AARCH64, "linux", "aarch64", "gnu");
     openvmm_native!(OPENVMM_LINUX_AARCH64_MUSL, "linux", "aarch64", "musl");
-    openvmm_native!(OPENVMM_MACOS_AARCH64, "macos", "aarch64", "macabi");
+    /// openvmm "native" executable
+    // xtask-fmt allow-target-arch oneoff-petri-native-test-deps
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    pub const OPENVMM_NATIVE: petri_artifacts_core::ArtifactHandle<OPENVMM_MACOS_AARCH64> =
+        petri_artifacts_core::ArtifactHandle::new();
 
     /// openvmm_vhost "native" executable — the vhost-user backend binary.
     /// Only available on Linux (vhost-user requires Unix sockets).
