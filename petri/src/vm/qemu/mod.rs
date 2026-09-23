@@ -78,6 +78,7 @@ impl PetriVmmBackend for QemuPetriBackend {
     type VmmConfig = QemuPetriConfig;
     type VmRuntime = QemuPetriRuntime;
     const SUPPORTS_VMBUS: bool = false;
+    const SUPPORTS_CPU_EMULATION: bool = true;
 
     fn check_compat(_firmware: &Firmware, _arch: MachineArch) -> bool {
         // Our QEMU bachend only supports linux X64 at this time
