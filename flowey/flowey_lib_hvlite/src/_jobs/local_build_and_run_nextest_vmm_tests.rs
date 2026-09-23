@@ -543,6 +543,11 @@ impl SimpleFlowNode for Node {
                 VmmTestsBuiltArtifacts::prep_steps_windows_x64_target(),
             ))
         });
+        let prep_steps_linux_x64 = build.prep_steps_linux_x64.then(|| {
+            build_prep_steps(CommonTriple::Custom(
+                VmmTestsBuiltArtifacts::prep_steps_linux_x64_target(),
+            ))
+        });
         let prep_steps_linux_musl_x64 = build.prep_steps_linux_musl_x64.then(|| {
             build_prep_steps(CommonTriple::Custom(
                 VmmTestsBuiltArtifacts::prep_steps_linux_musl_x64_target(),
@@ -726,6 +731,7 @@ impl SimpleFlowNode for Node {
             nextest_vmm_tests_archive_linux_musl_aarch64,
             incubator_linux_x64,
             prep_steps_windows_x64,
+            prep_steps_linux_x64,
             prep_steps_linux_musl_x64,
             test_igvm_agent_rpc_server_windows_x64,
             openvmm_windows_x64,

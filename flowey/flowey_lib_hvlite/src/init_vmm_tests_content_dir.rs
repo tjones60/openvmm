@@ -155,9 +155,8 @@ macro_rules! define_vmm_tests_built_artifacts {
     };
 }
 
-// Try again with musl target, since some artifacts (for example
-// prep_steps) are only built for musl to save time. Binaries targeting
-// musl can also run in gnu environments.
+// Try again with musl target, since some artifacts may only be built for musl
+// to save time. Binaries targeting musl can also run in gnu environments.
 fn retry_as_musl(target: ArtifactTarget) -> Option<target_lexicon::Triple> {
     let ArtifactTarget::Triple(mut triple) = target else {
         return None;
@@ -224,6 +223,10 @@ define_vmm_tests_built_artifacts!(
         windows_x64(
             (PrepStepsOutput::WindowsBin { exe, .. }, exe),
             host_tools::PREP_STEPS_WINDOWS_X64
+        ),
+        linux_x64(
+            (PrepStepsOutput::LinuxBin { bin, .. }, bin),
+            host_tools::PREP_STEPS_LINUX_X64
         ),
         linux_musl_x64(
             (PrepStepsOutput::LinuxBin { bin, .. }, bin),
@@ -828,7 +831,7 @@ pub mod vmm_tests_artifact_builders {
             openvmm_vhost_linux_x64 => OpenvmmVhostOutput,
             pipette_linux_musl_x64 => PipetteOutput,
             pipette_linux_musl_aarch64 => PipetteOutput,
-            prep_steps_linux_musl_x64 => PrepStepsOutput,
+            prep_steps_linux_x64 => PrepStepsOutput,
             tmk_vmm_linux_musl_x64 => TmkVmmOutput,
             // any machine
             guest_test_uefi_x64 => GuestTestUefiOutput,

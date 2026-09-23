@@ -819,6 +819,8 @@ impl IntoPipeline for CheckinGatesCli {
                 pipeline.new_typed_artifact(format!("{arch_tag}-linux-musl-openvmm_vhost"));
             let (pub_prep_steps, use_prep_steps) =
                 pipeline.new_typed_artifact(format!("{arch_tag}-linux-prep_steps"));
+            let (pub_prep_steps_musl, use_prep_steps_musl) =
+                pipeline.new_typed_artifact(format!("{arch_tag}-linux-musl-prep_steps"));
             let (pub_vmm_tests_archive, use_vmm_tests_archive) =
                 pipeline.new_typed_artifact(format!("{arch_tag}-linux-vmm-tests-archive"));
             let (pub_vmm_tests_archive_musl, use_vmm_tests_archive_musl) =
@@ -834,14 +836,14 @@ impl IntoPipeline for CheckinGatesCli {
                     vmm_tests_artifacts_linux_x86.use_openvmm_linux_x64 = Some(use_openvmm.clone());
                     vmm_tests_artifacts_linux_x86.use_openvmm_vhost_linux_x64 =
                         Some(use_openvmm_vhost.clone());
-                    vmm_tests_artifacts_linux_x86.use_prep_steps_linux_musl_x64 =
+                    vmm_tests_artifacts_linux_x86.use_prep_steps_linux_x64 =
                         Some(use_prep_steps.clone());
                     vmm_tests_artifacts_linux_musl_x86.use_openvmm_linux_musl_x64 =
                         Some(use_openvmm_musl.clone());
                     vmm_tests_artifacts_linux_musl_x86.use_openvmm_vhost_linux_musl_x64 =
                         Some(use_openvmm_vhost_musl.clone());
                     vmm_tests_artifacts_linux_musl_x86.use_prep_steps_linux_musl_x64 =
-                        Some(use_prep_steps.clone());
+                        Some(use_prep_steps_musl.clone());
                     vmm_tests_artifacts_linux_x86.use_nextest_vmm_tests_archive_linux_x64 =
                         Some(use_vmm_tests_archive.clone());
                     vmm_tests_artifacts_linux_musl_x86
@@ -871,6 +873,8 @@ impl IntoPipeline for CheckinGatesCli {
             {
                 anyhow::bail!("multiple vmgstools for the same target");
             }
+
+            use flowey_lib_hvlite::build_nextest_vmm_tests::BuildNextestVmmTestsMode;
 
             // Emit a job for building dependencies used by just linux vmm tests
             let job = pipeline
@@ -989,53 +993,64 @@ impl IntoPipeline for CheckinGatesCli {
                     flowey_lib_hvlite::build_prep_steps::Request {
                         target: CommonTriple::Common {
                             arch,
+                            platform: CommonPlatform::LinuxGnu,
+                        },
+                        profile: CommonProfile::from_release(release),
+                        prep_steps,
+                    }
+                })
+                .publish(pub_prep_steps_musl, |prep_steps| {
+                    flowey_lib_hvlite::build_prep_steps::Request {
+                        target: CommonTriple::Common {
+                            arch,
                             platform: CommonPlatform::LinuxMusl,
                         },
                         profile: CommonProfile::from_release(release),
                         prep_steps,
                     }
-                }).publish(pub_vmm_tests_archive, |archive| {
-                        flowey_lib_hvlite::build_nextest_vmm_tests::Request {
-                            target: CommonTriple::Common {
-                                arch,
-                                platform: CommonPlatform::LinuxGnu,
-                            }.as_triple(),
-                            profile: CommonProfile::from_release(release),
-                            build_mode: flowey_lib_hvlite::build_nextest_vmm_tests::BuildNextestVmmTestsMode::Archive(
-                                archive,
-                            ),
+                })
+                .publish(pub_vmm_tests_archive, |archive| {
+                    flowey_lib_hvlite::build_nextest_vmm_tests::Request {
+                        target: CommonTriple::Common {
+                            arch,
+                            platform: CommonPlatform::LinuxGnu,
                         }
-                    }).publish(pub_vmm_tests_archive_musl, |archive| {
-                        flowey_lib_hvlite::build_nextest_vmm_tests::Request {
-                            target: CommonTriple::Common {
-                                arch,
-                                platform: CommonPlatform::LinuxMusl,
-                            }.as_triple(),
-                            profile: CommonProfile::from_release(release),
-                            build_mode: flowey_lib_hvlite::build_nextest_vmm_tests::BuildNextestVmmTestsMode::Archive(
-                                archive,
-                            ),
+                        .as_triple(),
+                        profile: CommonProfile::from_release(release),
+                        build_mode: BuildNextestVmmTestsMode::Archive(archive),
+                    }
+                })
+                .publish(pub_vmm_tests_archive_musl, |archive| {
+                    flowey_lib_hvlite::build_nextest_vmm_tests::Request {
+                        target: CommonTriple::Common {
+                            arch,
+                            platform: CommonPlatform::LinuxMusl,
                         }
-                    }).publish(pub_vmm_perf_gnu, |vmm_perf| {
-                        flowey_lib_hvlite::build_vmm_perf::Request {
-                            target: CommonTriple::Common {
-                                arch,
-                                platform: CommonPlatform::LinuxGnu,
-                            },
-                            profile: CommonProfile::from_release(release),
-                            vmm_perf,
-                        }
-                    })
-                    .publish(pub_vmm_perf_musl, |vmm_perf| {
-                        flowey_lib_hvlite::build_vmm_perf::Request {
-                            target: CommonTriple::Common {
-                                arch,
-                                platform: CommonPlatform::LinuxMusl,
-                            },
-                            profile: CommonProfile::from_release(release),
-                            vmm_perf,
-                        }
-                    });
+                        .as_triple(),
+                        profile: CommonProfile::from_release(release),
+                        build_mode: BuildNextestVmmTestsMode::Archive(archive),
+                    }
+                })
+                .publish(pub_vmm_perf_gnu, |vmm_perf| {
+                    flowey_lib_hvlite::build_vmm_perf::Request {
+                        target: CommonTriple::Common {
+                            arch,
+                            platform: CommonPlatform::LinuxGnu,
+                        },
+                        profile: CommonProfile::from_release(release),
+                        vmm_perf,
+                    }
+                })
+                .publish(pub_vmm_perf_musl, |vmm_perf| {
+                    flowey_lib_hvlite::build_vmm_perf::Request {
+                        target: CommonTriple::Common {
+                            arch,
+                            platform: CommonPlatform::LinuxMusl,
+                        },
+                        profile: CommonProfile::from_release(release),
+                        vmm_perf,
+                    }
+                });
 
             all_jobs.push(job.finish());
         }

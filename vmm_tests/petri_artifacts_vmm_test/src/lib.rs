@@ -242,18 +242,20 @@ pub mod artifacts {
     pub const OPENVMM_NATIVE: petri_artifacts_core::ArtifactHandle<OPENVMM_MACOS_AARCH64> =
         petri_artifacts_core::ArtifactHandle::new();
 
-    /// openvmm_vhost "native" executable — the vhost-user backend binary.
-    /// Only available on Linux (vhost-user requires Unix sockets).
-    // xtask-fmt allow-target-arch oneoff-petri-native-test-deps
-    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-    pub const OPENVMM_VHOST_NATIVE: petri_artifacts_core::ArtifactHandle<OPENVMM_VHOST_LINUX_X64> =
-        petri_artifacts_core::ArtifactHandle::new();
-    // xtask-fmt allow-target-arch oneoff-petri-native-test-deps
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-    /// openvmm_vhost "native" executable — the vhost-user backend binary.
-    pub const OPENVMM_VHOST_NATIVE: petri_artifacts_core::ArtifactHandle<
-        OPENVMM_VHOST_LINUX_AARCH64,
-    > = petri_artifacts_core::ArtifactHandle::new();
+    macro_rules! openvmm_vhost_native {
+        ($id_ty:ty, $os:literal, $arch:literal, $env:literal) => {
+            /// openvmm_vhost "native" executable — the vhost-user backend binary.
+            /// Only available on Linux (vhost-user requires Unix sockets).
+            // xtask-fmt allow-target-arch oneoff-petri-native-test-deps
+            #[cfg(all(target_os = $os, target_arch = $arch, target_env = $env))]
+            pub const OPENVMM_VHOST_NATIVE: petri_artifacts_core::ArtifactHandle<$id_ty> =
+                petri_artifacts_core::ArtifactHandle::new();
+        };
+    }
+    openvmm_vhost_native!(OPENVMM_VHOST_LINUX_X64, "linux", "x86_64", "gnu");
+    openvmm_vhost_native!(OPENVMM_VHOST_LINUX_X64_MUSL, "linux", "x86_64", "musl");
+    openvmm_vhost_native!(OPENVMM_VHOST_LINUX_AARCH64, "linux", "aarch64", "gnu");
+    openvmm_vhost_native!(OPENVMM_VHOST_LINUX_AARCH64_MUSL, "linux", "aarch64", "musl");
 
     declare_artifacts! {
         /// openvmm windows x86_64 executable
@@ -327,6 +329,8 @@ pub mod artifacts {
             INCUBATOR_LINUX_X64("incubator", LINUX_X64),
             /// Windows x86_64 build of the `prep_steps` binary.
             PREP_STEPS_WINDOWS_X64("prep_steps.exe", WINDOWS_X64),
+            /// Linux x86_64 build of the `prep_steps` binary.
+            PREP_STEPS_LINUX_X64("prep_steps", LINUX_X64),
             /// Linux musl x86_64 build of the `prep_steps` binary.
             PREP_STEPS_LINUX_X64_MUSL("prep_steps", LINUX_X64_MUSL),
             /// Prebuilt cargo-nextest VMM tests archive for Windows x86_64.
