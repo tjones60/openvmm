@@ -14,7 +14,7 @@ use std::path::PathBuf;
 /// the CCA tests in the OpenVMM repository.
 pub struct OpenvmmCcaKnownPathsTestArtifactResolver;
 
-impl<'a> OpenvmmCcaKnownPathsTestArtifactResolver {
+impl OpenvmmCcaKnownPathsTestArtifactResolver {
     /// Creates a new resolver for a test with the given name.
     pub fn new() -> Self {
         Self {}

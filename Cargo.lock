@@ -6682,7 +6682,6 @@ name = "petri_artifacts_common"
 version = "0.0.0"
 dependencies = [
  "petri_artifacts_core",
- "target-lexicon",
 ]
 
 [[package]]
@@ -6690,7 +6689,6 @@ name = "petri_artifacts_core"
 version = "0.0.0"
 dependencies = [
  "anyhow",
- "linkme",
  "paste",
  "serde",
  "target-lexicon",
@@ -6701,7 +6699,6 @@ name = "petri_artifacts_vmm_test"
 version = "0.0.0"
 dependencies = [
  "linkme",
- "paste",
  "petri_artifacts_common",
  "petri_artifacts_core",
  "serde",

@@ -461,7 +461,7 @@ fn cmd_package(args: PackageArgs) -> anyhow::Result<()> {
         // Strip debug symbols from ELF executables to reduce tarball size.
         if !args.no_strip
             && matches!(
-                name.iter().last().map(|n| n.to_str()).flatten(),
+                name.iter().next_back().and_then(|n| n.to_str()),
                 Some("burette") | Some("openvmm") | Some("pipette")
             )
         {

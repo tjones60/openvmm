@@ -23,6 +23,7 @@ use crate::download_release_igvm_files_from_gh::OpenhclReleaseVersion;
 use flowey::node::prelude::*;
 use petri_artifacts_common::artifacts::*;
 use petri_artifacts_core::ArtifactId;
+use petri_artifacts_core::ArtifactTarget;
 use petri_artifacts_vmm_test::artifacts::*;
 
 macro_rules! define_vmm_tests_built_artifacts {
@@ -59,9 +60,12 @@ macro_rules! define_vmm_tests_built_artifacts {
                     )*)*}
                 }
 
-                $(pub fn $artifact(&mut self, target: ::petri_artifacts_core::ArtifactTarget) -> ::anyhow::Result<&mut Option<::flowey::node::prelude::ReadVar<$output>>> {
-                    match &target {
+                $(pub fn $artifact(&mut self, target: ArtifactTarget) -> ::anyhow::Result<&mut Option<::flowey::node::prelude::ReadVar<$output>>> {
+                    match &target.clone() {
                         $($artifact_ty::TARGET => Ok(&mut self.[<$artifact _ $variant>]),)*
+                        _ if let Some(target) = retry_as_musl(target) => {
+                            return self.$artifact(ArtifactTarget::Triple(target));
+                        }
                         _ => Err(::anyhow::anyhow!(concat!("target does not exist for ", stringify!($artifact)))),
                     }
                 })*
@@ -83,6 +87,7 @@ macro_rules! define_vmm_tests_built_artifacts {
                             .as_ref()
                             .join($artifact_ty::relative_path());
 
+                        #[expect(clippy::allow_attributes)]
                         #[allow(irrefutable_let_patterns)]
                         let $output_let_expr = rt.read(artifact) else {
                             ::anyhow::bail!(concat!(
@@ -124,7 +129,7 @@ macro_rules! define_vmm_tests_built_artifacts {
                 }
 
                 $(pub fn [<$artifact _for>](&self, target: ::target_lexicon::Triple) -> ::anyhow::Result<bool>{
-                    match &::petri_artifacts_core::ArtifactTarget::Triple(target) {
+                    match &ArtifactTarget::Triple(target) {
                         $($artifact_ty::TARGET => {
                             Ok(self.[<$artifact _ $variant>])
                         })*
@@ -133,10 +138,13 @@ macro_rules! define_vmm_tests_built_artifacts {
                 }
 
                 pub fn [<require_ $artifact _for>](&mut self, target: ::target_lexicon::Triple) -> ::anyhow::Result<()>{
-                    match &::petri_artifacts_core::ArtifactTarget::Triple(target) {
+                    match &ArtifactTarget::Triple(target.clone()) {
                         $($artifact_ty::TARGET => {
                             self.[<$artifact _ $variant>] = true;
                         })*
+                        _ if let Some(target) = retry_as_musl(ArtifactTarget::Triple(target)) => {
+                            return self.[<require_ $artifact _for>](target);
+                        }
                         _ => ::anyhow::bail!(concat!("target does not exist for ", stringify!($artifact))),
                     }
                     Ok(())
@@ -145,6 +153,26 @@ macro_rules! define_vmm_tests_built_artifacts {
 
         }
     };
+}
+
+// Try again with musl target, since some artifacts (for example
+// prep_steps) are only built for musl to save time. Binaries targeting
+// musl can also run in gnu environments.
+fn retry_as_musl(target: ArtifactTarget) -> Option<target_lexicon::Triple> {
+    let ArtifactTarget::Triple(mut triple) = target else {
+        return None;
+    };
+
+    if matches!(
+        triple.operating_system,
+        target_lexicon::OperatingSystem::Linux
+    ) && !matches!(triple.environment, target_lexicon::Environment::Musl)
+    {
+        triple.environment = target_lexicon::Environment::Musl;
+        Some(triple)
+    } else {
+        None
+    }
 }
 
 define_vmm_tests_built_artifacts!(
@@ -504,8 +532,8 @@ flowey_request! {
         /// Whether to copy incubator profiles into the test content directory.
         pub needs_incubator_profiles: bool,
 
-        // TODO: refactor these last to use one artifact per arch so that they can
-        // be part of `VmmTestsPreBuiltArtifactsSelections`.
+        // TODO: refactor these last two to use one artifact per arch so that
+        // they can be part of `VmmTestsPreBuiltArtifactsSelections`.
         pub needs_virtio_win_drivers: bool,
         pub needs_release_igvm: bool,
 
@@ -756,8 +784,7 @@ impl SimpleFlowNode for Node {
                     if layer > 2
                         || dir
                             .file_name()
-                            .map(|n| n.to_str())
-                            .flatten()
+                            .and_then(|n| n.to_str())
                             .is_some_and(|n| ["temp", "test_results"].contains(&n))
                     {
                         log::info!("{}- ...", " ".repeat(layer * 2));

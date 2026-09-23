@@ -42,8 +42,8 @@ pub struct VmmTestSelections {
     /// Dependencies to install
     pub external_deps: VmmTestsExternalDeps,
 
-    // TODO: refactor these last to use one artifact per arch so that they can
-    // be part of `VmmTestsPreBuiltArtifactsSelections`.
+    // TODO: refactor these last two to use one artifact per arch so that
+    // they can be part of `VmmTestsPreBuiltArtifactsSelections`.
     pub needs_virtio_win_drivers: bool,
     pub needs_release_igvm: bool,
 }

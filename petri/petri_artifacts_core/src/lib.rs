@@ -374,13 +374,19 @@ enum ArtifactResolverInner<'a> {
 
 /// A type-erased handle to a particular Artifact, with no information as to
 /// what exactly the artifact is.
-#[derive(Copy, Clone, Hash)]
+#[derive(Copy, Clone)]
 pub struct ErasedArtifactHandle {
     artifact_id_str: &'static str,
     filename: &'static str,
     target: &'static ArtifactTarget,
     relative_path_fn: fn() -> PathBuf,
     url_fn: fn() -> Option<String>,
+}
+
+impl std::hash::Hash for ErasedArtifactHandle {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.artifact_id_str.hash(state);
+    }
 }
 
 impl PartialEq<ErasedArtifactHandle> for ErasedArtifactHandle {
@@ -790,7 +796,7 @@ pub mod targets {
         vendor: target_lexicon::Vendor::Pc,
         operating_system: target_lexicon::OperatingSystem::Windows,
         environment: target_lexicon::Environment::Msvc,
-        binary_format: target_lexicon::BinaryFormat::Unknown,
+        binary_format: target_lexicon::BinaryFormat::Coff,
     });
     /// aarch64-unknown-linux-gnu
     pub const LINUX_AARCH64: ArtifactTarget = ArtifactTarget::Triple(target_lexicon::Triple {

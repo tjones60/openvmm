@@ -3346,13 +3346,13 @@ jobs:
         flowey.exe e 19 flowey_core::pipeline::artifact::resolve 14
         flowey.exe e 19 flowey_core::pipeline::artifact::resolve 15
         flowey.exe e 19 flowey_core::pipeline::artifact::resolve 13
-        flowey.exe e 19 flowey_core::pipeline::artifact::resolve 3
         flowey.exe e 19 flowey_core::pipeline::artifact::resolve 11
         flowey.exe e 19 flowey_core::pipeline::artifact::resolve 4
         flowey.exe e 19 flowey_core::pipeline::artifact::resolve 5
         flowey.exe e 19 flowey_core::pipeline::artifact::resolve 6
         flowey.exe e 19 flowey_core::pipeline::artifact::resolve 1
         flowey.exe e 19 flowey_core::pipeline::artifact::resolve 2
+        flowey.exe e 19 flowey_core::pipeline::artifact::resolve 3
         flowey.exe e 19 flowey_core::pipeline::artifact::resolve 0
         flowey.exe e 19 flowey_core::pipeline::artifact::resolve 7
       shell: bash
@@ -3834,13 +3834,13 @@ jobs:
         flowey.exe e 20 flowey_core::pipeline::artifact::resolve 14
         flowey.exe e 20 flowey_core::pipeline::artifact::resolve 15
         flowey.exe e 20 flowey_core::pipeline::artifact::resolve 13
-        flowey.exe e 20 flowey_core::pipeline::artifact::resolve 3
         flowey.exe e 20 flowey_core::pipeline::artifact::resolve 11
         flowey.exe e 20 flowey_core::pipeline::artifact::resolve 4
         flowey.exe e 20 flowey_core::pipeline::artifact::resolve 5
         flowey.exe e 20 flowey_core::pipeline::artifact::resolve 6
         flowey.exe e 20 flowey_core::pipeline::artifact::resolve 1
         flowey.exe e 20 flowey_core::pipeline::artifact::resolve 2
+        flowey.exe e 20 flowey_core::pipeline::artifact::resolve 3
         flowey.exe e 20 flowey_core::pipeline::artifact::resolve 0
         flowey.exe e 20 flowey_core::pipeline::artifact::resolve 7
         flowey.exe e 20 flowey_core::pipeline::artifact::resolve 8
@@ -4131,13 +4131,13 @@ jobs:
         flowey.exe e 21 flowey_core::pipeline::artifact::resolve 14
         flowey.exe e 21 flowey_core::pipeline::artifact::resolve 15
         flowey.exe e 21 flowey_core::pipeline::artifact::resolve 13
-        flowey.exe e 21 flowey_core::pipeline::artifact::resolve 3
         flowey.exe e 21 flowey_core::pipeline::artifact::resolve 11
         flowey.exe e 21 flowey_core::pipeline::artifact::resolve 4
         flowey.exe e 21 flowey_core::pipeline::artifact::resolve 5
         flowey.exe e 21 flowey_core::pipeline::artifact::resolve 6
         flowey.exe e 21 flowey_core::pipeline::artifact::resolve 1
         flowey.exe e 21 flowey_core::pipeline::artifact::resolve 2
+        flowey.exe e 21 flowey_core::pipeline::artifact::resolve 3
         flowey.exe e 21 flowey_core::pipeline::artifact::resolve 0
         flowey.exe e 21 flowey_core::pipeline::artifact::resolve 7
       shell: bash
@@ -4432,13 +4432,13 @@ jobs:
         flowey.exe e 22 flowey_core::pipeline::artifact::resolve 14
         flowey.exe e 22 flowey_core::pipeline::artifact::resolve 15
         flowey.exe e 22 flowey_core::pipeline::artifact::resolve 13
-        flowey.exe e 22 flowey_core::pipeline::artifact::resolve 3
         flowey.exe e 22 flowey_core::pipeline::artifact::resolve 11
         flowey.exe e 22 flowey_core::pipeline::artifact::resolve 4
         flowey.exe e 22 flowey_core::pipeline::artifact::resolve 5
         flowey.exe e 22 flowey_core::pipeline::artifact::resolve 6
         flowey.exe e 22 flowey_core::pipeline::artifact::resolve 1
         flowey.exe e 22 flowey_core::pipeline::artifact::resolve 2
+        flowey.exe e 22 flowey_core::pipeline::artifact::resolve 3
         flowey.exe e 22 flowey_core::pipeline::artifact::resolve 0
         flowey.exe e 22 flowey_core::pipeline::artifact::resolve 7
       shell: bash
@@ -4733,13 +4733,13 @@ jobs:
         flowey.exe e 23 flowey_core::pipeline::artifact::resolve 14
         flowey.exe e 23 flowey_core::pipeline::artifact::resolve 15
         flowey.exe e 23 flowey_core::pipeline::artifact::resolve 13
-        flowey.exe e 23 flowey_core::pipeline::artifact::resolve 3
         flowey.exe e 23 flowey_core::pipeline::artifact::resolve 11
         flowey.exe e 23 flowey_core::pipeline::artifact::resolve 4
         flowey.exe e 23 flowey_core::pipeline::artifact::resolve 5
         flowey.exe e 23 flowey_core::pipeline::artifact::resolve 6
         flowey.exe e 23 flowey_core::pipeline::artifact::resolve 1
         flowey.exe e 23 flowey_core::pipeline::artifact::resolve 2
+        flowey.exe e 23 flowey_core::pipeline::artifact::resolve 3
         flowey.exe e 23 flowey_core::pipeline::artifact::resolve 0
         flowey.exe e 23 flowey_core::pipeline::artifact::resolve 7
       shell: bash
@@ -5074,11 +5074,11 @@ jobs:
         EOF
         flowey e 24 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 1
         flowey e 24 flowey_core::pipeline::artifact::resolve 9
-        flowey e 24 flowey_core::pipeline::artifact::resolve 3
         flowey e 24 flowey_core::pipeline::artifact::resolve 4
         flowey e 24 flowey_core::pipeline::artifact::resolve 5
         flowey e 24 flowey_core::pipeline::artifact::resolve 2
         flowey e 24 flowey_core::pipeline::artifact::resolve 0
+        flowey e 24 flowey_core::pipeline::artifact::resolve 3
         flowey e 24 flowey_core::pipeline::artifact::resolve 1
         flowey e 24 flowey_core::pipeline::artifact::resolve 8
       shell: bash
@@ -5090,6 +5090,9 @@ jobs:
       shell: bash
     - name: unpack mu_msvm package (x64)
       run: flowey e 24 flowey_lib_hvlite::download_uefi_mu_msvm 0
+      shell: bash
+    - name: unpack QEMU archive
+      run: flowey e 24 flowey_lib_hvlite::resolve_openvmm_qemu 0
       shell: bash
     - name: unpack openvmm-test-virtio-win archive
       run: flowey e 24 flowey_lib_hvlite::resolve_openvmm_test_virtio_win 0
@@ -5135,9 +5138,6 @@ jobs:
       run: |-
         flowey e 24 flowey_lib_common::download_gh_artifact 0
         flowey e 24 flowey_lib_hvlite::download_release_igvm_files_from_gh::resolve 1
-      shell: bash
-    - name: unpack QEMU archive
-      run: flowey e 24 flowey_lib_hvlite::resolve_openvmm_qemu 0
       shell: bash
     - name: setting up vmm_tests content dir
       run: |-
@@ -5406,11 +5406,11 @@ jobs:
         EOF
         flowey e 25 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 1
         flowey e 25 flowey_core::pipeline::artifact::resolve 9
-        flowey e 25 flowey_core::pipeline::artifact::resolve 5
         flowey e 25 flowey_core::pipeline::artifact::resolve 2
         flowey e 25 flowey_core::pipeline::artifact::resolve 3
         flowey e 25 flowey_core::pipeline::artifact::resolve 4
         flowey e 25 flowey_core::pipeline::artifact::resolve 0
+        flowey e 25 flowey_core::pipeline::artifact::resolve 5
         flowey e 25 flowey_core::pipeline::artifact::resolve 1
         flowey e 25 flowey_core::pipeline::artifact::resolve 8
       shell: bash
@@ -5422,6 +5422,9 @@ jobs:
       shell: bash
     - name: unpack mu_msvm package (x64)
       run: flowey e 25 flowey_lib_hvlite::download_uefi_mu_msvm 0
+      shell: bash
+    - name: unpack QEMU archive
+      run: flowey e 25 flowey_lib_hvlite::resolve_openvmm_qemu 0
       shell: bash
     - name: unpack openvmm-test-virtio-win archive
       run: flowey e 25 flowey_lib_hvlite::resolve_openvmm_test_virtio_win 0
@@ -5467,9 +5470,6 @@ jobs:
       run: |-
         flowey e 25 flowey_lib_common::download_gh_artifact 0
         flowey e 25 flowey_lib_hvlite::download_release_igvm_files_from_gh::resolve 1
-      shell: bash
-    - name: unpack QEMU archive
-      run: flowey e 25 flowey_lib_hvlite::resolve_openvmm_qemu 0
       shell: bash
     - name: setting up vmm_tests content dir
       run: |-

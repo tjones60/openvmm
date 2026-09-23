@@ -342,13 +342,10 @@ fn download_blobs_from_azure(
     files_to_download: Vec<(String, u64)>,
     output_folder: &Path,
 ) -> anyhow::Result<()> {
-    use petri_artifacts_vmm_test::artifacts::CONTAINER;
-    use petri_artifacts_vmm_test::artifacts::STORAGE_ACCOUNT;
-
     //
     // Use azcopy to download the files
     //
-    let url = format!("https://{STORAGE_ACCOUNT}.blob.core.windows.net/{CONTAINER}/*");
+    let url = petri_artifacts_vmm_test::artifacts::blob_storage_url();
 
     let include_path = files_to_download
         .into_iter()

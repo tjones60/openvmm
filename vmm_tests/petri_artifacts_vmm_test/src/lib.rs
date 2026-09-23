@@ -3,7 +3,8 @@
 
 //! `petri` test artifacts used by in-tree VMM tests
 
-#![allow(unsafe_code)]
+// UNSAFETY: Needed for linkme.
+#![expect(unsafe_code)]
 
 use petri_artifacts_core::ArtifactHandle;
 use petri_artifacts_core::ArtifactId;
@@ -12,13 +13,19 @@ use petri_artifacts_core::ErasedArtifactHandle;
 
 /// A type-erased artifact that holds references to information about a certain
 /// test image that implements `IsHostedOnHvliteAzureBlobStore`
-#[derive(Copy, Clone, Hash, Debug)]
+#[derive(Copy, Clone)]
 pub struct ErasedVmmTestImage {
     artifact_id_str: &'static str,
     filename: &'static str,
     url_fn: fn() -> Option<String>,
     size: u64,
     download_name: &'static str,
+}
+
+impl std::fmt::Debug for ErasedVmmTestImage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.global_unique_id())
+    }
 }
 
 impl serde::Serialize for ErasedVmmTestImage {
@@ -1026,9 +1033,7 @@ pub mod tags {
 }
 
 #[doc(hidden)]
-mod vmm_test_images_macro_support {
-    // UNSAFETY: Needed for linkme.
-    #![expect(unsafe_code)]
+pub mod vmm_test_images_macro_support {
 
     use crate::ErasedVmmTestImage;
     pub use linkme;

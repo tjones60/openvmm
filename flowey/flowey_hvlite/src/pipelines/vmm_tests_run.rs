@@ -174,8 +174,8 @@ struct ResolvedArtifactSelections {
     /// Whether any of the tests require hardware isolation
     needs_hardware_isolation: bool,
 
-    // TODO: refactor these last to use one artifact per arch so that they can
-    // be part of `VmmTestsPreBuiltArtifactsSelections`.
+    // TODO: refactor these last two to use one artifact per arch so that
+    // they can be part of `VmmTestsPreBuiltArtifactsSelections`.
     needs_virtio_win_drivers: bool,
     needs_release_igvm: bool,
 }
@@ -201,34 +201,6 @@ impl ResolvedArtifactSelections {
             .require_nextest_vmm_tests_archive_for(target)?;
 
         Ok(selections)
-    }
-
-    fn require_native_build(
-        &mut self,
-        require_fn: impl Fn(
-            &mut VmmTestsBuiltArtifactsSelections,
-            target_lexicon::Triple,
-        ) -> anyhow::Result<()>,
-    ) -> anyhow::Result<()> {
-        let target = self.target.clone();
-        let res = require_fn(&mut self.build, target);
-
-        // Try again with musl target, since some artifacts (for example
-        // prep_steps) are only built for musl to save time. Binaries targeting
-        // musl can also run in gnu environments.
-        if res.is_err()
-            && matches!(
-                self.target.operating_system,
-                target_lexicon::OperatingSystem::Linux
-            )
-            && matches!(self.target.environment, target_lexicon::Environment::Musl)
-        {
-            let mut target = self.target.clone();
-            target.environment = target_lexicon::Environment::Musl;
-            require_fn(&mut self.build, target)
-        } else {
-            res
-        }
     }
 }
 
@@ -840,10 +812,8 @@ impl ResolvedArtifactSelections {
             }
 
             test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64_PREPPED::GLOBAL_UNIQUE_ID => {
-                self.require_native_build(VmmTestsBuiltArtifactsSelections::require_openvmm_for)?;
-                self.require_native_build(
-                    VmmTestsBuiltArtifactsSelections::require_prep_steps_for,
-                )?;
+                self.build.require_openvmm_for(self.target.clone())?;
+                self.build.require_prep_steps_for(self.target.clone())?;
                 self.prep_steps_variants.insert("standard".into());
                 // prep_steps needs actual VHD files on disk to copy them.
                 // Force download even when lazy fetch is enabled.
@@ -853,10 +823,8 @@ impl ResolvedArtifactSelections {
                     .insert(test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64.into());
             }
             test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64_NO_VMBUS_PREPPED::GLOBAL_UNIQUE_ID => {
-                self.require_native_build(VmmTestsBuiltArtifactsSelections::require_openvmm_for)?;
-                self.require_native_build(
-                    VmmTestsBuiltArtifactsSelections::require_prep_steps_for,
-                )?;
+                self.build.require_openvmm_for(self.target.clone())?;
+                self.build.require_prep_steps_for(self.target.clone())?;
                 self.needs_virtio_win_drivers = true;
                 self.prep_steps_variants.insert("no-vmbus".into());
                 self.force_downloads
