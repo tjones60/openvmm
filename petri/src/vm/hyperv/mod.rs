@@ -181,8 +181,10 @@ impl PetriVmmBackend for HyperVPetriBackend {
         let PetriVmResources {
             driver,
             log_source,
-            prebuilt_initrd: _, // Hyper-V petri backend doesn't support linux direct
+            prebuilt_initrd,
         } = resources;
+        // Hyper-V petri backend doesn't support linux direct
+        assert!(prebuilt_initrd.is_none());
 
         assert!(matches!(
             config.host_log_levels,
