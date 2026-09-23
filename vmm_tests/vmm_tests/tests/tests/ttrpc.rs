@@ -172,7 +172,7 @@ async fn test_ttrpc_no_vmbus(
             "com1",
             petri::log_task(
                 params
-                    .logger
+                    .log_source
                     .log_file(&format!("no-vmbus-disable-hv-{disable_hv}"))?,
                 PolledSocket::new(&driver, UnixStream::connect(&com1_path)?)?,
                 "linux com1",
@@ -191,7 +191,7 @@ async fn test_ttrpc_no_vmbus(
                 pipette_client::PipetteClient::new(
                     &driver,
                     PolledSocket::new(&driver, conn)?,
-                    params.logger.output_dir(),
+                    params.log_source.output_dir(),
                 )
                 .await
             })
