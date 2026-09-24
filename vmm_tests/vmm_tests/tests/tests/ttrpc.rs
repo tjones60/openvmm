@@ -60,10 +60,10 @@ petri::test!(test_ttrpc_no_vmbus, |resolver| {
     }
     let pipette = match petri_artifacts_common::tags::MachineArch::host() {
         petri_artifacts_common::tags::MachineArch::X86_64 => resolver
-            .require(petri_artifacts_common::artifacts::PIPETTE_LINUX_X64)
+            .require(petri_artifacts_common::artifacts::PIPETTE_LINUX_X64_MUSL)
             .erase(),
         petri_artifacts_common::tags::MachineArch::Aarch64 => resolver
-            .require(petri_artifacts_common::artifacts::PIPETTE_LINUX_AARCH64)
+            .require(petri_artifacts_common::artifacts::PIPETTE_LINUX_AARCH64_MUSL)
             .erase(),
     };
     Some([
