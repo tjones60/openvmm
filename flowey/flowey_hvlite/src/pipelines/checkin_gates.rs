@@ -17,6 +17,7 @@ use flowey_lib_hvlite::_jobs::build_and_publish_openhcl_igvm_from_recipe::Openhc
 use flowey_lib_hvlite::_jobs::check_openvmm_hcl_size::artifact_name_openhcl_baseline;
 use flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive::TestContentConfig;
 use flowey_lib_hvlite::build_incubator::IncubatorProfileNameOrPath;
+use flowey_lib_hvlite::build_nextest_vmm_tests::BuildNextestVmmTestsMode;
 use flowey_lib_hvlite::build_openhcl_igvm_from_recipe::OpenhclIgvmRecipe;
 use flowey_lib_hvlite::build_openvmm_hcl::OpenvmmHclBuildProfile;
 use flowey_lib_hvlite::build_openvmm_hcl::OpenvmmHclFeature;
@@ -773,18 +774,19 @@ impl IntoPipeline for CheckinGatesCli {
                             test_igvm_agent_rpc_server,
                         }
                     },
-                ).publish(pub_vmm_tests_archive, |archive| flowey_lib_hvlite::build_nextest_vmm_tests::Request {
+                )
+                .publish(pub_vmm_tests_archive, |archive| {
+                    flowey_lib_hvlite::build_nextest_vmm_tests::Request {
                         target: CommonTriple::Common {
-                                arch,
+                            arch,
 
-                                platform: CommonPlatform::WindowsMsvc,
-                            }.as_triple(),
-                        profile: CommonProfile::
-                        from_release(release),
-                        build_mode: flowey_lib_hvlite::build_nextest_vmm_tests::BuildNextestVmmTestsMode::Archive(
-                            archive,
-                        ),
-                    });
+                            platform: CommonPlatform::WindowsMsvc,
+                        }
+                        .as_triple(),
+                        profile: CommonProfile::from_release(release),
+                        build_mode: BuildNextestVmmTestsMode::Archive(archive),
+                    }
+                });
 
             all_jobs.push(job.finish());
         }
@@ -817,8 +819,6 @@ impl IntoPipeline for CheckinGatesCli {
                 pipeline.new_typed_artifact(format!("{arch_tag}-linux-musl-openvmm"));
             let (pub_openvmm_vhost_musl, use_openvmm_vhost_musl) =
                 pipeline.new_typed_artifact(format!("{arch_tag}-linux-musl-openvmm_vhost"));
-            let (pub_prep_steps, use_prep_steps) =
-                pipeline.new_typed_artifact(format!("{arch_tag}-linux-prep_steps"));
             let (pub_prep_steps_musl, use_prep_steps_musl) =
                 pipeline.new_typed_artifact(format!("{arch_tag}-linux-musl-prep_steps"));
             let (pub_vmm_tests_archive, use_vmm_tests_archive) =
@@ -836,8 +836,8 @@ impl IntoPipeline for CheckinGatesCli {
                     vmm_tests_artifacts_linux_x86.use_openvmm_linux_x64 = Some(use_openvmm.clone());
                     vmm_tests_artifacts_linux_x86.use_openvmm_vhost_linux_x64 =
                         Some(use_openvmm_vhost.clone());
-                    vmm_tests_artifacts_linux_x86.use_prep_steps_linux_x64 =
-                        Some(use_prep_steps.clone());
+                    vmm_tests_artifacts_linux_x86.use_prep_steps_linux_musl_x64 =
+                        Some(use_prep_steps_musl.clone());
                     vmm_tests_artifacts_linux_musl_x86.use_openvmm_linux_musl_x64 =
                         Some(use_openvmm_musl.clone());
                     vmm_tests_artifacts_linux_musl_x86.use_openvmm_vhost_linux_musl_x64 =
@@ -873,8 +873,6 @@ impl IntoPipeline for CheckinGatesCli {
             {
                 anyhow::bail!("multiple vmgstools for the same target");
             }
-
-            use flowey_lib_hvlite::build_nextest_vmm_tests::BuildNextestVmmTestsMode;
 
             // Emit a job for building dependencies used by just linux vmm tests
             let job = pipeline
@@ -987,16 +985,6 @@ impl IntoPipeline for CheckinGatesCli {
                             profile: CommonProfile::from_release(release),
                         },
                         openvmm_vhost,
-                    }
-                })
-                .publish(pub_prep_steps, |prep_steps| {
-                    flowey_lib_hvlite::build_prep_steps::Request {
-                        target: CommonTriple::Common {
-                            arch,
-                            platform: CommonPlatform::LinuxGnu,
-                        },
-                        profile: CommonProfile::from_release(release),
-                        prep_steps,
                     }
                 })
                 .publish(pub_prep_steps_musl, |prep_steps| {

@@ -45,7 +45,7 @@ impl VmmTestsProfile {
         match self {
             VmmTestsProfile::X64WindowsAll => {
                 let (built_artifacts, built_artifacts_write) =
-                    VmmTestsArtifactsBuilderWindowsX86::pair(ctx);
+                    VmmTestsArtifactsBuilderWindowsX86::selections().new_var_set(ctx);
                 let mut nextest_filter_expr = "all()".to_string();
                 // self-hosted runners don't have HvlDeviceHost installed
                 // TODO: configure runners and remove this exclusion

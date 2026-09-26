@@ -3,9 +3,6 @@
 
 //! `petri` test artifacts used by in-tree VMM tests
 
-// UNSAFETY: Needed for linkme.
-#![expect(unsafe_code)]
-
 use petri_artifacts_core::ArtifactHandle;
 use petri_artifacts_core::ArtifactId;
 use petri_artifacts_core::AsArtifactHandle;
@@ -185,6 +182,8 @@ macro_rules! declare_vmm_test_images {
             use $crate::tags::IsHostedOnHvliteAzureBlobStore;
             use ::petri_artifacts_core::ArtifactId;
 
+            // UNSAFETY: Needed for linkme.
+            #[expect(unsafe_code)]
             #[linkme::distributed_slice($crate::vmm_test_images_macro_support::VMM_TEST_IMAGES)]
             #[linkme(crate = linkme)]
             static IMAGE: $crate::ErasedVmmTestImage = $crate::ErasedVmmTestImage {
@@ -1042,22 +1041,9 @@ pub mod tags {
 
 #[doc(hidden)]
 pub mod vmm_test_images_macro_support {
-
     use crate::ErasedVmmTestImage;
     pub use linkme;
 
     #[linkme::distributed_slice]
     pub static VMM_TEST_IMAGES: [ErasedVmmTestImage];
-
-    // Always have at least one entry to work around linker bugs.
-    //
-    // See <https://github.com/llvm/llvm-project/issues/65855>.
-    #[linkme::distributed_slice(VMM_TEST_IMAGES)]
-    static WORKAROUND: ErasedVmmTestImage = ErasedVmmTestImage {
-        artifact_id_str: "",
-        filename: "",
-        url_fn: || None,
-        size: 0,
-        download_name: "",
-    };
 }

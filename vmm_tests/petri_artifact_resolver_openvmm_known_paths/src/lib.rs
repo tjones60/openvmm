@@ -36,14 +36,14 @@ impl petri_artifacts_core::ResolveTestArtifact for OpenvmmKnownPathsTestArtifact
 
             test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64_PREPPED::GLOBAL_UNIQUE_ID
             | test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64_NO_VMBUS_PREPPED::GLOBAL_UNIQUE_ID => {
-                get_vmm_test_image_path(handle.filename(), "prepped vhd")
+                get_vmm_test_image_path(handle.filename(), handle.global_unique_id())
             }
 
             id if let Some(artifact) = vmm_test_image_from_id(id) => {
                 get_vmm_test_image_path(artifact.filename(), artifact.name())
             }
 
-            _ => artifact_path(handle),
+            _ => resolve_artifact(handle),
         }
     }
 
@@ -69,14 +69,19 @@ const VMM_TESTS_CONTENT_DIR_ENV_VAR: &str = "VMM_TESTS_CONTENT_DIR";
 const TEST_OUTPUT_PATH_ENV_VAR: &str = "TEST_OUTPUT_PATH";
 const VMM_TEST_IMAGES_ENV_VAR: &str = "VMM_TEST_IMAGES";
 
-fn artifact_path(handle: ErasedArtifactHandle) -> anyhow::Result<PathBuf> {
-    let test_content_dir_path = test_content_dir_artifact_path(handle);
+/// Get the path to an artifact from its erased artifact handle
+pub fn resolve_artifact(handle: ErasedArtifactHandle) -> anyhow::Result<PathBuf> {
+    let test_content_dir_path = test_content_dir_artifact_path(handle.relative_path());
 
     if test_content_dir_path.is_ok() {
         return test_content_dir_path;
     }
 
-    let exe_artifact_path = get_executable_path_artifact(handle, None);
+    let target = handle.target_triple();
+    let exe_artifact_path = target
+        .as_ref()
+        .context("no associated triple for artifact")
+        .and_then(|t| get_executable_path_artifact(t, None, handle.filename()));
 
     if exe_artifact_path.is_ok() {
         return exe_artifact_path;
@@ -88,25 +93,63 @@ fn artifact_path(handle: ErasedArtifactHandle) -> anyhow::Result<PathBuf> {
         return relative_path;
     }
 
+    // also look for the other environment target, since it may work as well
+    let fallback_target = handle.target_triple().and_then(|mut target| {
+        matches!(
+            target,
+            target_lexicon::Triple {
+                operating_system: target_lexicon::OperatingSystem::Linux,
+                environment: target_lexicon::Environment::Gnu | target_lexicon::Environment::Musl,
+                ..
+            }
+        )
+        .then(|| {
+            if target.environment == target_lexicon::Environment::Gnu {
+                target.environment = target_lexicon::Environment::Musl;
+            } else {
+                target.environment = target_lexicon::Environment::Gnu;
+            }
+            target
+        })
+    });
+
+    let fallback_test_content_dir_path = fallback_target
+        .as_ref()
+        .context("no fallback target")
+        .and_then(|t| {
+            test_content_dir_artifact_path(PathBuf::from(t.to_string()).join(handle.filename()))
+        });
+
+    if fallback_test_content_dir_path.is_ok() {
+        return fallback_test_content_dir_path;
+    }
+
+    let fallback_exe_artifact_path = fallback_target
+        .as_ref()
+        .context("no associated triple for artifact")
+        .and_then(|t| get_executable_path_artifact(t, None, handle.filename()));
+
+    if fallback_exe_artifact_path.is_ok() {
+        return fallback_exe_artifact_path;
+    }
+
     Err(anyhow::anyhow!(
-        "unable to locate {}:\n\t{}\n\t{}\n\t{}",
+        "unable to locate {}:\n\t{}\n\t{}\n\t{}\n\t{}\n\t{}",
         handle.global_unique_id(),
         test_content_dir_path.unwrap_err(),
         exe_artifact_path.unwrap_err(),
-        relative_path.unwrap_err()
+        relative_path.unwrap_err(),
+        fallback_test_content_dir_path.unwrap_err(),
+        fallback_exe_artifact_path.unwrap_err(),
     ))
 }
 
-fn test_content_dir_artifact_path(handle: ErasedArtifactHandle) -> anyhow::Result<PathBuf> {
+fn test_content_dir_artifact_path(relative_path: impl AsRef<Path>) -> anyhow::Result<PathBuf> {
     let test_content_dir =
         std::env::var(VMM_TESTS_CONTENT_DIR_ENV_VAR).context("test content dir env var not set")?;
-    let path = PathBuf::from(test_content_dir).join(handle.relative_path());
+    let path = PathBuf::from(test_content_dir).join(relative_path.as_ref());
     if !path.exists() {
-        anyhow::bail!(
-            "missing {} at {}",
-            handle.global_unique_id(),
-            path.display()
-        )
+        anyhow::bail!("{} not found", path.display())
     }
     Ok(path)
 }
@@ -169,19 +212,15 @@ pub fn get_executable_path_relative(name: &str) -> anyhow::Result<PathBuf> {
 /// constructed from the repo root and the default target directory. The build
 /// profile is inferred from the current exe path if not specified.
 pub fn get_executable_path_artifact(
-    handle: ErasedArtifactHandle,
+    target: &target_lexicon::Triple,
     build_profile: Option<&str>,
+    filename: &str,
 ) -> anyhow::Result<PathBuf> {
     let exe_path = get_repo_root()
         .join("target")
-        .join(
-            handle
-                .target_triple()
-                .context("no associated triple for artifact")?
-                .to_string(),
-        )
+        .join(target.to_string())
         .join(build_profile.unwrap_or_else(|| cargo_build_profile()))
-        .join(handle.filename());
+        .join(filename);
     if !exe_path.exists() {
         anyhow::bail!("{} not found", exe_path.display());
     }
