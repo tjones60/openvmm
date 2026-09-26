@@ -24,6 +24,7 @@ use flowey_lib_hvlite::install_vmm_tests_external_deps::VmmTestsExternalDepsLinu
 use flowey_lib_hvlite::install_vmm_tests_external_deps::VmmTestsExternalDepsWindows;
 use petri_artifacts_core::ArtifactId;
 use petri_artifacts_core::ArtifactListOutput;
+use petri_artifacts_core::ArtifactTarget;
 use petri_artifacts_vmm_test::ErasedVmmTestImage;
 use petri_artifacts_vmm_test::vmm_test_image_from_id;
 use std::collections::BTreeMap;
@@ -174,6 +175,9 @@ struct ResolvedArtifactSelections {
     /// Whether any of the tests require hardware isolation
     needs_hardware_isolation: bool,
 
+    // Relative paths to artifacts used by the pipeline
+    flowey_hvlite_path: Option<PathBuf>,
+
     // TODO: refactor these last two to use one artifact per arch so that
     // they can be part of `VmmTestsPreBuiltArtifactsSelections`.
     needs_virtio_win_drivers: bool,
@@ -181,26 +185,36 @@ struct ResolvedArtifactSelections {
 }
 
 impl ResolvedArtifactSelections {
-    fn new(target: target_lexicon::Triple) -> anyhow::Result<Self> {
-        let mut selections = Self {
+    fn new(
+        target: target_lexicon::Triple,
+        build_only: bool,
+        incubator: bool,
+    ) -> anyhow::Result<Self> {
+        let mut build = VmmTestsBuiltArtifactsSelections::default();
+        if incubator {
+            build.incubator_linux_x64 = true;
+        }
+        build.require_nextest_vmm_tests_archive_for(ArtifactTarget::Triple(target.clone()))?;
+        let flowey_hvlite_path = build_only
+            .then(|| build.require_flowey_hvlite_for(ArtifactTarget::Triple(target.clone())))
+            .transpose()?;
+
+        Ok(Self {
             target: target.clone(),
 
-            build: Default::default(),
+            build,
             prebuilt_artifacts: Default::default(),
             prep_steps_variants: Default::default(),
             downloads: Default::default(),
             force_downloads: Default::default(),
             needs_hyperv: Default::default(),
             needs_hardware_isolation: Default::default(),
+
+            flowey_hvlite_path,
+
             needs_virtio_win_drivers: Default::default(),
             needs_release_igvm: Default::default(),
-        };
-
-        selections
-            .build
-            .require_nextest_vmm_tests_archive_for(target)?;
-
-        Ok(selections)
+        })
     }
 }
 
@@ -309,7 +323,11 @@ impl IntoPipeline for VmmTestsRunCli {
         }
 
         // Resolve to build selections
-        let mut resolved = ResolvedArtifactSelections::new(target.as_triple())?;
+        let mut resolved = ResolvedArtifactSelections::new(
+            target.as_triple(),
+            build_only,
+            incubator_profile.is_some(),
+        )?;
         for artifact in artifacts {
             resolved.resolve_artifact(&artifact)?;
         }
@@ -752,10 +770,13 @@ fn selections_from_resolved(
         force_downloads: _,
         needs_hyperv,
         needs_hardware_isolation,
+        flowey_hvlite_path,
         needs_virtio_win_drivers,
         needs_release_igvm,
     } = resolved;
-    let needs_whp = build.openvmm_for(target).expect("no native openvmm");
+    let needs_whp = build
+        .openvmm_for(ArtifactTarget::Triple(target))
+        .expect("no native openvmm");
 
     VmmTestSelections {
         filter,
@@ -779,6 +800,7 @@ fn selections_from_resolved(
             }
             _ => unreachable!(),
         },
+        flowey_hvlite_path,
         needs_virtio_win_drivers,
         needs_release_igvm,
     }
@@ -812,8 +834,10 @@ impl ResolvedArtifactSelections {
             }
 
             test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64_PREPPED::GLOBAL_UNIQUE_ID => {
-                self.build.require_openvmm_for(self.target.clone())?;
-                self.build.require_prep_steps_for(self.target.clone())?;
+                self.build
+                    .require_openvmm_for(ArtifactTarget::Triple(self.target.clone()))?;
+                self.build
+                    .require_prep_steps_for(ArtifactTarget::Triple(self.target.clone()))?;
                 self.prep_steps_variants.insert("standard".into());
                 // prep_steps needs actual VHD files on disk to copy them.
                 // Force download even when lazy fetch is enabled.
@@ -823,8 +847,10 @@ impl ResolvedArtifactSelections {
                     .insert(test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64.into());
             }
             test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64_NO_VMBUS_PREPPED::GLOBAL_UNIQUE_ID => {
-                self.build.require_openvmm_for(self.target.clone())?;
-                self.build.require_prep_steps_for(self.target.clone())?;
+                self.build
+                    .require_openvmm_for(ArtifactTarget::Triple(self.target.clone()))?;
+                self.build
+                    .require_prep_steps_for(ArtifactTarget::Triple(self.target.clone()))?;
                 self.needs_virtio_win_drivers = true;
                 self.prep_steps_variants.insert("no-vmbus".into());
                 self.force_downloads

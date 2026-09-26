@@ -42,6 +42,9 @@ pub struct VmmTestSelections {
     /// Dependencies to install
     pub external_deps: VmmTestsExternalDeps,
 
+    // Relative paths to artifacts used by the pipeline
+    pub flowey_hvlite_path: Option<PathBuf>,
+
     // TODO: refactor these last two to use one artifact per arch so that
     // they can be part of `VmmTestsPreBuiltArtifactsSelections`.
     pub needs_virtio_win_drivers: bool,
@@ -124,7 +127,7 @@ impl SimpleFlowNode for Node {
     fn process_request(request: Self::Request, ctx: &mut NodeCtx<'_>) -> anyhow::Result<()> {
         let Params {
             target,
-            windows_guest_platform: _, // TODO
+            windows_guest_platform,
             test_content_dir,
             selections,
             release,
@@ -149,6 +152,33 @@ impl SimpleFlowNode for Node {
         let arch = target.common_arch().unwrap();
         let test_label = build_test_label(&target_triple);
 
+        // this is kind of a hack, since the artifacts will still appear in an
+        // ouput directly labeled MSVC, but it allows for windows-gnu local
+        // builds to continue to work without defining new windows-gnu artifact
+        // variants for everything.
+        let windows_guest_environment = match windows_guest_platform {
+            CommonPlatform::WindowsMsvc => target_lexicon::Environment::Msvc,
+            CommonPlatform::WindowsGnu => target_lexicon::Environment::Gnu,
+            _ => anyhow::bail!("invalid windows guest platform"),
+        };
+        let is_linux_build_env = matches!(ctx.platform(), FlowPlatform::Linux(_));
+        let modify_and_validate_target =
+            |mut target: target_lexicon::Triple| -> target_lexicon::Triple {
+                match target.operating_system {
+                    target_lexicon::OperatingSystem::Windows => {
+                        target.environment = windows_guest_environment;
+                    }
+                    target_lexicon::OperatingSystem::Linux if !is_linux_build_env => {
+                        panic!(
+                            "Selected tests require artifacts that can only be built on linux. Try building from WSL2.",
+                        )
+                    }
+                    _ => {}
+                }
+
+                target
+            };
+
         let mut copy_to_dir = Vec::new();
         let extras_dir = Path::new("extras");
 
@@ -159,32 +189,10 @@ impl SimpleFlowNode for Node {
             prebuilt_artifacts,
             prep_steps_variants,
             external_deps,
+            flowey_hvlite_path,
             needs_virtio_win_drivers,
             needs_release_igvm,
         } = selections;
-
-        // Some things can only be built on linux
-        if !matches!(ctx.platform(), FlowPlatform::Linux(_))
-            && (build.openhcl_standard_x64
-                || build.openhcl_standard_dev_x64
-                || build.openhcl_cvm_x64
-                || build.openhcl_linux_direct_x64
-                || build.pipette_linux_musl_x64
-                || build.openvmm_vhost_linux_x64
-                || build.openvmm_vhost_linux_musl_x64
-                || build.tmk_vmm_linux_musl_x64
-                || build.tpm_guest_tests_linux_x64
-                || build.openhcl_standard_aarch64
-                || build.openhcl_standard_dev_aarch64
-                || build.pipette_linux_musl_aarch64
-                || build.openvmm_vhost_linux_aarch64
-                || build.openvmm_vhost_linux_musl_aarch64
-                || build.tmk_vmm_linux_musl_aarch64)
-        {
-            anyhow::bail!(
-                "Selected tests require artifacts that can only be built on linux. Try building from WSL2."
-            );
-        }
 
         let openvmm_hcl_profile = if release {
             OpenvmmHclBuildProfile::OpenvmmHclShip
@@ -268,7 +276,7 @@ impl SimpleFlowNode for Node {
         let mut build_openvmm = |target| {
             let output = ctx.reqv(|v| crate::build_openvmm::Request {
                 params: crate::build_openvmm::OpenvmmBuildParams {
-                    target,
+                    target: CommonTriple::Custom(modify_and_validate_target(target)),
                     profile: CommonProfile::from_release(release),
                     // FIXME: this relies on openvmm default features
                     features: [].into(),
@@ -280,82 +288,62 @@ impl SimpleFlowNode for Node {
                     extras_dir.to_owned(),
                     output.map(ctx, |x| match x {
                         crate::build_openvmm::OpenvmmOutput::WindowsBin { exe: _, pdb } => pdb,
-                        crate::build_openvmm::OpenvmmOutput::LinuxBin { bin: _, dbg } => Some(dbg),
+                        crate::build_openvmm::OpenvmmOutput::LinuxBin { bin: _, dbg } => dbg,
                     }),
                 ));
             }
             output
         };
 
-        let openvmm_windows_x64 = build.openvmm_windows_x64.then(|| {
-            build_openvmm(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::openvmm_windows_x64_target(),
-            ))
-        });
-        let openvmm_windows_aarch64 = build.openvmm_windows_aarch64.then(|| {
-            build_openvmm(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::openvmm_windows_aarch64_target(),
-            ))
-        });
-        let openvmm_linux_x64 = build.openvmm_linux_x64.then(|| {
-            build_openvmm(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::openvmm_linux_x64_target(),
-            ))
-        });
-        let openvmm_linux_aarch64 = build.openvmm_linux_aarch64.then(|| {
-            build_openvmm(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::openvmm_linux_aarch64_target(),
-            ))
-        });
-        let openvmm_linux_musl_x64 = build.openvmm_linux_musl_x64.then(|| {
-            build_openvmm(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::openvmm_linux_musl_x64_target(),
-            ))
-        });
-        let openvmm_linux_musl_aarch64 = build.openvmm_linux_musl_aarch64.then(|| {
-            build_openvmm(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::openvmm_linux_musl_aarch64_target(),
-            ))
-        });
+        let openvmm_windows_x64 = build
+            .openvmm_windows_x64
+            .then(|| build_openvmm(VmmTestsBuiltArtifacts::openvmm_windows_x64_target()));
+        let openvmm_windows_aarch64 = build
+            .openvmm_windows_aarch64
+            .then(|| build_openvmm(VmmTestsBuiltArtifacts::openvmm_windows_aarch64_target()));
+        let openvmm_linux_x64 = build
+            .openvmm_linux_x64
+            .then(|| build_openvmm(VmmTestsBuiltArtifacts::openvmm_linux_x64_target()));
+        let openvmm_linux_aarch64 = build
+            .openvmm_linux_aarch64
+            .then(|| build_openvmm(VmmTestsBuiltArtifacts::openvmm_linux_aarch64_target()));
+        let openvmm_linux_musl_x64 = build
+            .openvmm_linux_musl_x64
+            .then(|| build_openvmm(VmmTestsBuiltArtifacts::openvmm_linux_musl_x64_target()));
+        let openvmm_linux_musl_aarch64 = build
+            .openvmm_linux_musl_aarch64
+            .then(|| build_openvmm(VmmTestsBuiltArtifacts::openvmm_linux_musl_aarch64_target()));
 
         let mut build_openvmm_vhost = |target| {
             let output = ctx.reqv(|v| crate::build_openvmm_vhost::Request {
                 params: crate::build_openvmm_vhost::OpenvmmVhostBuildParams {
-                    target,
+                    target: CommonTriple::Custom(modify_and_validate_target(target)),
                     profile: CommonProfile::from_release(release),
                 },
                 openvmm_vhost: v,
             });
             if copy_extras {
-                copy_to_dir.push((extras_dir.to_owned(), output.map(ctx, |x| Some(x.dbg))));
+                copy_to_dir.push((extras_dir.to_owned(), output.map(ctx, |x| x.dbg)));
             }
             output
         };
 
-        let openvmm_vhost_linux_x64 = build.openvmm_vhost_linux_x64.then(|| {
-            build_openvmm_vhost(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::openvmm_vhost_linux_x64_target(),
-            ))
-        });
+        let openvmm_vhost_linux_x64 = build
+            .openvmm_vhost_linux_x64
+            .then(|| build_openvmm_vhost(VmmTestsBuiltArtifacts::openvmm_vhost_linux_x64_target()));
         let openvmm_vhost_linux_aarch64 = build.openvmm_vhost_linux_aarch64.then(|| {
-            build_openvmm_vhost(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::openvmm_vhost_linux_aarch64_target(),
-            ))
+            build_openvmm_vhost(VmmTestsBuiltArtifacts::openvmm_vhost_linux_aarch64_target())
         });
         let openvmm_vhost_linux_musl_x64 = build.openvmm_vhost_linux_musl_x64.then(|| {
-            build_openvmm_vhost(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::openvmm_vhost_linux_musl_x64_target(),
-            ))
+            build_openvmm_vhost(VmmTestsBuiltArtifacts::openvmm_vhost_linux_musl_x64_target())
         });
         let openvmm_vhost_linux_musl_aarch64 = build.openvmm_vhost_linux_musl_aarch64.then(|| {
-            build_openvmm_vhost(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::openvmm_vhost_linux_musl_aarch64_target(),
-            ))
+            build_openvmm_vhost(VmmTestsBuiltArtifacts::openvmm_vhost_linux_musl_aarch64_target())
         });
 
         let mut built_pipette = |target| {
             let output = ctx.reqv(|v| crate::build_pipette::Request {
-                target,
+                target: CommonTriple::Custom(modify_and_validate_target(target)),
                 profile: CommonProfile::from_release(release),
                 pipette: v,
             });
@@ -367,33 +355,25 @@ impl SimpleFlowNode for Node {
                     }),
                     output.map(ctx, |x| match x {
                         crate::build_pipette::PipetteOutput::WindowsBin { exe: _, pdb } => pdb,
-                        crate::build_pipette::PipetteOutput::LinuxBin { bin: _, dbg } => Some(dbg),
+                        crate::build_pipette::PipetteOutput::LinuxBin { bin: _, dbg } => dbg,
                     }),
                 ));
             }
             output
         };
 
-        let pipette_windows_x64 = build.pipette_windows_x64.then(|| {
-            built_pipette(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::pipette_windows_x64_target(),
-            ))
-        });
-        let pipette_windows_aarch64 = build.pipette_windows_aarch64.then(|| {
-            built_pipette(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::pipette_windows_aarch64_target(),
-            ))
-        });
-        let pipette_linux_musl_x64 = build.pipette_linux_musl_x64.then(|| {
-            built_pipette(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::pipette_linux_musl_x64_target(),
-            ))
-        });
-        let pipette_linux_musl_aarch64 = build.pipette_linux_musl_aarch64.then(|| {
-            built_pipette(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::pipette_linux_musl_aarch64_target(),
-            ))
-        });
+        let pipette_windows_x64 = build
+            .pipette_windows_x64
+            .then(|| built_pipette(VmmTestsBuiltArtifacts::pipette_windows_x64_target()));
+        let pipette_windows_aarch64 = build
+            .pipette_windows_aarch64
+            .then(|| built_pipette(VmmTestsBuiltArtifacts::pipette_windows_aarch64_target()));
+        let pipette_linux_musl_x64 = build
+            .pipette_linux_musl_x64
+            .then(|| built_pipette(VmmTestsBuiltArtifacts::pipette_linux_musl_x64_target()));
+        let pipette_linux_musl_aarch64 = build
+            .pipette_linux_musl_aarch64
+            .then(|| built_pipette(VmmTestsBuiltArtifacts::pipette_linux_musl_aarch64_target()));
 
         let mut build_guest_test_uefi = |arch| {
             let output = ctx.reqv(|v| crate::build_guest_test_uefi::Request {
@@ -402,8 +382,8 @@ impl SimpleFlowNode for Node {
                 guest_test_uefi: v,
             });
             if copy_extras {
-                copy_to_dir.push((extras_dir.to_owned(), output.map(ctx, |x| Some(x.efi))));
-                copy_to_dir.push((extras_dir.to_owned(), output.map(ctx, |x| Some(x.pdb))));
+                copy_to_dir.push((extras_dir.to_owned(), output.map(ctx, |x| x.efi)));
+                copy_to_dir.push((extras_dir.to_owned(), output.map(ctx, |x| x.pdb)));
             }
             output
         };
@@ -422,7 +402,7 @@ impl SimpleFlowNode for Node {
                 tmks: v,
             });
             if copy_extras {
-                copy_to_dir.push((extras_dir.to_owned(), output.map(ctx, |x| Some(x.dbg))));
+                copy_to_dir.push((extras_dir.to_owned(), output.map(ctx, |x| x.dbg)));
             }
             output
         };
@@ -432,7 +412,7 @@ impl SimpleFlowNode for Node {
 
         let mut build_tpm_guest_tests = |target| {
             let output = ctx.reqv(|v| crate::build_tpm_guest_tests::Request {
-                target,
+                target: CommonTriple::Custom(modify_and_validate_target(target)),
                 profile: CommonProfile::from_release(release),
                 tpm_guest_tests: v,
             });
@@ -442,7 +422,7 @@ impl SimpleFlowNode for Node {
                     extras_dir.to_owned(),
                     output.map(ctx, |x| match x {
                         TpmGuestTestsOutput::WindowsBin { pdb, .. } => pdb.clone(),
-                        TpmGuestTestsOutput::LinuxBin { dbg, .. } => Some(dbg.clone()),
+                        TpmGuestTestsOutput::LinuxBin { dbg, .. } => dbg.clone(),
                     }),
                 ));
             }
@@ -450,19 +430,15 @@ impl SimpleFlowNode for Node {
         };
 
         let tpm_guest_tests_windows_x64 = build.tpm_guest_tests_windows_x64.then(|| {
-            build_tpm_guest_tests(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::tpm_guest_tests_windows_x64_target(),
-            ))
+            build_tpm_guest_tests(VmmTestsBuiltArtifacts::tpm_guest_tests_windows_x64_target())
         });
         let tpm_guest_tests_linux_x64 = build.tpm_guest_tests_linux_x64.then(|| {
-            build_tpm_guest_tests(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::tpm_guest_tests_linux_x64_target(),
-            ))
+            build_tpm_guest_tests(VmmTestsBuiltArtifacts::tpm_guest_tests_linux_x64_target())
         });
 
         let mut build_test_igvm_agent_rpc_server = |target| {
             let output = ctx.reqv(|v| crate::build_test_igvm_agent_rpc_server::Request {
-                target,
+                target: CommonTriple::Custom(modify_and_validate_target(target)),
                 profile: CommonProfile::from_release(release),
                 test_igvm_agent_rpc_server: v,
             });
@@ -475,14 +451,14 @@ impl SimpleFlowNode for Node {
 
         let test_igvm_agent_rpc_server_windows_x64 =
             build.test_igvm_agent_rpc_server_windows_x64.then(|| {
-                build_test_igvm_agent_rpc_server(CommonTriple::Custom(
+                build_test_igvm_agent_rpc_server(
                     VmmTestsBuiltArtifacts::test_igvm_agent_rpc_server_windows_x64_target(),
-                ))
+                )
             });
 
         let mut build_tmk_vmm = |target| {
             let output = ctx.reqv(|v| crate::build_tmk_vmm::Request {
-                target,
+                target: CommonTriple::Custom(modify_and_validate_target(target)),
                 profile: CommonProfile::from_release(release),
                 tmk_vmm: v,
             });
@@ -491,37 +467,29 @@ impl SimpleFlowNode for Node {
                     extras_dir.to_owned(),
                     output.map(ctx, |x| match x {
                         crate::build_tmk_vmm::TmkVmmOutput::WindowsBin { exe: _, pdb } => pdb,
-                        crate::build_tmk_vmm::TmkVmmOutput::LinuxBin { bin: _, dbg } => Some(dbg),
+                        crate::build_tmk_vmm::TmkVmmOutput::LinuxBin { bin: _, dbg } => dbg,
                     }),
                 ));
             }
             output
         };
 
-        let tmk_vmm_windows_x64 = build.tmk_vmm_windows_x64.then(|| {
-            build_tmk_vmm(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::tmk_vmm_windows_x64_target(),
-            ))
-        });
-        let tmk_vmm_windows_aarch64 = build.tmk_vmm_windows_aarch64.then(|| {
-            build_tmk_vmm(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::tmk_vmm_windows_aarch64_target(),
-            ))
-        });
-        let tmk_vmm_linux_musl_x64 = build.tmk_vmm_linux_musl_x64.then(|| {
-            build_tmk_vmm(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::tmk_vmm_linux_musl_x64_target(),
-            ))
-        });
-        let tmk_vmm_linux_musl_aarch64 = build.tmk_vmm_linux_musl_aarch64.then(|| {
-            build_tmk_vmm(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::tmk_vmm_linux_musl_aarch64_target(),
-            ))
-        });
+        let tmk_vmm_windows_x64 = build
+            .tmk_vmm_windows_x64
+            .then(|| build_tmk_vmm(VmmTestsBuiltArtifacts::tmk_vmm_windows_x64_target()));
+        let tmk_vmm_windows_aarch64 = build
+            .tmk_vmm_windows_aarch64
+            .then(|| build_tmk_vmm(VmmTestsBuiltArtifacts::tmk_vmm_windows_aarch64_target()));
+        let tmk_vmm_linux_musl_x64 = build
+            .tmk_vmm_linux_musl_x64
+            .then(|| build_tmk_vmm(VmmTestsBuiltArtifacts::tmk_vmm_linux_musl_x64_target()));
+        let tmk_vmm_linux_musl_aarch64 = build
+            .tmk_vmm_linux_musl_aarch64
+            .then(|| build_tmk_vmm(VmmTestsBuiltArtifacts::tmk_vmm_linux_musl_aarch64_target()));
 
         let mut build_prep_steps = |target| {
             let output = ctx.reqv(|v| crate::build_prep_steps::Request {
-                target,
+                target: CommonTriple::Custom(modify_and_validate_target(target)),
                 profile: CommonProfile::from_release(release),
                 prep_steps: v,
             });
@@ -538,25 +506,16 @@ impl SimpleFlowNode for Node {
             output
         };
 
-        let prep_steps_windows_x64 = build.prep_steps_windows_x64.then(|| {
-            build_prep_steps(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::prep_steps_windows_x64_target(),
-            ))
-        });
-        let prep_steps_linux_x64 = build.prep_steps_linux_x64.then(|| {
-            build_prep_steps(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::prep_steps_linux_x64_target(),
-            ))
-        });
-        let prep_steps_linux_musl_x64 = build.prep_steps_linux_musl_x64.then(|| {
-            build_prep_steps(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::prep_steps_linux_musl_x64_target(),
-            ))
-        });
+        let prep_steps_windows_x64 = build
+            .prep_steps_windows_x64
+            .then(|| build_prep_steps(VmmTestsBuiltArtifacts::prep_steps_windows_x64_target()));
+        let prep_steps_linux_musl_x64 = build
+            .prep_steps_linux_musl_x64
+            .then(|| build_prep_steps(VmmTestsBuiltArtifacts::prep_steps_linux_musl_x64_target()));
 
         let mut build_vmgstool = |target, with_test_helpers| {
             let output = ctx.reqv(|v| crate::build_vmgstool::Request {
-                target,
+                target: CommonTriple::Custom(modify_and_validate_target(target)),
                 profile: CommonProfile::from_release(release),
                 with_crypto: true,
                 with_test_helpers,
@@ -567,55 +526,47 @@ impl SimpleFlowNode for Node {
                     extras_dir.to_owned(),
                     output.map(ctx, |x| match x {
                         crate::build_vmgstool::VmgstoolOutput::WindowsBin { exe: _, pdb } => pdb,
-                        crate::build_vmgstool::VmgstoolOutput::LinuxBin { bin: _, dbg } => {
-                            Some(dbg)
-                        }
+                        crate::build_vmgstool::VmgstoolOutput::LinuxBin { bin: _, dbg } => dbg,
                     }),
                 ));
             }
             output
         };
 
-        let vmgstool_windows_x64 = build.vmgstool_windows_x64.then(|| {
-            build_vmgstool(
-                CommonTriple::Custom(VmmTestsBuiltArtifacts::vmgstool_windows_x64_target()),
-                false,
-            )
-        });
+        let vmgstool_windows_x64 = build
+            .vmgstool_windows_x64
+            .then(|| build_vmgstool(VmmTestsBuiltArtifacts::vmgstool_windows_x64_target(), false));
         let vmgstool_windows_aarch64 = build.vmgstool_windows_aarch64.then(|| {
             build_vmgstool(
-                CommonTriple::Custom(VmmTestsBuiltArtifacts::vmgstool_windows_aarch64_target()),
+                VmmTestsBuiltArtifacts::vmgstool_windows_aarch64_target(),
                 false,
             )
         });
-        let vmgstool_linux_x64 = build.vmgstool_linux_x64.then(|| {
-            build_vmgstool(
-                CommonTriple::Custom(VmmTestsBuiltArtifacts::vmgstool_linux_x64_target()),
-                false,
-            )
-        });
+        let vmgstool_linux_x64 = build
+            .vmgstool_linux_x64
+            .then(|| build_vmgstool(VmmTestsBuiltArtifacts::vmgstool_linux_x64_target(), false));
         let vmgstool_dev_windows_x64 = build.vmgstool_dev_windows_x64.then(|| {
             build_vmgstool(
-                CommonTriple::Custom(VmmTestsBuiltArtifacts::vmgstool_dev_windows_x64_target()),
+                VmmTestsBuiltArtifacts::vmgstool_dev_windows_x64_target(),
                 true,
             )
         });
         let vmgstool_dev_windows_aarch64 = build.vmgstool_dev_windows_aarch64.then(|| {
             build_vmgstool(
-                CommonTriple::Custom(VmmTestsBuiltArtifacts::vmgstool_dev_windows_aarch64_target()),
+                VmmTestsBuiltArtifacts::vmgstool_dev_windows_aarch64_target(),
                 true,
             )
         });
         let vmgstool_dev_linux_x64 = build.vmgstool_dev_linux_x64.then(|| {
             build_vmgstool(
-                CommonTriple::Custom(VmmTestsBuiltArtifacts::vmgstool_dev_linux_x64_target()),
+                VmmTestsBuiltArtifacts::vmgstool_dev_linux_x64_target(),
                 true,
             )
         });
 
         let mut build_incubator = |target| {
             let output = ctx.reqv(|v| crate::build_incubator::Request {
-                target,
+                target: CommonTriple::Custom(modify_and_validate_target(target)),
                 profile: if release {
                     CommonProfile::Release
                 } else {
@@ -635,11 +586,9 @@ impl SimpleFlowNode for Node {
             output
         };
 
-        let incubator_linux_x64 = build.incubator_linux_x64.then(|| {
-            build_incubator(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::incubator_linux_x64_target(),
-            ))
-        });
+        let incubator_linux_x64 = build
+            .incubator_linux_x64
+            .then(|| build_incubator(VmmTestsBuiltArtifacts::incubator_linux_x64_target()));
 
         let mut build_vmm_tests_nextest_archive = |target| {
             ctx.reqv(|v| crate::build_nextest_vmm_tests::Request {
@@ -682,7 +631,7 @@ impl SimpleFlowNode for Node {
 
         let mut build_flowey_hvlite = |target| {
             let output = ctx.reqv(|v| crate::build_flowey_hvlite::Request {
-                target,
+                target: CommonTriple::Custom(modify_and_validate_target(target)),
                 flowey_hvlite: v,
             });
 
@@ -705,20 +654,14 @@ impl SimpleFlowNode for Node {
         };
 
         let flowey_hvlite_windows_x64 = build.flowey_hvlite_windows_x64.then(|| {
-            build_flowey_hvlite(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::flowey_hvlite_windows_x64_target(),
-            ))
+            build_flowey_hvlite(VmmTestsBuiltArtifacts::flowey_hvlite_windows_x64_target())
         });
         let flowey_hvlite_windows_aarch64 = build.flowey_hvlite_windows_aarch64.then(|| {
-            build_flowey_hvlite(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::flowey_hvlite_windows_aarch64_target(),
-            ))
+            build_flowey_hvlite(VmmTestsBuiltArtifacts::flowey_hvlite_windows_aarch64_target())
         });
-        let flowey_hvlite_linux_x64 = build.flowey_hvlite_linux_x64.then(|| {
-            build_flowey_hvlite(CommonTriple::Custom(
-                VmmTestsBuiltArtifacts::flowey_hvlite_linux_x64_target(),
-            ))
-        });
+        let flowey_hvlite_linux_x64 = build
+            .flowey_hvlite_linux_x64
+            .then(|| build_flowey_hvlite(VmmTestsBuiltArtifacts::flowey_hvlite_linux_x64_target()));
 
         let built_artifacts = VmmTestsBuiltArtifacts {
             flowey_hvlite_windows_x64,
@@ -731,7 +674,6 @@ impl SimpleFlowNode for Node {
             nextest_vmm_tests_archive_linux_musl_aarch64,
             incubator_linux_x64,
             prep_steps_windows_x64,
-            prep_steps_linux_x64,
             prep_steps_linux_musl_x64,
             test_igvm_agent_rpc_server_windows_x64,
             openvmm_windows_x64,
@@ -828,15 +770,21 @@ impl SimpleFlowNode for Node {
                 // place this job at the end so the log is visible for convenience
                 initialized.claim(ctx);
                 move |rt| {
+                    let flowey_hvlite_path = flowey_hvlite_path
+                        .context("flowey_hvlite must exist in build_only mode")?;
+                    let flowey_hvlite_arg =
+                        flowey_hvlite_path.to_str().context("path not unicode")?;
                     let (script_name, dir, flowey_hvlite_bin) = match target_triple.operating_system
                     {
-                        target_lexicon::OperatingSystem::Windows => {
-                            ("run.ps1", "$PSScriptRoot", ".\\flowey_hvlite.exe")
-                        }
+                        target_lexicon::OperatingSystem::Windows => (
+                            "run.ps1",
+                            "$PSScriptRoot",
+                            format!(".\\{}", flowey_hvlite_arg),
+                        ),
                         _ => (
                             "run.sh",
                             "\"$(dirname \"${BASH_SOURCE[0]}\")\"",
-                            "./flowey_hvlite",
+                            format!("./{}", flowey_hvlite_arg),
                         ),
                     };
 
