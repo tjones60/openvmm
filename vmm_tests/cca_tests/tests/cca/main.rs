@@ -693,7 +693,9 @@ fn write_visible_output(line: &[u8], logged_len: &mut usize, output_send: &mpsc:
 petri::test_sync!(cca_runtime, resolve_cca_runtime);
 
 fn main() {
-    petri::test_main(|_name, requirements| {
-        requirements.resolve(resolver::OpenvmmCcaKnownPathsTestArtifactResolver::new())
+    petri::test_main(|name, requirements| {
+        requirements.resolve(resolver::OpenvmmCcaKnownPathsTestArtifactResolver::new(
+            name,
+        ))
     })
 }

@@ -554,7 +554,9 @@ name = "cca_tests"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "fs-err",
  "petri",
+ "petri_artifacts_common",
  "petri_artifacts_core",
  "petri_artifacts_vmm_test",
  "tempfile",

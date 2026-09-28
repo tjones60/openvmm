@@ -6,8 +6,11 @@
 #![forbid(unsafe_code)]
 
 use anyhow::Context;
+use petri_artifacts_common::artifacts::*;
+use petri_artifacts_core::ArtifactId;
 use petri_artifacts_core::ArtifactSource;
 use petri_artifacts_core::ErasedArtifactHandle;
+use petri_artifacts_vmm_test::artifacts::*;
 use petri_artifacts_vmm_test::vmm_test_image_from_id;
 use std::env::consts::EXE_EXTENSION;
 use std::path::Path;
@@ -27,10 +30,6 @@ impl<'a> OpenvmmKnownPathsTestArtifactResolver<'a> {
 
 impl petri_artifacts_core::ResolveTestArtifact for OpenvmmKnownPathsTestArtifactResolver<'_> {
     fn resolve(&self, handle: ErasedArtifactHandle) -> anyhow::Result<PathBuf> {
-        use petri_artifacts_common::artifacts::*;
-        use petri_artifacts_core::ArtifactId;
-        use petri_artifacts_vmm_test::artifacts::*;
-
         match handle.global_unique_id() {
             TEST_LOG_DIRECTORY::GLOBAL_UNIQUE_ID => test_log_directory_path(self.0),
 
@@ -75,6 +74,12 @@ pub fn resolve_artifact(handle: ErasedArtifactHandle) -> anyhow::Result<PathBuf>
 
     if test_content_dir_path.is_ok() {
         return test_content_dir_path;
+    }
+
+    let magic_path = resolve_magic_path_artifact(handle);
+
+    if magic_path.is_ok() {
+        return magic_path;
     }
 
     let target = handle.target_triple();
@@ -134,9 +139,10 @@ pub fn resolve_artifact(handle: ErasedArtifactHandle) -> anyhow::Result<PathBuf>
     }
 
     Err(anyhow::anyhow!(
-        "unable to locate {}:\n\t{}\n\t{}\n\t{}\n\t{}\n\t{}",
+        "unable to locate {}:\n\t{}\n\t{}\n\t{}\n\t{}\n\t{}\n\t{}",
         handle.global_unique_id(),
         test_content_dir_path.unwrap_err(),
+        magic_path.unwrap_err(),
         exe_artifact_path.unwrap_err(),
         relative_path.unwrap_err(),
         fallback_test_content_dir_path.unwrap_err(),
@@ -156,11 +162,11 @@ fn test_content_dir_artifact_path(relative_path: impl AsRef<Path>) -> anyhow::Re
 
 /// Path to the per-test test output directory.
 fn test_log_directory_path(test_name: &str) -> anyhow::Result<PathBuf> {
-    let root =
-        std::env::var_os(TEST_OUTPUT_PATH_ENV_VAR).context("test output path env var not set")?;
+    let root = std::env::var_os(TEST_OUTPUT_PATH_ENV_VAR)
+        .map_or_else(|| get_repo_root().join("vmm_test_results"), PathBuf::from);
     // Use a per-test subdirectory, replacing `::` with `__` to avoid issues
     // with filesystems that don't support `::` in filenames.
-    let path = PathBuf::from(root).join(test_name.replace("::", "__"));
+    let path = root.join(test_name.replace("::", "__"));
     fs_err::create_dir_all(&path)?;
     Ok(path)
 }
@@ -235,4 +241,44 @@ fn get_vmm_test_image_path(filename: &str, name: &str) -> Result<PathBuf, anyhow
         anyhow::bail!("missing {} at {}", name, path.display())
     }
     Ok(path)
+}
+
+// TODO: refactor flowey/openvmm to have a common source of truth for these
+// magic paths. VMM tests run via flowey no longer use them.
+fn resolve_magic_path_artifact(handle: ErasedArtifactHandle) -> anyhow::Result<PathBuf> {
+    let package_dir = match handle.global_unique_id() {
+        loadable::LINUX_DIRECT_TEST_KERNEL_X64::GLOBAL_UNIQUE_ID
+        | loadable::LINUX_DIRECT_TEST_BZIMAGE_X64::GLOBAL_UNIQUE_ID
+        | loadable::LINUX_DIRECT_TEST_INITRD_X64::GLOBAL_UNIQUE_ID
+        | petritools::PETRITOOLS_EROFS_X64::GLOBAL_UNIQUE_ID => "underhill-deps-private/x64",
+        loadable::LINUX_DIRECT_TEST_KERNEL_AARCH64::GLOBAL_UNIQUE_ID
+        | loadable::LINUX_DIRECT_TEST_INITRD_AARCH64::GLOBAL_UNIQUE_ID
+        | petritools::PETRITOOLS_EROFS_AARCH64::GLOBAL_UNIQUE_ID => {
+            "underhill-deps-private/aarch64"
+        }
+        loadable::UEFI_FIRMWARE_X64::GLOBAL_UNIQUE_ID => {
+            "hyperv.uefi.mscoreuefi.x64.RELEASE/MsvmX64/RELEASE_VS2022/FV"
+        }
+        loadable::UEFI_FIRMWARE_AARCH64::GLOBAL_UNIQUE_ID => {
+            "hyperv.uefi.mscoreuefi.AARCH64.RELEASE/MsvmAARCH64/RELEASE_CLANGPDB/FV"
+        }
+        loadable::PCAT_FIRMWARE_X64::GLOBAL_UNIQUE_ID => {
+            "Microsoft.Windows.VmFirmware.Pcat.amd64fre/content"
+        }
+        loadable::SVGA_FIRMWARE_X64::GLOBAL_UNIQUE_ID => {
+            "Microsoft.Windows.VmEmulatedDevices.amd64fre/content"
+        }
+        virtio_win::VIRTIO_WINDOWS_DRIVERS::GLOBAL_UNIQUE_ID => "",
+
+        _ => anyhow::bail!("not a magic path artifact"),
+    };
+
+    let magic_path = get_repo_root()
+        .join(".packages")
+        .join(package_dir)
+        .join(handle.filename());
+    if !magic_path.exists() {
+        anyhow::bail!("{} not found", magic_path.display());
+    }
+    Ok(magic_path)
 }

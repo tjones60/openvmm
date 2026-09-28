@@ -12,20 +12,23 @@ use std::path::PathBuf;
 /// An implementation of [`petri_artifacts_core::ResolveTestArtifact`]
 /// that resolves artifacts to various "known paths" within the context of
 /// the CCA tests in the OpenVMM repository.
-pub struct OpenvmmCcaKnownPathsTestArtifactResolver;
+pub struct OpenvmmCcaKnownPathsTestArtifactResolver<'a>(&'a str);
 
-impl OpenvmmCcaKnownPathsTestArtifactResolver {
+impl<'a> OpenvmmCcaKnownPathsTestArtifactResolver<'a> {
     /// Creates a new resolver for a test with the given name.
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(test_name: &'a str) -> Self {
+        Self(test_name)
     }
 }
 
-impl petri_artifacts_core::ResolveTestArtifact for OpenvmmCcaKnownPathsTestArtifactResolver {
+impl<'a> petri_artifacts_core::ResolveTestArtifact
+    for OpenvmmCcaKnownPathsTestArtifactResolver<'a>
+{
     #[rustfmt::skip]
     fn resolve(&self, id: ErasedArtifactHandle) -> anyhow::Result<PathBuf> {
 
         match id {
+            _ if id == petri_artifacts_common::artifacts::TEST_LOG_DIRECTORY => test_log_directory_path(self.0),
 
             _ if id == tmks::TMK_VMM_LINUX_AARCH64_MUSL =>
                 env_path(OPENVMM_CCA_TMK_VMM_ENV_VAR, "TMK_VMM_LINUX_AARCH64_MUSL"),
@@ -127,4 +130,14 @@ fn cca_buildroot_host_sbin_path(
         file_name,
         description,
     )
+}
+
+fn test_log_directory_path(test_name: &str) -> anyhow::Result<PathBuf> {
+    // Use a per-test subdirectory, replacing `::` with `__` to avoid issues
+    // with filesystems that don't support `::` in filenames.
+    let path = PathBuf::from(cca_test_root())
+        .join("test_results")
+        .join(test_name.replace("::", "__"));
+    fs_err::create_dir_all(&path)?;
+    Ok(path)
 }
