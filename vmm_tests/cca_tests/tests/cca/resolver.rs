@@ -135,7 +135,7 @@ fn cca_buildroot_host_sbin_path(
 fn test_log_directory_path(test_name: &str) -> anyhow::Result<PathBuf> {
     // Use a per-test subdirectory, replacing `::` with `__` to avoid issues
     // with filesystems that don't support `::` in filenames.
-    let path = PathBuf::from(cca_test_root())
+    let path = cca_test_root()
         .join("test_results")
         .join(test_name.replace("::", "__"));
     fs_err::create_dir_all(&path)?;
