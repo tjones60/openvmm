@@ -229,7 +229,8 @@ macro_rules! define_vmm_tests_built_artifacts {
 }
 
 // Try again with musl target, since some artifacts may only be built for musl
-// to save time. Binaries targeting musl can also run in gnu environments.
+// to save time. Our musl binaries can also run in gnu environments since they
+// are statically linked.
 fn retry_as_musl(target: ArtifactTarget) -> Option<ArtifactTarget> {
     let ArtifactTarget::Triple(mut triple) = target else {
         return None;
