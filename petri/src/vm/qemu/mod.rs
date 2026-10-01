@@ -136,7 +136,7 @@ impl PetriVmmBackend for QemuPetriBackend {
         config: PetriVmConfig,
         modify_vmm_config: Option<ModifyFn<Self::VmmConfig>>,
         resources: &PetriVmResources,
-        _properties: PetriVmProperties,
+        _properties: &PetriVmProperties,
     ) -> anyhow::Result<(Self::VmRuntime, PetriVmRuntimeConfig)> {
         let PetriVmResources {
             driver,

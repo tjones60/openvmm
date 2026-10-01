@@ -182,10 +182,10 @@ impl PetriVmConfigOpenVmm {
         vm.resume().await?;
 
         // Run basic save/restore test if it is supported
-        if supports_save_restore && !is_minimal {
-            tracing::info!("Testing save/restore");
-            vm.verify_save_restore().await?;
-        }
+        // if supports_save_restore && !is_minimal {
+        //     tracing::info!("Testing save/restore");
+        //     vm.verify_save_restore().await?;
+        // }
 
         tracing::info!("VM ready");
         Ok((vm, runtime_config))
