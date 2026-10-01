@@ -179,4 +179,7 @@ pub mod tags {
 
     /// Artifact is a VmgsTool binary
     pub trait IsVmgsTool: ArtifactId {}
+
+    /// Artifact is a Nextest archive
+    pub trait IsNextestArchive: ArtifactId {}
 }

@@ -310,6 +310,7 @@ pub mod artifacts {
 
     /// Host-side tools used by the VMM tests.
     pub mod host_tools {
+        use petri_artifacts_common::tags::IsNextestArchive;
         use petri_artifacts_core::declare_artifacts;
 
         declare_artifacts! {
@@ -349,6 +350,12 @@ pub mod artifacts {
                 LINUX_AARCH64_MUSL
             ),
         }
+
+        impl IsNextestArchive for NEXTEST_VMM_TESTS_ARCHIVE_WINDOWS_X64 {}
+        impl IsNextestArchive for NEXTEST_VMM_TESTS_ARCHIVE_WINDOWS_AARCH64 {}
+        impl IsNextestArchive for NEXTEST_VMM_TESTS_ARCHIVE_LINUX_X64 {}
+        impl IsNextestArchive for NEXTEST_VMM_TESTS_ARCHIVE_LINUX_X64_MUSL {}
+        impl IsNextestArchive for NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL {}
     }
 
     /// Loadable artifacts

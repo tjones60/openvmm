@@ -112,7 +112,7 @@ impl PetriVmConfigOpenVmm {
         openvmm_path: &ResolvedArtifact,
         petri_vm_config: PetriVmConfig,
         resources: &PetriVmResources,
-        properties: PetriVmProperties,
+        properties: &PetriVmProperties,
     ) -> anyhow::Result<Self> {
         let PetriVmConfig {
             name: _,
@@ -765,7 +765,7 @@ impl PetriVmConfigOpenVmm {
                 openvmm_path: openvmm_path.clone(),
                 vtl2_vsock_path,
                 _vsock_path: vsock_path,
-                properties,
+                properties: properties.clone(),
                 #[cfg(windows)]
                 _switch_ports: Vec::new(),
             },

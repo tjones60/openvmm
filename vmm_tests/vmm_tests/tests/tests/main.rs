@@ -29,6 +29,8 @@ mod x86_64_exclusive;
 mod aarch64_exclusive;
 // Test the QEMU emulator petri backend
 mod qemu;
+// nested tests
+mod nested;
 // Utility functions shared across multiple test files.
 pub(crate) mod utils;
 
