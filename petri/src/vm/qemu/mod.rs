@@ -23,6 +23,7 @@ use crate::PetriVmRuntime;
 use crate::PetriVmRuntimeConfig;
 use crate::PetriVmmBackend;
 use crate::ShutdownKind;
+use crate::TestChild;
 use crate::VmmQuirks;
 use crate::openhcl_diag::OpenHclDiagHandler;
 use crate::vm::PetriVmProperties;
@@ -68,7 +69,7 @@ pub struct QemuPetriConfig {
 /// Resources needed at runtime for a QEMU Petri VM
 pub struct QemuPetriRuntime {
     driver: DefaultDriver,
-    qemu_process: Arc<Mutex<PolledChild<std::process::Child>>>,
+    qemu_process: Arc<Mutex<TestChild>>,
     host_pipette_port: u16,
     log_tasks: Vec<Task<anyhow::Result<()>>>,
     output_dir: PathBuf,
@@ -212,7 +213,7 @@ impl PetriVmmBackend for QemuPetriBackend {
         Ok((
             QemuPetriRuntime {
                 driver: driver.clone(),
-                qemu_process: Arc::new(Mutex::new(qemu_process)),
+                qemu_process: Arc::new(Mutex::new(TestChild::new(qemu_process))),
                 host_pipette_port,
                 log_tasks,
                 output_dir: log_source.output_dir().to_owned(),

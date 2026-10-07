@@ -2527,7 +2527,11 @@ impl<T: PetriVmmBackend> PetriVm<T> {
     }
 
     /// Run the nested test. Failed if a nested test was not configured.
-    pub async fn run_nested_test(&self, client: &PipetteClient) -> anyhow::Result<()> {
+    pub async fn run_nested_test(
+        &self,
+        client: &PipetteClient,
+        env: BTreeMap<String, String>,
+    ) -> anyhow::Result<()> {
         let sh = client.unix_shell();
 
         let test_name = &self
@@ -2536,12 +2540,11 @@ impl<T: PetriVmmBackend> PetriVm<T> {
             .context("no nested test")?
             .test_name;
 
-        let mut child = client
-            .command(self.agent_disk_path(&[
-                NESTED_TEST_CONTENT_DIR.into(),
-                self.binary_with_extension(NESTED_TEST_BINARY),
-            ]))
-            .arg("--ignored")
+        let mut cmd = client.command(self.agent_disk_path(&[
+            NESTED_TEST_CONTENT_DIR.into(),
+            self.binary_with_extension(NESTED_TEST_BINARY),
+        ]));
+        cmd.arg("--ignored")
             .arg("--exact")
             .arg(test_name)
             .env(
@@ -2557,9 +2560,13 @@ impl<T: PetriVmmBackend> PetriVm<T> {
                 self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into(), NESTED_RESULTS_DIR.into()]),
             )
             .stdout(crate::pipette::process::Stdio::piped())
-            .stderr(crate::pipette::process::Stdio::piped())
-            .spawn()
-            .await?;
+            .stderr(crate::pipette::process::Stdio::piped());
+
+        for (k, v) in env {
+            cmd.env(k, v);
+        }
+
+        let mut child = cmd.spawn().await?;
 
         self.resources
             .driver

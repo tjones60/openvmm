@@ -202,7 +202,6 @@ async fn boot_no_hv(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Resu
 /// and CIDATA disks on separate controllers, and virtio-vsock provides the
 /// pipette transport because VMBus is off. Keeping separate controllers also
 /// verifies that the guest preserves OpenVMM's preassigned PCI resources.
-/// The `_aarch64_tcg` suffix opts the test into the QEMU incubator CI pass.
 #[cfg(target_os = "linux")]
 #[openvmm_test(
     nested(
@@ -214,9 +213,7 @@ async fn boot_no_hv(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Resu
         (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL, "tests", "multiarch", uefi_aarch64(vhd(alpine_3_23_aarch64))),
     ),
 )]
-async fn boot_no_hv_uefi_aarch64_tcg(
-    config: PetriVmBuilder<OpenVmmPetriBackend>,
-) -> anyhow::Result<()> {
+async fn boot_no_hv_uefi(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Result<()> {
     let (vm, agent) = config
         .with_no_hv()
         .with_boot_device_type(petri::BootDeviceType::PcieNvme)
