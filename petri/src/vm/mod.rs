@@ -33,20 +33,24 @@ use pal_async::DefaultDriver;
 use pal_async::task::Spawn;
 use pal_async::task::Task;
 use pal_async::timer::PolledTimer;
+use petri_artifact_resolver_openvmm_known_paths::resolve_artifact;
 use petri_artifacts_common::tags::GuestQuirks;
 use petri_artifacts_common::tags::GuestQuirksInner;
 use petri_artifacts_common::tags::InitialRebootCondition;
-use petri_artifacts_common::tags::IsNextestArchive;
 use petri_artifacts_common::tags::IsOpenhclIgvm;
 use petri_artifacts_common::tags::IsTestVmgs;
 use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_common::tags::OsFlavor;
+use petri_artifacts_core::ArtifactHandle;
 use petri_artifacts_core::ArtifactId;
 use petri_artifacts_core::ArtifactResolver;
 use petri_artifacts_core::ArtifactSource;
+use petri_artifacts_core::ErasedArtifactHandle;
 use petri_artifacts_core::ResolvedArtifact;
 use petri_artifacts_core::ResolvedArtifactSource;
 use petri_artifacts_core::ResolvedOptionalArtifact;
+use petri_artifacts_core::tags::IsNextestArchive;
+use petri_artifacts_vmm_test::env::*;
 use pipette_client::PipetteClient;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -80,6 +84,8 @@ pub struct PetriVmArtifacts<T: PetriVmmBackend> {
     pub openhcl_agent_image: Option<AgentImage>,
     /// Raw pipette binary path (for embedding in initrd via CPIO append)
     pub pipette_binary: Option<ResolvedArtifact>,
+    /// Nested test deps
+    pub nested_test: Option<NestedTestDeps>,
 }
 
 impl<T: PetriVmmBackend> PetriVmArtifacts<T> {
@@ -91,6 +97,19 @@ impl<T: PetriVmmBackend> PetriVmArtifacts<T> {
         firmware: Firmware,
         arch: MachineArch,
         with_vtl0_pipette: bool,
+    ) -> Option<Self> {
+        Self::new_maybe_nested(resolver, firmware, arch, with_vtl0_pipette, None)
+    }
+
+    /// Resolves the artifacts needed to instantiate a [`PetriVmBuilder`].
+    ///
+    /// Returns `None` if the supplied configuration is not supported on this platform.
+    pub fn new_maybe_nested(
+        resolver: &ArtifactResolver<'_>,
+        firmware: Firmware,
+        arch: MachineArch,
+        with_vtl0_pipette: bool,
+        nested_test: Option<NestedTestDeps>,
     ) -> Option<Self> {
         if !(T::SUPPORTS_CPU_EMULATION || arch == MachineArch::host())
             || !T::check_compat(&firmware, arch)
@@ -108,6 +127,21 @@ impl<T: PetriVmmBackend> PetriVmArtifacts<T> {
             None
         };
 
+        // let nested_test = if let Some(args) = nested_test {
+        //     match args.resolve(resolver) {
+        //         Ok(deps) => Some(deps),
+        //         Err(err) => {
+        //             // This isn't ideal, but since we need a hack to resolve
+        //             // the nested test, just skip it if the resolution doesn't
+        //             // work.
+        //             panic!("failed to resolve nested test: {err:#}");
+        //             // return None;
+        //         }
+        //     }
+        // } else {
+        //     None
+        // };
+
         Some(Self {
             backend: T::new(resolver, arch),
             arch,
@@ -123,6 +157,7 @@ impl<T: PetriVmmBackend> PetriVmArtifacts<T> {
             },
             pipette_binary,
             firmware,
+            nested_test,
         })
     }
 
@@ -204,7 +239,7 @@ pub struct PetriVmBuilder<T: PetriVmmBackend> {
     // Capture the VM's inspect output on test failure.
     capture_inspect_on_failure: bool,
 
-    nested_test: Option<NestedTestDeps>,
+    nested_test: Option<ResolvedNestedTestDeps>,
 }
 
 /// How long to wait on a single inspect before giving up on it.
@@ -254,6 +289,8 @@ pub struct PetriVmConfig {
     pub memory: MemoryConfig,
     /// The processor topology for the VM
     pub proc_topology: ProcessorTopology,
+    /// Expose nested virtualization capabilities to the guest
+    pub nested_virt_enabled: bool,
     /// VM guest state
     pub vmgs: PetriVmgsResource,
     /// TPM configuration
@@ -455,6 +492,11 @@ pub(crate) const PETRI_PCIE_NVME_AGENT_PORT: &str = "s0rc0rp1";
 /// NVMe namespace ID used by Petri for the agent/cidata disk (no-vmbus mode)
 pub(crate) const PETRI_PCIE_NVME_AGENT_NSID: u32 = 1;
 
+const NESTED_TEST_CONTENT_DIR: &str = "vmm_tests";
+const NESTED_IMAGES_DIR: &str = "images";
+const NESTED_RESULTS_DIR: &str = "test_results";
+const NESTED_TEST_BINARY: &str = "nested_test";
+
 /// A constructed Petri VM
 pub struct PetriVm<T: PetriVmmBackend> {
     resources: PetriVmResources,
@@ -470,7 +512,7 @@ pub struct PetriVm<T: PetriVmmBackend> {
     config: PetriVmRuntimeConfig,
     properties: PetriVmProperties,
 
-    nested_test: Option<String>,
+    nested_test: Option<ResolvedNestedTestDeps>,
 }
 
 /// Wrapper around the VMM backend's runtime that captures inspect state if the
@@ -571,7 +613,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
                 .with_serial_output()
                 .with_capture_inspect_on_failure()
                 .add_petri_scsi_controllers()
-                .add_guest_crash_disk(params.post_test_hooks),
+                .add_guest_crash_disk(params.post_test_hooks)?,
         )
     }
 
@@ -620,6 +662,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
                 ipmi_enabled: false,
                 memory: Default::default(),
                 proc_topology: Default::default(),
+                nested_virt_enabled: false,
 
                 vmgs: PetriVmgsResource::Ephemeral,
                 tpm: None,
@@ -656,7 +699,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             no_hv: false,
             capture_inspect_on_failure: false,
 
-            nested_test: None,
+            nested_test: artifacts.nested_test.map(|t| t.resolve()).transpose()?,
         })
     }
 
@@ -868,13 +911,17 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         }
     }
 
-    fn add_guest_crash_disk(self, post_test_hooks: &mut Vec<PetriPostTestHook>) -> Self {
+    fn add_guest_crash_disk(
+        self,
+        post_test_hooks: &mut Vec<PetriPostTestHook>,
+    ) -> anyhow::Result<Self> {
         let logger = self.resources.log_source.clone();
         let (disk, disk_hook) = matches!(
             self.config.firmware.os_flavor(),
             OsFlavor::Windows | OsFlavor::Linux
         )
-        .then(|| T::create_guest_dump_disk().expect("failed to create guest dump disk"))
+        .then(|| T::create_guest_dump_disk().context("failed to create guest dump disk"))
+        .transpose()?
         .flatten()
         .unzip();
 
@@ -912,7 +959,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             ));
         }
 
-        if let Some(disk) = disk {
+        Ok(if let Some(disk) = disk {
             self.add_vmbus_drive(
                 Drive::new(Some(Disk::Temporary(disk)), false),
                 &PETRI_SCSI_VTL0_CONTROLLER,
@@ -920,7 +967,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             )
         } else {
             self
-        }
+        })
     }
 
     fn add_agent_disks(self) -> Self {
@@ -1257,7 +1304,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             config,
             properties,
 
-            nested_test: self.nested_test.map(|t| t.test_name),
+            nested_test: self.nested_test,
         };
 
         if expect_reset {
@@ -1935,75 +1982,99 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         self
     }
 
-    /// Run another petri test nested within this test
-    pub fn with_nested_test(
-        mut self,
-        archive: ResolvedArtifact<impl IsNextestArchive>,
-        binary: &str,
-        test_name: &str,
-    ) -> Self {
-        if self.nested_test.is_some() {
-            panic!("only one nested_test allowed");
-        }
-        self.nested_test = Some(NestedTestDeps {
-            archive: archive.erase(),
-            binary: binary.to_string(),
-            test_name: test_name.to_string(),
-            artifacts: Vec::new(),
-        });
-        self
-    }
+    // /// Run another petri test nested within this test.
+    // ///
+    // /// Enables nested virtualization.
+    // pub fn with_nested_test(
+    //     mut self,
+    //     archive: ResolvedArtifact<impl IsNextestArchive>,
+    //     binary: &str,
+    //     test_name: &str,
+    // ) -> Self {
+    //     if self.nested_test.is_some() {
+    //         panic!("only one nested_test allowed");
+    //     }
+    //     self.nested_test = Some(NestedTestDeps {
+    //         archive: archive.erase(),
+    //         binary: binary.to_string(),
+    //         test_name: test_name.to_string(),
+    //     });
+    //     self.with_nested_virt()
+    // }
 
-    /// Run another petri test nested within this test
-    pub fn with_nested_test_artifact<A: ArtifactId>(
-        mut self,
-        artifact: ResolvedArtifact<A>,
-    ) -> Self {
-        self.nested_test
-            .as_mut()
-            .expect("no nested test specified")
-            .artifacts
-            .push((A::relative_path(), artifact.erase()));
-        self
-    }
+    // /// Run another petri test nested within this test
+    // pub fn with_nested_test_artifact<A: ArtifactId>(
+    //     mut self,
+    //     artifact: ResolvedArtifact<A>,
+    // ) -> Self {
+    //     self.nested_test
+    //         .as_mut()
+    //         .expect("no nested test specified")
+    //         .artifacts
+    //         .push((A::relative_path(), artifact.erase()));
+    //     self
+    // }
 
     async fn add_nested_artifacts_to_agent_disk(mut self) -> Self {
+        let Some(nested_test) = self.nested_test.as_ref() else {
+            return self;
+        };
+
         let mut extras = Vec::new();
-        if let Some(nested_test) = &self.nested_test {
-            let nested_test_binary = nested_test
-                .extract_binary()
-                .await
-                .expect("failed to extract nextest binary");
 
-            let vmm_tests_dir = Path::new("vmm_tests");
-            let target_binary_path =
-                vmm_tests_dir.join(format!("nested_test{}", std::env::consts::EXE_EXTENSION));
+        let path_builder = FatFsPathBuilder(self.os_flavor());
 
-            extras.push((vmm_tests_dir.to_path_buf(), ImageEntry::Dir));
-            extras.push((vmm_tests_dir.join("test_results"), ImageEntry::Dir));
-            extras.push((vmm_tests_dir.join("images"), ImageEntry::Dir));
-            extras.push((target_binary_path, ImageEntry::TempFile(nested_test_binary)));
+        extras.push((NESTED_TEST_CONTENT_DIR.to_string(), ImageEntry::Dir));
+        extras.push((
+            path_builder
+                .build_guest_path(&[NESTED_TEST_CONTENT_DIR.into(), NESTED_RESULTS_DIR.into()]),
+            ImageEntry::Dir,
+        ));
+        extras.push((
+            path_builder
+                .build_guest_path(&[NESTED_TEST_CONTENT_DIR.into(), NESTED_IMAGES_DIR.into()]),
+            ImageEntry::Dir,
+        ));
+        extras.push((
+            path_builder.build_guest_path(&[
+                NESTED_TEST_CONTENT_DIR.into(),
+                path_builder.binary_with_extension(NESTED_TEST_BINARY),
+            ]),
+            ImageEntry::File(nested_test.test_binary.to_path_buf()),
+        ));
 
-            for (relative_path, src) in &nested_test.artifacts {
-                let dest = PathBuf::from("vmm_tests").join(relative_path);
-                let target_dir = dest.parent().expect("no artifact parent");
+        for (handle, src) in &nested_test.artifacts {
+            let relative_path = path_builder.convert_guest_path(&handle.relative_path());
+            let dest = if handle.is_image() {
+                path_builder.build_guest_path(&[
+                    NESTED_TEST_CONTENT_DIR.into(),
+                    NESTED_IMAGES_DIR.into(),
+                    relative_path,
+                ])
+            } else {
+                path_builder.build_guest_path(&[NESTED_TEST_CONTENT_DIR.into(), relative_path])
+            };
 
-                if !extras.iter().any(|(p, _)| p == target_dir) {
-                    extras.push((target_dir.to_path_buf(), ImageEntry::Dir))
+            for parent in path_builder.parents(&dest) {
+                if !extras.iter().any(|(p, _)| p == parent) {
+                    extras.push((parent.to_string(), ImageEntry::Dir))
                 }
-
-                extras.push((
-                    dest,
-                    ImageEntry::File(src.clone().erase().get().to_path_buf()),
-                ));
             }
+
+            extras.push((dest, ImageEntry::File(src.clone())));
         }
-        if !extras.is_empty() {
-            self.agent_image
-                .as_mut()
-                .expect("no guest pipette")
-                .add_extras(extras);
-        }
+
+        self.agent_image
+            .as_mut()
+            .expect("no guest pipette")
+            .add_extras(extras);
+
+        self
+    }
+
+    /// Request nested virtualization support from the host hypervisor.
+    pub fn with_nested_virt(mut self) -> Self {
+        self.config.nested_virt_enabled = true;
         self
     }
 }
@@ -2444,30 +2515,32 @@ impl<T: PetriVmmBackend> PetriVm<T> {
 
     /// Run the nested test. Failed if a nested test was not configured.
     pub async fn run_nested_test(&self, client: &PipetteClient) -> anyhow::Result<()> {
-        let agent_disk_prefix = match self.properties.os_flavor {
-            OsFlavor::Windows => "D:",
-            _ => "/cidata",
-        };
-        let target_binary_path = format!(
-            "{agent_disk_prefix}/vmm_tests/nested_test{}",
-            std::env::consts::EXE_EXTENSION
-        );
         client
             .unix_shell()
-            .cmd(target_binary_path)
+            .cmd(self.agent_disk_path(&[
+                NESTED_TEST_CONTENT_DIR.into(),
+                self.binary_with_extension(NESTED_TEST_BINARY),
+            ]))
+            .arg("--ignored")
             .arg("--exact")
-            .arg(self.nested_test.as_ref().context("no nested test")?)
-            .env(
-                "VMM_TESTS_CONTENT_DIR",
-                format!("{agent_disk_prefix}/vmm_tests"),
+            .arg(
+                &self
+                    .nested_test
+                    .as_ref()
+                    .context("no nested test")?
+                    .test_name,
             )
             .env(
-                "VMM_TEST_IMAGES",
-                format!("{agent_disk_prefix}/vmm_tests/images"),
+                VMM_TESTS_CONTENT_DIR,
+                self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into()]),
             )
             .env(
-                "TEST_OUTPUT_PATH",
-                format!("{agent_disk_prefix}/vmm_tests/test_results"),
+                VMM_TEST_IMAGES,
+                self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into(), NESTED_IMAGES_DIR.into()]),
+            )
+            .env(
+                TEST_OUTPUT_PATH,
+                self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into(), NESTED_RESULTS_DIR.into()]),
             )
             .run()
             .await?;
@@ -4007,13 +4080,36 @@ pub(crate) fn petri_disk_cache_dir() -> String {
 /// All the information needed to locate and run a particular Nextest test
 pub struct NestedTestDeps {
     /// Nextest archive artifact
-    pub archive: ResolvedArtifact,
+    pub archive: ErasedArtifactHandle,
     /// Binary name within the nextest artifact
     pub binary: String,
     /// Test name within the binary
     pub test_name: String,
+}
+
+impl NestedTestDeps {
+    /// Create a new set of nested test dep arguments
+    pub fn new<A: IsNextestArchive>(
+        archive: ArtifactHandle<A>,
+        binary: &str,
+        test_name: &str,
+    ) -> Self {
+        Self {
+            archive: archive.erase(),
+            binary: binary.into(),
+            test_name: test_name.into(),
+        }
+    }
+}
+
+/// All the information needed to locate and run a particular Nextest test
+pub struct ResolvedNestedTestDeps {
+    /// Extracted test binary
+    pub test_binary: TempPath,
+    /// Test name within the binary
+    pub test_name: String,
     /// Artifacts required by the test
-    pub artifacts: Vec<(PathBuf, ResolvedArtifact)>,
+    pub artifacts: Vec<(ErasedArtifactHandle, PathBuf)>,
 }
 
 mod nextest_binaries_metadata_schema {
@@ -4045,15 +4141,19 @@ mod nextest_binaries_metadata_schema {
 
 impl NestedTestDeps {
     /// Extract the binary from the archive by parsing the json metadata
-    pub async fn extract_binary(&self) -> anyhow::Result<TempPath> {
+    fn extract_binary(&self) -> anyhow::Result<TempPath> {
         let temp_dir = tempfile::tempdir()?;
+
+        // We need to resolve this manually since we need to get the nested test
+        // artifacts and to do that we need the archive first.
+        let archive = resolve_artifact(self.archive)?;
 
         let mut cmd = std::process::Command::new("tar");
         cmd.arg("--zstd")
             .arg("-xvf")
-            .arg(&self.archive)
+            .arg(archive)
             .current_dir(&temp_dir);
-        crate::run_host_cmd(cmd).await?;
+        futures::executor::block_on(crate::run_host_cmd(cmd))?;
 
         let meta_file = fs_err::File::open(
             temp_dir
@@ -4085,6 +4185,127 @@ impl NestedTestDeps {
         fs_err::rename(&local_binary_path, &temp_path)?;
 
         Ok(temp_path)
+    }
+
+    fn resolve(&self) -> anyhow::Result<ResolvedNestedTestDeps> {
+        let test_binary = self
+            .extract_binary()
+            .context("failed to extract nextest binary")?;
+
+        let artifacts = petri_artifacts_core::query_test_binary_artifacts(
+            &test_binary,
+            &[&self.test_name],
+            BTreeMap::from([(
+                VMM_TESTS_CONTENT_DIR.into(),
+                std::env::var(VMM_TESTS_CONTENT_DIR).context("test content dir env var not set")?,
+            )]),
+        )
+        .context("failed to query test binary for artifacts")?
+        .into_artifacts_list()
+        .into_iter()
+        .filter(|id| id != petri_artifacts_common::artifacts::TEST_LOG_DIRECTORY::GLOBAL_UNIQUE_ID)
+        .map(|id| {
+            let handle = petri_artifacts_core::artifact_from_id(&id)
+                .with_context(|| format!("unknown artifact handle: {id}"))?;
+            Ok((handle, resolve_artifact(handle)?))
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
+
+        Ok(ResolvedNestedTestDeps {
+            test_binary,
+            test_name: self.test_name.to_string(),
+            artifacts,
+        })
+    }
+}
+
+trait PetriGuestPaths {
+    /// Get whether an agent disk exists
+    fn has_agent_disk(&self) -> bool;
+    /// Get the OS flavor
+    fn os_flavor(&self) -> OsFlavor;
+
+    /// Get the path separator
+    fn path_separator(&self) -> &'static str {
+        match self.os_flavor() {
+            OsFlavor::Windows => "\\",
+            _ => "/",
+        }
+    }
+
+    /// Get the path to the agent disk, if it exists
+    ///
+    /// Does not include any subsequent path separators.
+    fn agent_disk_root(&self) -> Option<&'static str> {
+        self.has_agent_disk().then(|| match self.os_flavor() {
+            OsFlavor::Windows => "D:",
+            _ => "/cidata",
+        })
+    }
+
+    /// Construct a path with the appropriate path component separators for
+    /// the guest.
+    fn build_guest_path(&self, components: &[String]) -> String {
+        components.join(self.path_separator())
+    }
+
+    /// Construct a path with the appropriate path component separators for
+    /// the guest from an existing host path.
+    fn convert_guest_path(&self, path: &Path) -> String {
+        self.build_guest_path(
+            &path
+                .iter()
+                .map(|c| c.to_str().expect("path not utf8").to_string())
+                .collect::<Vec<_>>(),
+        )
+    }
+
+    /// Returns the paths to each of the parent directories.
+    fn parents<'a>(&self, path: &'a str) -> Vec<&'a str> {
+        path.match_indices(self.path_separator())
+            .map(|(x, _)| &path[0..x])
+            .collect()
+    }
+
+    /// Construct the path to a file in the agent disk.
+    ///
+    /// Panics if no agent disk exists.
+    fn agent_disk_path(&self, components: &[String]) -> String {
+        self.build_guest_path(&[&[self.agent_disk_root().unwrap().into()], components].concat())
+    }
+
+    /// Construct a binary name with the appropriate extension for the guest.
+    fn binary_with_extension(&self, name: &str) -> String {
+        match self.os_flavor() {
+            OsFlavor::Windows => format!("{name}.exe"),
+            _ => name.into(),
+        }
+    }
+}
+
+struct FatFsPathBuilder(OsFlavor);
+
+impl PetriGuestPaths for FatFsPathBuilder {
+    fn has_agent_disk(&self) -> bool {
+        true
+    }
+
+    fn os_flavor(&self) -> OsFlavor {
+        self.0
+    }
+
+    fn path_separator(&self) -> &'static str {
+        "/"
+    }
+}
+
+impl<T: PetriVmmBackend> PetriGuestPaths for PetriVm<T> {
+    fn has_agent_disk(&self) -> bool {
+        self.properties.has_agent_disk
+    }
+
+    fn os_flavor(&self) -> OsFlavor {
+        self.properties.os_flavor
     }
 }
 

@@ -124,6 +124,7 @@ impl PetriVmConfigOpenVmm {
             ipmi_enabled,
             memory,
             proc_topology,
+            nested_virt_enabled,
             vmgs,
             tpm: tpm_config,
             vmbus_storage_controllers,
@@ -684,7 +685,7 @@ impl PetriVmConfigOpenVmm {
                     None => None,
                     _ => anyhow::bail!("unsupported isolation type"),
                 },
-                nested_virt: false,
+                nested_virt: nested_virt_enabled,
             },
             vmbus: if properties.no_vmbus {
                 None

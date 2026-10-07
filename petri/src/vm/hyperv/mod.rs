@@ -177,7 +177,7 @@ impl PetriVmmBackend for HyperVPetriBackend {
         config: PetriVmConfig,
         _modify_vmm_config: Option<ModifyFn<Self::VmmConfig>>,
         resources: &PetriVmResources,
-        properties: PetriVmProperties,
+        properties: &PetriVmProperties,
     ) -> anyhow::Result<(Self::VmRuntime, PetriVmRuntimeConfig)> {
         let PetriVmResources {
             driver,
@@ -508,7 +508,7 @@ impl PetriVmmBackend for HyperVPetriBackend {
                 temp_dir,
                 output_dir: log_source.output_dir().to_owned(),
                 driver: driver.clone(),
-                properties,
+                properties: properties.clone(),
             },
             config
                 .firmware

@@ -25,7 +25,6 @@ use flowey::node::prelude::*;
 use petri_artifacts_common::artifacts::*;
 use petri_artifacts_core::ArtifactId;
 use petri_artifacts_core::ArtifactTarget;
-use petri_artifacts_core::AsArtifactHandle;
 use petri_artifacts_vmm_test::artifacts::*;
 
 macro_rules! define_vmm_tests_built_artifacts {

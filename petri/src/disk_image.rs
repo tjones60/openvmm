@@ -25,7 +25,7 @@ use tempfile::TempPath;
 pub struct AgentImage {
     os_flavor: OsFlavor,
     pipette: Option<ResolvedArtifact>,
-    extras: Vec<(PathBuf, ImageEntry)>,
+    extras: Vec<(String, ImageEntry)>,
 }
 
 #[derive(Debug)]
@@ -110,52 +110,47 @@ impl AgentImage {
     /// Adds an extra file to the disk image.
     pub fn add_file(&mut self, name: &str, file_path: impl AsRef<Path>) {
         self.extras.push((
-            PathBuf::from(name),
+            name.into(),
             ImageEntry::File(file_path.as_ref().to_path_buf()),
         ));
     }
 
     /// Add collection of image entries
-    pub fn add_extras(&mut self, extras: Vec<(PathBuf, ImageEntry)>) {
+    pub fn add_extras(&mut self, extras: Vec<(String, ImageEntry)>) {
         self.extras.extend(extras);
     }
 
     /// Builds a disk image containing pipette and any files needed for the guest VM
     /// to run pipette.
     pub fn build(&self, image_type: ImageType) -> anyhow::Result<Option<tempfile::NamedTempFile>> {
+        tracing::info!("{:?}", self.extras);
         let mut files = self
             .extras
             .iter()
-            .map(|(name, file_path)| (name.as_path(), file_path.as_content()))
+            .map(|(name, file_path)| (name.as_str(), file_path.as_content()))
             .collect::<Vec<_>>();
         let volume_label = match self.os_flavor {
             OsFlavor::Windows => {
                 // Windows doesn't use cloud-init, so we only need pipette
                 // (which is configured via the IMC hive).
                 if let Some(pipette) = self.pipette.as_ref() {
-                    files.push((
-                        Path::new("pipette.exe"),
-                        ImageEntryContent::Path(pipette.as_ref()),
-                    ));
+                    files.push(("pipette.exe", ImageEntryContent::Path(pipette.as_ref())));
                 }
                 b"pipette    "
             }
             OsFlavor::Linux => {
                 if let Some(pipette) = self.pipette.as_ref() {
-                    files.push((
-                        Path::new("pipette"),
-                        ImageEntryContent::Path(pipette.as_ref()),
-                    ));
+                    files.push(("pipette", ImageEntryContent::Path(pipette.as_ref())));
                 }
                 // Linux uses cloud-init, so we need to include the cloud-init
                 // configuration files as well.
                 files.extend([
                     (
-                        Path::new("meta-data"),
+                        "meta-data",
                         ImageEntryContent::Binary(include_bytes!("../guest-bootstrap/meta-data")),
                     ),
                     (
-                        Path::new("user-data"),
+                        "user-data",
                         if self.pipette.is_some() {
                             ImageEntryContent::Binary(include_bytes!(
                                 "../guest-bootstrap/user-data"
@@ -169,7 +164,7 @@ impl AgentImage {
                     // Specify a non-present NIC to work around https://github.com/canonical/cloud-init/issues/5511
                     // TODO: support dynamically configuring the network based on vm configuration
                     (
-                        Path::new("network-config"),
+                        "network-config",
                         ImageEntryContent::Binary(include_bytes!(
                             "../guest-bootstrap/network-config"
                         )),
@@ -231,7 +226,7 @@ pub(crate) fn build_fat32_disk_image(
     file: &mut (impl Read + Write + Seek),
     gpt_name: &str,
     volume_label: &[u8; 11],
-    files: &[(&Path, ImageEntryContent<'_>)],
+    files: &[(&str, ImageEntryContent<'_>)],
 ) -> anyhow::Result<()> {
     let partition_range =
         build_gpt(file, gpt_name).context("failed to construct partition table")?;
@@ -271,7 +266,7 @@ fn build_gpt(file: &mut (impl Read + Write + Seek), name: &str) -> anyhow::Resul
 fn build_fat32(
     file: &mut (impl Read + Write + Seek),
     volume_label: &[u8; 11],
-    files: &[(&Path, ImageEntryContent<'_>)],
+    files: &[(&str, ImageEntryContent<'_>)],
 ) -> anyhow::Result<()> {
     fatfs::format_volume(
         &mut *file,
@@ -282,8 +277,6 @@ fn build_fat32(
     .context("failed to format volume")?;
     let fs = fatfs::FileSystem::new(file, FsOptions::new()).context("failed to open fs")?;
     for (path, src) in files {
-        let path = path.to_str().context("file path should be utf8")?;
-
         if matches!(src, ImageEntryContent::Dir) {
             fs.root_dir()
                 .create_dir(path)

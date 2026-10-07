@@ -4,8 +4,6 @@
 //! `petri` test artifact declarations used by all petri-based tests, no matter
 //! what VMM backend is being used.
 
-#![forbid(unsafe_code)]
-
 /// Runtime capabilities that VMM tests can require.
 pub mod capabilities {
     /// Software VPCI device emulation support.
@@ -179,7 +177,4 @@ pub mod tags {
 
     /// Artifact is a VmgsTool binary
     pub trait IsVmgsTool: ArtifactId {}
-
-    /// Artifact is a Nextest archive
-    pub trait IsNextestArchive: ArtifactId {}
 }

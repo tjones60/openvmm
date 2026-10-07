@@ -5,8 +5,22 @@
 
 use petri_artifacts_core::ArtifactHandle;
 use petri_artifacts_core::ArtifactId;
-use petri_artifacts_core::AsArtifactHandle;
 use petri_artifacts_core::ErasedArtifactHandle;
+
+/// Petri VMM tests environment variables
+pub mod env {
+    /// Where petri should look for test artifacts (that aren't images)
+    pub const VMM_TESTS_CONTENT_DIR: &str = "VMM_TESTS_CONTENT_DIR";
+    /// Where petri should put test logs
+    pub const TEST_OUTPUT_PATH: &str = "TEST_OUTPUT_PATH";
+    /// Where petri should look for test images
+    pub const VMM_TEST_IMAGES: &str = "VMM_TEST_IMAGES";
+    /// Whether prep_steps should reuse prepped vhds (vs always recreating them)
+    pub const PETRI_REUSE_PREPPED_VHDS: &str = "PETRI_REUSE_PREPPED_VHDS";
+    /// Whether tests requiring 2MB HugeTLB should fail if not available or
+    /// be silently skipped.
+    pub const OPENVMM_REQUIRE_2MB_HUGETLB: &str = "OPENVMM_REQUIRE_2MB_HUGETLB";
+}
 
 /// A type-erased artifact that holds references to information about a certain
 /// test image that implements `IsHostedOnHvliteAzureBlobStore`
@@ -106,10 +120,9 @@ impl ErasedVmmTestImage {
     }
 }
 
-impl<T: ArtifactId + tags::IsHostedOnHvliteAzureBlobStore> From<ArtifactHandle<T>>
-    for ErasedVmmTestImage
-{
-    fn from(_value: ArtifactHandle<T>) -> Self {
+impl ErasedVmmTestImage {
+    /// Create a new `ErasedVmmTestImage`
+    pub const fn new<T: ArtifactId + tags::IsHostedOnHvliteAzureBlobStore>() -> Self {
         Self {
             artifact_id_str: T::GLOBAL_UNIQUE_ID,
             filename: T::FILENAME,
@@ -117,6 +130,14 @@ impl<T: ArtifactId + tags::IsHostedOnHvliteAzureBlobStore> From<ArtifactHandle<T
             size: T::SIZE,
             download_name: T::DOWNLOAD_NAME,
         }
+    }
+}
+
+impl<T: ArtifactId + tags::IsHostedOnHvliteAzureBlobStore> From<ArtifactHandle<T>>
+    for ErasedVmmTestImage
+{
+    fn from(_value: ArtifactHandle<T>) -> Self {
+        Self::new::<T>()
     }
 }
 
@@ -168,7 +189,7 @@ macro_rules! declare_vmm_test_images {
             $name(
                 $crate::artifacts::blob_disk::$blob_storage,
                 $filename,
-                ANY
+                IMAGE
             ),
         )*);
 
@@ -179,20 +200,12 @@ macro_rules! declare_vmm_test_images {
 
         const _: () = {
             use $crate::vmm_test_images_macro_support::linkme;
-            use $crate::tags::IsHostedOnHvliteAzureBlobStore;
-            use ::petri_artifacts_core::ArtifactId;
 
             // UNSAFETY: Needed for linkme.
             #[expect(unsafe_code)]
             #[linkme::distributed_slice($crate::vmm_test_images_macro_support::VMM_TEST_IMAGES)]
             #[linkme(crate = linkme)]
-            static IMAGE: $crate::ErasedVmmTestImage = $crate::ErasedVmmTestImage {
-                artifact_id_str: $name::GLOBAL_UNIQUE_ID,
-                filename: $name::FILENAME,
-                url_fn: $name::url,
-                size: $name::SIZE,
-                download_name: $name::DOWNLOAD_NAME,
-            };
+            static IMAGE: $crate::ErasedVmmTestImage = $crate::ErasedVmmTestImage::new::<$name>();
         };)*
     };
 }
@@ -207,7 +220,7 @@ macro_rules! declare_prepped_vmm_test_images {
     ) => {
         ::petri_artifacts_core::declare_artifacts_inner!($(
             $(#[$doc])*
-            $name(::petri_artifacts_core::DOES_NOT_SUPPORT_BLOB_DISK, $filename, ANY),
+            $name(::petri_artifacts_core::DOES_NOT_SUPPORT_BLOB_DISK, $filename, IMAGE),
         )*);
     };
 }
@@ -310,8 +323,8 @@ pub mod artifacts {
 
     /// Host-side tools used by the VMM tests.
     pub mod host_tools {
-        use petri_artifacts_common::tags::IsNextestArchive;
         use petri_artifacts_core::declare_artifacts;
+        use petri_artifacts_core::tags::IsNextestArchive;
 
         declare_artifacts! {
             /// Windows x86_64 build of the `test_igvm_agent_rpc_server` executable.

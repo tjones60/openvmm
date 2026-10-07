@@ -3,6 +3,7 @@
 
 //! Integration tests that run on more than one architecture.
 
+use crate::nested::nested_vm_host;
 use anyhow::Context;
 use futures::StreamExt;
 use guid::Guid;
@@ -20,6 +21,7 @@ use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_common::tags::OsFlavor;
 #[cfg(target_os = "linux")]
 use petri_artifacts_vmm_test::artifacts::OPENVMM_VHOST_NATIVE;
+use petri_artifacts_vmm_test::artifacts::host_tools::NEXTEST_VMM_TESTS_ARCHIVE_LINUX_X64_MUSL;
 use vmm_test_macros::openvmm_test;
 use vmm_test_macros::vmm_test;
 use vmm_test_macros::vmm_test_with;
@@ -76,6 +78,10 @@ async fn frontpage<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Res
 /// Basic boot test.
 #[vmm_test(
     openvmm_linux_direct_x64,
+    nested(
+        (nested_vm_host, openvmm_linux_direct_x64),
+        (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_X64_MUSL, "tests", "multiarch", openvmm_linux_direct_x64),
+    ),
     openvmm_linux_direct_aarch64,
     qemu_linux_direct_aarch64,
     openvmm_openhcl_linux_direct_x64,

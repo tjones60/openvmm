@@ -63,7 +63,7 @@ impl PetriVmConfigOpenVmm {
         // TODO: arm64 is broken?
         // TODO: VPCI and some PCIe endpoints (NVMe/GDMA) don't support
         // TODO: virtio vsock doesn't support save/restore yet
-        // save/restore yet.
+        // TODO: nested virt does support save/restore yet
         let has_unsupported_pcie_save_restore_device = config
             .pcie_devices
             .iter()
@@ -73,7 +73,8 @@ impl PetriVmConfigOpenVmm {
             && !matches!(arch, MachineArch::Aarch64)
             && !resources.properties.using_vpci
             && !has_unsupported_pcie_save_restore_device
-            && !resources.properties.use_virtio_vsock;
+            && !resources.properties.use_virtio_vsock
+            && !config.hypervisor.nested_virt;
 
         // Add the GED and VTL 2 settings.
         if let Some(mut ged) = ged {
@@ -182,10 +183,10 @@ impl PetriVmConfigOpenVmm {
         vm.resume().await?;
 
         // Run basic save/restore test if it is supported
-        // if supports_save_restore && !is_minimal {
-        //     tracing::info!("Testing save/restore");
-        //     vm.verify_save_restore().await?;
-        // }
+        if supports_save_restore && !is_minimal {
+            tracing::info!("Testing save/restore");
+            vm.verify_save_restore().await?;
+        }
 
         tracing::info!("VM ready");
         Ok((vm, runtime_config))
