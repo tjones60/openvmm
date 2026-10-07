@@ -127,21 +127,6 @@ impl<T: PetriVmmBackend> PetriVmArtifacts<T> {
             None
         };
 
-        // let nested_test = if let Some(args) = nested_test {
-        //     match args.resolve(resolver) {
-        //         Ok(deps) => Some(deps),
-        //         Err(err) => {
-        //             // This isn't ideal, but since we need a hack to resolve
-        //             // the nested test, just skip it if the resolution doesn't
-        //             // work.
-        //             panic!("failed to resolve nested test: {err:#}");
-        //             // return None;
-        //         }
-        //     }
-        // } else {
-        //     None
-        // };
-
         Some(Self {
             backend: T::new(resolver, arch),
             arch,
@@ -303,6 +288,8 @@ pub struct PetriVmConfig {
     pub pcie_virtio_blk_drives: Vec<PcieVirtioBlkDrive>,
     /// Physical NVMe devices to attach
     pub physical_nvme_devices: HashMap<Guid, PhysicalNvmeDevice>,
+    /// Path to share with the guest
+    pub guest_share: Option<tempfile::TempDir>,
 }
 
 /// PCIe NVMe drive configuration.
@@ -413,6 +400,9 @@ pub trait PetriVmmBackend: Debug {
     /// architecture does not match the guest architecture.
     const SUPPORTS_CPU_EMULATION: bool = false;
 
+    /// How to share files with the guest for this backend
+    const AGENT_DISK_TYPE: AgentDiskType = AgentDiskType::VHD;
+
     /// Check whether the combination of guest firmware, guest architecture, and
     /// internally determined host properties is supported by the backend.
     ///
@@ -440,7 +430,7 @@ pub trait PetriVmmBackend: Debug {
 
     /// Generate an rdinit script that does the necessary configuration to
     /// launch pipette for linux direct
-    fn build_custom_init_script(pipette_path: &str) -> Option<String>;
+    fn build_custom_init_script(pipette_path: &str, mount_share: Option<&str>) -> Option<String>;
 
     /// Resolve any artifacts needed to use this backend
     ///
@@ -670,6 +660,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
                 pcie_nvme_drives: Vec::new(),
                 pcie_virtio_blk_drives: Vec::new(),
                 physical_nvme_devices: HashMap::new(),
+                guest_share: None,
             },
             modify_vmm_config: None,
             resources: PetriVmResources {
@@ -746,7 +737,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
     /// Prepare an initrd with a custom script
     pub fn prepare_custom_initrd(
         &self,
-        build_custom_init_script: impl FnOnce(&str) -> Option<String>,
+        build_custom_init_script: impl FnOnce(&str, Option<&str>) -> Option<String>,
     ) -> anyhow::Result<PetriInitrd> {
         const PIPETTE_PATH: &str = "pipette";
         const INIT_SCRIPT_NAME: &str = "custom-init.sh";
@@ -774,7 +765,12 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             initrd_cpio::inject_into_initrd(&initrd_gz, PIPETTE_PATH, &pipette_data, 0o100755)
                 .context("failed to inject pipette into initrd")?;
 
-        let (merged_gz, rdinit) = if let Some(file_data) = build_custom_init_script(PIPETTE_PATH) {
+        let has_guest_share = self.config.guest_share.is_some()
+            && self.agent_image.as_ref().is_some_and(|i| i.has_extras());
+
+        let (merged_gz, rdinit) = if let Some(file_data) =
+            build_custom_init_script(PIPETTE_PATH, has_guest_share.then_some("/cidata"))
+        {
             (
                 initrd_cpio::inject_into_initrd(
                     &merged_gz,
@@ -893,39 +889,43 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         self.with_no_vmbus()
     }
 
-    fn add_petri_scsi_controllers(self) -> Self {
-        let builder = self.add_vmbus_storage_controller(
-            &PETRI_SCSI_VTL0_CONTROLLER,
-            Vtl::Vtl0,
-            VmbusStorageType::Scsi,
-        );
-
-        if builder.is_openhcl() {
-            builder.add_vmbus_storage_controller(
-                &PETRI_SCSI_VTL2_CONTROLLER,
-                Vtl::Vtl2,
+    fn add_petri_scsi_controllers(mut self) -> Self {
+        if T::SUPPORTS_VMBUS {
+            self = self.add_vmbus_storage_controller(
+                &PETRI_SCSI_VTL0_CONTROLLER,
+                Vtl::Vtl0,
                 VmbusStorageType::Scsi,
-            )
-        } else {
-            builder
+            );
+
+            if self.is_openhcl() {
+                self = self.add_vmbus_storage_controller(
+                    &PETRI_SCSI_VTL2_CONTROLLER,
+                    Vtl::Vtl2,
+                    VmbusStorageType::Scsi,
+                )
+            }
         }
+        self
     }
 
     fn add_guest_crash_disk(
         self,
         post_test_hooks: &mut Vec<PetriPostTestHook>,
     ) -> anyhow::Result<Self> {
-        let logger = self.resources.log_source.clone();
-        let (disk, disk_hook) = matches!(
-            self.config.firmware.os_flavor(),
-            OsFlavor::Windows | OsFlavor::Linux
-        )
-        .then(|| T::create_guest_dump_disk().context("failed to create guest dump disk"))
-        .transpose()?
-        .flatten()
-        .unzip();
+        let supports_vmbus_crash_disk = !self.no_vmbus
+            && matches!(
+                self.config.firmware.os_flavor(),
+                OsFlavor::Windows | OsFlavor::Linux
+            );
+
+        let (disk, disk_hook) = supports_vmbus_crash_disk
+            .then(|| T::create_guest_dump_disk().context("failed to create guest dump disk"))
+            .transpose()?
+            .flatten()
+            .unzip();
 
         if let Some(disk_hook) = disk_hook {
+            let logger = self.resources.log_source.clone();
             post_test_hooks.push(PetriPostTestHook::new(
                 "extract guest crash dumps".into(),
                 move |test_passed| {
@@ -970,12 +970,12 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         })
     }
 
-    fn add_agent_disks(self) -> Self {
-        self.add_agent_disk_inner(Vtl::Vtl0)
+    fn add_agent_disks(self) -> anyhow::Result<Self> {
+        self.add_agent_disk_inner(Vtl::Vtl0)?
             .add_agent_disk_inner(Vtl::Vtl2)
     }
 
-    fn add_agent_disk_inner(mut self, target_vtl: Vtl) -> Self {
+    fn add_agent_disk_inner(mut self, target_vtl: Vtl) -> anyhow::Result<Self> {
         let (agent_image, controller_id) = match target_vtl {
             Vtl::Vtl0 => (self.agent_image.as_ref(), PETRI_SCSI_VTL0_CONTROLLER),
             Vtl::Vtl1 => panic!("no VTL1 agent disk"),
@@ -991,14 +991,26 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             && self.uses_pipette_as_init()
             && !agent_image.is_some_and(|i| i.has_extras())
         {
-            return self;
+            return Ok(self);
         }
 
-        let Some(agent_disk) = agent_image.and_then(|i| {
-            i.build(crate::disk_image::ImageType::Vhd)
-                .expect("failed to build agent image")
-        }) else {
-            return self;
+        let agent_disk = if let Some(i) = agent_image {
+            match T::AGENT_DISK_TYPE {
+                AgentDiskType::VHD => i
+                    .build(crate::disk_image::ImageType::Vhd)
+                    .context("failed to build agent image")?,
+                AgentDiskType::Folder => {
+                    self.config.guest_share =
+                        i.build_folder().context("failed to build agent image")?;
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        let Some(agent_disk) = agent_disk else {
+            return Ok(self);
         };
 
         // When VMBus is disabled, route the agent disk through PCIe NVMe
@@ -1012,7 +1024,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
                     false,
                 ),
             });
-            return self;
+            return Ok(self);
         }
 
         // Ensure the storage controller exists (minimal mode doesn't
@@ -1029,14 +1041,14 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             );
         }
 
-        self.add_vmbus_drive(
+        Ok(self.add_vmbus_drive(
             Drive::new(
                 Some(Disk::Temporary(Arc::new(agent_disk.into_temp_path()))),
                 false,
             ),
             &controller_id,
             Some(PETRI_SCSI_PIPETTE_LUN),
-        )
+        ))
     }
 
     fn add_boot_disk(mut self) -> Self {
@@ -1257,7 +1269,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
     async fn run_core(mut self) -> anyhow::Result<PetriVm<T>> {
         // Add the boot disk now to allow the test to modify the boot type
         // Add the agent disks now to allow the test to add custom files
-        self = self.add_boot_disk().add_agent_disks();
+        self = self.add_boot_disk().add_agent_disks()?;
 
         // Auto-prepare the initrd with pipette injected if needed.
         // This centralizes the injection logic so backends only ever
@@ -2117,6 +2129,7 @@ impl<T: PetriVmmBackend> PetriVm<T> {
             //     }
             // }
         }
+
         Ok(())
     }
 
@@ -2515,21 +2528,22 @@ impl<T: PetriVmmBackend> PetriVm<T> {
 
     /// Run the nested test. Failed if a nested test was not configured.
     pub async fn run_nested_test(&self, client: &PipetteClient) -> anyhow::Result<()> {
-        client
-            .unix_shell()
-            .cmd(self.agent_disk_path(&[
+        let sh = client.unix_shell();
+
+        let test_name = &self
+            .nested_test
+            .as_ref()
+            .context("no nested test")?
+            .test_name;
+
+        let mut child = client
+            .command(self.agent_disk_path(&[
                 NESTED_TEST_CONTENT_DIR.into(),
                 self.binary_with_extension(NESTED_TEST_BINARY),
             ]))
             .arg("--ignored")
             .arg("--exact")
-            .arg(
-                &self
-                    .nested_test
-                    .as_ref()
-                    .context("no nested test")?
-                    .test_name,
-            )
+            .arg(test_name)
             .env(
                 VMM_TESTS_CONTENT_DIR,
                 self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into()]),
@@ -2542,8 +2556,58 @@ impl<T: PetriVmmBackend> PetriVm<T> {
                 TEST_OUTPUT_PATH,
                 self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into(), NESTED_RESULTS_DIR.into()]),
             )
-            .run()
+            .stdout(crate::pipette::process::Stdio::piped())
+            .stderr(crate::pipette::process::Stdio::piped())
+            .spawn()
             .await?;
+
+        self.resources
+            .driver
+            .spawn(
+                "log_nested",
+                crate::log_task(
+                    self.resources.log_source.log_file("nested_stdout")?,
+                    child.stdout.take().unwrap(),
+                    "nested stdout",
+                ),
+            )
+            .detach();
+
+        let output = child.wait_with_output().await?;
+
+        let test_results_dir = self.agent_disk_path(&[
+            NESTED_TEST_CONTENT_DIR.into(),
+            NESTED_RESULTS_DIR.into(),
+            test_name.replace("::", "__"),
+        ]);
+        let log_files = String::from_utf8(
+            sh.cmd("ls")
+                .arg("-1")
+                .arg(&test_results_dir)
+                .output()
+                .await?
+                .stdout,
+        )
+        .context("ls output not utf8")?;
+
+        for file in log_files.lines() {
+            let data = client
+                .read_file(self.build_guest_path(&[test_results_dir.clone(), file.into()]))
+                .await?;
+            let mut output = self
+                .resources
+                .log_source
+                .create_attachment(&format!("nested_{file}"))?;
+            output.write_all(&data)?;
+        }
+
+        if !output.status.success() {
+            anyhow::bail!(
+                "nested test exited with status {}: {}",
+                output.status,
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
 
         Ok(())
     }
@@ -4307,6 +4371,15 @@ impl<T: PetriVmmBackend> PetriGuestPaths for PetriVm<T> {
     fn os_flavor(&self) -> OsFlavor {
         self.properties.os_flavor
     }
+}
+
+/// Agent files method
+#[derive(Debug, Clone, Copy)]
+pub enum AgentDiskType {
+    /// Create a VHD to mount in the guest
+    VHD,
+    /// Share a host folder with the guest
+    Folder,
 }
 
 #[cfg(test)]

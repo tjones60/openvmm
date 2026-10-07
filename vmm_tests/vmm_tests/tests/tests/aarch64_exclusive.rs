@@ -3,6 +3,7 @@
 
 //! Integration tests for aarch64 guests.
 
+use crate::nested::nested_vm_host;
 use anyhow::Context;
 use pal_async::DefaultDriver;
 use pal_async::timer::PolledTimer;
@@ -11,6 +12,7 @@ use petri::PetriVmmBackend;
 use petri::ProcessorTopology;
 use petri::openvmm::OpenVmmPetriBackend;
 use petri::pipette::cmd;
+use petri_artifacts_vmm_test::artifacts::host_tools::NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL;
 use std::time::Duration;
 use vfio_assigned_device_resources::BarAddressConfig;
 use vm_resource::IntoResource;
@@ -862,7 +864,12 @@ async fn assigned_device_smmu_accel_fault_aarch64_tcg(
 ///
 /// The `_aarch64_tcg` name suffix opts this test into the QEMU incubator pass.
 /// TODO: enable this for non-TCG passes (WHP, MSHV) as well, once this is convenient.
-#[openvmm_test(linux_direct_aarch64)]
+#[openvmm_test(
+    nested(
+        (nested_vm_host, qemu_linux_direct_aarch64),
+        (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL, "tests", "aarch64_exclusive", linux_direct_aarch64),
+    ),
+)]
 async fn mpidr_affinity_rollover_heavy_aarch64_tcg(
     config: PetriVmBuilder<OpenVmmPetriBackend>,
 ) -> anyhow::Result<()> {
@@ -973,7 +980,12 @@ async fn mpidr_affinity_rollover_heavy_aarch64_tcg(
 /// configured topology instead of the affinity fields.
 ///
 /// The `_aarch64_tcg` name suffix opts this test into the QEMU incubator pass.
-#[openvmm_test(linux_direct_aarch64)]
+#[openvmm_test(
+    nested(
+        (nested_vm_host, qemu_linux_direct_aarch64),
+        (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL, "tests", "aarch64_exclusive", linux_direct_aarch64),
+    ),
+)]
 async fn smt_topology_aarch64_tcg(
     config: PetriVmBuilder<OpenVmmPetriBackend>,
 ) -> anyhow::Result<()> {

@@ -21,6 +21,7 @@ use petri_artifacts_common::tags::MachineArch;
 use petri_artifacts_common::tags::OsFlavor;
 #[cfg(target_os = "linux")]
 use petri_artifacts_vmm_test::artifacts::OPENVMM_VHOST_NATIVE;
+use petri_artifacts_vmm_test::artifacts::host_tools::NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL;
 use petri_artifacts_vmm_test::artifacts::host_tools::NEXTEST_VMM_TESTS_ARCHIVE_LINUX_X64_MUSL;
 use vmm_test_macros::openvmm_test;
 use vmm_test_macros::vmm_test;
@@ -110,7 +111,7 @@ async fn frontpage<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Res
     hyperv_openhcl_uefi_x64[snp](vhd(windows_datacenter_core_2025_x64_prepped)),
     hyperv_openhcl_uefi_x64[snp](vhd(ubuntu_2504_server_x64)),
     hyperv_openhcl_uefi_x64[tdx](vhd(windows_datacenter_core_2025_x64_prepped)),
-    hyperv_openhcl_uefi_x64[tdx](vhd(ubuntu_2504_server_x64))
+    hyperv_openhcl_uefi_x64[tdx](vhd(ubuntu_2504_server_x64)),
 )]
 async fn boot<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Result<()> {
     let (vm, agent) = config.run().await?;
@@ -174,6 +175,26 @@ async fn boot_no_vmbus(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::R
     Ok(())
 }
 
+/// Boot a small aarch64 Linux direct guest without Hyper-V enlightenments.
+#[cfg(target_os = "linux")]
+#[openvmm_test(
+    nested(
+        (nested_vm_host, qemu_linux_direct_aarch64),
+        (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL, "tests", "multiarch", linux_direct_aarch64),
+    ),
+)]
+async fn boot_no_hv(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Result<()> {
+    let (vm, agent) = config
+        .with_no_hv()
+        .modify_backend(|b| b.with_pcie_root_topology(1, 1, 3))
+        .run()
+        .await?;
+
+    agent.power_off().await?;
+    vm.wait_for_clean_teardown().await?;
+    Ok(())
+}
+
 /// Boot a small aarch64 Linux guest via UEFI without Hyper-V enlightenments.
 ///
 /// The loader must pass the generic SEC platform type in `x2`, allowing the
@@ -183,8 +204,16 @@ async fn boot_no_vmbus(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::R
 /// verifies that the guest preserves OpenVMM's preassigned PCI resources.
 /// The `_aarch64_tcg` suffix opts the test into the QEMU incubator CI pass.
 #[cfg(target_os = "linux")]
-#[openvmm_test(uefi_aarch64(vhd(alpine_3_23_aarch64)))]
-#[openvmm_test(uefi_aarch64(vhd(ubuntu_2404_server_aarch64)))]
+#[openvmm_test(
+    nested(
+        (nested_vm_host, qemu_linux_direct_aarch64),
+        (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL, "tests", "multiarch", uefi_aarch64(vhd(ubuntu_2404_server_aarch64))),
+    ),
+    nested(
+        (nested_vm_host, qemu_linux_direct_aarch64),
+        (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL, "tests", "multiarch", uefi_aarch64(vhd(alpine_3_23_aarch64))),
+    ),
+)]
 async fn boot_no_hv_uefi_aarch64_tcg(
     config: PetriVmBuilder<OpenVmmPetriBackend>,
 ) -> anyhow::Result<()> {

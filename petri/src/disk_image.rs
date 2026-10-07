@@ -123,58 +123,13 @@ impl AgentImage {
     /// Builds a disk image containing pipette and any files needed for the guest VM
     /// to run pipette.
     pub fn build(&self, image_type: ImageType) -> anyhow::Result<Option<tempfile::NamedTempFile>> {
-        tracing::info!("{:?}", self.extras);
-        let mut files = self
-            .extras
-            .iter()
-            .map(|(name, file_path)| (name.as_str(), file_path.as_content()))
-            .collect::<Vec<_>>();
         let volume_label = match self.os_flavor {
-            OsFlavor::Windows => {
-                // Windows doesn't use cloud-init, so we only need pipette
-                // (which is configured via the IMC hive).
-                if let Some(pipette) = self.pipette.as_ref() {
-                    files.push(("pipette.exe", ImageEntryContent::Path(pipette.as_ref())));
-                }
-                b"pipette    "
-            }
-            OsFlavor::Linux => {
-                if let Some(pipette) = self.pipette.as_ref() {
-                    files.push(("pipette", ImageEntryContent::Path(pipette.as_ref())));
-                }
-                // Linux uses cloud-init, so we need to include the cloud-init
-                // configuration files as well.
-                files.extend([
-                    (
-                        "meta-data",
-                        ImageEntryContent::Binary(include_bytes!("../guest-bootstrap/meta-data")),
-                    ),
-                    (
-                        "user-data",
-                        if self.pipette.is_some() {
-                            ImageEntryContent::Binary(include_bytes!(
-                                "../guest-bootstrap/user-data"
-                            ))
-                        } else {
-                            ImageEntryContent::Binary(include_bytes!(
-                                "../guest-bootstrap/user-data-no-agent"
-                            ))
-                        },
-                    ),
-                    // Specify a non-present NIC to work around https://github.com/canonical/cloud-init/issues/5511
-                    // TODO: support dynamically configuring the network based on vm configuration
-                    (
-                        "network-config",
-                        ImageEntryContent::Binary(include_bytes!(
-                            "../guest-bootstrap/network-config"
-                        )),
-                    ),
-                ]);
-                b"cidata     " // cloud-init looks for a volume label of "cidata",
-            }
-            // Nothing OS-specific yet for other flavors
+            OsFlavor::Windows => b"pipette    ",
+            // cloud-init looks for a volume label of "cidata",
             _ => b"cidata     ",
         };
+
+        let files = self.build_inner();
 
         let total_size: u64 = files
             .iter()
@@ -211,6 +166,88 @@ impl AgentImage {
 
             Ok(Some(image_file))
         }
+    }
+
+    /// Builds a folder containing pipette and any files needed for the guest VM
+    /// to run pipette.
+    pub fn build_folder(&self) -> anyhow::Result<Option<tempfile::TempDir>> {
+        let files = self.build_inner();
+
+        if files.is_empty() {
+            return Ok(None);
+        }
+
+        let folder = tempfile::tempdir()?;
+        let root = folder.path();
+        for (path, src) in files {
+            let dest = root.join(path);
+            match src {
+                ImageEntryContent::Path(src_path) => {
+                    fs_err::copy(src_path, dest).context("failed to copy file")?;
+                }
+                ImageEntryContent::Binary(src_data) => {
+                    fs_err::write(dest, src_data).context("failed to write file")?;
+                }
+                ImageEntryContent::Dir => {
+                    fs_err::create_dir(dest).context("failed to create dir")?;
+                }
+            }
+        }
+
+        Ok(Some(folder))
+    }
+
+    fn build_inner(&self) -> Vec<(&str, ImageEntryContent<'_>)> {
+        let mut files = self
+            .extras
+            .iter()
+            .map(|(name, file_path)| (name.as_str(), file_path.as_content()))
+            .collect::<Vec<_>>();
+        match self.os_flavor {
+            OsFlavor::Windows => {
+                // Windows doesn't use cloud-init, so we only need pipette
+                // (which is configured via the IMC hive).
+                if let Some(pipette) = self.pipette.as_ref() {
+                    files.push(("pipette.exe", ImageEntryContent::Path(pipette.as_ref())));
+                }
+            }
+            OsFlavor::Linux => {
+                if let Some(pipette) = self.pipette.as_ref() {
+                    files.push(("pipette", ImageEntryContent::Path(pipette.as_ref())));
+                }
+                // Linux uses cloud-init, so we need to include the cloud-init
+                // configuration files as well.
+                files.extend([
+                    (
+                        "meta-data",
+                        ImageEntryContent::Binary(include_bytes!("../guest-bootstrap/meta-data")),
+                    ),
+                    (
+                        "user-data",
+                        if self.pipette.is_some() {
+                            ImageEntryContent::Binary(include_bytes!(
+                                "../guest-bootstrap/user-data"
+                            ))
+                        } else {
+                            ImageEntryContent::Binary(include_bytes!(
+                                "../guest-bootstrap/user-data-no-agent"
+                            ))
+                        },
+                    ),
+                    // Specify a non-present NIC to work around https://github.com/canonical/cloud-init/issues/5511
+                    // TODO: support dynamically configuring the network based on vm configuration
+                    (
+                        "network-config",
+                        ImageEntryContent::Binary(include_bytes!(
+                            "../guest-bootstrap/network-config"
+                        )),
+                    ),
+                ]);
+            }
+            // Nothing OS-specific yet for other flavors
+            _ => {}
+        }
+        files
     }
 }
 

@@ -897,7 +897,7 @@ pub mod targets {
     use crate::ArtifactTarget;
 
     /// Artifact is an image
-    pub const IMAGE: ArtifactTarget = ArtifactTarget::Any;
+    pub const IMAGE: ArtifactTarget = ArtifactTarget::Image;
     /// Artifact can be used on any target system
     pub const ANY: ArtifactTarget = ArtifactTarget::Any;
     /// x86_64
