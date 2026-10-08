@@ -6694,6 +6694,7 @@ dependencies = [
  "smbios_defs",
  "sparse_mmap",
  "storvsp_resources",
+ "target-lexicon",
  "tempfile",
  "thiserror 2.0.16",
  "tpm_resources",

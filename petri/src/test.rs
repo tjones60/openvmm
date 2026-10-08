@@ -171,8 +171,17 @@ impl Test {
         let artifacts = resolve(&name, self.artifact_requirements.clone())
             .context("failed to resolve artifacts")?;
         let output_dir = artifacts.get(petri_artifacts_common::artifacts::TEST_LOG_DIRECTORY);
-        let logger = try_init_tracing(output_dir, tracing::level_filters::LevelFilter::DEBUG)
-            .context("failed to initialize tracing")?;
+        let is_nested_host = self
+            .artifact_requirements
+            .nested_artifacts()
+            .next()
+            .is_some();
+        let logger = try_init_tracing(
+            output_dir,
+            tracing::level_filters::LevelFilter::DEBUG,
+            is_nested_host.then(|| "l1_".into()),
+        )
+        .context("failed to initialize tracing")?;
         // Record the test's identity up front, so that a test which is killed
         // or crashes before reporting a result is still identifiable.
         logger.log_test_start(&name);

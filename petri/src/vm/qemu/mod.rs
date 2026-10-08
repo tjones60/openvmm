@@ -7,7 +7,6 @@
 
 pub mod devices;
 
-use crate::AgentDiskType;
 use crate::Drive;
 use crate::Firmware;
 use crate::ModifyFn;
@@ -73,7 +72,6 @@ pub struct QemuPetriRuntime {
     host_pipette_port: u16,
     log_tasks: Vec<Task<anyhow::Result<()>>>,
     output_dir: PathBuf,
-    _guest_share: Option<tempfile::TempDir>,
 }
 
 #[async_trait]
@@ -82,7 +80,7 @@ impl PetriVmmBackend for QemuPetriBackend {
     type VmRuntime = QemuPetriRuntime;
     const SUPPORTS_VMBUS: bool = false;
     const SUPPORTS_CPU_EMULATION: bool = true;
-    const AGENT_DISK_TYPE: AgentDiskType = AgentDiskType::Folder;
+    const SUPPORTS_FILE_SHARING: bool = true;
 
     fn check_compat(_firmware: &Firmware, _arch: MachineArch) -> bool {
         // Our QEMU bachend only supports linux X64 at this time
@@ -217,7 +215,6 @@ impl PetriVmmBackend for QemuPetriBackend {
                 host_pipette_port,
                 log_tasks,
                 output_dir: log_source.output_dir().to_owned(),
-                _guest_share: config.guest_share,
             },
             config
                 .firmware
@@ -533,7 +530,7 @@ pub fn build_qemu_command(
     let share_dir = match (guest_share, share_9p) {
         (None, None) => None,
         (None, Some(p)) => Some(p.as_path()),
-        (Some(dir), None) => Some(dir.path()),
+        (Some(dir), None) => Some(dir.as_path()),
         (Some(_), Some(_)) => {
             anyhow::bail!("adding a 9p share when using agent files is not supported")
         }

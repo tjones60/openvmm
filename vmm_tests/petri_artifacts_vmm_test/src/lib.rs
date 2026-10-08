@@ -20,6 +20,8 @@ pub mod env {
     /// Whether tests requiring 2MB HugeTLB should fail if not available or
     /// be silently skipped.
     pub const OPENVMM_REQUIRE_2MB_HUGETLB: &str = "OPENVMM_REQUIRE_2MB_HUGETLB";
+    /// The name of a nested test's parent to store logs in
+    pub const PETRI_NESTED_TEST_PARENT: &str = "PETRI_NESTED_TEST_PARENT";
 }
 
 /// A type-erased artifact that holds references to information about a certain

@@ -55,10 +55,7 @@ use petri_artifacts_vmm_test::env::*;
 use pipette_client::PipetteClient;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::collections::hash_map::DefaultHasher;
 use std::fmt::Debug;
-use std::hash::Hash;
-use std::hash::Hasher;
 use std::io::Write;
 use std::panic::AssertUnwindSafe;
 use std::path::Path;
@@ -112,8 +109,22 @@ impl<T: PetriVmmBackend> PetriVmArtifacts<T> {
         with_vtl0_pipette: bool,
         nested_test: Option<NestedTestDeps>,
     ) -> Option<Self> {
+        // if the operating system of the l1 doesn't match the l0, then we can't
+        // query the test binary for test artifact to add to the vhd if the l1
+        // backend doesn't support file sharing.
+        // TODO: use file sharing for all backends, install the necessary tools
+        // to cross-execute the binary, or get the artifact in the guest on demand
+        let different_nested_target = nested_test
+            .as_ref()
+            .map(|t| t.archive.target_triple().unwrap())
+            .is_some_and(|t| {
+                let host_target = target_lexicon::Triple::host();
+                host_target.operating_system != t.operating_system
+            });
+
         if !(T::SUPPORTS_CPU_EMULATION || arch == MachineArch::host())
             || !T::check_compat(&firmware, arch)
+            || !T::SUPPORTS_FILE_SHARING && different_nested_target
         {
             return None;
         }
@@ -290,7 +301,7 @@ pub struct PetriVmConfig {
     /// Physical NVMe devices to attach
     pub physical_nvme_devices: HashMap<Guid, PhysicalNvmeDevice>,
     /// Path to share with the guest
-    pub guest_share: Option<tempfile::TempDir>,
+    pub guest_share: Option<PathBuf>,
 }
 
 /// PCIe NVMe drive configuration.
@@ -401,8 +412,8 @@ pub trait PetriVmmBackend: Debug {
     /// architecture does not match the guest architecture.
     const SUPPORTS_CPU_EMULATION: bool = false;
 
-    /// How to share files with the guest for this backend
-    const AGENT_DISK_TYPE: AgentDiskType = AgentDiskType::Vhd;
+    /// Whether this backend is setup to share files on the host with the guest.
+    const SUPPORTS_FILE_SHARING: bool = false;
 
     /// Check whether the combination of guest firmware, guest architecture, and
     /// internally determined host properties is supported by the backend.
@@ -504,6 +515,8 @@ pub struct PetriVm<T: PetriVmmBackend> {
     properties: PetriVmProperties,
 
     nested_test: Option<ResolvedNestedTestDeps>,
+    guest_share: Option<PathBuf>,
+    name: String,
 }
 
 /// Wrapper around the VMM backend's runtime that captures inspect state if the
@@ -643,7 +656,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         Ok(Self {
             backend: artifacts.backend,
             config: PetriVmConfig {
-                name: make_vm_safe_name(test_name),
+                name: test_name.to_string(),
                 arch: artifacts.arch,
                 host_log_levels: None,
                 firmware: artifacts.firmware,
@@ -689,7 +702,10 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             no_hv: false,
             capture_inspect_on_failure: false,
 
-            nested_test: artifacts.nested_test.map(|t| t.resolve()).transpose()?,
+            nested_test: artifacts
+                .nested_test
+                .map(|t| t.resolve(!T::SUPPORTS_FILE_SHARING))
+                .transpose()?,
         })
     }
 
@@ -764,12 +780,14 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             initrd_cpio::inject_into_initrd(&initrd_gz, PIPETTE_PATH, &pipette_data, 0o100755)
                 .context("failed to inject pipette into initrd")?;
 
-        let has_guest_share = self.config.guest_share.is_some()
-            && self.agent_image.as_ref().is_some_and(|i| i.has_extras());
+        let has_guest_share = self.nested_test.is_some() && T::SUPPORTS_FILE_SHARING;
 
-        let (merged_gz, rdinit) = if let Some(file_data) =
-            build_custom_init_script(PIPETTE_PATH, has_guest_share.then_some("/cidata"))
-        {
+        let (merged_gz, rdinit) = if let Some(file_data) = build_custom_init_script(
+            PIPETTE_PATH,
+            has_guest_share
+                .then(|| self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into()]))
+                .as_deref(),
+        ) {
             (
                 initrd_cpio::inject_into_initrd(
                     &merged_gz,
@@ -993,22 +1011,14 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             return Ok(self);
         }
 
-        let agent_disk = if let Some(i) = agent_image {
-            match T::AGENT_DISK_TYPE {
-                AgentDiskType::Vhd => i
-                    .build(crate::disk_image::ImageType::Vhd)
-                    .context("failed to build agent image")?,
-                AgentDiskType::Folder => {
-                    self.config.guest_share =
-                        i.build_folder().context("failed to build agent image")?;
-                    None
-                }
-            }
-        } else {
-            None
-        };
-
-        let Some(agent_disk) = agent_disk else {
+        let Some(agent_disk) = agent_image
+            .map(|i| {
+                i.build(crate::disk_image::ImageType::Vhd)
+                    .context("failed to build agent image")
+            })
+            .transpose()?
+            .flatten()
+        else {
             return Ok(self);
         };
 
@@ -1255,11 +1265,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
     pub async fn run(self) -> anyhow::Result<(PetriVm<T>, PipetteClient)> {
         assert!(self.using_vtl0_pipette());
 
-        let mut vm = self
-            .add_nested_artifacts_to_agent_disk()
-            .await
-            .run_core()
-            .await?;
+        let mut vm = self.add_nested_artifacts_to_agent_disk().run_core().await?;
         let client = vm.wait_for_agent().await?;
 
         Ok((vm, client))
@@ -1282,6 +1288,8 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         let arch = self.config.arch;
         let expect_reset = self.expect_reset();
         let properties = self.properties();
+        let guest_share = self.config.guest_share.clone();
+        let name = self.config.name.clone();
 
         let (mut runtime, config) = self
             .backend
@@ -1316,6 +1324,8 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             properties,
 
             nested_test: self.nested_test,
+            guest_share,
+            name,
         };
 
         if expect_reset {
@@ -1993,10 +2003,20 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         self
     }
 
-    async fn add_nested_artifacts_to_agent_disk(mut self) -> Self {
+    fn add_nested_artifacts_to_agent_disk(mut self) -> Self {
         let Some(nested_test) = self.nested_test.as_ref() else {
             return self;
         };
+
+        // if we can just the files directly, make sure the nested test is under
+        // the test content dir.
+        if T::SUPPORTS_FILE_SHARING {
+            self.config.guest_share = Some(PathBuf::from(
+                std::env::var(VMM_TESTS_CONTENT_DIR).expect("test content dir not set"),
+            ));
+
+            return self;
+        }
 
         let mut extras = Vec::new();
 
@@ -2042,10 +2062,10 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             extras.push((dest, ImageEntry::File(src.clone())));
         }
 
-        self.agent_image
-            .as_mut()
-            .expect("no guest pipette")
-            .add_extras(extras);
+        let image = self.agent_image.as_mut().expect("no guest pipette");
+        image.add_extras(extras);
+        // Allocate an extra 150 MB for logs and crash dumps
+        image.allocate_free_space(150 * 1024 * 1024);
 
         self
     }
@@ -2478,19 +2498,23 @@ impl<T: PetriVmmBackend> PetriVm<T> {
     ) -> anyhow::Result<()> {
         let sh = client.unix_shell();
 
-        let test_name = &self
-            .nested_test
-            .as_ref()
-            .context("no nested test")?
-            .test_name;
+        let nested_test = self.nested_test.as_ref().context("no nested test")?;
 
-        let mut cmd = client.command(self.agent_disk_path(&[
+        let test_binary_guest_path = self.agent_disk_path(&[
             NESTED_TEST_CONTENT_DIR.into(),
-            self.binary_with_extension(NESTED_TEST_BINARY),
-        ]));
+            if let Some(guest_share) = self.guest_share.as_ref() {
+                let test_content_dir = std::path::absolute(guest_share.as_path())?;
+                let nested_test_path = std::path::absolute(&nested_test.test_binary)?;
+                self.convert_guest_path(nested_test_path.strip_prefix(&test_content_dir)?)
+            } else {
+                self.binary_with_extension(NESTED_TEST_BINARY)
+            },
+        ]);
+
+        let mut cmd = client.command(test_binary_guest_path);
         cmd.arg("--ignored")
             .arg("--exact")
-            .arg(test_name)
+            .arg(&nested_test.test_name)
             .env(
                 VMM_TESTS_CONTENT_DIR,
                 self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into()]),
@@ -2510,6 +2534,10 @@ impl<T: PetriVmmBackend> PetriVm<T> {
             cmd.env(k, v);
         }
 
+        if T::SUPPORTS_FILE_SHARING {
+            cmd.env(PETRI_NESTED_TEST_PARENT, &self.name);
+        }
+
         let mut child = cmd.spawn().await?;
 
         // TODO: output JSON, parse, and correctly format in logs
@@ -2527,30 +2555,30 @@ impl<T: PetriVmmBackend> PetriVm<T> {
 
         let output = child.wait_with_output().await?;
 
-        let test_results_dir = self.agent_disk_path(&[
-            NESTED_TEST_CONTENT_DIR.into(),
-            NESTED_RESULTS_DIR.into(),
-            test_name.replace("::", "__"),
-        ]);
-        let log_files = String::from_utf8(
-            sh.cmd("ls")
-                .arg("-1")
-                .arg(&test_results_dir)
-                .output()
-                .await?
-                .stdout,
-        )
-        .context("ls output not utf8")?;
+        // copy the files if we aren't sharing the results folder directly
+        if !T::SUPPORTS_FILE_SHARING {
+            let test_results_dir = self.agent_disk_path(&[
+                NESTED_TEST_CONTENT_DIR.into(),
+                NESTED_RESULTS_DIR.into(),
+                nested_test.test_name.replace("::", "__"),
+            ]);
+            let log_files = String::from_utf8(
+                sh.cmd("ls")
+                    .arg("-1")
+                    .arg(&test_results_dir)
+                    .output()
+                    .await?
+                    .stdout,
+            )
+            .context("ls output not utf8")?;
 
-        for file in log_files.lines() {
-            let data = client
-                .read_file(self.build_guest_path(&[test_results_dir.clone(), file.into()]))
-                .await?;
-            let mut output = self
-                .resources
-                .log_source
-                .create_attachment(&format!("nested_{file}"))?;
-            output.write_all(&data)?;
+            for file in log_files.lines() {
+                let data = client
+                    .read_file(self.build_guest_path(&[test_results_dir.clone(), file.into()]))
+                    .await?;
+                let mut output = self.resources.log_source.create_attachment(file)?;
+                output.write_all(&data)?;
+            }
         }
 
         if !output.status.success() {
@@ -3849,41 +3877,6 @@ pub struct VmmQuirks {
     pub flaky_boot: Option<Duration>,
 }
 
-/// Creates a VM-safe name that respects platform limitations.
-///
-/// Hyper-V limits VM names to 100 characters. For names that exceed this limit,
-/// this function truncates to 96 characters and appends a 4-character hash
-/// to ensure uniqueness while staying within the limit.
-fn make_vm_safe_name(name: &str) -> String {
-    const MAX_VM_NAME_LENGTH: usize = 100;
-    const HASH_LENGTH: usize = 4;
-    const MAX_PREFIX_LENGTH: usize = MAX_VM_NAME_LENGTH - HASH_LENGTH;
-
-    if name.len() <= MAX_VM_NAME_LENGTH {
-        name.to_owned()
-    } else {
-        // Create a hash of the full name for uniqueness
-        let mut hasher = DefaultHasher::new();
-        name.hash(&mut hasher);
-        let hash = hasher.finish();
-
-        // Format hash as a 4-character hex string
-        let hash_suffix = format!("{:04x}", hash & 0xFFFF);
-
-        // Truncate the name and append the hash
-        let truncated = &name[..MAX_PREFIX_LENGTH];
-        tracing::debug!(
-            "VM name too long ({}), truncating '{}' to '{}{}'",
-            name.len(),
-            name,
-            truncated,
-            hash_suffix
-        );
-
-        format!("{}{}", truncated, hash_suffix)
-    }
-}
-
 /// The reason that the VM halted
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum PetriHaltReason {
@@ -4195,19 +4188,25 @@ impl NestedTestDeps {
                 .strip_prefix(meta.rust_build_meta.target_directory.parent().unwrap())?,
         );
 
-        let temp_path = tempfile::NamedTempFile::new()?.into_temp_path();
+        // copy the binary under the test content dir so it can be shared with the guest
+        let test_content_temp_dir =
+            PathBuf::from(std::env::var(VMM_TESTS_CONTENT_DIR)?).join("temp");
+        fs_err::create_dir_all(&test_content_temp_dir)?;
+        let temp_path = tempfile::NamedTempFile::new_in(&test_content_temp_dir)
+            .context("failed to create temp nested test")?
+            .into_temp_path();
 
         fs_err::rename(&local_binary_path, &temp_path)?;
 
         Ok(temp_path)
     }
 
-    fn resolve(&self) -> anyhow::Result<ResolvedNestedTestDeps> {
+    fn resolve(&self, discover_artifacts: bool) -> anyhow::Result<ResolvedNestedTestDeps> {
         let test_binary = self
             .extract_binary()
             .context("failed to extract nextest binary")?;
 
-        let artifacts =
+        let artifacts = if discover_artifacts {
             petri_artifacts_core::query_test_binary_artifacts(&test_binary, &[&self.test_name])
                 .context("failed to query test binary for artifacts")?
                 .into_artifacts_list()
@@ -4220,7 +4219,10 @@ impl NestedTestDeps {
                         .with_context(|| format!("unknown artifact handle: {id}"))?;
                     Ok((handle, resolve_artifact(handle)?))
                 })
-                .collect::<anyhow::Result<Vec<_>>>()?;
+                .collect::<anyhow::Result<Vec<_>>>()?
+        } else {
+            Vec::new()
+        };
 
         Ok(ResolvedNestedTestDeps {
             test_binary,
@@ -4231,8 +4233,6 @@ impl NestedTestDeps {
 }
 
 trait PetriGuestPaths {
-    /// Get whether an agent disk exists
-    fn has_agent_disk(&self) -> bool;
     /// Get the OS flavor
     fn os_flavor(&self) -> OsFlavor;
 
@@ -4247,11 +4247,11 @@ trait PetriGuestPaths {
     /// Get the path to the agent disk, if it exists
     ///
     /// Does not include any subsequent path separators.
-    fn agent_disk_root(&self) -> Option<&'static str> {
-        self.has_agent_disk().then(|| match self.os_flavor() {
+    fn agent_disk_root(&self) -> &'static str {
+        match self.os_flavor() {
             OsFlavor::Windows => "D:",
             _ => "/cidata",
-        })
+        }
     }
 
     /// Construct a path with the appropriate path component separators for
@@ -4282,7 +4282,7 @@ trait PetriGuestPaths {
     ///
     /// Panics if no agent disk exists.
     fn agent_disk_path(&self, components: &[String]) -> String {
-        self.build_guest_path(&[&[self.agent_disk_root().unwrap().into()], components].concat())
+        self.build_guest_path(&[&[self.agent_disk_root().into()], components].concat())
     }
 
     /// Construct a binary name with the appropriate extension for the guest.
@@ -4297,10 +4297,6 @@ trait PetriGuestPaths {
 struct FatFsPathBuilder(OsFlavor);
 
 impl PetriGuestPaths for FatFsPathBuilder {
-    fn has_agent_disk(&self) -> bool {
-        true
-    }
-
     fn os_flavor(&self) -> OsFlavor {
         self.0
     }
@@ -4311,12 +4307,14 @@ impl PetriGuestPaths for FatFsPathBuilder {
 }
 
 impl<T: PetriVmmBackend> PetriGuestPaths for PetriVm<T> {
-    fn has_agent_disk(&self) -> bool {
-        self.properties.has_agent_disk
-    }
-
     fn os_flavor(&self) -> OsFlavor {
         self.properties.os_flavor
+    }
+}
+
+impl<T: PetriVmmBackend> PetriGuestPaths for PetriVmBuilder<T> {
+    fn os_flavor(&self) -> OsFlavor {
+        self.os_flavor()
     }
 }
 
@@ -4501,6 +4499,7 @@ mod tests {
         let log_source = crate::tracing::try_init_tracing(
             temp_dir.path(),
             tracing::level_filters::LevelFilter::DEBUG,
+            None,
         )
         .unwrap();
 
@@ -4523,63 +4522,6 @@ mod tests {
             assert_eq!(error.to_string(), "original test failure");
             assert_eq!(inspect_attachment_count(&log_source), 1);
         }
-    }
-
-    #[test]
-    fn test_short_names_unchanged() {
-        let short_name = "short_test_name";
-        assert_eq!(make_vm_safe_name(short_name), short_name);
-    }
-
-    #[test]
-    fn test_exactly_100_chars_unchanged() {
-        let name_100 = "a".repeat(100);
-        assert_eq!(make_vm_safe_name(&name_100), name_100);
-    }
-
-    #[test]
-    fn test_long_name_truncated() {
-        let long_name = "multiarch::openhcl_servicing::hyperv_openhcl_uefi_aarch64_ubuntu_2404_server_aarch64_openhcl_servicing";
-        let result = make_vm_safe_name(long_name);
-
-        // Should be exactly 100 characters
-        assert_eq!(result.len(), 100);
-
-        // Should start with the truncated prefix
-        assert!(result.starts_with("multiarch::openhcl_servicing::hyperv_openhcl_uefi_aarch64_ubuntu_2404_server_aarch64_ope"));
-
-        // Should end with a 4-character hash
-        let suffix = &result[96..];
-        assert_eq!(suffix.len(), 4);
-        // Should be valid hex
-        assert!(u16::from_str_radix(suffix, 16).is_ok());
-    }
-
-    #[test]
-    fn test_deterministic_results() {
-        let long_name = "very_long_test_name_that_exceeds_the_100_character_limit_and_should_be_truncated_consistently_every_time";
-        let result1 = make_vm_safe_name(long_name);
-        let result2 = make_vm_safe_name(long_name);
-
-        assert_eq!(result1, result2);
-        assert_eq!(result1.len(), 100);
-    }
-
-    #[test]
-    fn test_different_names_different_hashes() {
-        let name1 = "very_long_test_name_that_definitely_exceeds_the_100_character_limit_and_should_be_truncated_by_the_function_version_1";
-        let name2 = "very_long_test_name_that_definitely_exceeds_the_100_character_limit_and_should_be_truncated_by_the_function_version_2";
-
-        let result1 = make_vm_safe_name(name1);
-        let result2 = make_vm_safe_name(name2);
-
-        // Both should be 100 chars
-        assert_eq!(result1.len(), 100);
-        assert_eq!(result2.len(), 100);
-
-        // Should have different suffixes since the full names are different
-        assert_ne!(result1, result2);
-        assert_ne!(&result1[96..], &result2[96..]);
     }
 
     #[test]

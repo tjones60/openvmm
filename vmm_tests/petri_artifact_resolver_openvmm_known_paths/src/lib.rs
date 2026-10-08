@@ -155,6 +155,8 @@ fn test_content_dir_artifact_path(relative_path: impl AsRef<Path>) -> anyhow::Re
 fn test_log_directory_path(test_name: &str) -> anyhow::Result<PathBuf> {
     let root = std::env::var_os(TEST_OUTPUT_PATH)
         .map_or_else(|| get_repo_root().join("vmm_test_results"), PathBuf::from);
+    let test_name =
+        std::env::var(PETRI_NESTED_TEST_PARENT).unwrap_or_else(|_| test_name.to_string());
     // Use a per-test subdirectory, replacing `::` with `__` to avoid issues
     // with filesystems that don't support `::` in filenames.
     let path = root.join(test_name.replace("::", "__"));

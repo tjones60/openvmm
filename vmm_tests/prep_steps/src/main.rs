@@ -93,7 +93,8 @@ fn build(
     })?;
 
     let output_dir = output_dir.get();
-    let logger = petri::try_init_tracing(output_dir, tracing::level_filters::LevelFilter::DEBUG)?;
+    let logger =
+        petri::try_init_tracing(output_dir, tracing::level_filters::LevelFilter::DEBUG, None)?;
     Ok((logger, artifacts, source_disk.erase()))
 }
 
@@ -186,7 +187,8 @@ fn build_no_vmbus(
     )?;
 
     let output_dir = output_dir.get();
-    let logger = petri::try_init_tracing(output_dir, tracing::level_filters::LevelFilter::DEBUG)?;
+    let logger =
+        petri::try_init_tracing(output_dir, tracing::level_filters::LevelFilter::DEBUG, None)?;
     Ok((logger, artifacts, source_disk.erase(), virtio_win.erase()))
 }
 

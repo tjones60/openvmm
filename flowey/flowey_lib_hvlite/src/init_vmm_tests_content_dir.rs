@@ -675,7 +675,7 @@ impl SimpleFlowNode for Node {
             })
         });
         let test_linux_kernel_cca_aarch64 =
-            prebuilt_artifacts.test_linux_kernel_aarch64.then(|| {
+            prebuilt_artifacts.test_linux_kernel_cca_aarch64.then(|| {
                 ctx.reqv(|v| {
                     crate::resolve_openvmm_test_linux_kernel::Request::Get(
                     crate::resolve_openvmm_test_linux_kernel::OpenvmmTestKernelFile::Kernel,

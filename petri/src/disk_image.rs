@@ -26,10 +26,11 @@ pub struct AgentImage {
     os_flavor: OsFlavor,
     pipette: Option<ResolvedArtifact>,
     extras: Vec<(String, ImageEntry)>,
+    free_space: u64,
 }
 
 #[derive(Debug)]
-/// An file or directory in the agent image
+/// A file or directory in the agent image
 pub enum ImageEntry {
     /// Directory
     Dir,
@@ -64,6 +65,7 @@ impl AgentImage {
             os_flavor,
             pipette: None,
             extras: Vec::new(),
+            free_space: 0,
         }
     }
 
@@ -120,96 +122,27 @@ impl AgentImage {
         self.extras.extend(extras);
     }
 
+    /// Allocate some extra free space in the image
+    pub fn allocate_free_space(&mut self, space: u64) {
+        self.free_space = space;
+    }
+
     /// Builds a disk image containing pipette and any files needed for the guest VM
     /// to run pipette.
     pub fn build(&self, image_type: ImageType) -> anyhow::Result<Option<tempfile::NamedTempFile>> {
-        let volume_label = match self.os_flavor {
-            OsFlavor::Windows => b"pipette    ",
-            // cloud-init looks for a volume label of "cidata",
-            _ => b"cidata     ",
-        };
-
-        let files = self.build_inner();
-
-        let total_size: u64 = files
-            .iter()
-            .map(|(_, f)| {
-                Ok(match f {
-                    ImageEntryContent::Dir => 0,
-                    ImageEntryContent::Path(path) => fs_err::metadata(path)?.len(),
-                    ImageEntryContent::Binary(data) => data.len() as u64,
-                })
-            })
-            .collect::<Result<Vec<_>, std::io::Error>>()?
-            .into_iter()
-            .sum();
-
-        if files.is_empty() {
-            Ok(None)
-        } else {
-            let mut image_file = match image_type {
-                ImageType::Raw => tempfile::NamedTempFile::new()?,
-                ImageType::Vhd => tempfile::Builder::new().suffix(".vhd").tempfile()?,
-            };
-
-            image_file
-                .as_file()
-                .set_len(total_size.next_multiple_of(64 * 1024 * 1024))
-                .context("failed to set file size")?;
-
-            build_fat32_disk_image(&mut image_file, "CIDATA", volume_label, &files)?;
-
-            if matches!(image_type, ImageType::Vhd) {
-                disk_vhd1::Vhd1Disk::make_fixed(image_file.as_file())
-                    .context("failed to make vhd for agent image")?;
-            }
-
-            Ok(Some(image_file))
-        }
-    }
-
-    /// Builds a folder containing pipette and any files needed for the guest VM
-    /// to run pipette.
-    pub fn build_folder(&self) -> anyhow::Result<Option<tempfile::TempDir>> {
-        let files = self.build_inner();
-
-        if files.is_empty() {
-            return Ok(None);
-        }
-
-        let folder = tempfile::tempdir()?;
-        let root = folder.path();
-        for (path, src) in files {
-            let dest = root.join(path);
-            match src {
-                ImageEntryContent::Path(src_path) => {
-                    fs_err::copy(src_path, dest).context("failed to copy file")?;
-                }
-                ImageEntryContent::Binary(src_data) => {
-                    fs_err::write(dest, src_data).context("failed to write file")?;
-                }
-                ImageEntryContent::Dir => {
-                    fs_err::create_dir(dest).context("failed to create dir")?;
-                }
-            }
-        }
-
-        Ok(Some(folder))
-    }
-
-    fn build_inner(&self) -> Vec<(&str, ImageEntryContent<'_>)> {
         let mut files = self
             .extras
             .iter()
             .map(|(name, file_path)| (name.as_str(), file_path.as_content()))
             .collect::<Vec<_>>();
-        match self.os_flavor {
+        let volume_label = match self.os_flavor {
             OsFlavor::Windows => {
                 // Windows doesn't use cloud-init, so we only need pipette
                 // (which is configured via the IMC hive).
                 if let Some(pipette) = self.pipette.as_ref() {
                     files.push(("pipette.exe", ImageEntryContent::Path(pipette.as_ref())));
                 }
+                b"pipette    "
             }
             OsFlavor::Linux => {
                 if let Some(pipette) = self.pipette.as_ref() {
@@ -243,11 +176,49 @@ impl AgentImage {
                         )),
                     ),
                 ]);
+                b"cidata     " // cloud-init looks for a volume label of "cidata",
             }
             // Nothing OS-specific yet for other flavors
-            _ => {}
+            _ => b"cidata     ",
+        };
+
+        let total_data_size: u64 = files
+            .iter()
+            .map(|(_, f)| {
+                Ok(match f {
+                    ImageEntryContent::Dir => 0,
+                    ImageEntryContent::Path(path) => fs_err::metadata(path)?.len(),
+                    ImageEntryContent::Binary(data) => data.len() as u64,
+                })
+            })
+            .collect::<Result<Vec<_>, std::io::Error>>()?
+            .into_iter()
+            .sum();
+
+        let total_size = total_data_size + self.free_space;
+
+        if files.is_empty() {
+            Ok(None)
+        } else {
+            let mut image_file = match image_type {
+                ImageType::Raw => tempfile::NamedTempFile::new()?,
+                ImageType::Vhd => tempfile::Builder::new().suffix(".vhd").tempfile()?,
+            };
+
+            image_file
+                .as_file()
+                .set_len(total_size.next_multiple_of(64 * 1024 * 1024))
+                .context("failed to set file size")?;
+
+            build_fat32_disk_image(&mut image_file, "CIDATA", volume_label, &files)?;
+
+            if matches!(image_type, ImageType::Vhd) {
+                disk_vhd1::Vhd1Disk::make_fixed(image_file.as_file())
+                    .context("failed to make vhd for agent image")?;
+            }
+
+            Ok(Some(image_file))
         }
-        files
     }
 }
 

@@ -326,6 +326,8 @@ impl IntoPipeline for VmmTestsRunCli {
         }
 
         // Query artifacts for nested tests
+        // Note that this requires qemu-user-static to be installed to run
+        // binaries for other architectures.
         for (id, tests) in nested {
             let nested_target_str = artifact_from_id(&id)
                 .with_context(|| format!("unknown artifact handle: {id}"))?
