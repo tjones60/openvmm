@@ -990,6 +990,12 @@ fn parse_nested(input: ParseStream<'_>) -> syn::Result<MaybeNestedConfig> {
     let test_fn = parens.parse::<Ident>()?;
     parens.parse::<Token![,]>()?;
     let l1_config = parens.parse::<Config>()?;
+    if l1_config.ignored.is_some() || l1_config.unstable.is_some() {
+        return Err(Error::new(
+            l1_config.span,
+            "ignored/unstable should be applied to the l2 config",
+        ));
+    }
     let _: Option<Token![,]> = parens.parse()?;
     if !parens.is_empty() {
         return Err(parens.error("unexpected tokens after the L1 config"));
@@ -1227,7 +1233,7 @@ fn make_vmm_test(args: ArgsWithOverrides, item: ItemFn) -> syn::Result<TokenStre
     let original_name = &item.sig.ident;
     let mut tests = TokenStream::new();
     // FUTURE: compute all this in code instead of in the macro.
-    for config in args.configs {
+    for mut config in args.configs {
         let no_nested_test = quote!(None);
         if let Some(mut nested_config) = config.nested_config {
             let name = format!(
@@ -1259,6 +1265,8 @@ fn make_vmm_test(args: ArgsWithOverrides, item: ItemFn) -> syn::Result<TokenStre
             } else {
                 quote! {config, extra_deps}
             };
+            config.l1_config.ignored = nested_config.l2_config.ignored.take();
+            config.l1_config.unstable = nested_config.l2_config.unstable.take();
             tests.extend(make_vmm_test_config(
                 &name,
                 &nested_config.test_fn.to_token_stream(),

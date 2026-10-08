@@ -131,13 +131,13 @@ impl PetriVmConfigOpenVmm {
             pcie_nvme_drives,
             pcie_virtio_blk_drives,
             physical_nvme_devices,
-            guest_share,
+            guest_shares,
         } = petri_vm_config;
 
         if !physical_nvme_devices.is_empty() {
             anyhow::bail!("Physical NVMe devices are only supported with the Hyper-V backend");
         }
-        assert!(guest_share.is_none());
+        assert!(guest_shares.is_empty());
 
         if matches!(
             firmware.openhcl_firmware(),

@@ -23,6 +23,7 @@ use crate::install_vmm_tests_external_deps::VmmTestsExternalDeps;
 use flowey::node::prelude::*;
 use petri_artifacts_core::ArtifactId;
 use petri_artifacts_vmm_test::ErasedVmmTestImage;
+use petri_artifacts_vmm_test::env::VMM_TEST_IMAGES;
 use std::collections::BTreeSet;
 use std::ffi::OsStr;
 use std::ffi::OsString;
@@ -975,7 +976,8 @@ pub(crate) fn init_artifacts_dir(
     test_content_dir: &Path,
     skip_vhd_prompt: bool,
 ) -> anyhow::Result<()> {
-    let vmm_test_artifacts_dir = test_content_dir.join("images");
+    let vmm_test_artifacts_dir = std::env::var(VMM_TEST_IMAGES)
+        .map_or_else(|_| test_content_dir.join("images"), PathBuf::from);
     ctx.config(crate::download_openvmm_vmm_tests_artifacts::Config {
         custom_cache_dir: Some(vmm_test_artifacts_dir.clone()),
         skip_prompt: Some(skip_vhd_prompt),

@@ -124,7 +124,10 @@ impl PetriVmmBackend for OpenVmmPetriBackend {
         Ok(None) // TODO #2403
     }
 
-    fn build_custom_init_script(_pipette_path: &str, _mount_share: Option<&str>) -> Option<String> {
+    fn build_custom_init_script(
+        _pipette_path: &str,
+        _mount_shares: Vec<(String, String)>,
+    ) -> Option<String> {
         None
     }
 

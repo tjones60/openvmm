@@ -109,7 +109,10 @@ impl PetriVmmBackend for QemuPetriBackend {
         Ok(None)
     }
 
-    fn build_custom_init_script(pipette_path: &str, mount_share: Option<&str>) -> Option<String> {
+    fn build_custom_init_script(
+        pipette_path: &str,
+        mount_shares: Vec<(String, String)>,
+    ) -> Option<String> {
         let mut script = String::from(
             "#!/bin/sh\n\
             ip link set eth0 up\n\
@@ -118,10 +121,10 @@ impl PetriVmmBackend for QemuPetriBackend {
             echo 'nameserver 10.0.2.3' > /etc/resolv.conf\n",
         );
 
-        if let Some(mount_share) = mount_share {
+        for (tag, path) in mount_shares {
             script.push_str(&format!(
-                "mkdir -p {mount_share}\n\
-                mount -t 9p -o trans=virtio,version=9p2000.L {SHARE_9P_MOUNT_TAG} {mount_share}\n"
+                "mkdir -p {path}\n\
+                mount -t 9p -o trans=virtio,version=9p2000.L {tag} {path}\n"
             ));
         }
 
@@ -474,7 +477,7 @@ pub fn build_qemu_command(
         pcie_nvme_drives,
         pcie_virtio_blk_drives,
         physical_nvme_devices,
-        guest_share,
+        guest_shares,
     } = config;
 
     let QemuPetriConfig { share_9p, devices } = qemu_config;
@@ -526,23 +529,20 @@ pub fn build_qemu_command(
     cmd.arg("-no-reboot");
 
     // 9p: share the host directory into the guest
-    // TODO: support multiple shares
-    let share_dir = match (guest_share, share_9p) {
-        (None, None) => None,
-        (None, Some(p)) => Some(p.as_path()),
-        (Some(dir), None) => Some(dir.as_path()),
-        (Some(_), Some(_)) => {
-            anyhow::bail!("adding a 9p share when using agent files is not supported")
-        }
-    };
-    if let Some(share_dir) = share_dir {
+    let mut guest_shares = guest_shares
+        .iter()
+        .map(|(k, v)| (k.as_str(), v.as_path()))
+        .collect::<Vec<_>>();
+    if let Some(custom_share) = share_9p {
+        guest_shares.push((SHARE_9P_MOUNT_TAG, custom_share.as_path()));
+    }
+    for (i, (tag, path)) in guest_shares.iter().enumerate() {
         cmd.arg("-fsdev").arg(format!(
-            "local,id=fsdev0,path={},security_model=none",
-            share_dir.to_str().context("share path not utf8")?
+            "local,id=fsdev{i},path={},security_model=none",
+            path.to_str().context("share path not utf8")?
         ));
-        cmd.arg("-device").arg(format!(
-            "virtio-9p-pci,fsdev=fsdev0,mount_tag={SHARE_9P_MOUNT_TAG}"
-        ));
+        cmd.arg("-device")
+            .arg(format!("virtio-9p-pci,fsdev=fsdev{i},mount_tag={tag}"));
     }
 
     // User-mode networking with port forwarding for pipette TCP

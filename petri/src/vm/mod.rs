@@ -50,6 +50,7 @@ use petri_artifacts_core::ErasedArtifactHandle;
 use petri_artifacts_core::ResolvedArtifact;
 use petri_artifacts_core::ResolvedArtifactSource;
 use petri_artifacts_core::ResolvedOptionalArtifact;
+use petri_artifacts_core::env::PETRI_REMOTE_ARTIFACTS;
 use petri_artifacts_core::tags::IsNextestArchive;
 use petri_artifacts_vmm_test::env::*;
 use pipette_client::PipetteClient;
@@ -302,7 +303,7 @@ pub struct PetriVmConfig {
     /// Physical NVMe devices to attach
     pub physical_nvme_devices: HashMap<Guid, PhysicalNvmeDevice>,
     /// Path to share with the guest
-    pub guest_share: Option<PathBuf>,
+    pub guest_shares: HashMap<String, PathBuf>,
 }
 
 /// PCIe NVMe drive configuration.
@@ -443,7 +444,10 @@ pub trait PetriVmmBackend: Debug {
 
     /// Generate an rdinit script that does the necessary configuration to
     /// launch pipette for linux direct
-    fn build_custom_init_script(pipette_path: &str, mount_share: Option<&str>) -> Option<String>;
+    fn build_custom_init_script(
+        pipette_path: &str,
+        _mount_shares: Vec<(String, String)>,
+    ) -> Option<String>;
 
     /// Resolve any artifacts needed to use this backend
     ///
@@ -500,6 +504,8 @@ const NESTED_IMAGES_DIR: &str = "images";
 const NESTED_RESULTS_DIR: &str = "test_results";
 const NESTED_TEST_BINARY: &str = "nested_test";
 const NESTED_TEMP_DIR: &str = "temp";
+const NESTED_CONTENT_TAG: &str = "testcontent";
+const NESTED_IMAGES_TAG: &str = "testimages";
 
 /// A constructed Petri VM
 pub struct PetriVm<T: PetriVmmBackend> {
@@ -517,7 +523,7 @@ pub struct PetriVm<T: PetriVmmBackend> {
     properties: PetriVmProperties,
 
     nested_test: Option<ResolvedNestedTestDeps>,
-    guest_share: Option<PathBuf>,
+    guest_shares: HashMap<String, PathBuf>,
     name: String,
 }
 
@@ -674,7 +680,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
                 pcie_nvme_drives: Vec::new(),
                 pcie_virtio_blk_drives: Vec::new(),
                 physical_nvme_devices: HashMap::new(),
-                guest_share: None,
+                guest_shares: HashMap::new(),
             },
             modify_vmm_config: None,
             resources: PetriVmResources {
@@ -754,7 +760,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
     /// Prepare an initrd with a custom script
     pub fn prepare_custom_initrd(
         &self,
-        build_custom_init_script: impl FnOnce(&str, Option<&str>) -> Option<String>,
+        build_custom_init_script: impl FnOnce(&str, Vec<(String, String)>) -> Option<String>,
     ) -> anyhow::Result<PetriInitrd> {
         const PIPETTE_PATH: &str = "pipette";
         const INIT_SCRIPT_NAME: &str = "custom-init.sh";
@@ -782,27 +788,33 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             initrd_cpio::inject_into_initrd(&initrd_gz, PIPETTE_PATH, &pipette_data, 0o100755)
                 .context("failed to inject pipette into initrd")?;
 
-        let has_guest_share = self.nested_test.is_some() && T::SUPPORTS_FILE_SHARING;
+        let mut mount_shares = Vec::new();
+        if self.nested_test.is_some() && T::SUPPORTS_FILE_SHARING {
+            mount_shares.push((
+                NESTED_CONTENT_TAG.into(),
+                self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into()]),
+            ));
+            mount_shares.push((
+                NESTED_IMAGES_TAG.into(),
+                self.agent_disk_path(&[NESTED_IMAGES_DIR.into()]),
+            ));
+        }
 
-        let (merged_gz, rdinit) = if let Some(file_data) = build_custom_init_script(
-            PIPETTE_PATH,
-            has_guest_share
-                .then(|| self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into()]))
-                .as_deref(),
-        ) {
-            (
-                initrd_cpio::inject_into_initrd(
-                    &merged_gz,
-                    INIT_SCRIPT_NAME,
-                    file_data.as_bytes(),
-                    0o100755, // regular file, rwxr-xr-x
+        let (merged_gz, rdinit) =
+            if let Some(file_data) = build_custom_init_script(PIPETTE_PATH, mount_shares) {
+                (
+                    initrd_cpio::inject_into_initrd(
+                        &merged_gz,
+                        INIT_SCRIPT_NAME,
+                        file_data.as_bytes(),
+                        0o100755, // regular file, rwxr-xr-x
+                    )
+                    .context("failed to inject init script into initrd")?,
+                    format!("/{INIT_SCRIPT_NAME}"),
                 )
-                .context("failed to inject init script into initrd")?,
-                format!("/{INIT_SCRIPT_NAME}"),
-            )
-        } else {
-            (merged_gz, format!("/{PIPETTE_PATH}"))
-        };
+            } else {
+                (merged_gz, format!("/{PIPETTE_PATH}"))
+            };
 
         let mut tmp = tempfile::NamedTempFile::new()
             .context("failed to create temp file for pre-built initrd")?;
@@ -1290,7 +1302,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         let arch = self.config.arch;
         let expect_reset = self.expect_reset();
         let properties = self.properties();
-        let guest_share = self.config.guest_share.clone();
+        let guest_shares = self.config.guest_shares.clone();
         let name = self.config.name.clone();
 
         let (mut runtime, config) = self
@@ -1326,7 +1338,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             properties,
 
             nested_test: self.nested_test,
-            guest_share,
+            guest_shares,
             name,
         };
 
@@ -2013,9 +2025,16 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         // if we can just the files directly, make sure the nested test is under
         // the test content dir.
         if T::SUPPORTS_FILE_SHARING {
-            self.config.guest_share = Some(PathBuf::from(
-                std::env::var(VMM_TESTS_CONTENT_DIR).expect("test content dir not set"),
-            ));
+            self.config.guest_shares.insert(
+                NESTED_CONTENT_TAG.into(),
+                PathBuf::from(
+                    std::env::var(VMM_TESTS_CONTENT_DIR).expect("test content dir not set"),
+                ),
+            );
+            self.config.guest_shares.insert(
+                NESTED_IMAGES_TAG.into(),
+                PathBuf::from(std::env::var(VMM_TEST_IMAGES).expect("test images dir not set")),
+            );
 
             return self;
         }
@@ -2031,8 +2050,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
             ImageEntry::Dir,
         ));
         extras.push((
-            path_builder
-                .build_guest_path(&[NESTED_TEST_CONTENT_DIR.into(), NESTED_IMAGES_DIR.into()]),
+            path_builder.build_guest_path(&[NESTED_IMAGES_DIR.into()]),
             ImageEntry::Dir,
         ));
         extras.push((
@@ -2046,11 +2064,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         for (handle, src) in &nested_test.artifacts {
             let relative_path = path_builder.convert_guest_path(&handle.relative_path());
             let dest = if handle.is_image() {
-                path_builder.build_guest_path(&[
-                    NESTED_TEST_CONTENT_DIR.into(),
-                    NESTED_IMAGES_DIR.into(),
-                    relative_path,
-                ])
+                path_builder.build_guest_path(&[NESTED_IMAGES_DIR.into(), relative_path])
             } else {
                 path_builder.build_guest_path(&[NESTED_TEST_CONTENT_DIR.into(), relative_path])
             };
@@ -2498,47 +2512,21 @@ impl<T: PetriVmmBackend> PetriVm<T> {
         client: &PipetteClient,
         env: BTreeMap<String, String>,
     ) -> anyhow::Result<()> {
-        let mut _images_temp_dir = None;
         let nested_test = self.nested_test.as_ref().context("no nested test")?;
 
-        let (test_binary_path, images_path) = if let Some(guest_share) = self.guest_share.as_ref() {
-            let test_content_dir = absolute(guest_share.as_path())?;
-            let local_test_binary_path = absolute(&nested_test.test_binary)?;
-            let relative_test_binary_path = self.convert_guest_path(
-                local_test_binary_path
-                    .strip_prefix(&test_content_dir)
-                    .context("test binary should be under content dir")?,
-            );
+        let test_binary_path =
+            if let Some(test_content_dir) = self.guest_shares.get(NESTED_CONTENT_TAG) {
+                let test_content_dir = absolute(test_content_dir.as_path())?;
+                let local_test_binary_path = absolute(&nested_test.test_binary)?;
 
-            let local_images_path = absolute(PathBuf::from(
-                std::env::var_os(VMM_TEST_IMAGES).context("images dir not set")?,
-            ))?;
-            let relative_images_path =
-                if let Ok(relative) = local_images_path.strip_prefix(&test_content_dir) {
-                    self.convert_guest_path(relative)
-                } else {
-                    let tmp = tempfile::TempDir::new_in(test_content_dir.join(NESTED_TEMP_DIR))?;
-                    let dst = tmp.path().join(NESTED_IMAGES_DIR);
-                    _images_temp_dir = Some(tmp);
-
-                    #[cfg(unix)]
-                    fs_err::os::unix::fs::symlink(&local_images_path, &dst)?;
-                    #[cfg(windows)]
-                    fs_err::os::windows::fs::symlink_dir(&local_images_path, &dst)?;
-
-                    self.convert_guest_path(
-                        dst.strip_prefix(&test_content_dir)
-                            .context("images should be under content dir")?,
-                    )
-                };
-
-            (relative_test_binary_path, relative_images_path)
-        } else {
-            (
-                self.binary_with_extension(NESTED_TEST_BINARY),
-                self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into(), NESTED_IMAGES_DIR.into()]),
-            )
-        };
+                self.convert_guest_path(
+                    local_test_binary_path
+                        .strip_prefix(&test_content_dir)
+                        .context("test binary should be under content dir")?,
+                )
+            } else {
+                self.binary_with_extension(NESTED_TEST_BINARY)
+            };
 
         let mut cmd = client
             .command(self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into(), test_binary_path]));
@@ -2551,7 +2539,7 @@ impl<T: PetriVmmBackend> PetriVm<T> {
             )
             .env(
                 VMM_TEST_IMAGES,
-                self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into(), images_path]),
+                self.agent_disk_path(&[NESTED_IMAGES_DIR.into()]),
             )
             .env(
                 TEST_OUTPUT_PATH,
@@ -2565,6 +2553,10 @@ impl<T: PetriVmmBackend> PetriVm<T> {
 
         if T::SUPPORTS_FILE_SHARING {
             cmd.env(PETRI_NESTED_TEST_PARENT, &self.name);
+        }
+
+        if let Ok(v) = std::env::var(PETRI_REMOTE_ARTIFACTS) {
+            cmd.env(PETRI_REMOTE_ARTIFACTS, v);
         }
 
         let mut child = cmd.spawn().await?;
@@ -4226,7 +4218,7 @@ impl NestedTestDeps {
             .context("failed to create temp nested test")?
             .into_temp_path();
 
-        fs_err::rename(&local_binary_path, &temp_path)?;
+        fs_err::copy(&local_binary_path, &temp_path)?;
 
         Ok(temp_path)
     }

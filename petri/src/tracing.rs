@@ -327,7 +327,13 @@ pub fn try_init_tracing(
 
     // Canonicalize so that printed attachment paths are most likely to work.
     let root_path = root_path.fs_err_canonicalize()?;
-    let jsonl = File::create(root_path.join("petri.jsonl"))?;
+    let jsonl_name = "petri.jsonl";
+    let jsonl_name = if let Some(prefix) = prefix.as_ref() {
+        format!("{prefix}{jsonl_name}")
+    } else {
+        jsonl_name.to_string()
+    };
+    let jsonl = File::create(root_path.join(jsonl_name))?;
     let logger = PetriLogSource(Arc::new(LogSourceInner {
         json_log: JsonLog(Arc::new(jsonl)),
         root_path,
