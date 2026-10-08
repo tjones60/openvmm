@@ -10,6 +10,7 @@ use pal_async::timer::PolledTimer;
 use petri::PetriVmBuilder;
 use petri::PetriVmmBackend;
 use petri::ProcessorTopology;
+use petri::ResolvedArtifact;
 use petri::openvmm::OpenVmmPetriBackend;
 use petri::pipette::cmd;
 use petri::qemu::EXTRA_DEVICE_ADDR_BASE;
@@ -18,7 +19,9 @@ use petri::qemu::devices::DeviceConfig;
 use petri::qemu::devices::EduDeviceConfig;
 use petri::qemu::devices::IvshmemPlainDeviceConfig;
 use petri::qemu::devices::VirtioBlkDeviceConfig;
+use petri_artifacts_common::tags::IsLoadable;
 use petri_artifacts_vmm_test::artifacts::host_tools::NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL;
+use petri_artifacts_vmm_test::artifacts::loadable::LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64;
 use std::collections::BTreeMap;
 use std::time::Duration;
 use vfio_assigned_device_resources::BarAddressConfig;
@@ -108,7 +111,7 @@ async fn boot_dt(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(), anyh
     openvmm,
     requires(test_disk),
     configs(nested(
-        (host_with_disk, qemu_linux_direct_aarch64),
+        (host_with_disk, qemu_linux_direct_aarch64[LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64]),
         (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL, "tests", "aarch64_exclusive", linux_direct_aarch64),
     )),
 )]
@@ -221,7 +224,7 @@ async fn boot_no_vmbus_pcie(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyh
     openvmm,
     requires(test_disk),
     configs(nested(
-        (host_with_disk, qemu_linux_direct_aarch64),
+        (host_with_disk, qemu_linux_direct_aarch64[LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64]),
         (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL, "tests", "aarch64_exclusive", linux_direct_aarch64),
     )),
 )]
@@ -459,11 +462,13 @@ fn incubator_vfio_bdf(name: &str) -> anyhow::Result<String> {
 /// IOAS (the Phase 2 vfio-dmabuf P2P path). Without that import the DMA faults
 /// in the SMMU and the sink offset stays at its initialized sentinel, so a
 /// matching read-back proves the dmabuf import engaged.
+//
+// TODO: Fix this test do it doesn't need a test disk device.
 #[vmm_test_with(
     openvmm,
     requires(edu_initiator, ivshmem_target),
     configs(nested(
-        (host_with_edu_ivshmem, qemu_linux_direct_aarch64),
+        (host_with_disk_edu_ivshmem, qemu_linux_direct_aarch64[LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64]),
         (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL, "tests", "aarch64_exclusive", linux_direct_aarch64),
     )),
 )]
@@ -687,7 +692,7 @@ async fn assigned_device_peer_to_peer_dma(
     openvmm,
     requires(edu_initiator),
     configs(nested(
-        (host_with_edu, qemu_linux_direct_aarch64),
+        (host_with_edu, qemu_linux_direct_aarch64[LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64]),
         (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL, "tests", "aarch64_exclusive", linux_direct_aarch64),
     )),
 )]
@@ -1100,6 +1105,7 @@ async fn smt_topology(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Re
 
 async fn nested_vm_host_with_devices(
     config: PetriVmBuilder<QemuPetriBackend>,
+    custom_kernel: ResolvedArtifact<impl IsLoadable>,
     devices: Vec<DeviceConfig>,
 ) -> anyhow::Result<()> {
     let (vm, agent) = config
@@ -1108,6 +1114,7 @@ async fn nested_vm_host_with_devices(
             let devices = devices.clone();
             move |b| b.with_devices(devices)
         })
+        .with_custom_linux_kernel(custom_kernel)
         .run()
         .await?;
 
@@ -1118,16 +1125,30 @@ async fn nested_vm_host_with_devices(
     Ok(())
 }
 
-async fn host_with_disk(config: PetriVmBuilder<QemuPetriBackend>) -> anyhow::Result<()> {
-    nested_vm_host_with_devices(config, vec![test_disk()]).await
+async fn host_with_disk(
+    config: PetriVmBuilder<QemuPetriBackend>,
+    (custom_kernel,): (ResolvedArtifact<impl IsLoadable>,),
+) -> anyhow::Result<()> {
+    nested_vm_host_with_devices(config, custom_kernel, vec![test_disk()]).await
 }
 
-async fn host_with_edu(config: PetriVmBuilder<QemuPetriBackend>) -> anyhow::Result<()> {
-    nested_vm_host_with_devices(config, vec![edu_initiator()]).await
+async fn host_with_edu(
+    config: PetriVmBuilder<QemuPetriBackend>,
+    (custom_kernel,): (ResolvedArtifact<impl IsLoadable>,),
+) -> anyhow::Result<()> {
+    nested_vm_host_with_devices(config, custom_kernel, vec![edu_initiator()]).await
 }
 
-async fn host_with_edu_ivshmem(config: PetriVmBuilder<QemuPetriBackend>) -> anyhow::Result<()> {
-    nested_vm_host_with_devices(config, vec![edu_initiator(), ivshmem_target()]).await
+async fn host_with_disk_edu_ivshmem(
+    config: PetriVmBuilder<QemuPetriBackend>,
+    (custom_kernel,): (ResolvedArtifact<impl IsLoadable>,),
+) -> anyhow::Result<()> {
+    nested_vm_host_with_devices(
+        config,
+        custom_kernel,
+        vec![test_disk(), edu_initiator(), ivshmem_target()],
+    )
+    .await
 }
 
 const MEGABYTE: u64 = 1024 * 1024;

@@ -419,6 +419,8 @@ pub mod artifacts {
             LINUX_DIRECT_TEST_INITRD_X64("initrd", X64),
             /// Test linux direct kernel for aarch64 (from OpenVMM deps)
             LINUX_DIRECT_TEST_KERNEL_AARCH64("Image", AARCH64),
+            /// Test linux direct kernel for aarch64 CCA (from OpenVMM deps)
+            LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64("ImageCCA", AARCH64),
             /// Test linux direct initrd for arch64 (from OpenVMM deps)
             LINUX_DIRECT_TEST_INITRD_AARCH64("initrd", AARCH64),
             /// Test linux direct bzImage kernel for x64 (from OpenVMM deps)
@@ -442,6 +444,10 @@ pub mod artifacts {
         }
 
         impl IsLoadable for LINUX_DIRECT_TEST_KERNEL_AARCH64 {
+            const ARCH: MachineArch = MachineArch::Aarch64;
+        }
+
+        impl IsLoadable for LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64 {
             const ARCH: MachineArch = MachineArch::Aarch64;
         }
 

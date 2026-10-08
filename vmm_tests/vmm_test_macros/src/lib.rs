@@ -1237,10 +1237,15 @@ fn make_vmm_test(args: ArgsWithOverrides, item: ItemFn) -> syn::Result<TokenStre
                     NAME,
                 ))
             }};
+            let l1_args = if config.l1_config.extra_deps.is_empty() {
+                quote! {config}
+            } else {
+                quote! {config, extra_deps}
+            };
             tests.extend(make_vmm_test_config(
                 &name,
                 &nested_config.test_fn.to_token_stream(),
-                &quote! {config},
+                &l1_args,
                 config.l1_config,
                 &true.to_token_stream(),
                 &nested_test,

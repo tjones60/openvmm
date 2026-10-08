@@ -542,6 +542,12 @@ define_vmm_tests_built_artifacts!(
             loadable::LINUX_DIRECT_TEST_KERNEL_AARCH64
         ),
     ) => PathBuf,
+    test_linux_kernel_cca(
+        aarch64(
+            (src, src),
+            loadable::LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64
+        ),
+    ) => PathBuf,
     test_linux_initrd(
         x64(
             (src, src),
@@ -668,6 +674,17 @@ impl SimpleFlowNode for Node {
                 )
             })
         });
+        let test_linux_kernel_cca_aarch64 =
+            prebuilt_artifacts.test_linux_kernel_aarch64.then(|| {
+                ctx.reqv(|v| {
+                    crate::resolve_openvmm_test_linux_kernel::Request::Get(
+                    crate::resolve_openvmm_test_linux_kernel::OpenvmmTestKernelFile::Kernel,
+                    CommonArch::Aarch64,
+                    crate::resolve_openvmm_test_linux_kernel::INCUBATOR_LINUX_TEST_KERNEL_VERSION,
+                    v,
+                )
+                })
+            });
         let test_linux_bzimage_x64 = prebuilt_artifacts.test_linux_bzimage_x64.then(|| {
             ctx.reqv(|v| {
                 crate::resolve_openvmm_test_linux_kernel::Request::Get(
@@ -708,6 +725,7 @@ impl SimpleFlowNode for Node {
         let prebuilt_artifacts = VmmTestsPreBuiltArtifacts {
             test_linux_kernel_x64,
             test_linux_kernel_aarch64,
+            test_linux_kernel_cca_aarch64,
             test_linux_initrd_x64,
             test_linux_initrd_aarch64,
             test_linux_bzimage_x64,

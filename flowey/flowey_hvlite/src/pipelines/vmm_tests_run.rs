@@ -338,6 +338,11 @@ impl IntoPipeline for VmmTestsRunCli {
                 .target_triple()
                 .context("archive artifact should have associated target triple")?
                 .to_string();
+            log::info!(
+                "{} nested tests require artifacts for {}",
+                tests.len(),
+                nested_target_str
+            );
             let nested_filter = tests
                 .into_iter()
                 .map(|t| format!("test(={t})"))

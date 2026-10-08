@@ -1882,6 +1882,7 @@ impl IntoPipeline for CheckinGatesCli {
                     || target_is_linux,
                 test_linux_kernel_aarch64: matches!(target_architecture, CommonArch::Aarch64)
                     || target_is_linux,
+                test_linux_kernel_cca_aarch64: target_is_linux,
                 test_linux_bzimage_x64: matches!(target_architecture, CommonArch::X86_64),
                 uefi_x64: matches!(target_architecture, CommonArch::X86_64),
                 uefi_aarch64: matches!(target_architecture, CommonArch::Aarch64),

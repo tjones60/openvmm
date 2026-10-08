@@ -37,6 +37,7 @@ use petri_artifact_resolver_openvmm_known_paths::resolve_artifact;
 use petri_artifacts_common::tags::GuestQuirks;
 use petri_artifacts_common::tags::GuestQuirksInner;
 use petri_artifacts_common::tags::InitialRebootCondition;
+use petri_artifacts_common::tags::IsLoadable;
 use petri_artifacts_common::tags::IsOpenhclIgvm;
 use petri_artifacts_common::tags::IsTestVmgs;
 use petri_artifacts_common::tags::MachineArch;
@@ -1994,39 +1995,6 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         self
     }
 
-    // /// Run another petri test nested within this test.
-    // ///
-    // /// Enables nested virtualization.
-    // pub fn with_nested_test(
-    //     mut self,
-    //     archive: ResolvedArtifact<impl IsNextestArchive>,
-    //     binary: &str,
-    //     test_name: &str,
-    // ) -> Self {
-    //     if self.nested_test.is_some() {
-    //         panic!("only one nested_test allowed");
-    //     }
-    //     self.nested_test = Some(NestedTestDeps {
-    //         archive: archive.erase(),
-    //         binary: binary.to_string(),
-    //         test_name: test_name.to_string(),
-    //     });
-    //     self.with_nested_virt()
-    // }
-
-    // /// Run another petri test nested within this test
-    // pub fn with_nested_test_artifact<A: ArtifactId>(
-    //     mut self,
-    //     artifact: ResolvedArtifact<A>,
-    // ) -> Self {
-    //     self.nested_test
-    //         .as_mut()
-    //         .expect("no nested test specified")
-    //         .artifacts
-    //         .push((A::relative_path(), artifact.erase()));
-    //     self
-    // }
-
     async fn add_nested_artifacts_to_agent_disk(mut self) -> Self {
         let Some(nested_test) = self.nested_test.as_ref() else {
             return self;
@@ -2089,6 +2057,18 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         self.config.nested_virt_enabled = true;
         self
     }
+
+    /// Use a non-standard kernel for Linux direct tests
+    pub fn with_custom_linux_kernel(
+        mut self,
+        custom_kernel: ResolvedArtifact<impl IsLoadable>,
+    ) -> Self {
+        let Firmware::LinuxDirect { kernel, .. } = &mut self.config.firmware else {
+            panic!("VM is not linux direct");
+        };
+        *kernel = custom_kernel.erase();
+        self
+    }
 }
 
 impl<T: PetriVmmBackend> PetriVm<T> {
@@ -2096,40 +2076,6 @@ impl<T: PetriVmmBackend> PetriVm<T> {
     pub async fn teardown(mut self) -> anyhow::Result<()> {
         tracing::info!("Tearing down VM...");
         self.runtime.take_for_teardown().teardown().await?;
-
-        if let Some(agent_drive) = self
-            .config
-            .vmbus_storage_controllers
-            .get(&PETRI_SCSI_VTL0_CONTROLLER)
-            .and_then(|c| c.drives.get(&PETRI_SCSI_PIPETTE_LUN))
-        {
-            let Some(Disk::Temporary(disk)) = &agent_drive.disk else {
-                anyhow::bail!("agent drive should contain a differencing disk");
-            };
-            self.resources
-                .log_source
-                .copy_attachment("petri.vhd", disk.as_ref())?;
-            // let vhd =
-            //     disk_vhd1::Vhd1Disk::open_fixed(fs_err::File::open(disk.as_ref())?.into(), true)?;
-            // let fs = fatfs::FileSystem::new(
-            //     fscommon::BufStream::new(vhd.into_inner()),
-            //     fatfs::FsOptions::new(),
-            // )?;
-            // let log_dir = fs.root_dir().open_dir("vmm_tests/test_results")?;
-            // for entry in log_dir.iter() {
-            //     let entry = entry?;
-            //     if entry.is_file() {
-            //         let file_name = entry.file_name();
-            //         let src = fs
-            //             .root_dir()
-            //             .open_file(&format!("vmm_tests/test_results/{file_name}"))?;
-            //         self.resources
-            //             .log_source
-            //             .write_attachment(&file_name, src)?;
-            //     }
-            // }
-        }
-
         Ok(())
     }
 
