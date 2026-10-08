@@ -20,7 +20,6 @@ pub use target_lexicon;
 
 use anyhow::Context;
 use std::cell::RefCell;
-use std::collections::BTreeMap;
 use std::ffi::OsStr;
 use std::io::Write;
 use std::marker::PhantomData;
@@ -384,26 +383,6 @@ impl<'a> ArtifactResolver<'a> {
             }
             ArtifactResolverInner::Resolving(artifacts) => {
                 ResolvedArtifactSource(Some(artifacts.get_source(handle).clone()), PhantomData)
-            }
-        }
-    }
-
-    /// Resolve a required erased artifact. The artifact must be available locally.
-    ///
-    /// Useful for dynamically requiring artifacts.
-    pub fn require_erased(&self, handle: ErasedArtifactHandle) -> ResolvedArtifact {
-        match &self.inner {
-            ArtifactResolverInner::Collecting(requirements) => {
-                requirements
-                    .borrow_mut()
-                    .require(handle, RemoteAccess::LocalOnly, false, None);
-                ResolvedArtifact(None, PhantomData)
-            }
-            ArtifactResolverInner::Resolving(artifacts) => {
-                let ArtifactSource::Local(source) = artifacts.get_source(handle).clone() else {
-                    panic!("artifact must be available locally");
-                };
-                ResolvedArtifact(Some(source), PhantomData)
             }
         }
     }
@@ -1000,14 +979,12 @@ pub mod tags {
 pub fn query_test_binary_artifacts(
     test_binary: &Path,
     tests: &[impl AsRef<str>],
-    env: BTreeMap<String, String>,
 ) -> anyhow::Result<ArtifactListOutput> {
     let mut command = std::process::Command::new(test_binary);
     command
         .arg("--list-required-artifacts")
         .arg("--tests-from-stdin")
-        .stdin(std::process::Stdio::piped())
-        .envs(env);
+        .stdin(std::process::Stdio::piped());
 
     let mut child = command
         .stdout(std::process::Stdio::piped())

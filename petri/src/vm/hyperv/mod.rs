@@ -444,7 +444,7 @@ impl PetriVmmBackend for HyperVPetriBackend {
             imc_hiv,
             management_vtl_settings,
 
-            ..HyperVNewCustomVMArgs::from_config(&config, &properties)?
+            ..HyperVNewCustomVMArgs::from_config(&config, properties)?
         };
 
         let vm = HyperVVM::new(hyperv_args, log_source.clone(), driver.clone()).await?;

@@ -27,7 +27,6 @@ use petri_artifacts_core::ArtifactListOutput;
 use petri_artifacts_core::ArtifactTarget;
 use petri_artifacts_core::artifact_from_id;
 use petri_artifacts_vmm_test::ErasedVmmTestImage;
-use petri_artifacts_vmm_test::env::VMM_TESTS_CONTENT_DIR;
 use petri_artifacts_vmm_test::vmm_test_image_from_id;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -148,7 +147,6 @@ struct CargoNextestListRequest<'a> {
     filter: &'a str,
     release: bool,
     include_ignored: bool,
-    test_content_dir: &'a Path,
 }
 
 struct RustSuite {
@@ -275,10 +273,6 @@ impl IntoPipeline for VmmTestsRunCli {
             };
 
         let repo_root = crate::repo_root();
-        let test_content_dir = dir
-            .clone()
-            .unwrap_or_else(|| repo_root.join("target").join("vmm_tests"));
-        std::fs::create_dir_all(&test_content_dir).context("failed to create output directory")?;
 
         let incubator_profile = incubator
             .map(|i| resolve_incubator(i, &target))
@@ -316,7 +310,6 @@ impl IntoPipeline for VmmTestsRunCli {
             // petri marks incompatible tests as ignored.
             //
             include_ignored,
-            test_content_dir: &test_content_dir,
         })?;
 
         if suites.is_empty() {
@@ -327,11 +320,12 @@ impl IntoPipeline for VmmTestsRunCli {
         let mut artifacts = Vec::new();
         let mut nested = Vec::new();
         for suite in suites.values() {
-            let mut output = query_test_binary_artifacts(suite, &test_content_dir)?;
+            let mut output = query_test_binary_artifacts(suite)?;
             nested.append(&mut output.nested);
             artifacts.append(&mut output.into_artifacts_list());
         }
 
+        // Query artifacts for nested tests
         for (id, tests) in nested {
             let nested_target_str = artifact_from_id(&id)
                 .with_context(|| format!("unknown artifact handle: {id}"))?
@@ -355,10 +349,9 @@ impl IntoPipeline for VmmTestsRunCli {
                 filter: &nested_filter,
                 release,
                 include_ignored: true,
-                test_content_dir: &test_content_dir,
             })?;
             for suite in nested_suites.values() {
-                let output = query_test_binary_artifacts(suite, &test_content_dir)?;
+                let output = query_test_binary_artifacts(suite)?;
                 if !output.nested.is_empty() {
                     anyhow::bail!("recursive nesting not supported");
                 }
@@ -415,13 +408,10 @@ impl IntoPipeline for VmmTestsRunCli {
                 if !hyperv_testcases.is_empty() {
                     hyperv_tests += hyperv_testcases.len();
                     hyperv_artifacts.append(
-                        &mut query_test_binary_artifacts(
-                            &RustSuite {
-                                binary_path: suite.binary_path.clone(),
-                                testcases: hyperv_testcases,
-                            },
-                            &test_content_dir,
-                        )?
+                        &mut query_test_binary_artifacts(&RustSuite {
+                            binary_path: suite.binary_path.clone(),
+                            testcases: hyperv_testcases,
+                        })?
                         .into_artifacts_list(),
                     );
                 }
@@ -474,6 +464,8 @@ impl IntoPipeline for VmmTestsRunCli {
                     .iter()
                     .any(|a| a.filename().ends_with(".vhdx")));
         validate_output_dir(dir.as_deref(), target_os, needs_windows_disk)?;
+        let test_content_dir = dir.unwrap_or_else(|| repo_root.join("target").join("vmm_tests"));
+        std::fs::create_dir_all(&test_content_dir).context("failed to create output directory")?;
 
         let openvmm_repo = flowey_lib_common::git_checkout::RepoSource::ExistingClone(
             ReadVar::from_static(repo_root),
@@ -577,7 +569,6 @@ fn run_cargo_nextest_list<'a>(
         filter,
         release,
         include_ignored,
-        test_content_dir,
     } = req;
 
     // Check that cargo-nextest is available
@@ -615,13 +606,6 @@ fn run_cargo_nextest_list<'a>(
     if include_ignored {
         cmd.args(["--run-ignored", "all"]);
     }
-    cmd.env(
-        VMM_TESTS_CONTENT_DIR.to_string(),
-        test_content_dir
-            .to_str()
-            .context("test content dir not utf8")?
-            .to_string(),
-    );
     let nextest_output = cmd.output().context("failed to run cargo nextest list")?;
     anyhow::ensure!(nextest_output.status.success(), "cargo nextest list failed",);
     let nextest_stdout = String::from_utf8(nextest_output.stdout)
@@ -682,24 +666,11 @@ fn parse_nextest_output(stdout: &str) -> anyhow::Result<BTreeMap<String, RustSui
 /// Runs the test binary with `--list-required-artifacts --tests-from-stdin`
 /// and returns all the required and optional artifacts for all test defined
 /// in the RustSuite.
-fn query_test_binary_artifacts(
-    suite: &RustSuite,
-    test_content_dir: &Path,
-) -> anyhow::Result<ArtifactListOutput> {
+fn query_test_binary_artifacts(suite: &RustSuite) -> anyhow::Result<ArtifactListOutput> {
     log::info!("Using test binary: {}", suite.binary_path.display());
     log::info!("Querying artifacts for {} tests", suite.testcases.len());
 
-    petri_artifacts_core::query_test_binary_artifacts(
-        &suite.binary_path,
-        &suite.testcases,
-        BTreeMap::from([(
-            VMM_TESTS_CONTENT_DIR.into(),
-            test_content_dir
-                .to_str()
-                .context("test content dir not utf8")?
-                .to_string(),
-        )]),
-    )
+    petri_artifacts_core::query_test_binary_artifacts(&suite.binary_path, &suite.testcases)
 }
 
 #[derive(clap::ValueEnum, Copy, Clone)]

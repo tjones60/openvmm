@@ -897,8 +897,18 @@ impl IntoPipeline for CheckinGatesCli {
                     use_vmm_perf_openvmm_musl_x64 = Some(use_openvmm_musl.clone());
                 }
                 CommonArch::Aarch64 => {
+                    vmm_tests_artifacts_linux_x86.use_openvmm_linux_musl_aarch64 =
+                        Some(use_openvmm_musl.clone());
+                    vmm_tests_artifacts_linux_musl_x86.use_openvmm_linux_musl_aarch64 =
+                        Some(use_openvmm_musl.clone());
                     vmm_tests_artifacts_linux_aarch64_tcg.use_openvmm_linux_musl_aarch64 =
                         Some(use_openvmm_musl.clone());
+                    vmm_tests_artifacts_linux_x86
+                        .use_nextest_vmm_tests_archive_linux_musl_aarch64 =
+                        Some(use_vmm_tests_archive_musl.clone());
+                    vmm_tests_artifacts_linux_musl_x86
+                        .use_nextest_vmm_tests_archive_linux_musl_aarch64 =
+                        Some(use_vmm_tests_archive_musl.clone());
                     vmm_tests_artifacts_linux_aarch64_tcg
                         .use_nextest_vmm_tests_archive_linux_musl_aarch64 =
                         Some(use_vmm_tests_archive_musl.clone());
@@ -1528,7 +1538,7 @@ impl IntoPipeline for CheckinGatesCli {
             .map_err(|missing| {
                 anyhow::anyhow!("missing required windows-aarch64 vmm_tests artifact: {missing}")
             })?;
-        let vmm_tests_artifacts_linux_aarch64_tcg = vmm_tests_artifacts_linux_aarch64_tcg
+        let _vmm_tests_artifacts_linux_aarch64_tcg = vmm_tests_artifacts_linux_aarch64_tcg
             .finish()
             .map_err(|missing| {
                 anyhow::anyhow!("missing required linux-aarch64-tcg vmm_tests artifact: {missing}")
@@ -1820,28 +1830,6 @@ impl IntoPipeline for CheckinGatesCli {
                     hyperv: true,
                     whp: true,
                     hardware_isolation: false,
-                }),
-            },
-            VmmTestJobParams {
-                platform: FlowPlatform::Linux(FlowPlatformLinuxDistro::Ubuntu),
-                arch: FlowArch::X86_64,
-                gh_pool: gh_pools::default_linux(),
-                ado_pool: Some(ado_pools::default_linux()),
-                label: "aarch64-linux-tcg",
-                target: CommonTriple::AARCH64_LINUX_MUSL,
-                resolve_vmm_tests_artifacts: vmm_tests_artifacts_linux_aarch64_tcg,
-                // aarch64-linux tests have no native CI hardware, so they run
-                // inside the QEMU TCG incubator rather than directly on the host.
-                incubator_profile: Some("aarch64-tcg-pcie"),
-                nextest_filter_expr: "test(aarch64_tcg)".to_string(),
-                downloaded_artifacts: vec![
-                    test_vhd::ALPINE_3_23_AARCH64.into(),
-                    test_vhd::UBUNTU_2404_SERVER_AARCH64.into(),
-                ],
-                prep_steps_variants: Vec::new(),
-                external_deps: VmmTestsExternalDeps::Linux(VmmTestsExternalDepsLinux {
-                    hugetlb_2mb_overcommit_pages: None,
-                    prepare_vhost_vsock: false,
                 }),
             },
         ] {

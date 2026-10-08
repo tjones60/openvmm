@@ -402,7 +402,7 @@ pub trait PetriVmmBackend: Debug {
     const SUPPORTS_CPU_EMULATION: bool = false;
 
     /// How to share files with the guest for this backend
-    const AGENT_DISK_TYPE: AgentDiskType = AgentDiskType::VHD;
+    const AGENT_DISK_TYPE: AgentDiskType = AgentDiskType::Vhd;
 
     /// Check whether the combination of guest firmware, guest architecture, and
     /// internally determined host properties is supported by the backend.
@@ -598,14 +598,12 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
         artifacts: PetriVmArtifacts<T>,
         driver: &DefaultDriver,
     ) -> anyhow::Result<Self> {
-        Ok(
-            Self::minimal(params.test_name, params.log_source, artifacts, driver)?
-                .clear_minimal_mode()
-                .with_serial_output()
-                .with_capture_inspect_on_failure()
-                .add_petri_scsi_controllers()
-                .add_guest_crash_disk(params.post_test_hooks)?,
-        )
+        Self::minimal(params.test_name, params.log_source, artifacts, driver)?
+            .clear_minimal_mode()
+            .with_serial_output()
+            .with_capture_inspect_on_failure()
+            .add_petri_scsi_controllers()
+            .add_guest_crash_disk(params.post_test_hooks)
     }
 
     /// Create a minimal VM builder with only the bare minimum device set.
@@ -997,7 +995,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
 
         let agent_disk = if let Some(i) = agent_image {
             match T::AGENT_DISK_TYPE {
-                AgentDiskType::VHD => i
+                AgentDiskType::Vhd => i
                     .build(crate::disk_image::ImageType::Vhd)
                     .context("failed to build agent image")?,
                 AgentDiskType::Folder => {
@@ -1631,7 +1629,7 @@ impl<T: PetriVmmBackend> PetriVmBuilder<T> {
     }
 
     /// Adds a file to the VM's pipette agent image.
-    pub fn with_agent_image_entry(mut self, name: &str, file_path: impl AsRef<Path>) -> Self {
+    pub fn with_agent_file(mut self, name: &str, file_path: impl AsRef<Path>) -> Self {
         self.agent_image
             .as_mut()
             .expect("no guest pipette")
@@ -2514,6 +2512,7 @@ impl<T: PetriVmmBackend> PetriVm<T> {
 
         let mut child = cmd.spawn().await?;
 
+        // TODO: output JSON, parse, and correctly format in logs
         self.resources
             .driver
             .spawn(
@@ -4182,19 +4181,18 @@ impl NestedTestDeps {
         let meta: nextest_binaries_metadata_schema::BinariesMetadata =
             serde_json::from_reader(meta_file)?;
 
-        let build_binary_path = PathBuf::from(
-            meta.rust_binaries
-                .iter()
-                .find(|(_, b)| b.binary_name == self.binary)
-                .context("binary missing")?
-                .1
-                .binary_path
-                .clone(),
-        );
+        let build_binary_path = meta
+            .rust_binaries
+            .iter()
+            .find(|(_, b)| b.binary_name == self.binary)
+            .context("binary missing")?
+            .1
+            .binary_path
+            .clone();
 
         let local_binary_path = temp_dir.path().join(
             build_binary_path
-                .strip_prefix(&meta.rust_build_meta.target_directory.parent().unwrap())?,
+                .strip_prefix(meta.rust_build_meta.target_directory.parent().unwrap())?,
         );
 
         let temp_path = tempfile::NamedTempFile::new()?.into_temp_path();
@@ -4209,28 +4207,24 @@ impl NestedTestDeps {
             .extract_binary()
             .context("failed to extract nextest binary")?;
 
-        let artifacts = petri_artifacts_core::query_test_binary_artifacts(
-            &test_binary,
-            &[&self.test_name],
-            BTreeMap::from([(
-                VMM_TESTS_CONTENT_DIR.into(),
-                std::env::var(VMM_TESTS_CONTENT_DIR).context("test content dir env var not set")?,
-            )]),
-        )
-        .context("failed to query test binary for artifacts")?
-        .into_artifacts_list()
-        .into_iter()
-        .filter(|id| id != petri_artifacts_common::artifacts::TEST_LOG_DIRECTORY::GLOBAL_UNIQUE_ID)
-        .map(|id| {
-            let handle = petri_artifacts_core::artifact_from_id(&id)
-                .with_context(|| format!("unknown artifact handle: {id}"))?;
-            Ok((handle, resolve_artifact(handle)?))
-        })
-        .collect::<anyhow::Result<Vec<_>>>()?;
+        let artifacts =
+            petri_artifacts_core::query_test_binary_artifacts(&test_binary, &[&self.test_name])
+                .context("failed to query test binary for artifacts")?
+                .into_artifacts_list()
+                .into_iter()
+                .filter(|id| {
+                    id != petri_artifacts_common::artifacts::TEST_LOG_DIRECTORY::GLOBAL_UNIQUE_ID
+                })
+                .map(|id| {
+                    let handle = petri_artifacts_core::artifact_from_id(&id)
+                        .with_context(|| format!("unknown artifact handle: {id}"))?;
+                    Ok((handle, resolve_artifact(handle)?))
+                })
+                .collect::<anyhow::Result<Vec<_>>>()?;
 
         Ok(ResolvedNestedTestDeps {
             test_binary,
-            test_name: self.test_name.to_string(),
+            test_name: self.test_name.clone(),
             artifacts,
         })
     }
@@ -4330,7 +4324,7 @@ impl<T: PetriVmmBackend> PetriGuestPaths for PetriVm<T> {
 #[derive(Debug, Clone, Copy)]
 pub enum AgentDiskType {
     /// Create a VHD to mount in the guest
-    VHD,
+    Vhd,
     /// Share a host folder with the guest
     Folder,
 }

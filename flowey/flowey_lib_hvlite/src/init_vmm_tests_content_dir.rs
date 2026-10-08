@@ -915,12 +915,15 @@ pub mod vmm_tests_artifact_builders {
             openvmm_linux_x64 => OpenvmmOutput,
             openvmm_vhost_linux_x64 => OpenvmmVhostOutput,
             pipette_linux_musl_x64 => PipetteOutput,
-            pipette_linux_musl_aarch64 => PipetteOutput,
             prep_steps_linux_musl_x64 => PrepStepsOutput,
             tmk_vmm_linux_musl_x64 => TmkVmmOutput,
             // any machine
             guest_test_uefi_x64 => GuestTestUefiOutput,
             tmks_x64 => TmksOutput,
+            // aarch64 emulated binaries
+            nextest_vmm_tests_archive_linux_musl_aarch64 => NextestVmmTestsArchive,
+            openvmm_linux_musl_aarch64 => OpenvmmOutput,
+            pipette_linux_musl_aarch64 => PipetteOutput,
         )
     );
 
@@ -934,12 +937,15 @@ pub mod vmm_tests_artifact_builders {
             openvmm_linux_musl_x64 => OpenvmmOutput,
             openvmm_vhost_linux_musl_x64 => OpenvmmVhostOutput,
             pipette_linux_musl_x64 => PipetteOutput,
-            pipette_linux_musl_aarch64 => PipetteOutput,
             prep_steps_linux_musl_x64 => PrepStepsOutput,
             tmk_vmm_linux_musl_x64 => TmkVmmOutput,
             // any machine
             guest_test_uefi_x64 => GuestTestUefiOutput,
             tmks_x64 => TmksOutput,
+            // aarch64 emulated binaries
+            nextest_vmm_tests_archive_linux_musl_aarch64 => NextestVmmTestsArchive,
+            openvmm_linux_musl_aarch64 => OpenvmmOutput,
+            pipette_linux_musl_aarch64 => PipetteOutput,
         )
     );
 

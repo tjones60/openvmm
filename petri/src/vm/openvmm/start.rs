@@ -63,7 +63,7 @@ impl PetriVmConfigOpenVmm {
         // TODO: arm64 is broken?
         // TODO: VPCI and some PCIe endpoints (NVMe/GDMA) don't support
         // TODO: virtio vsock doesn't support save/restore yet
-        // TODO: nested virt does support save/restore yet
+        // TODO: nested virt doesn't support save/restore yet
         let has_unsupported_pcie_save_restore_device = config
             .pcie_devices
             .iter()
