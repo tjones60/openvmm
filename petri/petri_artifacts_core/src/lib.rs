@@ -731,7 +731,7 @@ impl TestArtifactRequirements {
             .filter_map(|&(a, req)| req.optional.then_some(a))
     }
 
-    /// Returns the current list of nested tests with depencencies.
+    /// Returns the current list of nested tests with dependencies.
     pub fn nested_artifacts(
         &self,
     ) -> impl Iterator<Item = (ErasedArtifactHandle, &'static str)> + '_ {
@@ -856,7 +856,7 @@ pub struct ArtifactListOutput {
 }
 
 impl ArtifactListOutput {
-    /// Convert to struct into a list of all the artifacts
+    /// Convert the struct into a list of all artifacts
     pub fn into_artifacts_list(self) -> Vec<String> {
         let ArtifactListOutput {
             mut required,

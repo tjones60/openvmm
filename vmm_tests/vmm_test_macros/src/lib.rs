@@ -567,22 +567,30 @@ impl Parse for Args {
         }
 
         for config in &configs {
-            #[expect(clippy::single_match)] // more patterns coming later
-            match config.l1_config.firmware {
-                Firmware::Uefi(UefiGuest::Vhd(ImageInfo { arch, .. })) => {
-                    if config.l1_config.arch != arch {
-                        return Err(Error::new(
-                            config.l1_config.span,
-                            "firmware architecture must match guest architecture",
-                        ));
-                    }
-                }
-                _ => {}
+            validate_firmware(&config.l1_config)?;
+            if let Some(nested_config) = config.nested_config.as_ref() {
+                validate_firmware(&nested_config.l2_config)?;
             }
         }
 
         Ok(Args { configs })
     }
+}
+
+fn validate_firmware(config: &Config) -> syn::Result<()> {
+    #[expect(clippy::single_match)] // more patterns coming later
+    match config.firmware {
+        Firmware::Uefi(UefiGuest::Vhd(ImageInfo { arch, .. })) => {
+            if config.arch != arch {
+                return Err(Error::new(
+                    config.span,
+                    "firmware architecture must match guest architecture",
+                ));
+            }
+        }
+        _ => {}
+    }
+    Ok(())
 }
 
 impl Parse for MaybeNestedConfig {
@@ -975,7 +983,7 @@ struct NestedConfig {
     l2_config: Config,
 }
 
-/// Parses a nested L1
+/// Parses a nested config
 fn parse_nested(input: ParseStream<'_>) -> syn::Result<MaybeNestedConfig> {
     let parens;
     syn::parenthesized!(parens in input);
@@ -983,6 +991,9 @@ fn parse_nested(input: ParseStream<'_>) -> syn::Result<MaybeNestedConfig> {
     parens.parse::<Token![,]>()?;
     let l1_config = parens.parse::<Config>()?;
     let _: Option<Token![,]> = parens.parse()?;
+    if !parens.is_empty() {
+        return Err(parens.error("unexpected tokens after the L1 config"));
+    }
     input.parse::<Token![,]>()?;
 
     let parens;
@@ -995,7 +1006,13 @@ fn parse_nested(input: ParseStream<'_>) -> syn::Result<MaybeNestedConfig> {
     parens.parse::<Token![,]>()?;
     let l2_config = parens.parse::<Config>()?;
     let _: Option<Token![,]> = parens.parse()?;
+    if !parens.is_empty() {
+        return Err(parens.error("unexpected tokens after the L2 config"));
+    }
     let _: Option<Token![,]> = input.parse()?;
+    if !input.is_empty() {
+        return Err(parens.error("unexpected tokens after nested config"));
+    }
 
     Ok(MaybeNestedConfig {
         l1_config,

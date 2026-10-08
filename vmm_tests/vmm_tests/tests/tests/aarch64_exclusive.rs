@@ -463,7 +463,7 @@ fn incubator_vfio_bdf(name: &str) -> anyhow::Result<String> {
 /// in the SMMU and the sink offset stays at its initialized sentinel, so a
 /// matching read-back proves the dmabuf import engaged.
 //
-// TODO: Fix this test do it doesn't need a test disk device.
+// TODO: Fix this test so it doesn't need a test disk device.
 #[vmm_test_with(
     openvmm,
     requires(edu_initiator, ivshmem_target),

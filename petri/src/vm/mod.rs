@@ -499,6 +499,7 @@ const NESTED_TEST_CONTENT_DIR: &str = "vmm_tests";
 const NESTED_IMAGES_DIR: &str = "images";
 const NESTED_RESULTS_DIR: &str = "test_results";
 const NESTED_TEST_BINARY: &str = "nested_test";
+const NESTED_TEMP_DIR: &str = "temp";
 
 /// A constructed Petri VM
 pub struct PetriVm<T: PetriVmmBackend> {
@@ -2497,13 +2498,17 @@ impl<T: PetriVmmBackend> PetriVm<T> {
         client: &PipetteClient,
         env: BTreeMap<String, String>,
     ) -> anyhow::Result<()> {
-        let sh = client.unix_shell();
-
+        let mut _images_temp_dir = None;
         let nested_test = self.nested_test.as_ref().context("no nested test")?;
 
         let (test_binary_path, images_path) = if let Some(guest_share) = self.guest_share.as_ref() {
             let test_content_dir = absolute(guest_share.as_path())?;
             let local_test_binary_path = absolute(&nested_test.test_binary)?;
+            let relative_test_binary_path = self.convert_guest_path(
+                local_test_binary_path
+                    .strip_prefix(&test_content_dir)
+                    .context("test binary should be under content dir")?,
+            );
 
             let local_images_path = absolute(PathBuf::from(
                 std::env::var_os(VMM_TEST_IMAGES).context("images dir not set")?,
@@ -2512,22 +2517,22 @@ impl<T: PetriVmmBackend> PetriVm<T> {
                 if let Ok(relative) = local_images_path.strip_prefix(&test_content_dir) {
                     self.convert_guest_path(relative)
                 } else {
-                    let dst = test_content_dir.join(NESTED_IMAGES_DIR);
+                    let tmp = tempfile::TempDir::new_in(test_content_dir.join(NESTED_TEMP_DIR))?;
+                    let dst = tmp.path().join(NESTED_IMAGES_DIR);
+                    _images_temp_dir = Some(tmp);
+
                     #[cfg(unix)]
                     fs_err::os::unix::fs::symlink(&local_images_path, &dst)?;
                     #[cfg(windows)]
                     fs_err::os::windows::fs::symlink_dir(&local_images_path, &dst)?;
-                    NESTED_IMAGES_DIR.to_string()
+
+                    self.convert_guest_path(
+                        dst.strip_prefix(&test_content_dir)
+                            .context("images should be under content dir")?,
+                    )
                 };
 
-            (
-                self.convert_guest_path(
-                    local_test_binary_path
-                        .strip_prefix(&test_content_dir)
-                        .context("test binary should be under content dir")?,
-                ),
-                relative_images_path,
-            )
+            (relative_test_binary_path, relative_images_path)
         } else {
             (
                 self.binary_with_extension(NESTED_TEST_BINARY),
@@ -2535,10 +2540,8 @@ impl<T: PetriVmmBackend> PetriVm<T> {
             )
         };
 
-        let test_binary_guest_path =
-            self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into(), test_binary_path]);
-
-        let mut cmd = client.command(test_binary_guest_path);
+        let mut cmd = client
+            .command(self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into(), test_binary_path]));
         cmd.arg("--ignored")
             .arg("--exact")
             .arg(&nested_test.test_name)
@@ -2589,7 +2592,8 @@ impl<T: PetriVmmBackend> PetriVm<T> {
                 nested_test.test_name.replace("::", "__"),
             ]);
             let log_files = String::from_utf8(
-                sh.cmd("ls")
+                client
+                    .command("ls")
                     .arg("-1")
                     .arg(&test_results_dir)
                     .output()
@@ -4216,7 +4220,7 @@ impl NestedTestDeps {
 
         // copy the binary under the test content dir so it can be shared with the guest
         let test_content_temp_dir =
-            PathBuf::from(std::env::var(VMM_TESTS_CONTENT_DIR)?).join("temp");
+            PathBuf::from(std::env::var(VMM_TESTS_CONTENT_DIR)?).join(NESTED_TEMP_DIR);
         fs_err::create_dir_all(&test_content_temp_dir)?;
         let temp_path = tempfile::NamedTempFile::new_in(&test_content_temp_dir)
             .context("failed to create temp nested test")?
