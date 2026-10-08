@@ -228,9 +228,11 @@ impl SimpleFlowNode for Node {
             test_content_dir = test_content_dir.depending_on(ctx, removed);
         }
 
+        // clone instead of take since the l1 may need the same archive
+        // for nested tests.
         let nextest_vmm_tests_archive = built_artifacts
             .nextest_vmm_tests_archive(ArtifactTarget::Triple(target.clone()))?
-            .take()
+            .clone()
             .expect("nextest_vmm_tests_archive is always required");
         let incubator = built_artifacts.incubator_linux_x64.take();
         let prep_steps = built_artifacts

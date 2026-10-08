@@ -60,6 +60,7 @@ use std::io::Write;
 use std::panic::AssertUnwindSafe;
 use std::path::Path;
 use std::path::PathBuf;
+use std::path::absolute;
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempPath;
@@ -2500,16 +2501,42 @@ impl<T: PetriVmmBackend> PetriVm<T> {
 
         let nested_test = self.nested_test.as_ref().context("no nested test")?;
 
-        let test_binary_guest_path = self.agent_disk_path(&[
-            NESTED_TEST_CONTENT_DIR.into(),
-            if let Some(guest_share) = self.guest_share.as_ref() {
-                let test_content_dir = std::path::absolute(guest_share.as_path())?;
-                let nested_test_path = std::path::absolute(&nested_test.test_binary)?;
-                self.convert_guest_path(nested_test_path.strip_prefix(&test_content_dir)?)
-            } else {
-                self.binary_with_extension(NESTED_TEST_BINARY)
-            },
-        ]);
+        let (test_binary_path, images_path) = if let Some(guest_share) = self.guest_share.as_ref() {
+            let test_content_dir = absolute(guest_share.as_path())?;
+            let local_test_binary_path = absolute(&nested_test.test_binary)?;
+
+            let local_images_path = absolute(PathBuf::from(
+                std::env::var_os(VMM_TEST_IMAGES).context("images dir not set")?,
+            ))?;
+            let relative_images_path =
+                if let Ok(relative) = local_images_path.strip_prefix(&test_content_dir) {
+                    self.convert_guest_path(relative)
+                } else {
+                    let dst = test_content_dir.join(NESTED_IMAGES_DIR);
+                    #[cfg(unix)]
+                    fs_err::os::unix::fs::symlink(&local_images_path, &dst)?;
+                    #[cfg(windows)]
+                    fs_err::os::windows::fs::symlink_dir(&local_images_path, &dst)?;
+                    NESTED_IMAGES_DIR.to_string()
+                };
+
+            (
+                self.convert_guest_path(
+                    local_test_binary_path
+                        .strip_prefix(&test_content_dir)
+                        .context("test binary should be under content dir")?,
+                ),
+                relative_images_path,
+            )
+        } else {
+            (
+                self.binary_with_extension(NESTED_TEST_BINARY),
+                self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into(), NESTED_IMAGES_DIR.into()]),
+            )
+        };
+
+        let test_binary_guest_path =
+            self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into(), test_binary_path]);
 
         let mut cmd = client.command(test_binary_guest_path);
         cmd.arg("--ignored")
@@ -2521,14 +2548,13 @@ impl<T: PetriVmmBackend> PetriVm<T> {
             )
             .env(
                 VMM_TEST_IMAGES,
-                self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into(), NESTED_IMAGES_DIR.into()]),
+                self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into(), images_path]),
             )
             .env(
                 TEST_OUTPUT_PATH,
                 self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into(), NESTED_RESULTS_DIR.into()]),
             )
-            .stdout(crate::pipette::process::Stdio::piped())
-            .stderr(crate::pipette::process::Stdio::piped());
+            .stdout(crate::pipette::process::Stdio::piped());
 
         for (k, v) in env {
             cmd.env(k, v);
@@ -2546,7 +2572,7 @@ impl<T: PetriVmmBackend> PetriVm<T> {
             .spawn(
                 "log_nested",
                 crate::log_task(
-                    self.resources.log_source.log_file("nested_stdout")?,
+                    self.resources.log_source.log_file("stdout")?,
                     child.stdout.take().unwrap(),
                     "nested stdout",
                 ),

@@ -888,6 +888,8 @@ impl IntoPipeline for CheckinGatesCli {
                         Some(use_prep_steps_musl.clone());
                     vmm_tests_artifacts_linux_x86.use_nextest_vmm_tests_archive_linux_x64 =
                         Some(use_vmm_tests_archive.clone());
+                    vmm_tests_artifacts_linux_x86.use_nextest_vmm_tests_archive_linux_musl_x64 =
+                        Some(use_vmm_tests_archive_musl.clone());
                     vmm_tests_artifacts_linux_musl_x86
                         .use_nextest_vmm_tests_archive_linux_musl_x64 =
                         Some(use_vmm_tests_archive_musl.clone());
@@ -1870,10 +1872,11 @@ impl IntoPipeline for CheckinGatesCli {
                     || target_is_linux,
                 test_linux_kernel_aarch64: matches!(target_architecture, CommonArch::Aarch64)
                     || target_is_linux,
-                test_linux_kernel_cca_aarch64: target_is_linux,
+                test_linux_kernel_cca_aarch64: matches!(target_architecture, CommonArch::Aarch64)
+                    || target_is_linux,
                 test_linux_bzimage_x64: matches!(target_architecture, CommonArch::X86_64),
                 uefi_x64: matches!(target_architecture, CommonArch::X86_64),
-                uefi_aarch64: matches!(target_architecture, CommonArch::Aarch64),
+                uefi_aarch64: matches!(target_architecture, CommonArch::Aarch64) || target_is_linux,
                 qemu_system_aarch64_linux_x64: target_is_linux,
             };
 
