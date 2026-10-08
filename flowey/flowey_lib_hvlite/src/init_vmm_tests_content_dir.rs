@@ -914,6 +914,7 @@ pub mod vmm_tests_artifact_builders {
             nextest_vmm_tests_archive_linux_x64 => NextestVmmTestsArchive,
             nextest_vmm_tests_archive_linux_musl_x64 => NextestVmmTestsArchive,
             openvmm_linux_x64 => OpenvmmOutput,
+            openvmm_linux_musl_x64 => OpenvmmOutput,
             openvmm_vhost_linux_x64 => OpenvmmVhostOutput,
             pipette_linux_musl_x64 => PipetteOutput,
             prep_steps_linux_musl_x64 => PrepStepsOutput,

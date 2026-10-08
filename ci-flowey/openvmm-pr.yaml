@@ -4443,6 +4443,11 @@ jobs:
       artifact: x64-guest_test_uefi
       path: $(FLOWEY_TEMP_DIR)/used_artifacts/x64-guest_test_uefi
   - task: DownloadPipelineArtifact@2
+    displayName: 🌼📦 Download x64-linux-musl-openvmm
+    inputs:
+      artifact: x64-linux-musl-openvmm
+      path: $(FLOWEY_TEMP_DIR)/used_artifacts/x64-linux-musl-openvmm
+  - task: DownloadPipelineArtifact@2
     displayName: 🌼📦 Download x64-linux-musl-pipette
     inputs:
       artifact: x64-linux-musl-pipette
@@ -4509,6 +4514,7 @@ jobs:
       echo "$(FLOWEY_TEMP_DIR)/used_artifacts/aarch64-linux-musl-pipette" | $FLOWEY_BIN v 21 'artifact_use_from_aarch64-linux-musl-pipette' --is-raw-string update
       echo "$(FLOWEY_TEMP_DIR)/used_artifacts/aarch64-linux-musl-vmm-tests-archive" | $FLOWEY_BIN v 21 'artifact_use_from_aarch64-linux-musl-vmm-tests-archive' --is-raw-string update
       echo "$(FLOWEY_TEMP_DIR)/used_artifacts/x64-guest_test_uefi" | $FLOWEY_BIN v 21 'artifact_use_from_x64-guest_test_uefi' --is-raw-string update
+      echo "$(FLOWEY_TEMP_DIR)/used_artifacts/x64-linux-musl-openvmm" | $FLOWEY_BIN v 21 'artifact_use_from_x64-linux-musl-openvmm' --is-raw-string update
       echo "$(FLOWEY_TEMP_DIR)/used_artifacts/x64-linux-musl-pipette" | $FLOWEY_BIN v 21 'artifact_use_from_x64-linux-musl-pipette' --is-raw-string update
       echo "$(FLOWEY_TEMP_DIR)/used_artifacts/x64-linux-musl-prep_steps" | $FLOWEY_BIN v 21 'artifact_use_from_x64-linux-musl-prep_steps' --is-raw-string update
       echo "$(FLOWEY_TEMP_DIR)/used_artifacts/x64-linux-musl-tmk_vmm" | $FLOWEY_BIN v 21 'artifact_use_from_x64-linux-musl-tmk_vmm' --is-raw-string update
@@ -4611,15 +4617,16 @@ jobs:
       $(Pipeline.Workspace)
       EOF
       $(FLOWEY_BIN) e 21 flowey_lib_hvlite::_jobs::consume_and_test_nextest_vmm_tests_archive 1
-      $(FLOWEY_BIN) e 21 flowey_core::pipeline::artifact::resolve 12
-      $(FLOWEY_BIN) e 21 flowey_core::pipeline::artifact::resolve 10
-      $(FLOWEY_BIN) e 21 flowey_core::pipeline::artifact::resolve 7
+      $(FLOWEY_BIN) e 21 flowey_core::pipeline::artifact::resolve 13
+      $(FLOWEY_BIN) e 21 flowey_core::pipeline::artifact::resolve 11
       $(FLOWEY_BIN) e 21 flowey_core::pipeline::artifact::resolve 8
       $(FLOWEY_BIN) e 21 flowey_core::pipeline::artifact::resolve 9
       $(FLOWEY_BIN) e 21 flowey_core::pipeline::artifact::resolve 4
-      $(FLOWEY_BIN) e 21 flowey_core::pipeline::artifact::resolve 6
+      $(FLOWEY_BIN) e 21 flowey_core::pipeline::artifact::resolve 10
+      $(FLOWEY_BIN) e 21 flowey_core::pipeline::artifact::resolve 5
+      $(FLOWEY_BIN) e 21 flowey_core::pipeline::artifact::resolve 7
       $(FLOWEY_BIN) e 21 flowey_core::pipeline::artifact::resolve 3
-      $(FLOWEY_BIN) e 21 flowey_core::pipeline::artifact::resolve 11
+      $(FLOWEY_BIN) e 21 flowey_core::pipeline::artifact::resolve 12
       $(FLOWEY_BIN) e 21 flowey_core::pipeline::artifact::resolve 2
       $(FLOWEY_BIN) e 21 flowey_core::pipeline::artifact::resolve 0
       $(FLOWEY_BIN) e 21 flowey_core::pipeline::artifact::resolve 1
@@ -4650,7 +4657,7 @@ jobs:
   - bash: |-
       set -e
       $(FLOWEY_BIN) e 21 flowey_lib_common::gen_cargo_nextest_run_cmd 0
-      $(FLOWEY_BIN) e 21 flowey_core::pipeline::artifact::resolve 5
+      $(FLOWEY_BIN) e 21 flowey_core::pipeline::artifact::resolve 6
     displayName: generate nextest command
   - bash: |-
       set -e

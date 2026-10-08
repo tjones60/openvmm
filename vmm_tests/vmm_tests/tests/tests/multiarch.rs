@@ -3,7 +3,8 @@
 
 //! Integration tests that run on more than one architecture.
 
-use crate::nested::nested_vm_host;
+use crate::aarch64_exclusive::vm_host_emu;
+use crate::nested::vm_host;
 use anyhow::Context;
 use futures::StreamExt;
 use guid::Guid;
@@ -24,6 +25,7 @@ use petri_artifacts_vmm_test::artifacts::OPENVMM_VHOST_NATIVE;
 #[cfg(target_os = "linux")]
 use petri_artifacts_vmm_test::artifacts::host_tools::NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL;
 use petri_artifacts_vmm_test::artifacts::host_tools::NEXTEST_VMM_TESTS_ARCHIVE_LINUX_X64_MUSL;
+use petri_artifacts_vmm_test::artifacts::loadable::LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64;
 use vmm_test_macros::openvmm_test;
 use vmm_test_macros::vmm_test;
 use vmm_test_macros::vmm_test_with;
@@ -81,7 +83,7 @@ async fn frontpage<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Res
 #[vmm_test(
     openvmm_linux_direct_x64,
     nested(
-        (nested_vm_host, openvmm_linux_direct_x64),
+        (vm_host, openvmm_linux_direct_x64),
         (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_X64_MUSL, "tests", "multiarch", openvmm_linux_direct_x64),
     ),
     openvmm_linux_direct_aarch64,
@@ -180,7 +182,7 @@ async fn boot_no_vmbus(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::R
 #[cfg(target_os = "linux")]
 #[openvmm_test(
     nested(
-        (nested_vm_host, qemu_linux_direct_aarch64),
+        (vm_host_emu, qemu_linux_direct_aarch64[LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64]),
         (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL, "tests", "multiarch", linux_direct_aarch64),
     ),
 )]
@@ -206,11 +208,11 @@ async fn boot_no_hv(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Resu
 #[cfg(target_os = "linux")]
 #[openvmm_test(
     nested(
-        (nested_vm_host, qemu_linux_direct_aarch64),
+        (vm_host_emu, qemu_linux_direct_aarch64[LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64]),
         (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL, "tests", "multiarch", uefi_aarch64(vhd(ubuntu_2404_server_aarch64))),
     ),
     nested(
-        (nested_vm_host, qemu_linux_direct_aarch64),
+        (vm_host_emu, qemu_linux_direct_aarch64[LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64]),
         (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL, "tests", "multiarch", uefi_aarch64(vhd(alpine_3_23_aarch64))),
     ),
 )]

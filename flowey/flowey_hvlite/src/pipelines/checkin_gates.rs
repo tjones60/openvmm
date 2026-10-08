@@ -880,6 +880,8 @@ impl IntoPipeline for CheckinGatesCli {
                         Some(use_openvmm_vhost.clone());
                     vmm_tests_artifacts_linux_x86.use_prep_steps_linux_musl_x64 =
                         Some(use_prep_steps_musl.clone());
+                    vmm_tests_artifacts_linux_x86.use_openvmm_linux_musl_x64 =
+                        Some(use_openvmm_musl.clone());
                     vmm_tests_artifacts_linux_musl_x86.use_openvmm_linux_musl_x64 =
                         Some(use_openvmm_musl.clone());
                     vmm_tests_artifacts_linux_musl_x86.use_openvmm_vhost_linux_musl_x64 =
@@ -1604,7 +1606,7 @@ impl IntoPipeline for CheckinGatesCli {
             filter
         };
 
-        let standard_x64_test_artifacts = vec![
+        let windows_host_test_artifacts = vec![
             test_vhd::ALPINE_3_23_X64.into(),
             test_vhd::FREE_BSD_13_2_X64.into(),
             test_iso::FREE_BSD_13_2_X64.into(),
@@ -1612,6 +1614,18 @@ impl IntoPipeline for CheckinGatesCli {
             test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64.into(),
             test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64.into(),
             test_vhd::UBUNTU_2404_SERVER_X64.into(),
+            test_vhd::UBUNTU_2404_SERVER_AARCH64.into(),
+            test_vhd::UBUNTU_2504_SERVER_X64.into(),
+            test_vmgs::VMGS_WITH_BOOT_ENTRY.into(),
+            test_vmgs::VMGS_WITH_16K_TPM.into(),
+        ];
+
+        let linux_host_test_artifacts = vec![
+            test_vhd::ALPINE_3_23_X64.into(),
+            test_vhd::ALPINE_3_23_AARCH64.into(),
+            test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64.into(),
+            test_vhd::UBUNTU_2404_SERVER_X64.into(),
+            test_vhd::UBUNTU_2404_SERVER_AARCH64.into(),
             test_vhd::UBUNTU_2504_SERVER_X64.into(),
             test_vmgs::VMGS_WITH_BOOT_ENTRY.into(),
             test_vmgs::VMGS_WITH_16K_TPM.into(),
@@ -1691,7 +1705,7 @@ impl IntoPipeline for CheckinGatesCli {
                 resolve_vmm_tests_artifacts: vmm_tests_artifacts_windows_intel_x86,
                 incubator_profile: None,
                 nextest_filter_expr: standard_filter.clone(),
-                downloaded_artifacts: standard_x64_test_artifacts.clone(),
+                downloaded_artifacts: windows_host_test_artifacts.clone(),
                 prep_steps_variants: standard_x64_prep_variants.clone(),
                 external_deps: VmmTestsExternalDeps::Windows(VmmTestsExternalDepsWindows {
                     hyperv: true,
@@ -1709,7 +1723,7 @@ impl IntoPipeline for CheckinGatesCli {
                 resolve_vmm_tests_artifacts: vmm_tests_artifacts_windows_intel_mi_secure_x86,
                 incubator_profile: None,
                 nextest_filter_expr: mi_secure_filter,
-                downloaded_artifacts: standard_x64_test_artifacts.clone(),
+                downloaded_artifacts: windows_host_test_artifacts.clone(),
                 prep_steps_variants: Vec::new(),
                 external_deps: VmmTestsExternalDeps::Windows(VmmTestsExternalDepsWindows {
                     hyperv: true,
@@ -1747,7 +1761,7 @@ impl IntoPipeline for CheckinGatesCli {
                 resolve_vmm_tests_artifacts: vmm_tests_artifacts_windows_amd_x86,
                 incubator_profile: None,
                 nextest_filter_expr: standard_filter.clone(),
-                downloaded_artifacts: standard_x64_test_artifacts.clone(),
+                downloaded_artifacts: windows_host_test_artifacts.clone(),
                 prep_steps_variants: standard_x64_prep_variants.clone(),
                 external_deps: VmmTestsExternalDeps::Windows(VmmTestsExternalDepsWindows {
                     hyperv: true,
@@ -1784,7 +1798,7 @@ impl IntoPipeline for CheckinGatesCli {
                 incubator_profile: None,
                 // - No legal way to obtain gen1 pcat blobs on non-msft linux machines
                 nextest_filter_expr: format!("{standard_filter} & !test(pcat_x64)"),
-                downloaded_artifacts: standard_x64_test_artifacts.clone(),
+                downloaded_artifacts: linux_host_test_artifacts.clone(),
                 prep_steps_variants: standard_x64_prep_variants.clone(),
                 external_deps: VmmTestsExternalDeps::Linux(VmmTestsExternalDepsLinux {
                     hugetlb_2mb_overcommit_pages: Some(HUGETLB_2MB_OVERCOMMIT_PAGES),
@@ -1803,7 +1817,7 @@ impl IntoPipeline for CheckinGatesCli {
                 incubator_profile: None,
                 // - No legal way to obtain gen1 pcat blobs on non-msft linux machines
                 nextest_filter_expr: format!("{standard_filter} & !test(pcat_x64)"),
-                downloaded_artifacts: standard_x64_test_artifacts.clone(),
+                downloaded_artifacts: linux_host_test_artifacts.clone(),
                 prep_steps_variants: standard_x64_prep_variants.clone(),
                 external_deps: VmmTestsExternalDeps::Linux(VmmTestsExternalDepsLinux {
                     hugetlb_2mb_overcommit_pages: None,

@@ -3,7 +3,6 @@
 
 //! Integration tests for aarch64 guests.
 
-use crate::nested::nested_vm_host;
 use anyhow::Context;
 use pal_async::DefaultDriver;
 use pal_async::timer::PolledTimer;
@@ -111,7 +110,7 @@ async fn boot_dt(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(), anyh
     openvmm,
     requires(test_disk),
     configs(nested(
-        (host_with_disk, qemu_linux_direct_aarch64[LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64]),
+        (vm_host_with_disk, qemu_linux_direct_aarch64[LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64]),
         (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL, "tests", "aarch64_exclusive", linux_direct_aarch64),
     )),
 )]
@@ -224,7 +223,7 @@ async fn boot_no_vmbus_pcie(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyh
     openvmm,
     requires(test_disk),
     configs(nested(
-        (host_with_disk, qemu_linux_direct_aarch64[LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64]),
+        (vm_host_with_disk, qemu_linux_direct_aarch64[LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64]),
         (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL, "tests", "aarch64_exclusive", linux_direct_aarch64),
     )),
 )]
@@ -468,7 +467,7 @@ fn incubator_vfio_bdf(name: &str) -> anyhow::Result<String> {
     openvmm,
     requires(edu_initiator, ivshmem_target),
     configs(nested(
-        (host_with_disk_edu_ivshmem, qemu_linux_direct_aarch64[LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64]),
+        (vm_host_with_disk_edu_ivshmem, qemu_linux_direct_aarch64[LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64]),
         (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL, "tests", "aarch64_exclusive", linux_direct_aarch64),
     )),
 )]
@@ -692,7 +691,7 @@ async fn assigned_device_peer_to_peer_dma(
     openvmm,
     requires(edu_initiator),
     configs(nested(
-        (host_with_edu, qemu_linux_direct_aarch64[LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64]),
+        (vm_host_with_edu, qemu_linux_direct_aarch64[LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64]),
         (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL, "tests", "aarch64_exclusive", linux_direct_aarch64),
     )),
 )]
@@ -887,7 +886,7 @@ async fn assigned_device_smmu_accel_fault(
 /// to be a separate non-SMT configuration from [`smt_topology`].
 #[openvmm_test(
     nested(
-        (nested_vm_host, qemu_linux_direct_aarch64),
+        (vm_host_emu, qemu_linux_direct_aarch64[LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64]),
         (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL, "tests", "aarch64_exclusive", linux_direct_aarch64),
     ),
 )]
@@ -1001,7 +1000,7 @@ async fn mpidr_affinity_rollover_heavy(
 /// configured topology instead of the affinity fields.
 #[openvmm_test(
     nested(
-        (nested_vm_host, qemu_linux_direct_aarch64),
+        (vm_host_emu, qemu_linux_direct_aarch64[LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64]),
         (NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL, "tests", "aarch64_exclusive", linux_direct_aarch64),
     ),
 )]
@@ -1103,7 +1102,7 @@ async fn smt_topology(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Re
     Ok(())
 }
 
-async fn nested_vm_host_with_devices(
+async fn vm_host_with_devices(
     config: PetriVmBuilder<QemuPetriBackend>,
     custom_kernel: ResolvedArtifact<impl IsLoadable>,
     devices: Vec<DeviceConfig>,
@@ -1125,25 +1124,32 @@ async fn nested_vm_host_with_devices(
     Ok(())
 }
 
-async fn host_with_disk(
+pub(crate) async fn vm_host_emu(
     config: PetriVmBuilder<QemuPetriBackend>,
     (custom_kernel,): (ResolvedArtifact<impl IsLoadable>,),
 ) -> anyhow::Result<()> {
-    nested_vm_host_with_devices(config, custom_kernel, vec![test_disk()]).await
+    vm_host_with_devices(config, custom_kernel, Vec::new()).await
 }
 
-async fn host_with_edu(
+async fn vm_host_with_disk(
     config: PetriVmBuilder<QemuPetriBackend>,
     (custom_kernel,): (ResolvedArtifact<impl IsLoadable>,),
 ) -> anyhow::Result<()> {
-    nested_vm_host_with_devices(config, custom_kernel, vec![edu_initiator()]).await
+    vm_host_with_devices(config, custom_kernel, vec![test_disk()]).await
 }
 
-async fn host_with_disk_edu_ivshmem(
+async fn vm_host_with_edu(
     config: PetriVmBuilder<QemuPetriBackend>,
     (custom_kernel,): (ResolvedArtifact<impl IsLoadable>,),
 ) -> anyhow::Result<()> {
-    nested_vm_host_with_devices(
+    vm_host_with_devices(config, custom_kernel, vec![edu_initiator()]).await
+}
+
+async fn vm_host_with_disk_edu_ivshmem(
+    config: PetriVmBuilder<QemuPetriBackend>,
+    (custom_kernel,): (ResolvedArtifact<impl IsLoadable>,),
+) -> anyhow::Result<()> {
+    vm_host_with_devices(
         config,
         custom_kernel,
         vec![test_disk(), edu_initiator(), ivshmem_target()],
