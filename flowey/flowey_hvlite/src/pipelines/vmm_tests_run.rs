@@ -13,7 +13,6 @@ use anyhow::Context as _;
 use flowey::node::prelude::ReadVar;
 use flowey::pipeline::prelude::*;
 use flowey_lib_hvlite::_jobs::local_build_and_run_nextest_vmm_tests::VmmTestSelections;
-use flowey_lib_hvlite::build_incubator::IncubatorProfileNameOrPath;
 use flowey_lib_hvlite::common::CommonPlatform;
 use flowey_lib_hvlite::common::CommonTriple;
 use flowey_lib_hvlite::init_vmm_tests_content_dir::VmmTestsBuiltArtifactsSelections;
@@ -123,22 +122,6 @@ pub struct VmmTestsRunCli {
     /// How many times to run the tests
     #[clap(long)]
     repetitions: Option<u64>,
-
-    /// Run tests inside an emulated incubator.
-    ///
-    /// Pass `--incubator` on its own to use the default profile for the
-    /// selected `--target`, or `--incubator <PATH>` to point at a specific
-    /// profile TOML describing the emulated platform (e.g., AArch64 with
-    /// SMMUv3).
-    ///
-    /// When set, `--target` is required and must match the profile's
-    /// architecture; artifacts are cross-compiled for that target and tests
-    /// run inside the incubator.
-    ///
-    /// Example: `--incubator --target linux-aarch64-musl`
-    #[clap(long, num_args = 0..=1)]
-    #[expect(clippy::option_option)]
-    incubator: Option<Option<PathBuf>>,
 }
 
 struct CargoNextestListRequest<'a> {
@@ -185,15 +168,8 @@ struct ResolvedArtifactSelections {
 }
 
 impl ResolvedArtifactSelections {
-    fn new(
-        target: target_lexicon::Triple,
-        build_only: bool,
-        incubator: bool,
-    ) -> anyhow::Result<Self> {
+    fn new(target: target_lexicon::Triple, build_only: bool) -> anyhow::Result<Self> {
         let mut build = VmmTestsBuiltArtifactsSelections::default();
-        if incubator {
-            build.incubator_linux_x64 = true;
-        }
         build.require_nextest_vmm_tests_archive_for(ArtifactTarget::Triple(target.clone()))?;
         let flowey_hvlite_path = build_only
             .then(|| build.require_flowey_hvlite_for(ArtifactTarget::Triple(target.clone())))
@@ -242,14 +218,7 @@ impl IntoPipeline for VmmTestsRunCli {
             no_reuse_prepped_vhds,
             disable_secure_avic,
             repetitions,
-            incubator,
         } = self;
-
-        // When --incubator is set, --target must also be specified
-        // to indicate the cross-compilation target for the incubator.
-        if incubator.is_some() && target.is_none() {
-            anyhow::bail!("--incubator requires --target (e.g., --target linux-aarch64-musl)");
-        }
 
         let repetitions =
             NonZeroU64::new(repetitions.unwrap_or(1)).context("repetitions must not be zero")?;
@@ -274,22 +243,7 @@ impl IntoPipeline for VmmTestsRunCli {
 
         let repo_root = crate::repo_root();
 
-        let incubator_profile = incubator
-            .map(|i| resolve_incubator(i, &target))
-            .transpose()?;
-
-        // Artifact discovery only needs to execute the test binary far enough
-        // to dump its static artifact metadata (`--list-required-artifacts`),
-        // which never boots a VM. So we run it directly rather than through the
-        // incubator. The binary is built for the test target, so on a foreign
-        // host this relies on the binary being executable (natively, or via
-        // binfmt/user-mode emulation).
-        //
-        // Running outside the real guest means the per-test host capability
-        // checks (the source of nextest's `#[ignore]` flag) would wrongly drop
-        // incubator tests, so for the incubator path we enumerate ignored tests
-        // too — their artifacts still need to be built.
-        let include_ignored = build_only || incubator_profile.is_some();
+        let include_ignored = build_only;
 
         // Run artifact discovery inline at pipeline construction time since
         // flowey doesn't support conditional requests yet
@@ -345,6 +299,17 @@ impl IntoPipeline for VmmTestsRunCli {
                 .collect::<Vec<_>>()
                 .join(" + ");
 
+            // Artifact discovery only needs to execute the test binary far enough
+            // to dump its static artifact metadata (`--list-required-artifacts`),
+            // which never boots a VM. So we run it directly rather than through the
+            // full emulator. The binary is built for the test target, so on a foreign
+            // host this relies on the binary being executable (natively, or via
+            // binfmt/user-mode emulation).
+            //
+            // Running outside the real guest means the per-test host capability
+            // checks (the source of nextest's `#[ignore]` flag) would wrongly drop
+            // emulated tests, so for the emualted path we enumerate ignored tests
+            // too — their artifacts still need to be built.
             let nested_suites = run_cargo_nextest_list(CargoNextestListRequest {
                 repo_root: &repo_root,
                 target: &nested_target_str,
@@ -362,11 +327,7 @@ impl IntoPipeline for VmmTestsRunCli {
         }
 
         // Resolve to build selections
-        let mut resolved = ResolvedArtifactSelections::new(
-            target.as_triple(),
-            build_only,
-            incubator_profile.is_some(),
-        )?;
+        let mut resolved = ResolvedArtifactSelections::new(target.as_triple(), build_only)?;
         for artifact in artifacts {
             resolved.resolve_artifact(&artifact)?;
         }
@@ -548,7 +509,6 @@ impl IntoPipeline for VmmTestsRunCli {
                     },
                     disable_secure_avic,
                     repetitions,
-                    incubator_profile,
                     done: ctx.new_done_handle(),
                 }
             });
@@ -683,8 +643,6 @@ pub(crate) enum VmmTestTargetCli {
     WindowsX64,
     /// Linux X64
     LinuxX64,
-    /// Linux Aarch64 (musl, for incubator cross-compilation)
-    LinuxAarch64Musl,
 }
 
 /// Resolve a CLI target option to a CommonTriple, defaulting to the host.
@@ -710,7 +668,6 @@ pub(crate) fn resolve_target(
         VmmTestTargetCli::WindowsAarch64 => CommonTriple::AARCH64_WINDOWS_MSVC,
         VmmTestTargetCli::WindowsX64 => CommonTriple::X86_64_WINDOWS_MSVC,
         VmmTestTargetCli::LinuxX64 => CommonTriple::X86_64_LINUX_GNU,
-        VmmTestTargetCli::LinuxAarch64Musl => CommonTriple::AARCH64_LINUX_MUSL,
     })
 }
 
@@ -881,32 +838,6 @@ impl ResolvedArtifactSelections {
     }
 }
 
-/// Resolve the incubator profile path. `--incubator` with no value uses
-/// the default profile for the target; `--incubator <PATH>` overrides.
-pub(crate) fn resolve_incubator(
-    incubator: Option<PathBuf>,
-    target: &CommonTriple,
-) -> anyhow::Result<IncubatorProfileNameOrPath> {
-    Ok(match incubator {
-        // If no separators or extension, assume it is a profile name
-        Some(path) if path.components().count() == 1 && path.extension().is_none() => {
-            IncubatorProfileNameOrPath::Name(path.to_string_lossy().to_string())
-        }
-        Some(path) => IncubatorProfileNameOrPath::Path(path),
-        None => IncubatorProfileNameOrPath::Name(
-            flowey_lib_hvlite::build_incubator::default_incubator_profile(target)
-                .ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "no default incubator profile for target {}; \
-                         pass an explicit path with --incubator <PATH>",
-                        target.as_triple().to_string()
-                    )
-                })?
-                .into(),
-        ),
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -916,12 +847,9 @@ mod tests {
 
     #[test]
     fn cvm_dll_selects_cvm_igvm_and_dll() {
-        let mut selections = ResolvedArtifactSelections::new(
-            CommonTriple::X86_64_WINDOWS_MSVC.as_triple(),
-            false,
-            false,
-        )
-        .unwrap();
+        let mut selections =
+            ResolvedArtifactSelections::new(CommonTriple::X86_64_WINDOWS_MSVC.as_triple(), false)
+                .unwrap();
         selections
             .resolve_artifact(vmfw_dll::LATEST_CVM_X64::GLOBAL_UNIQUE_ID)
             .unwrap();
@@ -932,12 +860,9 @@ mod tests {
 
     #[test]
     fn cvm_igvm_does_not_select_dll() {
-        let mut selections = ResolvedArtifactSelections::new(
-            CommonTriple::X86_64_WINDOWS_MSVC.as_triple(),
-            false,
-            false,
-        )
-        .unwrap();
+        let mut selections =
+            ResolvedArtifactSelections::new(CommonTriple::X86_64_WINDOWS_MSVC.as_triple(), false)
+                .unwrap();
         selections
             .resolve_artifact(openhcl_igvm::LATEST_CVM_X64::GLOBAL_UNIQUE_ID)
             .unwrap();

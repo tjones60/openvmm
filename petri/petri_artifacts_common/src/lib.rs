@@ -16,7 +16,7 @@ pub mod capabilities {
     pub const NESTED_VIRT: &str = "nested_virt";
 
     /// All capability names known to petri, including those defined by
-    /// incubators. Incubator device capabilities are the device's profile
+    /// emulators. Emulator device capabilities are the device's profile
     /// `name` with `-` replaced by `_` (e.g. `edu-initiator` → `edu_initiator`).
     pub const KNOWN_CAPABILITIES: &[&str] = &[
         VPCI,
