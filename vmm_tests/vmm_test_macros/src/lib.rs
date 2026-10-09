@@ -1097,6 +1097,18 @@ fn parse_nested(input: ParseStream<'_>) -> syn::Result<MaybeNestedConfig> {
 /// Each configuration can be optionally followed by a square-bracketed, comma-separated
 /// list of additional artifacts required for that particular configuration.
 ///
+/// Nested tests can be defined by wrapping the necessary information with `nested(...)`:
+/// - The L1 and L2 configs, as defined above.
+/// - The function that creates the L1 VM host.
+/// - The information necessary to run the L2 test inside of the L1.
+///
+/// ```
+/// nested(
+///     (my_vm_host, l1_config),
+///     (NEXTEST_ARCHIVE_WITH_NESTED_TEST, "test_binary", "test::module::path", l2_config),
+/// ),
+/// ```
+///
 #[proc_macro_attribute]
 pub fn vmm_test(
     attr: proc_macro::TokenStream,
