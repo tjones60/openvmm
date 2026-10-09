@@ -515,8 +515,9 @@ impl NestedConfig {
 
 impl MaybeNestedConfig {
     fn resolve(self, overrides: &ParsedOverrides) -> syn::Result<MaybeNestedResolvedConfig> {
-        let default_overrides = ParsedOverrides::new();
+        let mut default_overrides = ParsedOverrides::new();
         let (l1_overrides, l2_overrides) = if self.nested_config.is_some() {
+            default_overrides.add_capability(self.l1_config.span, "nested_virt")?;
             (&default_overrides, overrides)
         } else {
             (overrides, &default_overrides)
