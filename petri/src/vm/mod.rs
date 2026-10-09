@@ -4331,15 +4331,6 @@ impl<T: PetriVmmBackend> PetriGuestPaths for PetriVmBuilder<T> {
     }
 }
 
-/// Agent files method
-#[derive(Debug, Clone, Copy)]
-pub enum AgentDiskType {
-    /// Create a VHD to mount in the guest
-    Vhd,
-    /// Share a host folder with the guest
-    Folder,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
