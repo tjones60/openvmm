@@ -310,9 +310,12 @@ fn available_capabilities(context: &HostContext, vmm: VmmType) -> BTreeSet<&'sta
     }
 
     // MSHV doesn't support nested virtualization yet
-    if !matches!(
+    if matches!(
         (vmm, context.openvmm_hypervisor),
-        (VmmType::OpenVmm, Some(OpenVmmHypervisor::Mshv))
+        (
+            VmmType::OpenVmm,
+            Some(OpenVmmHypervisor::Kvm | OpenVmmHypervisor::Whp)
+        ) | (VmmType::Qemu, _)
     ) {
         capabilities.insert(capabilities::NESTED_VIRT);
     }

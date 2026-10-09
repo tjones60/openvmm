@@ -50,8 +50,6 @@ pub enum PipetteRequest {
     ReadFile(FailableRpc<ReadFileRequest, u64>),
     /// Writes a file
     WriteFile(FailableRpc<WriteFileRequest, u64>),
-    /// List a directory
-    ListDir(FailableRpc<ListDirRequest, ListDirResponse>),
     /// Get the current time in the guest.
     GetTime(Rpc<(), Timestamp>),
     /// Crash the agent.
@@ -60,6 +58,8 @@ pub enum PipetteRequest {
     KernelCrash(FailableRpc<(), ()>),
     /// Mounts a filesystem (Linux only).
     Mount(FailableRpc<MountRequest, ()>),
+    /// List a directory
+    ListDir(FailableRpc<ListDirRequest, ListDirResponse>),
 }
 
 /// A request to execute a command inside the guest.

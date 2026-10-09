@@ -281,7 +281,7 @@ impl PipetteClient {
         Ok(())
     }
 
-    /// Reads the full contents of a file.
+    /// List the contents of a directory
     pub async fn list_dir(&self, path: impl AsRef<str>) -> anyhow::Result<Vec<String>> {
         let ListDirResponse { files } = self
             .send
