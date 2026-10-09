@@ -98,12 +98,12 @@ async fn boot_dt(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(), anyh
 }
 
 /// Boot an aarch64 guest with no VMBus via linux direct boot,
-/// and assign a VFIO device from the incubator into the guest.
+/// and assign a VFIO device from the emulator into the guest.
 ///
-/// This test is intended to run inside a QEMU TCG incubator with KVM.
-/// The incubator profile sets up a virtio-blk device bound to vfio-pci,
+/// This test is intended to run inside a QEMU TCG emulator with KVM.
+/// The emulator sets up a virtio-blk device bound to vfio-pci,
 /// and publishes its BDF under the profile name `test-disk` (see
-/// [`incubator_vfio_bdf`]). The test assigns that device into the L2 guest
+/// [`emulator_vfio_bdf`]). The test assigns that device into the L2 guest
 /// and verifies it appears as a block device, then reads from it to exercise
 /// DMA and interrupts.
 #[vmm_test_with(
@@ -115,10 +115,10 @@ async fn boot_dt(config: PetriVmBuilder<OpenVmmPetriBackend>) -> Result<(), anyh
     )),
 )]
 async fn boot_no_vmbus_pcie(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Result<()> {
-    // Look up the assigned device's BDF by its incubator profile name. The
+    // Look up the assigned device's BDF by its emulator profile name. The
     // matching `requires(test_disk)` capability ensures it is provisioned
     // before the test runs.
-    let vfio_bdf = incubator_vfio_bdf("test-disk")?;
+    let vfio_bdf = emulator_vfio_bdf("test-disk")?;
 
     tracing::info!(vfio_bdf = %vfio_bdf, "assigning VFIO device to guest");
 
@@ -173,8 +173,8 @@ async fn boot_no_vmbus_pcie(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyh
         .await?;
 
     // Verify the assigned device appears in the guest as /dev/vda with the
-    // expected size. The incubator provisions a 64 MiB VFIO-backed virtio-blk
-    // disk (the `test-disk` device in the aarch64-tcg-pcie incubator profile).
+    // expected size. The emulator provisions a 64 MiB VFIO-backed virtio-blk
+    // disk (the `test-disk` device defined below in `test_disk`).
     // Checking the sysfs size proves the VFIO-assigned device is the one that
     // showed up, rather than merely that *some* vda exists.
     const TEST_DISK_SIZE: u64 = 64 * 1024 * 1024;
@@ -209,7 +209,7 @@ async fn boot_no_vmbus_pcie(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyh
 /// Assign a VFIO device into an aarch64 guest behind an **accelerated**
 /// (iommufd-nested) SMMU, and exercise the nested stage-1 translation path.
 ///
-/// The same incubator `test-disk` device as [`boot_no_vmbus_pcie`],
+/// The same emulator `test-disk` device as [`boot_no_vmbus_pcie`],
 /// but placed behind an accel-capable SMMU and forced into translating (not
 /// passthrough) stage-1 domains with `iommu.passthrough=0`, so the host nested
 /// HWPT is what the device's DMA actually goes through.
@@ -230,7 +230,7 @@ async fn boot_no_vmbus_pcie(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyh
 async fn boot_no_vmbus_pcie_smmu_accel(
     config: PetriVmBuilder<OpenVmmPetriBackend>,
 ) -> anyhow::Result<()> {
-    let vfio_bdf = incubator_vfio_bdf("test-disk")?;
+    let vfio_bdf = emulator_vfio_bdf("test-disk")?;
 
     tracing::info!(vfio_bdf = %vfio_bdf, "assigning VFIO device behind an accelerated SMMU");
 
@@ -287,7 +287,7 @@ async fn boot_no_vmbus_pcie_smmu_accel(
         .run()
         .await?;
 
-    // The incubator provisions a 64 MiB VFIO-backed virtio-blk disk, so the
+    // The emulator provisions a 64 MiB VFIO-backed virtio-blk disk, so the
     // sysfs size proves the assigned device is the one that showed up rather
     // than merely that *some* vda exists.
     const TEST_DISK_SIZE: u64 = 64 * 1024 * 1024;
@@ -398,7 +398,7 @@ async fn boot_no_vmbus_pcie_smmu_accel(
 /// Open the VFIO cdev for an assigned device given its PCI BDF.
 ///
 /// Returns the opened character device file. The device must already be bound
-/// to `vfio-pci` (the incubator does this before running the test).
+/// to `vfio-pci` (the emulator does this before running the test).
 fn open_vfio_cdev(vfio_bdf: &str) -> anyhow::Result<std::fs::File> {
     let sysfs_path = std::path::Path::new("/sys/bus/pci/devices").join(vfio_bdf);
     let vfio_dev_dir = sysfs_path.join("vfio-dev");
@@ -420,28 +420,25 @@ fn open_vfio_cdev(vfio_bdf: &str) -> anyhow::Result<std::fs::File> {
         .context("failed to open VFIO cdev")
 }
 
-/// Look up the PCI BDF of an incubator-provisioned VFIO device by its profile
+/// Look up the PCI BDF of an emulator-provisioned VFIO device by its profile
 /// `name` (e.g. `"edu-initiator"`).
 ///
-/// The incubator publishes each provisioned device's BDF in the environment as
-/// `INCUBATOR_VFIO_BDF_<NAME>` (the name upper-cased with `-` replaced by `_`);
-/// this derivation must match `setup_vfio_devices` in
-/// `petri/incubator/src/qemu.rs`. Gate the test on the matching
+/// The emulator publishes each provisioned device's BDF in the environment as
+/// `PETRI_VFIO_BDF_<NAME>` (the name upper-cased with `-` replaced by `_`);
+/// this derivation must match `setup_vfio_devices` below.
+/// Gate the test on the matching
 /// `requires(...)` capability (the same name with `-` replaced by `_`) so the
 /// device is guaranteed to be provisioned.
-fn incubator_vfio_bdf(name: &str) -> anyhow::Result<String> {
-    let env_name = format!(
-        "INCUBATOR_VFIO_BDF_{}",
-        name.to_uppercase().replace('-', "_")
-    );
+fn emulator_vfio_bdf(name: &str) -> anyhow::Result<String> {
+    let env_name = format!("PETRI_VFIO_BDF_{}", name.to_uppercase().replace('-', "_"));
     std::env::var(&env_name).with_context(|| {
-        format!("{env_name} not set; is device '{name}' provisioned by the incubator?")
+        format!("{env_name} not set; is device '{name}' provisioned by the emulator?")
     })
 }
 
 /// Validate device-BAR peer-to-peer DMA through the vfio-dmabuf import path.
 ///
-/// This test assigns two emulated PCI devices from the incubator into the L2
+/// This test assigns two emulated PCI devices from the emulator into the L2
 /// OpenVMM guest, both under the *same* iommufd IOAS (`iommu0`):
 ///
 /// - `edu` (QEMU's educational device) is the DMA **initiator**: it has a
@@ -476,11 +473,11 @@ async fn assigned_device_peer_to_peer_dma(
     _: (),
     driver: DefaultDriver,
 ) -> anyhow::Result<()> {
-    // BDFs of the two assigned devices, looked up by their incubator profile
+    // BDFs of the two assigned devices, looked up by their emulator profile
     // names. The capability requirements above ensure both are provisioned
     // before the test runs.
-    let edu_bdf = incubator_vfio_bdf("edu-initiator")?;
-    let ivshmem_bdf = incubator_vfio_bdf("ivshmem-target")?;
+    let edu_bdf = emulator_vfio_bdf("edu-initiator")?;
+    let ivshmem_bdf = emulator_vfio_bdf("ivshmem-target")?;
 
     tracing::info!(%edu_bdf, %ivshmem_bdf, "assigning P2P device pair to guest");
 
@@ -700,7 +697,7 @@ async fn assigned_device_smmu_accel_fault(
     _: (),
     driver: DefaultDriver,
 ) -> anyhow::Result<()> {
-    let edu_bdf = incubator_vfio_bdf("edu-initiator")?;
+    let edu_bdf = emulator_vfio_bdf("edu-initiator")?;
 
     tracing::info!(%edu_bdf, "assigning the edu fault generator behind an accelerated SMMU");
 
@@ -1183,7 +1180,7 @@ fn ivshmem_target() -> DeviceConfig {
     })
 }
 
-/// Set up VFIO devices inside the incubator.
+/// Set up VFIO devices inside the emulator.
 ///
 /// Each extra device in the profile sits behind its own PCIe root port
 /// at a known PCI device number (see [`EXTRA_DEVICE_ADDR_BASE`]). This
@@ -1192,7 +1189,7 @@ fn ivshmem_target() -> DeviceConfig {
 /// it to vfio-pci.
 ///
 /// Returns a map of environment variables to set for the guest command,
-/// e.g., `INCUBATOR_VFIO_BDF_TEST_DISK=0000:01:00.0`. If any provisioned
+/// e.g., `PETRI_VFIO_BDF_TEST_DISK=0000:01:00.0`. If any provisioned
 /// device declares a `provides` capability, the returned map also includes
 /// `PETRI_CAPABILITIES` listing those capabilities (comma-separated).
 pub async fn setup_vfio_devices(
@@ -1277,11 +1274,8 @@ pub async fn setup_vfio_devices(
             .await
             .context("failed to bind to vfio-pci")?;
 
-        // Export env var: name "test-disk" → INCUBATOR_VFIO_BDF_TEST_DISK
-        let env_name = format!(
-            "INCUBATOR_VFIO_BDF_{}",
-            name.to_uppercase().replace('-', "_")
-        );
+        // Export env var: name "test-disk" → PETRI_VFIO_BDF_TEST_DISK
+        let env_name = format!("PETRI_VFIO_BDF_{}", name.to_uppercase().replace('-', "_"));
         tracing::info!(%env_name, %bdf, "VFIO device ready");
         env.insert(env_name, bdf);
 
@@ -1294,7 +1288,7 @@ pub async fn setup_vfio_devices(
     // Advertise all provisioned capabilities to the guest command via
     // PETRI_CAPABILITIES (comma-separated), which petri's requirement
     // evaluation reads. Augment any capabilities already present in the
-    // incubator's environment rather than overwriting them, so that
+    // emulator's environment rather than overwriting them, so that
     // host-provided capabilities are preserved.
     if !capabilities.is_empty() {
         let mut value = capabilities.join(",");
