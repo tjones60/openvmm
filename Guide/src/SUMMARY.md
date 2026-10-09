@@ -40,6 +40,7 @@
     - [Pipette Guest Agent](./dev_guide/tests/pipette.md)
     - [Windows Test Image Preparation](./dev_guide/tests/prep_steps.md)
     - [IMC Hive Generator](./dev_guide/tests/make_imc_hive.md)
+    - [Incubator](./dev_guide/tests/incubator.md)
     - [TPM Guest Test Utility](./dev_guide/tests/tpm_guest_tests.md)
     - [IGVM Agent Test Server](./dev_guide/tests/test_igvm_agent_rpc_server.md)
     - [TMK VMM](./dev_guide/tests/tmk_vmm.md)

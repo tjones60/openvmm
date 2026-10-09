@@ -340,6 +340,8 @@ pub mod artifacts {
             FLOWEY_HVLITE_LINUX_X64("flowey_hvlite", LINUX_X64),
             /// Windows aarch64 build of `flowey_hvlite`.
             FLOWEY_HVLITE_WINDOWS_AARCH64("flowey_hvlite.exe", WINDOWS_AARCH64),
+            /// Linux x86_64 build of the `incubator` binary.
+            INCUBATOR_LINUX_X64("incubator", LINUX_X64),
             /// Windows x86_64 build of the `prep_steps` binary.
             PREP_STEPS_WINDOWS_X64("prep_steps.exe", WINDOWS_X64),
             /// Linux x86_64 build of the `prep_steps` binary.

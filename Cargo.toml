@@ -50,6 +50,7 @@ members = [
   "guest_test_uefi",
   "petri/pipette",
   # tools
+  "petri/incubator",
   "petri/make_imc_hive",
   "petri/petri-tool",
   "vm/devices/get/test_igvm_agent_rpc_server",

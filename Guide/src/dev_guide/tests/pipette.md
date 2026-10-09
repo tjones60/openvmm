@@ -105,3 +105,7 @@ If a test times out waiting for Pipette:
    intended init and that essential mounts succeeded.
 5. For Windows, verify that the service image path matches the drive containing
    `pipette.exe`.
+
+Incubator additionally waits for a `PIPETTE READY` serial marker before opening
+its forwarded TCP connection. A missing marker generally means the outer guest
+failed before Pipette initialized.
