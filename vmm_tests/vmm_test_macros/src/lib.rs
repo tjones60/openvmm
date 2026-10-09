@@ -1102,7 +1102,7 @@ fn parse_nested(input: ParseStream<'_>) -> syn::Result<MaybeNestedConfig> {
 /// - The function that creates the L1 VM host.
 /// - The information necessary to run the L2 test inside of the L1.
 ///
-/// ```
+/// ```rust,ignore
 /// nested(
 ///     (my_vm_host, l1_config),
 ///     (NEXTEST_ARCHIVE_WITH_NESTED_TEST, "test_binary", "test::module::path", l2_config),
