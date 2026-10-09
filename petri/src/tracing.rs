@@ -79,8 +79,15 @@ impl PetriLogSource {
 
     fn attachment_path(&self, name: &str) -> PathBuf {
         let mut attachments = self.0.attachments.lock();
+
+        let name = if let Some(prefix) = self.0.prefix.as_ref() {
+            format!("{prefix}{name}")
+        } else {
+            name.to_string()
+        };
+
         let next = attachments.entry(name.to_owned()).or_default();
-        let name = Path::new(name);
+        let name = Path::new(&name);
         let name = if *next == 0 {
             name
         } else {

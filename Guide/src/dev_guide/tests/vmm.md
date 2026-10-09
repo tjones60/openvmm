@@ -133,7 +133,7 @@ async fn my_test<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Resul
 
 ### Nested Tests
 
-Petri supports writing nested tests by defining a function to create the L1 VM host use Petri and annotating the L2 test definition as follows:
+Petri supports writing nested tests by defining a function to create the L1 VM host using Petri and annotating the L2 test definition as follows:
 
 ```rust,ignore
 #[vmm_test(
