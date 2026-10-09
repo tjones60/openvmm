@@ -2545,7 +2545,8 @@ impl<T: PetriVmmBackend> PetriVm<T> {
                 TEST_OUTPUT_PATH,
                 self.agent_disk_path(&[NESTED_TEST_CONTENT_DIR.into(), NESTED_RESULTS_DIR.into()]),
             )
-            .stdout(crate::pipette::process::Stdio::piped());
+            .stdout(crate::pipette::process::Stdio::piped())
+            .stderr(crate::pipette::process::Stdio::piped());
 
         for (k, v) in env {
             cmd.env(k, v);
@@ -2583,22 +2584,12 @@ impl<T: PetriVmmBackend> PetriVm<T> {
                 NESTED_RESULTS_DIR.into(),
                 nested_test.test_name.replace("::", "__"),
             ]);
-            let log_files = String::from_utf8(
-                client
-                    .command("ls")
-                    .arg("-1")
-                    .arg(&test_results_dir)
-                    .output()
-                    .await?
-                    .stdout,
-            )
-            .context("ls output not utf8")?;
 
-            for file in log_files.lines() {
+            for file in client.list_dir(&test_results_dir).await? {
                 let data = client
-                    .read_file(self.build_guest_path(&[test_results_dir.clone(), file.into()]))
+                    .read_file(self.build_guest_path(&[test_results_dir.clone(), file.clone()]))
                     .await?;
-                let mut output = self.resources.log_source.create_attachment(file)?;
+                let mut output = self.resources.log_source.create_attachment(&file)?;
                 output.write_all(&data)?;
             }
         }

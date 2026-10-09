@@ -50,6 +50,8 @@ pub enum PipetteRequest {
     ReadFile(FailableRpc<ReadFileRequest, u64>),
     /// Writes a file
     WriteFile(FailableRpc<WriteFileRequest, u64>),
+    /// List a directory
+    ListDir(FailableRpc<ListDirRequest, ListDirResponse>),
     /// Get the current time in the guest.
     GetTime(Rpc<(), Timestamp>),
     /// Crash the agent.
@@ -184,6 +186,20 @@ pub struct WriteFileRequest {
     pub path: String,
     /// The receiver of the contents of the file.
     pub receiver: ReadPipe,
+}
+
+/// A request to list a directory.
+#[derive(MeshPayload)]
+pub struct ListDirRequest {
+    /// directory to list.
+    pub path: String,
+}
+
+/// A response containing a list of files in a directory.
+#[derive(MeshPayload)]
+pub struct ListDirResponse {
+    /// files in the directory.
+    pub files: Vec<String>,
 }
 
 /// A request to mount a filesystem.

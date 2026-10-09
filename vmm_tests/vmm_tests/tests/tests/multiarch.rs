@@ -3,6 +3,7 @@
 
 //! Integration tests that run on more than one architecture.
 
+#[cfg(target_os = "linux")]
 use crate::aarch64_exclusive::vm_host_emu;
 use crate::nested::vm_host;
 use anyhow::Context;
@@ -25,6 +26,7 @@ use petri_artifacts_vmm_test::artifacts::OPENVMM_VHOST_NATIVE;
 #[cfg(target_os = "linux")]
 use petri_artifacts_vmm_test::artifacts::host_tools::NEXTEST_VMM_TESTS_ARCHIVE_LINUX_AARCH64_MUSL;
 use petri_artifacts_vmm_test::artifacts::host_tools::NEXTEST_VMM_TESTS_ARCHIVE_LINUX_X64_MUSL;
+#[cfg(target_os = "linux")]
 use petri_artifacts_vmm_test::artifacts::loadable::LINUX_DIRECT_TEST_KERNEL_CCA_AARCH64;
 use vmm_test_macros::openvmm_test;
 use vmm_test_macros::vmm_test;
