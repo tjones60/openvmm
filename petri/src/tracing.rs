@@ -86,7 +86,7 @@ impl PetriLogSource {
             name.to_string()
         };
 
-        let next = attachments.entry(name.to_owned()).or_default();
+        let next = attachments.entry(name.clone()).or_default();
         let name = Path::new(&name);
         let name = if *next == 0 {
             name
