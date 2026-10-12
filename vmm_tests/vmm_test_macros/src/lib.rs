@@ -1257,11 +1257,7 @@ fn make_vmm_test(args: ArgsWithOverrides, item: ItemFn) -> syn::Result<TokenStre
                 nested_config.test_fn,
             );
             let archive = nested_config.archive_artifact.to_token_stream();
-            let inner_name = format!(
-                "nested_{}_{}",
-                nested_config.l2_config.name_prefix(),
-                original_name,
-            );
+            let inner_name = format!("nested_{name}");
             let test_module = nested_config.test_module;
             let inner_module = nested_config.inner_module;
             let nested_test = quote! {{

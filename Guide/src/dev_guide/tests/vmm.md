@@ -147,7 +147,20 @@ async fn my_test<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Resul
 }
 
 async fn my_vm_host<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Result<()> {
-    // ...
+    let (vm, agent) = config
+        .with_nested_virt()
+        // other l1 configuration
+        .run().await?;
+
+    // use the pipette agent to configure the l1 if necessary
+
+    // run the nested test, optionally with custom environment variables.
+    vm.run_nested_test(&agent, Default::default()).await?;
+
+    // power off and clean up
+    agent.power_off().await?;
+    vm.wait_for_clean_teardown().await?;
+    Ok(())
 }
 
 ```
