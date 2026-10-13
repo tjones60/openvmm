@@ -513,6 +513,11 @@ impl HyperVNewCustomVMArgs {
             todo!("custom VTL2 base address type not yet supported for Hyper-V")
         }
 
+        anyhow::ensure!(
+            firmware.isolation().is_none() || properties.is_openhcl,
+            "hyper-v does not support isolation without openhcl"
+        );
+
         Ok(HyperVNewCustomVMArgs {
             name: make_vm_safe_name(name),
             generation: Some(if properties.is_pcat {

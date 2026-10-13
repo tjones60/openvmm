@@ -907,7 +907,14 @@ impl PetriVmConfigSetupCore<'_> {
         };
 
         Ok(match (self.arch, &self.firmware) {
-            (arch, Firmware::LinuxDirect { kernel, initrd }) => {
+            (
+                arch,
+                Firmware::LinuxDirect {
+                    isolation,
+                    kernel,
+                    initrd,
+                },
+            ) => {
                 let console = match arch {
                     MachineArch::X86_64 => "console=ttyS0",
                     MachineArch::Aarch64 => "console=ttyAMA0 earlycon",
@@ -937,7 +944,15 @@ impl PetriVmConfigSetupCore<'_> {
                     initrd: Some(initrd),
                     cmdline,
                     enable_serial: self.enable_serial,
-                    isolation: openvmm_defs::config::LinuxIsolationConfig::None,
+                    isolation: match isolation {
+                        Some(IsolationType::Snp) => {
+                            openvmm_defs::config::LinuxIsolationConfig::Snp {
+                                restricted_injection: true,
+                            }
+                        }
+                        None => openvmm_defs::config::LinuxIsolationConfig::None,
+                        Some(t) => anyhow::bail!("openvmm does not support {t:?} isolation"),
+                    },
                     boot_mode: openvmm_defs::config::LinuxDirectBootMode::Acpi,
                     smbios: Default::default(),
                 }
@@ -964,6 +979,7 @@ impl PetriVmConfigSetupCore<'_> {
                 _,
                 Firmware::Uefi {
                     uefi_firmware: firmware,
+                    isolation,
                     guest: _, // load_boot_disk
                     uefi_config:
                         UefiConfig {
@@ -979,6 +995,10 @@ impl PetriVmConfigSetupCore<'_> {
                         },
                 },
             ) => {
+                anyhow::ensure!(
+                    isolation.is_none(),
+                    "openvmm does not support uefi isolation"
+                );
                 anyhow::ensure!(
                     !(self.no_hv && self.arch == MachineArch::X86_64),
                     "x86_64 UEFI firmware requires Hyper-V enlightenments"

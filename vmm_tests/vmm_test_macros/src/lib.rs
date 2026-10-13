@@ -77,21 +77,33 @@ enum HostVendor {
 }
 
 enum Firmware {
-    LinuxDirect,
+    LinuxDirect(IsolationType),
     LinuxDirectBzImage,
     Pcat(PcatGuest),
-    Uefi(UefiGuest),
+    Uefi(IsolationType, UefiGuest),
     OpenhclLinuxDirect,
     OpenhclPcat(PcatGuest),
-    OpenhclUefi(OpenhclUefiOptions, UefiGuest),
+    OpenhclUefi(IsolationType, UefiGuest),
 }
 
-#[derive(Default)]
-struct OpenhclUefiOptions {
-    isolation: Option<IsolationType>,
+impl Firmware {
+    fn isolation(&self) -> IsolationType {
+        match self {
+            Firmware::LinuxDirectBzImage
+            | Firmware::Pcat(_)
+            | Firmware::OpenhclLinuxDirect
+            | Firmware::OpenhclPcat(_) => IsolationType::None,
+            Firmware::LinuxDirect(isolation)
+            | Firmware::Uefi(isolation, _)
+            | Firmware::OpenhclUefi(isolation, _) => *isolation,
+        }
+    }
 }
 
+#[derive(Clone, Copy, Default)]
 enum IsolationType {
+    #[default]
+    None,
     Vbs,
     Snp,
     Tdx,
@@ -153,41 +165,33 @@ impl ResolvedConfig {
         };
 
         let firmware_prefix = match &self.firmware {
-            Firmware::LinuxDirect => "linux",
+            Firmware::LinuxDirect(..) => "linux",
             Firmware::LinuxDirectBzImage => "linux_bzimage",
-            Firmware::Pcat(_) => "pcat",
-            Firmware::Uefi(_) => "uefi",
+            Firmware::Pcat(..) => "pcat",
+            Firmware::Uefi(..) => "uefi",
             Firmware::OpenhclLinuxDirect => "openhcl_linux",
             Firmware::OpenhclPcat(..) => "openhcl_pcat",
             Firmware::OpenhclUefi(..) => "openhcl_uefi",
         };
 
         let guest_prefix = match &self.firmware {
-            Firmware::LinuxDirect | Firmware::LinuxDirectBzImage | Firmware::OpenhclLinuxDirect => {
-                None
-            }
+            Firmware::LinuxDirect(..)
+            | Firmware::LinuxDirectBzImage
+            | Firmware::OpenhclLinuxDirect => None,
             Firmware::Pcat(guest) | Firmware::OpenhclPcat(guest) => Some(guest.name_prefix()),
-            Firmware::Uefi(guest) | Firmware::OpenhclUefi(_, guest) => guest.name_prefix(),
+            Firmware::Uefi(_, guest) | Firmware::OpenhclUefi(_, guest) => guest.name_prefix(),
         };
 
-        let options_prefix = match &self.firmware {
-            Firmware::LinuxDirect
-            | Firmware::LinuxDirectBzImage
-            | Firmware::Pcat(_)
-            | Firmware::Uefi(_)
-            | Firmware::OpenhclLinuxDirect
-            | Firmware::OpenhclPcat(_) => None,
-            Firmware::OpenhclUefi(opt, _) => opt.name_prefix(),
-        };
+        let isolation_prefix = self.firmware.isolation().name_prefix();
 
         let mut name_prefix = format!("{}_{}_{}", vmm_prefix, firmware_prefix, arch_prefix);
         if let Some(guest_prefix) = guest_prefix {
             name_prefix.push('_');
             name_prefix.push_str(&guest_prefix);
         }
-        if let Some(options_prefix) = options_prefix {
+        if let Some(isolation_prefix) = isolation_prefix {
             name_prefix.push('_');
-            name_prefix.push_str(&options_prefix);
+            name_prefix.push_str(&isolation_prefix);
         }
 
         name_prefix
@@ -253,8 +257,8 @@ impl ToTokens for FirmwareAndArch {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let arch = arch_to_tokens(self.arch);
         tokens.extend(match &self.firmware {
-            Firmware::LinuxDirect => {
-                quote!(::petri::Firmware::linux_direct(resolver, #arch))
+            Firmware::LinuxDirect(isolation) => {
+                quote!(::petri::Firmware::linux_direct(resolver, #arch, #isolation))
             }
             Firmware::LinuxDirectBzImage => {
                 quote!(::petri::Firmware::linux_direct_bzimage(resolver))
@@ -262,8 +266,8 @@ impl ToTokens for FirmwareAndArch {
             Firmware::Pcat(guest) => {
                 quote!(::petri::Firmware::pcat(resolver, #guest))
             }
-            Firmware::Uefi(guest) => {
-                quote!(::petri::Firmware::uefi(resolver, #arch, #guest))
+            Firmware::Uefi(isolation, guest) => {
+                quote!(::petri::Firmware::uefi(resolver, #arch, #guest, #isolation))
             }
             Firmware::OpenhclLinuxDirect => {
                 quote!(::petri::Firmware::openhcl_linux_direct(resolver, #arch))
@@ -271,11 +275,7 @@ impl ToTokens for FirmwareAndArch {
             Firmware::OpenhclPcat(guest) => {
                 quote!(::petri::Firmware::openhcl_pcat(resolver, #guest))
             }
-            Firmware::OpenhclUefi(OpenhclUefiOptions { isolation }, guest) => {
-                let isolation = match isolation {
-                    Some(i) => quote!(Some(#i)),
-                    None => quote!(None),
-                };
+            Firmware::OpenhclUefi(isolation, guest) => {
                 quote!(::petri::Firmware::openhcl_uefi(resolver, #arch, #guest, #isolation))
             }
         })
@@ -581,7 +581,7 @@ impl Parse for Args {
 fn validate_firmware(config: &Config) -> syn::Result<()> {
     #[expect(clippy::single_match)] // more patterns coming later
     match config.firmware {
-        Firmware::Uefi(UefiGuest::Vhd(ImageInfo { arch, .. })) => {
+        Firmware::Uefi(_, UefiGuest::Vhd(ImageInfo { arch, .. })) => {
             if config.arch != arch {
                 return Err(Error::new(
                     config.span,
@@ -663,9 +663,15 @@ fn parse_config(input: ParseStream<'_>, word: Ident) -> syn::Result<Config> {
     };
 
     let (arch, firmware) = match remainder {
-        "linux_direct_x64" => (MachineArch::X86_64, Firmware::LinuxDirect),
+        "linux_direct_x64" => (
+            MachineArch::X86_64,
+            Firmware::LinuxDirect(parse_isolation(input)?),
+        ),
         "linux_direct_bzimage_x64" => (MachineArch::X86_64, Firmware::LinuxDirectBzImage),
-        "linux_direct_aarch64" => (MachineArch::Aarch64, Firmware::LinuxDirect),
+        "linux_direct_aarch64" => (
+            MachineArch::Aarch64,
+            Firmware::LinuxDirect(parse_isolation(input)?),
+        ),
         "openhcl_linux_direct_x64" => (MachineArch::X86_64, Firmware::OpenhclLinuxDirect),
         "pcat_x64" => (
             MachineArch::X86_64,
@@ -673,11 +679,11 @@ fn parse_config(input: ParseStream<'_>, word: Ident) -> syn::Result<Config> {
         ),
         "uefi_x64" => (
             MachineArch::X86_64,
-            Firmware::Uefi(parse_uefi_guest(input)?),
+            Firmware::Uefi(parse_isolation(input)?, parse_uefi_guest(input)?),
         ),
         "uefi_aarch64" => (
             MachineArch::Aarch64,
-            Firmware::Uefi(parse_uefi_guest(input)?),
+            Firmware::Uefi(parse_isolation(input)?, parse_uefi_guest(input)?),
         ),
         "openhcl_pcat_x64" => (
             MachineArch::X86_64,
@@ -685,11 +691,11 @@ fn parse_config(input: ParseStream<'_>, word: Ident) -> syn::Result<Config> {
         ),
         "openhcl_uefi_x64" => (
             MachineArch::X86_64,
-            Firmware::OpenhclUefi(parse_openhcl_uefi_options(input)?, parse_uefi_guest(input)?),
+            Firmware::OpenhclUefi(parse_isolation(input)?, parse_uefi_guest(input)?),
         ),
         "openhcl_uefi_aarch64" => (
             MachineArch::Aarch64,
-            Firmware::OpenhclUefi(parse_openhcl_uefi_options(input)?, parse_uefi_guest(input)?),
+            Firmware::OpenhclUefi(parse_isolation(input)?, parse_uefi_guest(input)?),
         ),
         "openhcl_linux_direct_aarch64" | "pcat_aarch64" => {
             return Err(Error::new(
@@ -870,68 +876,43 @@ fn parse_iso(input: ParseStream<'_>) -> syn::Result<ImageInfo> {
     })
 }
 
-impl OpenhclUefiOptions {
+impl IsolationType {
     fn name_prefix(&self) -> Option<String> {
-        let mut prefix = String::new();
-        if let Some(isolation) = &self.isolation {
-            prefix.push_str(match isolation {
-                IsolationType::Vbs => "vbs",
-                IsolationType::Snp => "snp",
-                IsolationType::Tdx => "tdx",
-            });
-        }
-        if prefix.is_empty() {
-            None
-        } else {
-            Some(prefix)
+        match self {
+            IsolationType::None => None,
+            IsolationType::Vbs => Some("vbs".into()),
+            IsolationType::Snp => Some("snp".into()),
+            IsolationType::Tdx => Some("tdx".into()),
         }
     }
 }
 
-impl Parse for OpenhclUefiOptions {
+impl Parse for IsolationType {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let mut options = Self::default();
-
-        let words = input.parse_terminated(|stream| stream.parse::<Ident>(), Token![,])?;
-        for word in words {
-            match &*word.to_string() {
-                "vbs" => {
-                    if options.isolation.is_some() {
-                        return Err(Error::new(word.span(), "isolation type already specified"));
-                    }
-                    options.isolation = Some(IsolationType::Vbs);
-                }
-                "snp" => {
-                    if options.isolation.is_some() {
-                        return Err(Error::new(word.span(), "isolation type already specified"));
-                    }
-                    options.isolation = Some(IsolationType::Snp);
-                }
-                "tdx" => {
-                    if options.isolation.is_some() {
-                        return Err(Error::new(word.span(), "isolation type already specified"));
-                    }
-                    options.isolation = Some(IsolationType::Tdx);
-                }
-                _ => return Err(Error::new(word.span(), "unrecognized openhcl uefi option")),
-            }
+        let word = input.parse::<Ident>()?;
+        match &*word.to_string() {
+            "none" => Ok(IsolationType::None),
+            "vbs" => Ok(IsolationType::Vbs),
+            "snp" => Ok(IsolationType::Snp),
+            "tdx" => Ok(IsolationType::Tdx),
+            _ => return Err(Error::new(word.span(), "unrecognized isolation type")),
         }
-        Ok(options)
     }
 }
 
 impl ToTokens for IsolationType {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         tokens.extend(match self {
-            IsolationType::Vbs => quote!(petri::IsolationType::Vbs),
-            IsolationType::Snp => quote!(petri::IsolationType::Snp),
-            IsolationType::Tdx => quote!(petri::IsolationType::Tdx),
+            IsolationType::None => quote!(None),
+            IsolationType::Vbs => quote!(Some(petri::IsolationType::Vbs)),
+            IsolationType::Snp => quote!(Some(petri::IsolationType::Snp)),
+            IsolationType::Tdx => quote!(Some(petri::IsolationType::Tdx)),
         });
     }
 }
 
-fn parse_openhcl_uefi_options(input: ParseStream<'_>) -> syn::Result<OpenhclUefiOptions> {
-    if input.peek(syn::token::Paren) {
+fn parse_isolation(input: ParseStream<'_>) -> syn::Result<IsolationType> {
+    if !input.peek(syn::token::Bracket) {
         return Ok(Default::default());
     }
 
@@ -1404,28 +1385,23 @@ fn build_requirements(
     let mut requirement_expr: TokenStream = quote!(::petri::requirements::TestRequirement::Any);
     let mut is_vbs = false;
     // Add isolation requirement if specified
-    if let Firmware::OpenhclUefi(
-        OpenhclUefiOptions {
-            isolation: Some(isolation),
-        },
-        _,
-    ) = firmware
-    {
-        let isolation_requirement = match isolation {
-            IsolationType::Vbs => {
-                is_vbs = true;
-                quote!(::petri::requirements::TestRequirement::Isolation(
-                    ::petri::requirements::IsolationType::Vbs
-                ))
-            }
-            IsolationType::Snp => quote!(::petri::requirements::TestRequirement::Isolation(
-                ::petri::requirements::IsolationType::Snp
-            )),
-            IsolationType::Tdx => quote!(::petri::requirements::TestRequirement::Isolation(
-                ::petri::requirements::IsolationType::Tdx
-            )),
-        };
+    let isolation_requirement = match firmware.isolation() {
+        IsolationType::None => None,
+        IsolationType::Vbs => {
+            is_vbs = true;
+            Some(quote!(::petri::requirements::TestRequirement::Isolation(
+                ::petri::requirements::IsolationType::Vbs
+            )))
+        }
+        IsolationType::Snp => Some(quote!(::petri::requirements::TestRequirement::Isolation(
+            ::petri::requirements::IsolationType::Snp
+        ))),
+        IsolationType::Tdx => Some(quote!(::petri::requirements::TestRequirement::Isolation(
+            ::petri::requirements::IsolationType::Tdx
+        ))),
+    };
 
+    if let Some(isolation_requirement) = isolation_requirement {
         requirement_expr = quote!(#requirement_expr.and(#isolation_requirement));
     }
 
