@@ -684,6 +684,10 @@ impl PetriVmConfigOpenVmm {
                 with_vtl2,
                 with_isolation: match firmware.isolation() {
                     Some(IsolationType::Vbs) => Some(openvmm_defs::config::IsolationType::Vbs),
+                    Some(IsolationType::Snp) => {
+                        Some(openvmm_defs::config::IsolationType::Snp { host_data: None })
+                    }
+                    Some(IsolationType::Cca) => Some(openvmm_defs::config::IsolationType::Cca),
                     None => None,
                     _ => anyhow::bail!("unsupported isolation type"),
                 },
@@ -950,7 +954,9 @@ impl PetriVmConfigSetupCore<'_> {
                                 restricted_injection: true,
                             }
                         }
-                        None => openvmm_defs::config::LinuxIsolationConfig::None,
+                        None | Some(IsolationType::Cca) => {
+                            openvmm_defs::config::LinuxIsolationConfig::None
+                        }
                         Some(t) => anyhow::bail!("openvmm does not support {t:?} isolation"),
                     },
                     boot_mode: openvmm_defs::config::LinuxDirectBootMode::Acpi,

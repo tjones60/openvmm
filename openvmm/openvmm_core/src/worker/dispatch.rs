@@ -3455,15 +3455,31 @@ impl LoadedVmInner {
             } => {
                 use openvmm_defs::config::LinuxDirectBootMode;
 
-                if isolation != openvmm_defs::config::LinuxIsolationConfig::None {
-                    anyhow::bail!("SNP Linux loader configuration is not supported on aarch64");
-                }
                 let kernel_config = super::vm_loaders::linux::KernelConfig {
                     kernel,
                     initrd,
                     cmdline,
                     mem_layout: &self.mem_layout,
-                    isolation: super::vm_loaders::linux::KernelIsolationConfig::None,
+                    isolation: match (isolation, self.hypervisor_cfg.with_isolation) {
+                        (openvmm_defs::config::LinuxIsolationConfig::None, None) => {
+                            super::vm_loaders::linux::KernelIsolationConfig::None
+                        }
+                        (
+                            openvmm_defs::config::LinuxIsolationConfig::None,
+                            Some(openvmm_defs::config::IsolationType::Cca),
+                        ) => super::vm_loaders::linux::KernelIsolationConfig::Cca(
+                            super::vm_loaders::linux::CcaKernelConfig {
+                                shared_gpa_bit: self
+                                    .partition
+                                    .caps()
+                                    .shared_gpa_bit
+                                    .context("cca requires shared bit")?,
+                            },
+                        ),
+                        (linux, hypervisor) => anyhow::bail!(
+                            "invalid isolation config: linux: {linux:?}, hypervisor: {hypervisor:?}"
+                        ),
+                    },
                     smbios,
                 };
 

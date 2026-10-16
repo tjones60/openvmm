@@ -107,6 +107,7 @@ enum IsolationType {
     Vbs,
     Snp,
     Tdx,
+    Cca,
 }
 
 enum PcatGuest {
@@ -883,6 +884,7 @@ impl IsolationType {
             IsolationType::Vbs => Some("vbs".into()),
             IsolationType::Snp => Some("snp".into()),
             IsolationType::Tdx => Some("tdx".into()),
+            IsolationType::Cca => Some("cca".into()),
         }
     }
 }
@@ -895,6 +897,7 @@ impl Parse for IsolationType {
             "vbs" => Ok(IsolationType::Vbs),
             "snp" => Ok(IsolationType::Snp),
             "tdx" => Ok(IsolationType::Tdx),
+            "cca" => Ok(IsolationType::Cca),
             _ => return Err(Error::new(word.span(), "unrecognized isolation type")),
         }
     }
@@ -907,6 +910,7 @@ impl ToTokens for IsolationType {
             IsolationType::Vbs => quote!(Some(petri::IsolationType::Vbs)),
             IsolationType::Snp => quote!(Some(petri::IsolationType::Snp)),
             IsolationType::Tdx => quote!(Some(petri::IsolationType::Tdx)),
+            IsolationType::Cca => quote!(Some(petri::IsolationType::Cca)),
         });
     }
 }
@@ -1074,6 +1078,7 @@ fn parse_nested(input: ParseStream<'_>) -> syn::Result<MaybeNestedConfig> {
 /// - `vbs`: Use VBS isolation.
 /// - `snp`: Use SNP isolation.
 /// - `tdx`: Use TDX isolation.
+/// - `cca`: Use CCA isolation.
 ///
 /// Each configuration can be optionally followed by a square-bracketed, comma-separated
 /// list of additional artifacts required for that particular configuration.
@@ -1398,6 +1403,9 @@ fn build_requirements(
         ))),
         IsolationType::Tdx => Some(quote!(::petri::requirements::TestRequirement::Isolation(
             ::petri::requirements::IsolationType::Tdx
+        ))),
+        IsolationType::Cca => Some(quote!(::petri::requirements::TestRequirement::Isolation(
+            ::petri::requirements::IsolationType::Cca
         ))),
     };
 

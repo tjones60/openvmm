@@ -3747,6 +3747,8 @@ pub enum IsolationType {
     Snp,
     /// TDX
     Tdx,
+    /// CCA
+    Cca,
 }
 
 /// Flags controlling servicing behavior.

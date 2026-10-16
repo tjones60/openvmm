@@ -529,6 +529,7 @@ impl HyperVNewCustomVMArgs {
                 Some(IsolationType::Vbs) => Some(HyperVGuestStateIsolationType::Vbs),
                 Some(IsolationType::Snp) => Some(HyperVGuestStateIsolationType::Snp),
                 Some(IsolationType::Tdx) => Some(HyperVGuestStateIsolationType::Tdx),
+                Some(IsolationType::Cca) => anyhow::bail!("Hyper-V backend does not support CCA"),
                 None if properties.is_openhcl => Some(HyperVGuestStateIsolationType::OpenHCL),
                 None => None,
             },

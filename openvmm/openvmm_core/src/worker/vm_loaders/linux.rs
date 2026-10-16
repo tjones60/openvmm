@@ -59,8 +59,15 @@ pub struct KernelConfig<'a> {
 #[derive(Debug, Clone, Copy)]
 pub enum KernelIsolationConfig {
     None,
+    #[cfg_attr(not(guest_arch = "aarch64"), expect(dead_code))]
+    Cca(CcaKernelConfig),
     #[cfg_attr(not(guest_arch = "x86_64"), expect(dead_code))]
     Snp(SnpKernelConfig),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CcaKernelConfig {
+    pub shared_gpa_bit: u64,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -195,6 +202,7 @@ pub fn load_linux_x86(
     let cmdline = CString::new(cfg.cmdline).unwrap();
     let snp = match cfg.isolation {
         KernelIsolationConfig::None => None,
+        KernelIsolationConfig::Cca(_) => unreachable!(),
         KernelIsolationConfig::Snp(snp) => Some(snp),
     };
     let snp_boot = snp.map(|snp| loader::linux::SnpBootConfig { c_bit: snp.c_bit });
@@ -597,6 +605,7 @@ pub fn load_linux_arm64(
                 high_mmio: chipset_mmio.high,
                 initrd: Some((initrd_start, initrd_end)),
                 smmus: smmu_configs,
+                isolation: &cfg.isolation,
             }),
         )
         .with_command_line(cfg.cmdline)

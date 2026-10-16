@@ -38,6 +38,7 @@ use virt::Hv1;
 use virt::PartitionConfig;
 use virt::ProtoPartition;
 use virt::ProtoPartitionConfig;
+use virt::ProtoPartitionIsolation;
 use virt::VpHaltReason;
 use virt::VpIndex;
 use virt::aarch64::Aarch64PartitionCapabilities;
@@ -71,13 +72,17 @@ impl virt::Hypervisor for LinuxMshv {
         if self.snp_disable_cpuid_offload {
             return Err(ErrorInner::IsolationNotSupported.into());
         }
-        if config.isolation.is_isolated() {
-            return Err(ErrorInner::IsolationNotSupported.into());
-        }
+
+        // TODO: use mshv_bindings value once the crate is updated
+        const MSHV_PT_ISOLATION_RME: u64 = 2;
 
         let create_args = mshv_bindings::mshv_create_partition_v2 {
             pt_flags: 1 << mshv_bindings::MSHV_PT_BIT_GPA_SUPER_PAGES,
-            pt_isolation: mshv_bindings::MSHV_PT_ISOLATION_NONE as u64,
+            pt_isolation: match config.isolation {
+                ProtoPartitionIsolation::None => mshv_bindings::MSHV_PT_ISOLATION_NONE as u64,
+                ProtoPartitionIsolation::Cca => MSHV_PT_ISOLATION_RME,
+                _ => return Err(ErrorInner::IsolationNotSupported.into()),
+            },
             ..Default::default()
         };
 
@@ -176,6 +181,7 @@ impl ProtoPartition for MshvProtoPartition<'_> {
             isolation: virt::IsolationType::None,
             supports_aarch32_el0: false,
             vendor: Vendor::ARM,
+            shared_gpa_bit: None, // TODO: query this
         };
 
         let inner = Arc::new(MshvPartitionInner {
