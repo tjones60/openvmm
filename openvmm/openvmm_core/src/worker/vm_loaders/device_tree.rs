@@ -240,7 +240,7 @@ impl<'a, T: DeviceTreeArch> DeviceTreeBuilder<'a, T> {
             DeviceTreeBootType::LinuxDirect(LinuxDirectBoot {
                 isolation: KernelIsolationConfig::Cca(CcaKernelConfig { shared_gpa_bit }),
                 ..
-            }) => (true, Some(*shared_gpa_bit)),
+            }) => (true, *shared_gpa_bit),
             _ => (false, None),
         };
         root = T::emit_platform(self.topology, root, &p, smmus, cca)?;

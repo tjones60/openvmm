@@ -668,9 +668,12 @@ fn build_aarch64_topology(
 
     // Resolve ITS vs v2m and determine v2m SPI count.
     let is_gicv2 = matches!(gic_version, GicVersion::V2 { .. });
-    let v2m_spi_count = match &arch.gic_msi {
-        GicMsiConfig::Auto if platform_info.supports_its && !is_gicv2 => None,
-        GicMsiConfig::Auto => Some(DEFAULT_GIC_V2M_SPI_COUNT),
+    let resolved_gic_msi_config = match &arch.gic_msi {
+        GicMsiConfig::Disabled => GicMsiConfig::Disabled,
+        GicMsiConfig::Auto if platform_info.supports_its && !is_gicv2 => GicMsiConfig::Its,
+        GicMsiConfig::Auto => GicMsiConfig::V2m {
+            spi_count: Some(DEFAULT_GIC_V2M_SPI_COUNT),
+        },
         GicMsiConfig::Its => {
             if is_gicv2 {
                 anyhow::bail!("ITS is incompatible with GICv2");
@@ -678,9 +681,16 @@ fn build_aarch64_topology(
             if !platform_info.supports_its {
                 anyhow::bail!("ITS requested but the hypervisor does not support it");
             }
-            None
+            GicMsiConfig::Its
         }
-        GicMsiConfig::V2m { spi_count } => Some(spi_count.unwrap_or(DEFAULT_GIC_V2M_SPI_COUNT)),
+        GicMsiConfig::V2m { spi_count } => GicMsiConfig::V2m {
+            spi_count: Some(spi_count.unwrap_or(DEFAULT_GIC_V2M_SPI_COUNT)),
+        },
+    };
+
+    let v2m_spi_count = match resolved_gic_msi_config {
+        GicMsiConfig::V2m { spi_count } => Some(spi_count.unwrap()),
+        _ => None,
     };
 
     // Resolve SPI layout — all SPI allocations in one deterministic pass.
@@ -692,18 +702,19 @@ fn build_aarch64_topology(
     })?;
 
     // Build the GIC MSI controller from resolved SPIs.
-    let gic_msi = if let Some(count) = v2m_spi_count {
-        GicMsiController::V2m(GicV2mInfo {
+    let gic_msi = match resolved_gic_msi_config {
+        GicMsiConfig::Disabled => GicMsiController::None,
+        GicMsiConfig::V2m { spi_count } => GicMsiController::V2m(GicV2mInfo {
             frame_base: openvmm_defs::config::DEFAULT_GIC_V2M_MSI_FRAME_BASE,
             spi_base: spi_layout
                 .v2m_spi_base
                 .expect("v2m base must be allocated when v2m_spi_count is Some"),
-            spi_count: count,
-        })
-    } else {
-        GicMsiController::Its(GicItsInfo {
+            spi_count: spi_count.unwrap(),
+        }),
+        GicMsiConfig::Its => GicMsiController::Its(GicItsInfo {
             its_base: openvmm_defs::config::DEFAULT_GIC_ITS_BASE,
-        })
+        }),
+        _ => unreachable!(),
     };
 
     let platform = Aarch64PlatformConfig {
@@ -3469,11 +3480,7 @@ impl LoadedVmInner {
                             Some(openvmm_defs::config::IsolationType::Cca),
                         ) => super::vm_loaders::linux::KernelIsolationConfig::Cca(
                             super::vm_loaders::linux::CcaKernelConfig {
-                                shared_gpa_bit: self
-                                    .partition
-                                    .caps()
-                                    .shared_gpa_bit
-                                    .context("cca requires shared bit")?,
+                                shared_gpa_bit: self.partition.caps().shared_gpa_bit,
                             },
                         ),
                         (linux, hypervisor) => anyhow::bail!(
