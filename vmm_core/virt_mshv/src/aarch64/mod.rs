@@ -3,6 +3,12 @@
 
 //! aarch64-specific implementation of the mshv hypervisor backend.
 
+mod cca;
+
+pub(crate) use cca::CcaError;
+pub(crate) use cca::CcaLaunchState;
+pub(crate) use cca::CcaPartitionState;
+
 use crate::Error;
 use crate::ErrorInner;
 use crate::LinuxMshv;
@@ -17,6 +23,7 @@ use crate::VcpuFdExt;
 use crate::common_synthetic_features;
 use crate::create_vm_with_retry;
 
+use crate::MshvProtoPartitionIsolation;
 use aarch64defs::EsrEl2;
 use aarch64defs::ExceptionClass;
 use aarch64defs::IssDataAbort;
@@ -88,6 +95,10 @@ impl virt::Hypervisor for LinuxMshv {
 
         let vmfd = create_vm_with_retry(&self.mshv, &create_args)?;
 
+        if matches!(config.isolation, ProtoPartitionIsolation::Cca) {
+            cca::set_disabled_processor_features(&vmfd)?;
+        }
+
         // Set synthetic processor features before initialization when the
         // guest interface is configured.
         if config.hv_config.is_some() {
@@ -158,7 +169,13 @@ impl virt::Hypervisor for LinuxMshv {
         vmfd.set_partition_property(HvPartitionPropertyCode::TimeFreeze.0, 1)
             .map_err(|e| ErrorInner::SetPartitionProperty(e.into()))?;
 
-        MshvProtoPartition::new(config, vmfd)
+        let isolation = match config.isolation {
+            ProtoPartitionIsolation::None => MshvProtoPartitionIsolation::None,
+            ProtoPartitionIsolation::Cca => MshvProtoPartitionIsolation::Cca,
+            _ => return Err(ErrorInner::IsolationNotSupported.into()),
+        };
+
+        MshvProtoPartition::new(config, vmfd, isolation)
     }
 }
 
@@ -177,8 +194,18 @@ impl ProtoPartition for MshvProtoPartition<'_> {
         self,
         config: PartitionConfig<'_>,
     ) -> Result<(Self::Partition, Vec<Self::ProcessorBinder>), Self::Error> {
+        let (isolation_cap, isolation_state) = match self.isolation {
+            MshvProtoPartitionIsolation::None => {
+                (virt::IsolationType::None, MshvIsolationState::None)
+            }
+            MshvProtoPartitionIsolation::Cca => (
+                virt::IsolationType::Cca,
+                MshvIsolationState::Cca(CcaPartitionState::new()),
+            ),
+        };
+
         let caps = Aarch64PartitionCapabilities {
-            isolation: virt::IsolationType::None,
+            isolation: isolation_cap,
             supports_aarch32_el0: false,
             vendor: Vendor::ARM,
             shared_gpa_bit: None, // TODO: query this
@@ -193,7 +220,7 @@ impl ProtoPartition for MshvProtoPartition<'_> {
             vps: self.vps,
             caps,
             synic_ports: Default::default(),
-            isolation: MshvIsolationState::None,
+            isolation: isolation_state,
             time_frozen: true.into(),
             gic_msi: self.config.processor_topology.gic_msi(),
             gsi_states: parking_lot::Mutex::new(Box::new(
@@ -232,6 +259,12 @@ impl virt::Partition for MshvPartition {
 
     fn supports_time_control(&self) -> Option<&dyn virt::PartitionTimeControl> {
         Some(self)
+    }
+
+    fn supports_initial_page_acceptance(
+        &self,
+    ) -> Option<&dyn virt::AcceptInitialPages<Error = Error>> {
+        self.inner.isolation.cca().is_some().then_some(self)
     }
 
     fn supports_reset(&self) -> Option<&dyn virt::ResetPartition<Error = Error>> {
@@ -615,7 +648,9 @@ impl MshvProcessor<'_> {
             HvMessageType::HvMessageTypeUnrecoverableException => {
                 return Err(VpHaltReason::TripleFault { vtl: Vtl::Vtl0 });
             }
-            HvMessageType::HvMessageTypeUnmappedGpa | HvMessageType::HvMessageTypeGpaIntercept => {
+            HvMessageType::HvMessageTypeUnmappedGpa
+            | HvMessageType::HvMessageTypeGpaIntercept
+            | HvMessageType::HvMessageTypeMmioIntercept => {
                 self.handle_memory_intercept(exit, dev).await?;
             }
             HvMessageType::HvMessageTypeSynicSintDeliverable => {

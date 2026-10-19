@@ -88,14 +88,6 @@ const MSHV_PT_SNP_INJECTION_POLICY_SHIFT: u32 = 6;
 const MSHV_PT_SNP_RESTRICTED_INJECTION: u64 = 0;
 const MSHV_PT_SNP_NORMAL_INJECTION: u64 = 1;
 
-pub(crate) enum MshvProtoPartitionIsolation {
-    None,
-    Snp {
-        config: Option<Box<MshvSnpConfig>>,
-        disable_cpuid_offload: bool,
-    },
-}
-
 impl virt::Hypervisor for LinuxMshv {
     type ProtoPartition<'a> = MshvProtoPartition<'a>;
     type Partition = MshvPartition;
@@ -215,9 +207,8 @@ impl virt::Hypervisor for LinuxMshv {
         } else {
             MshvProtoPartitionIsolation::None
         };
-        let mut proto = MshvProtoPartition::new(config, vmfd)?;
-        proto.isolation = isolation;
-        Ok(proto)
+
+        MshvProtoPartition::new(config, vmfd, isolation)
     }
 }
 

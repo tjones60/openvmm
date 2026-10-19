@@ -12,6 +12,8 @@ mod aarch64;
 #[cfg(guest_arch = "x86_64")]
 mod x86_64;
 
+mod cvm;
+
 #[cfg(guest_arch = "aarch64")]
 use aarch64 as arch;
 #[cfg(guest_arch = "x86_64")]
@@ -143,7 +145,11 @@ impl<'a> MshvProtoPartition<'a> {
     /// Performs the post-init partition setup common to both architectures:
     /// creates VPs, BSP, installs intercepts, sets up the signal handler,
     /// and checks for unsupported VTL2 configuration.
-    fn new(config: ProtoPartitionConfig<'a>, vmfd: VmFd) -> Result<Self, Error> {
+    fn new(
+        config: ProtoPartitionConfig<'a>,
+        vmfd: VmFd,
+        isolation: MshvProtoPartitionIsolation,
+    ) -> Result<Self, Error> {
         if config.processor_topology.vp_count() > u8::MAX as u32 {
             return Err(ErrorInner::TooManyVps(config.processor_topology.vp_count()).into());
         }
@@ -210,8 +216,7 @@ impl<'a> MshvProtoPartition<'a> {
 
         Ok(MshvProtoPartition {
             config,
-            #[cfg(guest_arch = "x86_64")]
-            isolation: arch::MshvProtoPartitionIsolation::None,
+            isolation,
             vmfd,
             vps,
             bsp,
@@ -228,11 +233,21 @@ pub fn is_available() -> Result<bool, Error> {
     }
 }
 
+pub(crate) enum MshvProtoPartitionIsolation {
+    None,
+    #[cfg(guest_arch = "aarch64")]
+    Cca,
+    #[cfg(guest_arch = "x86_64")]
+    Snp {
+        config: Option<Box<MshvSnpConfig>>,
+        disable_cpuid_offload: bool,
+    },
+}
+
 /// Prototype partition.
 pub struct MshvProtoPartition<'a> {
     config: ProtoPartitionConfig<'a>,
-    #[cfg(guest_arch = "x86_64")]
-    isolation: arch::MshvProtoPartitionIsolation,
+    isolation: MshvProtoPartitionIsolation,
     vmfd: VmFd,
     vps: Vec<MshvVpInner>,
     bsp: VcpuFd,
@@ -247,8 +262,14 @@ pub struct MshvPartition {
     synic_ports: Arc<virt::synic::SynicPorts<MshvPartitionInner>>,
 }
 
+struct MshvIsolationState {
+    launch_state: cvm::CvmLaunchState,
+}
+
 enum MshvIsolationState {
     None,
+    #[cfg(guest_arch = "aarch64")]
+    Cca(arch::CcaPartitionState),
     #[cfg(guest_arch = "x86_64")]
     Snp(arch::SnpPartitionState),
 }
@@ -270,12 +291,34 @@ impl MshvIsolationState {
         }
     }
 
+    #[cfg(guest_arch = "aarch64")]
+    fn cca(&self) -> Option<&arch::CcaPartitionState> {
+        match self {
+            Self::None => None,
+            Self::Cca(cca) => Some(cca),
+        }
+    }
+
     fn map_user_memory(&self, vmfd: &VmFd, region: mshv_user_mem_region) -> anyhow::Result<bool> {
         match self {
             Self::None => {
                 vmfd.map_user_memory(region)?;
                 Ok(true)
             }
+            #[cfg(guest_arch = "aarch64")]
+            Self::Cca(cca) => match *cca.launch_state.lock() {
+                arch::CcaLaunchState::NotStarted => Ok(false),
+                arch::CcaLaunchState::Started => {
+                    anyhow::bail!("cannot add a memory mapping while CCA launch is in progress")
+                }
+                arch::CcaLaunchState::Finished => {
+                    vmfd.map_user_memory(region)?;
+                    Ok(true)
+                }
+                arch::CcaLaunchState::Failed => {
+                    anyhow::bail!("cannot add a memory mapping after CCA launch failed")
+                }
+            },
             #[cfg(guest_arch = "x86_64")]
             Self::Snp(snp) => match *snp.launch_state.lock() {
                 // Record pre-launch mappings without exposing them to MSHV.
@@ -368,6 +411,21 @@ impl GetReferenceTime for MshvPartitionInner {
 
 impl virt::PartitionTimeControl for MshvPartition {
     fn freeze_time(&self) {
+        #[cfg(guest_arch = "aarch64")]
+        if self.inner.isolation.cca().is_some() {
+            let mut registers = [
+                HvRegisterAssoc::from((hvdef::HvArm64RegisterName::XPc, 0u64)),
+                HvRegisterAssoc::from((hvdef::HvArm64RegisterName::X0, 0u64)),
+                HvRegisterAssoc::from((hvdef::HvArm64RegisterName::Cpsr, 0u64)),
+            ];
+            match self.inner.bsp_vcpufd.get_hvdef_regs(&mut registers) {
+                Ok(()) => tracing::info!(?registers, "paused CCA boot registers"),
+                Err(error) => {
+                    tracing::warn!(?error, "failed to read paused CCA boot registers")
+                }
+            }
+        }
+
         let mut frozen = self.inner.time_frozen.lock();
         if !*frozen {
             self.inner
@@ -729,6 +787,9 @@ enum ErrorInner {
     #[cfg(guest_arch = "x86_64")]
     #[error("VP register page is unavailable")]
     MissingRegisterPage,
+    #[cfg(guest_arch = "aarch64")]
+    #[error(transparent)]
+    Cca(#[from] arch::CcaError),
     #[cfg(guest_arch = "x86_64")]
     #[error(transparent)]
     Snp(#[from] arch::SnpError),
