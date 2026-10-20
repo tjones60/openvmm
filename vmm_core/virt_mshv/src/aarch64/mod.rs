@@ -8,6 +8,7 @@ mod cca;
 use crate::Error;
 use crate::ErrorInner;
 use crate::LinuxMshv;
+use crate::MshvIsolationState;
 use crate::MshvPartition;
 use crate::MshvPartitionInner;
 use crate::MshvProcessor;
@@ -17,7 +18,6 @@ use crate::MshvVpRunner;
 use crate::VcpuFdExt;
 use crate::common_synthetic_features;
 use crate::create_vm_with_retry;
-use crate::cvm::MshvIsolationState;
 
 use crate::MshvProtoPartitionIsolation;
 use aarch64defs::EsrEl2;
@@ -53,7 +53,9 @@ use virt::state::HvRegisterState;
 use vmcore::reference_time::ReferenceTimeSource;
 use zerocopy::FromZeros;
 
+use crate::MshvIsolationTypeState;
 pub(super) use cca::CcaError;
+use hvdef::HV_PAGE_SHIFT;
 
 impl virt::Hypervisor for LinuxMshv {
     type ProtoPartition<'a> = MshvProtoPartition<'a>;
@@ -169,7 +171,13 @@ impl virt::Hypervisor for LinuxMshv {
 
         let isolation = match config.isolation {
             ProtoPartitionIsolation::None => MshvProtoPartitionIsolation::None,
-            ProtoPartitionIsolation::Cca => MshvProtoPartitionIsolation::Cca,
+            ProtoPartitionIsolation::Cca => {
+                let physical_address_width = vmfd
+                    .get_partition_property(HvPartitionPropertyCode::PhysicalAddressWidth.0)
+                    .map_err(|e| ErrorInner::GetPartitionProperty(e.into()))?;
+                let shared_gpa_bit = 1 << (physical_address_width - HV_PAGE_SHIFT - 1);
+                MshvProtoPartitionIsolation::Cca { shared_gpa_bit }
+            }
             _ => return Err(ErrorInner::IsolationNotSupported.into()),
         };
 
@@ -188,15 +196,23 @@ impl ProtoPartition for MshvProtoPartition<'_> {
             .expect("failed to get physical address width") as u8
     }
 
+    fn shared_gpa_bit(&self) -> Option<u64> {
+        match self.isolation {
+            MshvProtoPartitionIsolation::None => None,
+            MshvProtoPartitionIsolation::Cca { shared_gpa_bit } => Some(shared_gpa_bit),
+        }
+    }
+
     fn build(
         self,
         config: PartitionConfig<'_>,
     ) -> Result<(Self::Partition, Vec<Self::ProcessorBinder>), Self::Error> {
-        let (isolation_cap, isolation_state) = match self.isolation {
-            MshvProtoPartitionIsolation::None => (virt::IsolationType::None, None),
-            MshvProtoPartitionIsolation::Cca => (
+        let (isolation_cap, isolation_state, shared_gpa_bit) = match self.isolation {
+            MshvProtoPartitionIsolation::None => (virt::IsolationType::None, None, None),
+            MshvProtoPartitionIsolation::Cca { shared_gpa_bit } => (
                 virt::IsolationType::Cca,
-                Some(MshvIsolationState::new_cca()),
+                Some(MshvIsolationState::new(MshvIsolationTypeState::Cca)),
+                Some(shared_gpa_bit),
             ),
         };
 
@@ -204,7 +220,7 @@ impl ProtoPartition for MshvProtoPartition<'_> {
             isolation: isolation_cap,
             supports_aarch32_el0: false,
             vendor: Vendor::ARM,
-            shared_gpa_bit: None, // TODO: query this
+            shared_gpa_bit,
         };
 
         let inner = Arc::new(MshvPartitionInner {

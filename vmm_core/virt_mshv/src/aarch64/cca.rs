@@ -1,13 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use super::*;
-use crate::cvm::CvmError;
+use crate::Error;
+use crate::KernelError;
+use hvdef::HvPartitionPropertyCode;
 use mshv_ioctls::VmFd;
 
 const HVCALL_SET_PARTITION_PROPERTY_EX: u16 = 0x010a;
 
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub(crate) enum CcaError {
     #[error("failed to set processor features")]
     SetProcessorFeatures(#[source] KernelError),
@@ -43,6 +44,6 @@ pub(super) fn set_disabled_processor_features(vmfd: &VmFd) -> Result<(), Error> 
         ..Default::default()
     };
     vmfd.hvcall(&mut args)
-        .map_err(|e| CvmError::SetProcessorFeatures(e.into()))?;
+        .map_err(|e| CcaError::SetProcessorFeatures(e.into()))?;
     Ok(())
 }

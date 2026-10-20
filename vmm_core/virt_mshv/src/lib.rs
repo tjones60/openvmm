@@ -237,7 +237,9 @@ pub fn is_available() -> Result<bool, Error> {
 pub(crate) enum MshvProtoPartitionIsolation {
     None,
     #[cfg(guest_arch = "aarch64")]
-    Cca,
+    Cca {
+        shared_gpa_bit: u64,
+    },
     #[cfg(guest_arch = "x86_64")]
     Snp {
         config: Option<Box<arch::MshvSnpConfig>>,
@@ -802,6 +804,9 @@ enum ErrorInner {
     MissingRegisterPage,
     #[error(transparent)]
     Cvm(#[from] cvm::CvmError),
+    #[cfg(guest_arch = "aarch64")]
+    #[error(transparent)]
+    Cca(#[from] arch::CcaError),
     #[cfg(guest_arch = "x86_64")]
     #[error(transparent)]
     Snp(#[from] arch::SnpError),
@@ -846,7 +851,6 @@ enum ErrorInner {
     InvalidSnpVmsaImport,
     #[error("failed to stat /dev/mshv")]
     AvailableCheck(#[source] io::Error),
-    #[cfg(guest_arch = "x86_64")]
     #[error("failed to get partition property")]
     GetPartitionProperty(#[source] KernelError),
     #[error("failed to set partition property")]

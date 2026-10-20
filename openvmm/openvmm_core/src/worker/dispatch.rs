@@ -467,6 +467,7 @@ pub(crate) struct InitializedVm {
     vmtime_source: VmTimeSource,
     memory_manager: GuestMemoryManager,
     gm: GuestMemory,
+    device_gm: GuestMemory,
     cfg: Manifest,
     mem_layout: MemoryLayout,
     resolved_pcie_root_complex_ranges: Vec<ResolvedPcieRootComplexRanges>,
@@ -908,6 +909,7 @@ struct LoadedVmInner {
     _vmtime: SpawnedUnit<VmTimeKeeper>,
     memory_manager: GuestMemoryManager,
     gm: GuestMemory,
+    _device_gm: GuestMemory,
     vtl0_hvsock_relay: Option<HvsockRelay>,
     vtl2_hvsock_relay: Option<HvsockRelay>,
     vmbus_server: Option<VmbusServerHandle>,
@@ -1534,6 +1536,17 @@ impl InitializedVm {
             .guest_memory()
             .await
             .context("failed to get guest memory")?;
+
+        let device_gm = if let Some(shared_gpa_bit) = proto.shared_gpa_bit() {
+            memory_manager
+                .client()
+                .aliased_guest_memory("shared-ram", shared_gpa_bit)
+                .await
+                .context("failed to get shared device guest memory")?
+        } else {
+            gm.clone()
+        };
+
         let mut cpuid = Vec::new();
 
         // Add in Hyper-V VMM CPUID leaves.
@@ -1591,6 +1604,7 @@ impl InitializedVm {
             vmtime_source,
             memory_manager,
             gm,
+            device_gm,
             cfg,
             mem_layout,
             resolved_pcie_root_complex_ranges,
@@ -1622,6 +1636,7 @@ impl InitializedVm {
             vmtime_source,
             memory_manager,
             gm,
+            device_gm,
             cfg,
             mem_layout,
             resolved_pcie_root_complex_ranges,
@@ -2708,7 +2723,7 @@ impl InitializedVm {
             let chipset_builder = &chipset_builder;
             let driver_source = &driver_source;
             let resolver = &resolver;
-            let gm = &gm;
+            let gm = &device_gm;
             let partition = &partition;
             let mapper = &mapper;
             let port_info = &port_info;
@@ -2822,16 +2837,17 @@ impl InitializedVm {
                 .vmbus_max_version
                 .map(vmbus_core::MaxVersionInfo::new);
             let vmbus_driver = driver_source.simple();
-            let vmbus = VmbusServer::builder(vmbus_driver.clone(), synic.clone(), gm.clone())
-                .hvsock_notify(Some(hvsock_channel.server_half))
-                .external_server(vtl2_request_send)
-                .use_message_redirect(vmbus_cfg.vtl2_redirect)
-                .max_version(vmbus_max_version)
-                .max_restore_version(vmbus_max_version)
-                .delay_max_version(matches!(cfg.load_mode, LoadMode::Uefi { .. }))
-                .enable_mnf(true)
-                .build()
-                .context("failed to create vmbus server")?;
+            let vmbus =
+                VmbusServer::builder(vmbus_driver.clone(), synic.clone(), device_gm.clone())
+                    .hvsock_notify(Some(hvsock_channel.server_half))
+                    .external_server(vtl2_request_send)
+                    .use_message_redirect(vmbus_cfg.vtl2_redirect)
+                    .max_version(vmbus_max_version)
+                    .max_restore_version(vmbus_max_version)
+                    .delay_max_version(matches!(cfg.load_mode, LoadMode::Uefi { .. }))
+                    .enable_mnf(true)
+                    .build()
+                    .context("failed to create vmbus server")?;
 
             // Start the vmbus kernel proxy if it's in use.
             #[cfg(windows)]
@@ -2846,7 +2862,7 @@ impl InitializedVm {
                         .vtl2_server(vtl2_vmbus.as_ref().map(|server| {
                             vmbus_server::ProxyServerInfo::new(server.control().clone())
                         }))
-                        .memory(Some(&gm))
+                        .memory(Some(&device_gm))
                         .build()
                         .await
                         .context("failed to start the vmbus proxy")?,
@@ -2947,7 +2963,7 @@ impl InitializedVm {
                                 .transpose()
                                 .context("vpci device vnode exceeds 65535")?,
                         },
-                        gm.clone(),
+                        device_gm.clone(),
                         |device_id| {
                             let hv_device = partition.new_virtual_device(
                                 match dev_cfg.vtl {
@@ -3078,7 +3094,7 @@ impl InitializedVm {
                     let mmio_start = virtio_mmio_region.start() + virtio_mmio_index as u64 * 0x1000;
                     virtio_mmio_index += 1;
                     let id = format!("{id}-{mmio_start}");
-                    let gm = gm.clone();
+                    let gm = device_gm.clone();
                     chipset_builder.arc_mutex_device(id).try_add(|services| {
                         VirtioMmioDevice::new(
                             device.0,
@@ -3204,6 +3220,7 @@ impl InitializedVm {
                 _vmtime: vmtime,
                 memory_manager,
                 gm,
+                _device_gm: device_gm,
                 vtl0_hvsock_relay,
                 vtl2_hvsock_relay,
                 vmbus_server,
