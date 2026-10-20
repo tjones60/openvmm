@@ -5,14 +5,9 @@
 
 mod cca;
 
-pub(crate) use cca::CcaError;
-pub(crate) use cca::CcaLaunchState;
-pub(crate) use cca::CcaPartitionState;
-
 use crate::Error;
 use crate::ErrorInner;
 use crate::LinuxMshv;
-use crate::MshvIsolationState;
 use crate::MshvPartition;
 use crate::MshvPartitionInner;
 use crate::MshvProcessor;
@@ -22,6 +17,7 @@ use crate::MshvVpRunner;
 use crate::VcpuFdExt;
 use crate::common_synthetic_features;
 use crate::create_vm_with_retry;
+use crate::cvm::MshvIsolationState;
 
 use crate::MshvProtoPartitionIsolation;
 use aarch64defs::EsrEl2;
@@ -56,6 +52,8 @@ use virt::irqcon::MsiRequest;
 use virt::state::HvRegisterState;
 use vmcore::reference_time::ReferenceTimeSource;
 use zerocopy::FromZeros;
+
+pub(super) use cca::CcaError;
 
 impl virt::Hypervisor for LinuxMshv {
     type ProtoPartition<'a> = MshvProtoPartition<'a>;
@@ -195,12 +193,10 @@ impl ProtoPartition for MshvProtoPartition<'_> {
         config: PartitionConfig<'_>,
     ) -> Result<(Self::Partition, Vec<Self::ProcessorBinder>), Self::Error> {
         let (isolation_cap, isolation_state) = match self.isolation {
-            MshvProtoPartitionIsolation::None => {
-                (virt::IsolationType::None, MshvIsolationState::None)
-            }
+            MshvProtoPartitionIsolation::None => (virt::IsolationType::None, None),
             MshvProtoPartitionIsolation::Cca => (
                 virt::IsolationType::Cca,
-                MshvIsolationState::Cca(CcaPartitionState::new()),
+                Some(MshvIsolationState::new_cca()),
             ),
         };
 
@@ -254,7 +250,11 @@ impl ProtoPartition for MshvProtoPartition<'_> {
 
 impl virt::Partition for MshvPartition {
     fn initial_vp_state_source(&self) -> virt::InitialVpStateSource {
-        virt::InitialVpStateSource::Registers
+        if self.inner.isolation.is_some() {
+            virt::InitialVpStateSource::ImportedContext
+        } else {
+            virt::InitialVpStateSource::Registers
+        }
     }
 
     fn supports_time_control(&self) -> Option<&dyn virt::PartitionTimeControl> {
@@ -264,7 +264,7 @@ impl virt::Partition for MshvPartition {
     fn supports_initial_page_acceptance(
         &self,
     ) -> Option<&dyn virt::AcceptInitialPages<Error = Error>> {
-        self.inner.isolation.cca().is_some().then_some(self)
+        self.inner.isolation.is_some().then_some(self)
     }
 
     fn supports_reset(&self) -> Option<&dyn virt::ResetPartition<Error = Error>> {

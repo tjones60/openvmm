@@ -23,6 +23,7 @@ use x86_64 as arch;
 // x86_64 and aarch64.
 pub mod irqfd;
 
+use crate::cvm::IsolatedLaunchState;
 use guestmem::DoorbellRegistration;
 use guestmem::GuestMemory;
 use hv1_emulator::message_queues::MessageQueues;
@@ -239,7 +240,7 @@ pub(crate) enum MshvProtoPartitionIsolation {
     Cca,
     #[cfg(guest_arch = "x86_64")]
     Snp {
-        config: Option<Box<MshvSnpConfig>>,
+        config: Option<Box<arch::MshvSnpConfig>>,
         disable_cpuid_offload: bool,
     },
 }
@@ -262,79 +263,46 @@ pub struct MshvPartition {
     synic_ports: Arc<virt::synic::SynicPorts<MshvPartitionInner>>,
 }
 
-struct MshvIsolationState {
-    launch_state: cvm::CvmLaunchState,
+pub(crate) struct MshvIsolationState {
+    launch_state: Mutex<IsolatedLaunchState>,
+    #[cfg_attr(guest_arch = "aarch64", expect(unused))]
+    type_state: MshvIsolationTypeState,
 }
 
-enum MshvIsolationState {
-    None,
+pub(crate) enum MshvIsolationTypeState {
     #[cfg(guest_arch = "aarch64")]
-    Cca(arch::CcaPartitionState),
+    Cca,
     #[cfg(guest_arch = "x86_64")]
     Snp(arch::SnpPartitionState),
 }
 
 impl MshvIsolationState {
-    #[cfg(guest_arch = "x86_64")]
-    fn initial_vp_state_source(&self) -> virt::InitialVpStateSource {
-        match self {
-            Self::None => virt::InitialVpStateSource::Registers,
-            Self::Snp(_) => virt::InitialVpStateSource::ImportedContext,
+    pub(crate) fn new(type_state: MshvIsolationTypeState) -> Self {
+        Self {
+            launch_state: Mutex::new(IsolatedLaunchState::NotStarted),
+            type_state,
         }
     }
 
-    #[cfg(guest_arch = "x86_64")]
-    fn snp(&self) -> Option<&arch::SnpPartitionState> {
-        match self {
-            Self::None => None,
-            Self::Snp(snp) => Some(snp),
-        }
-    }
-
-    #[cfg(guest_arch = "aarch64")]
-    fn cca(&self) -> Option<&arch::CcaPartitionState> {
-        match self {
-            Self::None => None,
-            Self::Cca(cca) => Some(cca),
-        }
-    }
-
-    fn map_user_memory(&self, vmfd: &VmFd, region: mshv_user_mem_region) -> anyhow::Result<bool> {
-        match self {
-            Self::None => {
+    pub(crate) fn map_user_memory(
+        &self,
+        vmfd: &VmFd,
+        region: mshv_user_mem_region,
+    ) -> anyhow::Result<bool> {
+        match *self.launch_state.lock() {
+            // Record pre-launch mappings without exposing them to MSHV.
+            // SNP launch flushes them after loader writes are complete.
+            IsolatedLaunchState::NotStarted => Ok(false),
+            IsolatedLaunchState::Started => {
+                anyhow::bail!("cannot add a memory mapping while launch is in progress")
+            }
+            IsolatedLaunchState::Finished => {
                 vmfd.map_user_memory(region)?;
                 Ok(true)
             }
-            #[cfg(guest_arch = "aarch64")]
-            Self::Cca(cca) => match *cca.launch_state.lock() {
-                arch::CcaLaunchState::NotStarted => Ok(false),
-                arch::CcaLaunchState::Started => {
-                    anyhow::bail!("cannot add a memory mapping while CCA launch is in progress")
-                }
-                arch::CcaLaunchState::Finished => {
-                    vmfd.map_user_memory(region)?;
-                    Ok(true)
-                }
-                arch::CcaLaunchState::Failed => {
-                    anyhow::bail!("cannot add a memory mapping after CCA launch failed")
-                }
-            },
-            #[cfg(guest_arch = "x86_64")]
-            Self::Snp(snp) => match *snp.launch_state.lock() {
-                // Record pre-launch mappings without exposing them to MSHV.
-                // SNP launch flushes them after loader writes are complete.
-                arch::SnpLaunchState::NotStarted => Ok(false),
-                arch::SnpLaunchState::Started => {
-                    anyhow::bail!("cannot add a memory mapping while SNP launch is in progress")
-                }
-                arch::SnpLaunchState::Finished => {
-                    vmfd.map_user_memory(region)?;
-                    Ok(true)
-                }
-                arch::SnpLaunchState::Failed => {
-                    anyhow::bail!("cannot add a memory mapping after SNP launch failed")
-                }
-            },
+            IsolatedLaunchState::Failed => {
+                anyhow::bail!("cannot add a memory mapping after launch failed")
+            }
         }
     }
 }
@@ -362,7 +330,7 @@ struct MshvPartitionInner {
     #[cfg(guest_arch = "x86_64")]
     software_devices: virt::x86::apic_software_device::ApicSoftwareDevices,
     #[inspect(skip)]
-    isolation: MshvIsolationState,
+    isolation: Option<MshvIsolationState>,
     time_frozen: Mutex<bool>,
     /// aarch64 GIC MSI controller config, used to decode PCIe MSIs into SPI
     /// assertions via a v2m frame.
@@ -411,21 +379,6 @@ impl GetReferenceTime for MshvPartitionInner {
 
 impl virt::PartitionTimeControl for MshvPartition {
     fn freeze_time(&self) {
-        #[cfg(guest_arch = "aarch64")]
-        if self.inner.isolation.cca().is_some() {
-            let mut registers = [
-                HvRegisterAssoc::from((hvdef::HvArm64RegisterName::XPc, 0u64)),
-                HvRegisterAssoc::from((hvdef::HvArm64RegisterName::X0, 0u64)),
-                HvRegisterAssoc::from((hvdef::HvArm64RegisterName::Cpsr, 0u64)),
-            ];
-            match self.inner.bsp_vcpufd.get_hvdef_regs(&mut registers) {
-                Ok(()) => tracing::info!(?registers, "paused CCA boot registers"),
-                Err(error) => {
-                    tracing::warn!(?error, "failed to read paused CCA boot registers")
-                }
-            }
-        }
-
         let mut frozen = self.inner.time_frozen.lock();
         if !*frozen {
             self.inner
@@ -448,7 +401,67 @@ impl virt::PartitionTimeControl for MshvPartition {
     }
 }
 
+impl virt::AcceptInitialPages for MshvPartition {
+    type Error = Error;
+
+    fn accept_initial_pages(&self, pages: &[virt::InitialPageImport]) -> Result<(), Self::Error> {
+        self.inner.accept_initial_pages(pages)
+    }
+}
+
 impl MshvPartitionInner {
+    fn accept_initial_pages(&self, pages: &[virt::InitialPageImport]) -> Result<(), Error> {
+        let Some(isolation) = &self.isolation else {
+            return Err(ErrorInner::IsolationNotSupported.into());
+        };
+
+        {
+            let mut state = isolation.launch_state.lock();
+            match *state {
+                IsolatedLaunchState::NotStarted => *state = IsolatedLaunchState::Started,
+                IsolatedLaunchState::Started => return Err(cvm::CvmError::LaunchInProgress.into()),
+                IsolatedLaunchState::Finished => return Ok(()),
+                IsolatedLaunchState::Failed => return Err(cvm::CvmError::LaunchFailed.into()),
+            }
+        }
+
+        match self.accept_initial_pages_inner(pages) {
+            Ok(()) => {
+                *isolation.launch_state.lock() = IsolatedLaunchState::Finished;
+                Ok(())
+            }
+            Err(err) => {
+                *isolation.launch_state.lock() = IsolatedLaunchState::Failed;
+                Err(err)
+            }
+        }
+    }
+
+    fn accept_initial_pages_inner(&self, pages: &[virt::InitialPageImport]) -> Result<(), Error> {
+        #[cfg(guest_arch = "x86_64")]
+        let snp = if let Some(snp) = self.snp() {
+            Some((snp, self.snp_pre_accept_initial_pages(snp, pages)?))
+        } else {
+            None
+        };
+
+        self.accept_initial_pages_inner_common(pages)?;
+
+        #[cfg(guest_arch = "x86_64")]
+        if let Some((snp, vmsa_gpa)) = snp {
+            self.snp_post_accept_initial_pages(snp, vmsa_gpa)?;
+        }
+
+        Ok(())
+    }
+
+    #[cfg(guest_arch = "x86_64")]
+    fn snp(&self) -> Option<&arch::SnpPartitionState> {
+        self.isolation.as_ref().map(|i| match &i.type_state {
+            MshvIsolationTypeState::Snp(state) => state,
+        })
+    }
+
     fn vp(&self, vp_index: VpIndex) -> &MshvVpInner {
         &self.vps[vp_index.index() as usize]
     }
@@ -787,9 +800,8 @@ enum ErrorInner {
     #[cfg(guest_arch = "x86_64")]
     #[error("VP register page is unavailable")]
     MissingRegisterPage,
-    #[cfg(guest_arch = "aarch64")]
     #[error(transparent)]
-    Cca(#[from] arch::CcaError),
+    Cvm(#[from] cvm::CvmError),
     #[cfg(guest_arch = "x86_64")]
     #[error(transparent)]
     Snp(#[from] arch::SnpError),
@@ -976,7 +988,7 @@ impl virt::PartitionMemoryMapper for MshvPartition {
 
     fn host_access(&self) -> Option<Arc<dyn virt::PartitionHostAccess>> {
         #[cfg(guest_arch = "x86_64")]
-        if self.inner.isolation.snp().is_some() {
+        if self.inner.snp().is_some() {
             return Some(self.inner.clone());
         }
         None
@@ -994,7 +1006,7 @@ impl virt::PartitionHostAccess for MshvPartitionInner {
         // TODO: Investigate whether MSHV supports read-only host-access
         // requests and use `_write` to avoid granting write access for reads.
         #[cfg(guest_arch = "x86_64")]
-        if self.isolation.snp().is_some() {
+        if self.snp().is_some() {
             return arch::acquire_snp_host_access(self, _addr, _size);
         }
         anyhow::bail!("acquiring host access is not supported")
@@ -1054,7 +1066,12 @@ impl virt::PartitionMemoryMap for MshvPartitionInner {
             exec,
         )
         .entered();
-        let mapped = self.isolation.map_user_memory(&self.vmfd, mem_region)?;
+        let mapped = if let Some(isolation) = self.isolation.as_ref() {
+            isolation.map_user_memory(&self.vmfd, mem_region)?
+        } else {
+            self.vmfd.map_user_memory(mem_region)?;
+            true
+        };
         state.ranges[slot_to_use] = Some(MshvMemoryRange {
             region: mem_region,
             mapped,

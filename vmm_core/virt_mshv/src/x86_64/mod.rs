@@ -69,9 +69,10 @@ use zerocopy::IntoBytes;
 
 mod snp;
 
+use crate::MshvIsolationTypeState;
+use crate::MshvProtoPartitionIsolation;
 pub(crate) use snp::MshvSnpConfig;
 pub(super) use snp::SnpError;
-pub(crate) use snp::SnpLaunchState;
 pub(crate) use snp::SnpPartitionState;
 pub(crate) use snp::SnpVpState;
 pub(crate) use snp::acquire_snp_host_access;
@@ -554,14 +555,13 @@ impl ProtoPartition for MshvProtoPartition<'_> {
             .collect();
 
         let isolation = match self.isolation {
-            MshvProtoPartitionIsolation::None => MshvIsolationState::None,
+            MshvProtoPartitionIsolation::None => None,
             MshvProtoPartitionIsolation::Snp {
                 config,
                 disable_cpuid_offload,
-            } => MshvIsolationState::Snp(SnpPartitionState::with_config(
-                disable_cpuid_offload,
-                config,
-            )),
+            } => Some(MshvIsolationState::new(MshvIsolationTypeState::Snp(
+                SnpPartitionState::new(disable_cpuid_offload, config),
+            ))),
         };
         let inner = Arc::new(MshvPartitionInner {
             vmfd: self.vmfd,
@@ -605,7 +605,11 @@ impl ProtoPartition for MshvProtoPartition<'_> {
 
 impl virt::Partition for MshvPartition {
     fn initial_vp_state_source(&self) -> virt::InitialVpStateSource {
-        self.inner.isolation.initial_vp_state_source()
+        if self.inner.isolation.is_some() {
+            virt::InitialVpStateSource::ImportedContext
+        } else {
+            virt::InitialVpStateSource::Registers
+        }
     }
 
     fn supports_time_control(&self) -> Option<&dyn virt::PartitionTimeControl> {
@@ -615,13 +619,13 @@ impl virt::Partition for MshvPartition {
     fn supports_initial_page_acceptance(
         &self,
     ) -> Option<&dyn virt::AcceptInitialPages<Error = Error>> {
-        self.inner.isolation.snp().is_some().then_some(self)
+        self.inner.snp().is_some().then_some(self)
     }
 
     fn supports_reset(&self) -> Option<&dyn virt::ResetPartition<Error = Error>> {
         // TODO: Support resetting SNP launch state and rebuilding the protected
         // guest before advertising reset support.
-        self.inner.isolation.snp().is_none().then_some(self)
+        self.inner.snp().is_none().then_some(self)
     }
 
     fn doorbell_registration(
@@ -795,7 +799,7 @@ impl virt::BindProcessor for MshvProcessorBinder {
             self.vcpufd.as_ref().unwrap()
         };
 
-        let reg_page_ptr = if self.partition.isolation.snp().is_some() {
+        let reg_page_ptr = if self.partition.snp().is_some() {
             None
         } else {
             Some(
@@ -810,7 +814,7 @@ impl virt::BindProcessor for MshvProcessorBinder {
         let runner = MshvVpRunner {
             vcpufd,
             reg_page: reg_page_ptr,
-            ghcb_page: if self.partition.isolation.snp().is_some() {
+            ghcb_page: if self.partition.snp().is_some() {
                 if self.snp.is_none() {
                     self.snp = Some(SnpVpState::new(vcpufd)?);
                 }
@@ -828,7 +832,7 @@ impl virt::BindProcessor for MshvProcessorBinder {
             deliverability_notifications: HvDeliverabilityNotificationsRegister::new(),
         };
 
-        if this.partition.isolation.snp().is_none() {
+        if this.partition.snp().is_none() {
             // Set the APIC state.
             let apic_base =
                 virt::vp::Apic::at_reset(&this.partition.caps, &this.inner.vp_info).apic_base;
@@ -885,7 +889,7 @@ impl MshvProcessor<'_> {
         exit: &HvMessage,
         dev: &impl CpuIo,
     ) -> Result<(), VpHaltReason> {
-        if self.partition.isolation.snp().is_some() {
+        if self.partition.snp().is_some() {
             return self.handle_snp_exit(exit, dev).await;
         }
 
@@ -1328,7 +1332,7 @@ impl hv1_hypercall::StartVirtualProcessor<hvdef::hypercall::InitialVpContextX64>
         target_vtl: Vtl,
         vp_context: &hvdef::hypercall::InitialVpContextX64,
     ) -> hvdef::HvResult<()> {
-        if self.partition.isolation.snp().is_none() || partition_id != hvdef::HV_PARTITION_ID_SELF {
+        if self.partition.snp().is_none() || partition_id != hvdef::HV_PARTITION_ID_SELF {
             return Err(hvdef::HvError::InvalidPartitionId);
         }
         if target_vtl != Vtl::Vtl0 {
@@ -1562,8 +1566,8 @@ mod tests {
     fn can_disable_snp_cpuid_offloads() {
         let enabled = snp_vmgexit_offloads(false);
         let disabled = snp_vmgexit_offloads(true);
-        assert!(SnpPartitionState::new(false).cpuid_offloads_enabled);
-        assert!(!SnpPartitionState::new(true).cpuid_offloads_enabled);
+        assert!(SnpPartitionState::new(false, None).cpuid_offloads_enabled);
+        assert!(!SnpPartitionState::new(true, None).cpuid_offloads_enabled);
 
         // SAFETY: These generated C unions contain the bitfield member used by
         // get_default_vmgexit_offload_features() and snp_vmgexit_offloads().
