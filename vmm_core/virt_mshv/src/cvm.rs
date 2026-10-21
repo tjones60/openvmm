@@ -24,6 +24,8 @@ pub(crate) enum CvmError {
     MapGuestMemory(#[source] KernelError),
     #[error("failed to import pages")]
     ImportIsolatedPages(#[source] KernelError),
+    #[error("failed to complete SNP isolated import")]
+    CompleteIsolatedImport(#[source] KernelError),
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, inspect::Inspect)]

@@ -267,13 +267,12 @@ pub struct MshvPartition {
 
 pub(crate) struct MshvIsolationState {
     launch_state: Mutex<IsolatedLaunchState>,
-    #[cfg_attr(guest_arch = "aarch64", expect(unused))]
     type_state: MshvIsolationTypeState,
 }
 
 pub(crate) enum MshvIsolationTypeState {
     #[cfg(guest_arch = "aarch64")]
-    Cca,
+    Cca(arch::CcaPartitionState),
     #[cfg(guest_arch = "x86_64")]
     Snp(arch::SnpPartitionState),
 }
@@ -454,6 +453,11 @@ impl MshvPartitionInner {
             self.snp_post_accept_initial_pages(snp, vmsa_gpa)?;
         }
 
+        #[cfg(guest_arch = "aarch64")]
+        if let Some(cca) = self.cca() {
+            self.cca_post_accept_initial_pages(cca)?;
+        }
+
         Ok(())
     }
 
@@ -461,6 +465,13 @@ impl MshvPartitionInner {
     fn snp(&self) -> Option<&arch::SnpPartitionState> {
         self.isolation.as_ref().map(|i| match &i.type_state {
             MshvIsolationTypeState::Snp(state) => state,
+        })
+    }
+
+    #[cfg(guest_arch = "aarch64")]
+    fn cca(&self) -> Option<&arch::CcaPartitionState> {
+        self.isolation.as_ref().map(|i| match &i.type_state {
+            MshvIsolationTypeState::Cca(state) => state,
         })
     }
 

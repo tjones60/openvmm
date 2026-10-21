@@ -55,7 +55,7 @@ use zerocopy::FromZeros;
 
 use crate::MshvIsolationTypeState;
 pub(super) use cca::CcaError;
-use hvdef::HV_PAGE_SHIFT;
+pub(super) use cca::CcaPartitionState;
 
 impl virt::Hypervisor for LinuxMshv {
     type ProtoPartition<'a> = MshvProtoPartition<'a>;
@@ -95,7 +95,8 @@ impl virt::Hypervisor for LinuxMshv {
 
         let vmfd = create_vm_with_retry(&self.mshv, &create_args)?;
 
-        if matches!(config.isolation, ProtoPartitionIsolation::Cca) {
+        let cca = matches!(config.isolation, ProtoPartitionIsolation::Cca);
+        if cca {
             cca::set_disabled_processor_features(&vmfd)?;
         }
 
@@ -175,13 +176,31 @@ impl virt::Hypervisor for LinuxMshv {
                 let physical_address_width = vmfd
                     .get_partition_property(HvPartitionPropertyCode::PhysicalAddressWidth.0)
                     .map_err(|e| ErrorInner::GetPartitionProperty(e.into()))?;
-                let shared_gpa_bit = 1 << (physical_address_width - HV_PAGE_SHIFT - 1);
+                let shared_gpa_bit = 1 << (physical_address_width - 1);
                 MshvProtoPartitionIsolation::Cca { shared_gpa_bit }
             }
             _ => return Err(ErrorInner::IsolationNotSupported.into()),
         };
 
-        MshvProtoPartition::new(config, vmfd, isolation)
+        let partition = MshvProtoPartition::new(config, vmfd, isolation)?;
+        if cca {
+            let vp = partition.config.processor_topology.vp_arch(VpIndex::BSP);
+            let mut regs = vec![HvRegisterAssoc::from((
+                HvArm64RegisterName::MpidrEl1,
+                u64::from(vp.mpidr),
+            ))];
+            if let Some(gicr) = vp.gicr {
+                regs.push(HvRegisterAssoc::from((
+                    HvArm64RegisterName::GicrBaseGpa,
+                    gicr,
+                )));
+            }
+            partition
+                .bsp
+                .set_hvdef_regs(&regs)
+                .map_err(ErrorInner::Register)?;
+        }
+        Ok(partition)
     }
 }
 
@@ -211,7 +230,9 @@ impl ProtoPartition for MshvProtoPartition<'_> {
             MshvProtoPartitionIsolation::None => (virt::IsolationType::None, None, None),
             MshvProtoPartitionIsolation::Cca { shared_gpa_bit } => (
                 virt::IsolationType::Cca,
-                Some(MshvIsolationState::new(MshvIsolationTypeState::Cca)),
+                Some(MshvIsolationState::new(MshvIsolationTypeState::Cca(
+                    CcaPartitionState::new(),
+                ))),
                 Some(shared_gpa_bit),
             ),
         };
@@ -266,11 +287,11 @@ impl ProtoPartition for MshvProtoPartition<'_> {
 
 impl virt::Partition for MshvPartition {
     fn initial_vp_state_source(&self) -> virt::InitialVpStateSource {
-        if self.inner.isolation.is_some() {
-            virt::InitialVpStateSource::ImportedContext
-        } else {
-            virt::InitialVpStateSource::Registers
-        }
+        // if self.inner.isolation.is_some() {
+        //     virt::InitialVpStateSource::ImportedContext
+        // } else {
+        virt::InitialVpStateSource::Registers
+        // }
     }
 
     fn supports_time_control(&self) -> Option<&dyn virt::PartitionTimeControl> {
@@ -646,6 +667,15 @@ impl MshvProcessor<'_> {
         });
 
         regs.get_values(assoc.iter_mut().map(|assoc| &mut assoc.value));
+
+        if let Some(cca) = self.partition.cca()
+            && cca.defer_registers(
+                &self.partition.isolation.as_ref().unwrap().launch_state,
+                &assoc,
+            )
+        {
+            return Ok(());
+        }
 
         self.runner
             .vcpufd

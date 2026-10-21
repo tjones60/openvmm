@@ -28,8 +28,6 @@ pub(crate) enum SnpError {
     Cpuid(#[source] KernelError),
     #[error("failed to write SNP CPUID page")]
     GuestMemory(#[source] guestmem::GuestMemoryError),
-    #[error("failed to complete SNP isolated import")]
-    CompleteIsolatedImport(#[source] KernelError),
 }
 
 pub(super) const SNP_HYPERV_CPUID_FUNCTIONS: [u32; 10] = [
@@ -692,7 +690,7 @@ impl MshvPartitionInner {
         data.import_data.psp_parameters = parameters;
         self.vmfd
             .complete_isolated_import(&data)
-            .map_err(|e| SnpError::CompleteIsolatedImport(e.into()))?;
+            .map_err(|e| CvmError::CompleteIsolatedImport(e.into()))?;
 
         let sev_control =
             mshv_bindings::snp::get_sev_control_register(vmsa_gpa / hvdef::HV_PAGE_SIZE);
