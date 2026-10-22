@@ -3367,12 +3367,23 @@ impl Firmware {
             MachineArch::X86_64 => resolver.require(LATEST_STANDARD_X64).erase(),
             MachineArch::Aarch64 => resolver.require(LATEST_STANDARD_AARCH64).erase(),
         });
+        let openhcl_config = OpenHclConfig {
+            // bump up the memory on release builds for VBS VMs
+            // (uses petri build flavor as proxy for igvm file)
+            #[cfg(not(debug_assertions))]
+            vtl2_base_address_type: isolation
+                .is_some_and(|i| matches!(i, IsolationType::Vbs))
+                .then_some(Vtl2BaseAddressType::Vtl2Allocate {
+                    size: Some(128 * 1024 * 1024),
+                }),
+            ..Default::default()
+        };
         Firmware::OpenhclUefi {
             guest,
             isolation,
             igvm_firmware,
             uefi_config: Default::default(),
-            openhcl_config: Default::default(),
+            openhcl_config,
         }
     }
 
