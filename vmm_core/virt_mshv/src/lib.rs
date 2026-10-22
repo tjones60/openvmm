@@ -548,6 +548,18 @@ impl MshvPartitionInner {
         };
         self.vmfd.hvcall(&mut args)
     }
+
+    /// Removes the CCA shared-address bit before routing an MMIO access.
+    ///
+    /// Realm guests use the shared bit to select the host-visible alias of a
+    /// device address, while routing entries contain the underlying IPA.
+    fn mmio_address(&self, address: u64) -> u64 {
+        if let Some(shared_bit) = self.caps.shared_gpa_bit {
+            address & (shared_bit - 1)
+        } else {
+            address
+        }
+    }
 }
 
 /// Binds a virtual processor to the current thread.

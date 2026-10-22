@@ -535,11 +535,20 @@ impl MshvProcessor<'_> {
 
                 if iss.wnr() {
                     let value = self.get_x(reg);
-                    dev.write_mmio(self.vpindex, gpa, &value.to_ne_bytes()[..len])
-                        .await;
+                    dev.write_mmio(
+                        self.vpindex,
+                        self.partition.mmio_address(gpa),
+                        &value.to_ne_bytes()[..len],
+                    )
+                    .await;
                 } else {
                     let mut data = [0u8; 8];
-                    dev.read_mmio(self.vpindex, gpa, &mut data[..len]).await;
+                    dev.read_mmio(
+                        self.vpindex,
+                        self.partition.mmio_address(gpa),
+                        &mut data[..len],
+                    )
+                    .await;
                     let value = if iss.sse() {
                         match len {
                             1 => data[0] as i8 as i64 as u64,
@@ -559,6 +568,9 @@ impl MshvProcessor<'_> {
                 self.set_pc(new_pc);
             }
             _ => {
+                let gpa = info.guest_physical_address;
+                let gva = info.guest_virtual_address;
+                tracing::error!(?ec, ?syndrome, gpa, gva, "unsupported exception class");
                 return Err(dev.fatal_error(
                     format!("unexpected exception class in memory intercept: {ec:?}").into(),
                 ));
