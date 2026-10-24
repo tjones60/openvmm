@@ -145,6 +145,20 @@ impl FlowNode for Node {
                         // This isn't ideal because it means _any_ musl code (not just
                         // code running in VTL2) will use the openhcl-specific musl
                         if matches!(target.environment, target_lexicon::Environment::Gnu) {
+                            if matches!(
+                                platform,
+                                FlowPlatform::Linux(FlowPlatformLinuxDistro::Ubuntu)
+                            ) && matches!(target.architecture, Architecture::Aarch64(_))
+                            {
+                                // GCC only recommends the target libc headers and startup objects.
+                                pre_build_deps.push(ctx.reqv(|v| {
+                                    flowey_lib_common::install_dist_pkg::Request::Install {
+                                        package_names: vec!["libc6-dev-arm64-cross".into()],
+                                        done: v,
+                                    }
+                                }));
+                            }
+
                             injected_env.insert(
                                 format!(
                                     "CARGO_TARGET_{}_LINKER",
