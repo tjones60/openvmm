@@ -89,58 +89,6 @@ fn parse_installed_packages(
     Ok(installed_packages)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use test_with_tracing::test;
-
-    #[test]
-    fn dpkg_only_counts_installed_packages() {
-        let output = "\
-compiler\tinstalled
-libc6-dev-arm64-cross\tconfig-files
-unpacked-lib\tunpacked
-broken-lib\thalf-installed
-unconfigured-lib\thalf-configured
-absent-lib\tnot-installed
-native-lib:amd64\tinstalled
-";
-        let installed = parse_installed_packages(FlowPlatformLinuxDistro::Ubuntu, output).unwrap();
-        assert_eq!(
-            installed,
-            BTreeSet::from(["compiler".into(), "native-lib".into()])
-        );
-    }
-
-    #[test]
-    fn dpkg_rejects_missing_status() {
-        assert!(parse_installed_packages(FlowPlatformLinuxDistro::Ubuntu, "compiler\n").is_err());
-    }
-
-    #[test]
-    fn empty_query_has_no_installed_packages() {
-        assert!(
-            parse_installed_packages(FlowPlatformLinuxDistro::Ubuntu, "")
-                .unwrap()
-                .is_empty()
-        );
-    }
-
-    #[test]
-    fn other_distros_keep_name_only_queries() {
-        for distro in [
-            FlowPlatformLinuxDistro::Fedora,
-            FlowPlatformLinuxDistro::AzureLinux,
-            FlowPlatformLinuxDistro::Arch,
-        ] {
-            assert_eq!(
-                parse_installed_packages(distro, "compiler\nlibrary\n").unwrap(),
-                BTreeSet::from(["compiler".into(), "library".into()])
-            );
-        }
-    }
-}
-
 fn update_packages(
     rt: &mut RustRuntimeServices<'_>,
     distro: FlowPlatformLinuxDistro,
@@ -351,5 +299,57 @@ impl FlowNodeWithConfig for Node {
         });
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use test_with_tracing::test;
+
+    #[test]
+    fn dpkg_only_counts_installed_packages() {
+        let output = "\
+compiler\tinstalled
+libc6-dev-arm64-cross\tconfig-files
+unpacked-lib\tunpacked
+broken-lib\thalf-installed
+unconfigured-lib\thalf-configured
+absent-lib\tnot-installed
+native-lib:amd64\tinstalled
+";
+        let installed = parse_installed_packages(FlowPlatformLinuxDistro::Ubuntu, output).unwrap();
+        assert_eq!(
+            installed,
+            BTreeSet::from(["compiler".into(), "native-lib".into()])
+        );
+    }
+
+    #[test]
+    fn dpkg_rejects_missing_status() {
+        assert!(parse_installed_packages(FlowPlatformLinuxDistro::Ubuntu, "compiler\n").is_err());
+    }
+
+    #[test]
+    fn empty_query_has_no_installed_packages() {
+        assert!(
+            parse_installed_packages(FlowPlatformLinuxDistro::Ubuntu, "")
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn other_distros_keep_name_only_queries() {
+        for distro in [
+            FlowPlatformLinuxDistro::Fedora,
+            FlowPlatformLinuxDistro::AzureLinux,
+            FlowPlatformLinuxDistro::Arch,
+        ] {
+            assert_eq!(
+                parse_installed_packages(distro, "compiler\nlibrary\n").unwrap(),
+                BTreeSet::from(["compiler".into(), "library".into()])
+            );
+        }
     }
 }
