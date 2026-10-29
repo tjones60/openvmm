@@ -11,8 +11,7 @@ use flowey::pipeline::prelude::*;
 // (in both GitHub and ADO).
 pub const WINDOWS_IMAGE_AMD64_V2: &str = "win-amd64-v2";
 pub const WINDOWS_IMAGE_ARM64_V2: &str = "win-arm64-v2";
-// TODO BEFORE MERGE: undo this and go back to the prepped image
-pub const LINUX_IMAGE_AMD64_PREPPED: &str = "ubuntu2404-amd64";
+pub const LINUX_IMAGE_AMD64_PREPPED: &str = "ubuntu2404-amd64-prepped";
 pub const LINUX_IMAGE_ARM64: &str = "ubuntu2404-arm64";
 pub const MSHV_IMAGE_AMD64: &str = "azurelinux3-amd64-dom0";
 
