@@ -1611,7 +1611,6 @@ impl IntoPipeline for CheckinGatesCli {
             test_vhd::FREE_BSD_13_2_X64.into(),
             test_iso::FREE_BSD_13_2_X64.into(),
             test_vhd::GEN1_WINDOWS_DATA_CENTER_CORE2022_X64.into(),
-            test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64.into(),
             test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64.into(),
             test_vhd::UBUNTU_2404_SERVER_X64.into(),
             test_vhd::UBUNTU_2404_SERVER_AARCH64.into(),
@@ -1623,7 +1622,7 @@ impl IntoPipeline for CheckinGatesCli {
         let linux_host_test_artifacts = vec![
             test_vhd::ALPINE_3_23_X64.into(),
             test_vhd::ALPINE_3_23_AARCH64.into(),
-            test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64.into(),
+            test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64.into(),
             test_vhd::UBUNTU_2404_SERVER_X64.into(),
             test_vhd::UBUNTU_2404_SERVER_AARCH64.into(),
             test_vhd::UBUNTU_2504_SERVER_X64.into(),
@@ -1675,7 +1674,6 @@ impl IntoPipeline for CheckinGatesCli {
 
         let cvm_x64_test_artifacts = vec![
             test_vhd::GEN1_WINDOWS_DATA_CENTER_CORE2022_X64.into(),
-            test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64.into(),
             test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64.into(),
             test_vhd::UBUNTU_2504_SERVER_X64.into(),
             test_vmgs::VMGS_WITH_16K_TPM.into(),

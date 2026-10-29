@@ -408,15 +408,15 @@ impl<'a> TpmGuestTests<'a> {
 #[vmm_test(
     ignore(reason = "OpenVMM TPM needs OpenSSL, not yet buildable on Windows CI", openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64))),
     ignore(reason = "OpenVMM TPM needs OpenSSL, not yet buildable on Windows CI", openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64))),
-    ignore(reason = "OpenVMM TPM needs OpenSSL, not yet buildable on Windows CI", openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64))),
+    ignore(reason = "OpenVMM TPM needs OpenSSL, not yet buildable on Windows CI", openvmm_uefi_x64(vhd(windows_datacenter_core_2025_x64))),
     ignore(reason = "OpenVMM TPM needs OpenSSL, not yet buildable on Windows CI", openvmm_uefi_x64(vhd(ubuntu_2504_server_x64))),
     openvmm_openhcl_uefi_x64(vhd(alpine_3_23_x64)),
-    openvmm_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
+    openvmm_openhcl_uefi_x64(vhd(windows_datacenter_core_2025_x64)),
     openvmm_openhcl_uefi_x64(vhd(ubuntu_2504_server_x64)),
     hyperv_openhcl_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     hyperv_openhcl_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
     hyperv_openhcl_uefi_x64(vhd(alpine_3_23_x64)),
-    hyperv_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
+    hyperv_openhcl_uefi_x64(vhd(windows_datacenter_core_2025_x64)),
     hyperv_openhcl_uefi_x64(vhd(ubuntu_2504_server_x64)),
     openvmm_openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2025_x64_prepped)),
     ignore(reason = "OpenVMM VBS boot on Ubuntu is unreliable (microsoft/openvmm#2608)", openvmm_openhcl_uefi_x64[vbs](vhd(ubuntu_2504_server_x64))),
@@ -452,7 +452,7 @@ pub(crate) async fn boot_with_tpm_impl<T: PetriVmmBackend>(
 #[cfg(windows)]
 #[openvmm_test(
     openhcl_uefi_x64(vhd(ubuntu_2504_server_x64))[TPM_GUEST_TESTS_LINUX_X64],
-    openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64))[TPM_GUEST_TESTS_WINDOWS_X64]
+    openhcl_uefi_x64(vhd(windows_datacenter_core_2025_x64))[TPM_GUEST_TESTS_WINDOWS_X64]
 )]
 async fn tpm_ak_cert_persisted<T>(
     config: PetriVmBuilder<OpenVmmPetriBackend>,
@@ -537,7 +537,7 @@ pub(crate) async fn tpm_ak_cert_persisted_impl<T>(
 #[cfg(windows)]
 #[openvmm_test(
     openhcl_uefi_x64(vhd(ubuntu_2504_server_x64))[TPM_GUEST_TESTS_LINUX_X64],
-    openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64))[TPM_GUEST_TESTS_WINDOWS_X64]
+    openhcl_uefi_x64(vhd(windows_datacenter_core_2025_x64))[TPM_GUEST_TESTS_WINDOWS_X64]
 )]
 async fn tpm_ak_cert_renewal<T>(
     config: PetriVmBuilder<OpenVmmPetriBackend>,
@@ -619,7 +619,7 @@ async fn ak_cert_renewal_impl<U: PetriVmmBackend>(
 /// Test AK cert retry logic.
 #[openvmm_test(
     openhcl_uefi_x64(vhd(ubuntu_2504_server_x64))[TPM_GUEST_TESTS_LINUX_X64],
-    openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64))[TPM_GUEST_TESTS_WINDOWS_X64]
+    openhcl_uefi_x64(vhd(windows_datacenter_core_2025_x64))[TPM_GUEST_TESTS_WINDOWS_X64]
 )]
 async fn tpm_ak_cert_retry<T>(
     config: PetriVmBuilder<OpenVmmPetriBackend>,
@@ -775,7 +775,7 @@ async fn wait_for_ak_cert_event<U: PetriVmmBackend>(
 #[cfg(windows)]
 #[vmm_test(
     hyperv_openhcl_uefi_x64(vhd(ubuntu_2504_server_x64))[TPM_GUEST_TESTS_LINUX_X64, TEST_IGVM_AGENT_RPC_SERVER_WINDOWS_X64],
-    hyperv_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64))[TPM_GUEST_TESTS_WINDOWS_X64, TEST_IGVM_AGENT_RPC_SERVER_WINDOWS_X64],
+    hyperv_openhcl_uefi_x64(vhd(windows_datacenter_core_2025_x64))[TPM_GUEST_TESTS_WINDOWS_X64, TEST_IGVM_AGENT_RPC_SERVER_WINDOWS_X64],
     unstable(reason = "Hyper-V VBS failures are not currently actionable.", hyperv_openhcl_uefi_x64[vbs](vhd(ubuntu_2504_server_x64))[TPM_GUEST_TESTS_LINUX_X64, TEST_IGVM_AGENT_RPC_SERVER_WINDOWS_X64]),
     unstable(reason = "Hyper-V VBS failures are not currently actionable.", hyperv_openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2025_x64_prepped))[TPM_GUEST_TESTS_WINDOWS_X64, TEST_IGVM_AGENT_RPC_SERVER_WINDOWS_X64]),
     hyperv_openhcl_uefi_x64[tdx](vhd(ubuntu_2504_server_x64))[TPM_GUEST_TESTS_LINUX_X64, TEST_IGVM_AGENT_RPC_SERVER_WINDOWS_X64],
@@ -823,7 +823,7 @@ pub(crate) async fn ak_cert_cache_impl<T, S, U: PetriVmmBackend>(
 #[cfg(windows)]
 #[vmm_test(
     hyperv_openhcl_uefi_x64(vhd(ubuntu_2504_server_x64))[TPM_GUEST_TESTS_LINUX_X64, TEST_IGVM_AGENT_RPC_SERVER_WINDOWS_X64],
-    hyperv_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64))[TPM_GUEST_TESTS_WINDOWS_X64, TEST_IGVM_AGENT_RPC_SERVER_WINDOWS_X64],
+    hyperv_openhcl_uefi_x64(vhd(windows_datacenter_core_2025_x64))[TPM_GUEST_TESTS_WINDOWS_X64, TEST_IGVM_AGENT_RPC_SERVER_WINDOWS_X64],
     unstable(reason = "Hyper-V VBS failures are not currently actionable.", hyperv_openhcl_uefi_x64[vbs](vhd(ubuntu_2504_server_x64))[TPM_GUEST_TESTS_LINUX_X64, TEST_IGVM_AGENT_RPC_SERVER_WINDOWS_X64]),
     unstable(reason = "Hyper-V VBS failures are not currently actionable.", hyperv_openhcl_uefi_x64[vbs](vhd(windows_datacenter_core_2025_x64_prepped))[TPM_GUEST_TESTS_WINDOWS_X64, TEST_IGVM_AGENT_RPC_SERVER_WINDOWS_X64]),
     hyperv_openhcl_uefi_x64[tdx](vhd(ubuntu_2504_server_x64))[TPM_GUEST_TESTS_LINUX_X64, TEST_IGVM_AGENT_RPC_SERVER_WINDOWS_X64],
