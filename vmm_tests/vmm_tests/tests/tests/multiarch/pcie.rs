@@ -166,7 +166,7 @@ async fn parse_guest_pci_devices(
 #[openvmm_test(
     linux_direct_x64,
     uefi_x64(vhd(windows_datacenter_core_2025_x64)),
-    uefi_x64(vhd(ubuntu_2404_server_x64)),
+    uefi_x64(vhd(ubuntu_2504_server_x64)),
     uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     uefi_aarch64(vhd(ubuntu_2404_server_aarch64))
 )]
@@ -201,7 +201,7 @@ async fn pcie_root_emulation_single_segment(
 #[openvmm_test(
     linux_direct_x64,
     uefi_x64(vhd(windows_datacenter_core_2025_x64)),
-    uefi_x64(vhd(ubuntu_2404_server_x64)),
+    uefi_x64(vhd(ubuntu_2504_server_x64)),
     uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     uefi_aarch64(vhd(ubuntu_2404_server_aarch64))
 )]
@@ -234,7 +234,7 @@ async fn pcie_root_emulation_multi_segment(
 #[openvmm_test(
     linux_direct_x64,
     uefi_x64(vhd(windows_datacenter_core_2025_x64)),
-    uefi_x64(vhd(ubuntu_2404_server_x64)),
+    uefi_x64(vhd(ubuntu_2504_server_x64)),
     uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     uefi_aarch64(vhd(ubuntu_2404_server_aarch64))
 )]
@@ -668,7 +668,7 @@ async fn smmu_mixed_topology(config: PetriVmBuilder<OpenVmmPetriBackend>) -> any
 #[vmm_test_with(
     openvmm,
     amd,
-    configs(linux_direct_x64, uefi_x64(vhd(ubuntu_2404_server_x64)))
+    configs(linux_direct_x64, uefi_x64(vhd(ubuntu_2504_server_x64)))
 )]
 async fn amd_iommu_mixed_topology(
     config: PetriVmBuilder<OpenVmmPetriBackend>,
@@ -754,7 +754,7 @@ async fn amd_iommu_mixed_topology(
 #[vmm_test_with(
     openvmm,
     intel,
-    configs(linux_direct_x64, uefi_x64(vhd(ubuntu_2404_server_x64)))
+    configs(linux_direct_x64, uefi_x64(vhd(ubuntu_2504_server_x64)))
 )]
 async fn intel_vtd_multi_segment(
     config: PetriVmBuilder<OpenVmmPetriBackend>,
@@ -766,7 +766,7 @@ async fn intel_vtd_multi_segment(
 #[vmm_test_with(
     openvmm,
     intel,
-    configs(linux_direct_x64, uefi_x64(vhd(ubuntu_2404_server_x64)))
+    configs(linux_direct_x64, uefi_x64(vhd(ubuntu_2504_server_x64)))
 )]
 async fn intel_vtd_multi_segment_legacy(
     config: PetriVmBuilder<OpenVmmPetriBackend>,

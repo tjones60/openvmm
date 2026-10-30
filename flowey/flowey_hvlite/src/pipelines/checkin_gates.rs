@@ -1603,6 +1603,12 @@ impl IntoPipeline for CheckinGatesCli {
                     filter.push_str(" & !(test(servicing) & test(hyperv))");
                 }
             }
+
+            // run these older OS boot tests on the cvm runners where we don't
+            // need to download the extra VHDs
+            filter
+                .push_str(" & !test(ubuntu_2404_server_x64) & !(windows_datacenter_core_2022_x64)");
+
             filter
         };
 
@@ -1612,7 +1618,6 @@ impl IntoPipeline for CheckinGatesCli {
             test_iso::FREE_BSD_13_2_X64.into(),
             test_vhd::GEN1_WINDOWS_DATA_CENTER_CORE2022_X64.into(),
             test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64.into(),
-            test_vhd::UBUNTU_2404_SERVER_X64.into(),
             test_vhd::UBUNTU_2404_SERVER_AARCH64.into(),
             test_vhd::UBUNTU_2504_SERVER_X64.into(),
             test_vmgs::VMGS_WITH_BOOT_ENTRY.into(),
@@ -1622,6 +1627,7 @@ impl IntoPipeline for CheckinGatesCli {
         let linux_host_test_artifacts = vec![
             test_vhd::ALPINE_3_23_X64.into(),
             test_vhd::ALPINE_3_23_AARCH64.into(),
+            test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64.into(),
             test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64.into(),
             test_vhd::UBUNTU_2404_SERVER_X64.into(),
             test_vhd::UBUNTU_2404_SERVER_AARCH64.into(),
@@ -1658,6 +1664,12 @@ impl IntoPipeline for CheckinGatesCli {
                 }
             }
 
+            // run these older OS boot tests on the cvm runners where we don't
+            // need to download the extra VHDs
+            filter.push_str(
+                " + test(ubuntu_2404_server_x64) + test(windows_datacenter_core_2022_x64)",
+            );
+
             // Exclude any PCAT tests that were picked up by other filters
             if isolation_type == "snp" {
                 filter = format!("({filter}) & !test(pcat)")
@@ -1674,7 +1686,9 @@ impl IntoPipeline for CheckinGatesCli {
 
         let cvm_x64_test_artifacts = vec![
             test_vhd::GEN1_WINDOWS_DATA_CENTER_CORE2022_X64.into(),
+            test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2022_X64.into(),
             test_vhd::GEN2_WINDOWS_DATA_CENTER_CORE2025_X64.into(),
+            test_vhd::UBUNTU_2404_SERVER_X64.into(),
             test_vhd::UBUNTU_2504_SERVER_X64.into(),
             test_vmgs::VMGS_WITH_16K_TPM.into(),
         ];

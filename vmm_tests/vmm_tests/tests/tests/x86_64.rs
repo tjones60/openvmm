@@ -112,7 +112,8 @@ async fn crash_dump_on_triple_fault(
     openhcl_uefi_x64(vhd(ubuntu_2504_server_x64)),
     openhcl_uefi_x64(vhd(windows_datacenter_core_2025_x64)),
     uefi_x64(vhd(ubuntu_2504_server_x64)),
-    uefi_x64(vhd(windows_datacenter_core_2025_x64))
+    // We get an empty string on WS2025 for some reason
+    uefi_x64(vhd(windows_datacenter_core_2022_x64))
 )]
 async fn battery_capacity(
     config: PetriVmBuilder<OpenVmmPetriBackend>,

@@ -74,7 +74,8 @@ async fn ged_ak_persist<T>(
 #[cfg(windows)]
 #[openvmm_test(
     openhcl_uefi_x64(vhd(ubuntu_2504_server_x64))[TPM_GUEST_TESTS_LINUX_X64],
-    openhcl_uefi_x64(vhd(windows_datacenter_core_2025_x64))[TPM_GUEST_TESTS_WINDOWS_X64]
+    // WS2025 hangs and never completes the expected initial reboot
+    openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64))[TPM_GUEST_TESTS_WINDOWS_X64]
 )]
 async fn ged_ak_renewal<T>(
     config: PetriVmBuilder<OpenVmmPetriBackend>,

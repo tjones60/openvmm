@@ -103,9 +103,11 @@ async fn frontpage<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Res
     openvmm_pcat_x64(vhd(ubuntu_2504_server_x64)),
     openvmm_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
+    openvmm_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     openvmm_uefi_x64(vhd(windows_datacenter_core_2025_x64)),
     openvmm_uefi_x64(vhd(ubuntu_2404_server_x64)),
     openvmm_uefi_x64(vhd(ubuntu_2504_server_x64)),
+    openvmm_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     openvmm_openhcl_uefi_x64(vhd(windows_datacenter_core_2025_x64)),
     openvmm_openhcl_uefi_x64(vhd(ubuntu_2404_server_x64)),
     openvmm_openhcl_uefi_x64(vhd(ubuntu_2504_server_x64)),
@@ -113,6 +115,7 @@ async fn frontpage<T: PetriVmmBackend>(config: PetriVmBuilder<T>) -> anyhow::Res
     hyperv_openhcl_pcat_x64(vhd(ubuntu_2504_server_x64)),
     hyperv_openhcl_uefi_aarch64(vhd(windows_11_enterprise_aarch64)),
     hyperv_openhcl_uefi_aarch64(vhd(ubuntu_2404_server_aarch64)),
+    hyperv_openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
     hyperv_openhcl_uefi_x64(vhd(windows_datacenter_core_2025_x64)),
     hyperv_openhcl_uefi_x64(vhd(ubuntu_2404_server_x64)),
     hyperv_openhcl_uefi_x64(vhd(ubuntu_2504_server_x64)),
@@ -322,7 +325,7 @@ async fn smbios_dmi(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Resu
 /// table-building path covered by `smbios_dmi`. Every Type 1 field the firmware
 /// exposes is overridden so the full blob set is validated.
 #[vmm_test(
-    openvmm_uefi_x64(vhd(ubuntu_2404_server_x64)),
+    openvmm_uefi_x64(vhd(ubuntu_2504_server_x64)),
     openvmm_uefi_aarch64(vhd(ubuntu_2404_server_aarch64))
 )]
 async fn smbios_dmi_uefi(config: PetriVmBuilder<OpenVmmPetriBackend>) -> anyhow::Result<()> {
