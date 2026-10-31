@@ -685,7 +685,7 @@ pub mod artifacts {
         declare_vmm_test_images! {
             /// Generation 2 windows test image
             GEN2_WINDOWS_DATA_CENTER_CORE2025_X64(
-                "WindowsServer-2025-datacenter-core-smalldisk-g2-26100.3476.250306.vhd",
+                "WindowsServer-2025-datacenter-core-smalldisk-g2-26100.33674.261024.vhd",
                 32214352384,
                 "Gen2WindowsDataCenterCore2025X64Vhd",
                 SUPPORTS_BLOB_DISK,
@@ -859,7 +859,7 @@ pub mod artifacts {
         declare_prepped_vmm_test_images! {
             /// Generation 2 windows test image prepped for use in a CVM
             GEN2_WINDOWS_DATA_CENTER_CORE2025_X64_PREPPED(
-                "WindowsServer-2025-datacenter-core-smalldisk-g2-26100.3476.250306-prepped.vhd"
+                "WindowsServer-2025-datacenter-core-smalldisk-g2-26100.33674.261024-prepped.vhd"
             ),
             /// Generation 2 2022 windows test image prepped for use without VMBUS
             GEN2_WINDOWS_DATA_CENTER_CORE2022_X64_NO_VMBUS_PREPPED(
@@ -867,7 +867,7 @@ pub mod artifacts {
             ),
             /// Generation 2 2025 windows test image prepped for use without VMBUS
             GEN2_WINDOWS_DATA_CENTER_CORE2025_X64_NO_VMBUS_PREPPED(
-                "WindowsServer-2025-datacenter-core-smalldisk-g2-26100.3476.250306-no-vmbus-prepped.vhd"
+                "WindowsServer-2025-datacenter-core-smalldisk-g2-26100.33674.261024-no-vmbus-prepped.vhd"
             )
         }
 
