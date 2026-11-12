@@ -138,6 +138,14 @@ function New-CustomVM
 
         [switch] $IncreaseVtl2Memory,
 
+        [Nullable[uint16]] $Vtl2AddressSpaceConfigurationMode,
+
+        [Nullable[uint64]] $Vtl2AddressRangeBase,
+
+        [Nullable[uint64]] $Vtl2AddressRangeSize,
+
+        [Nullable[uint64]] $Vtl2MmioAddressRangeSize,
+
         [Nullable[bool]] $DefaultBootAlwaysAttempt,
 
         [bool] $SecureBootEnabled = $false,
@@ -274,14 +282,18 @@ function New-CustomVM
     if ($FirmwareParameters) {
         $vssdProperties["FirmwareParameters"] = [System.Text.Encoding]::UTF8.GetBytes($FirmwareParameters)
     }
-
-    if ($IncreaseVtl2Memory) {
-        # Configure VM for auto placement mode
-        $vssdProperties["Vtl2AddressSpaceConfigurationMode"] = 1
-        # 1GB of OpenHCL address space
-        $vssdProperties["Vtl2AddressRangeSize"] = 1024
-        # 512 MB of OpenHCL MMIO space. So total OpenHCL ram = Vtl2AddressRangeSize - Vtl2MmioAddressRangeSize.
-        $vssdProperties["Vtl2MmioAddressRangeSize"] = 512
+    
+    if ($Vtl2AddressSpaceConfigurationMode -ne $null) {
+        $vssdProperties["Vtl2AddressSpaceConfigurationMode"] = $Vtl2AddressSpaceConfigurationMode
+    }
+    if ($Vtl2AddressRangeBase -ne $null) {
+        $vssdProperties["Vtl2AddressRangeBase"] = $Vtl2AddressRangeBase
+    }
+    if ($Vtl2AddressRangeSize -ne $null) {
+        $vssdProperties["Vtl2AddressRangeSize"] = $Vtl2AddressRangeSize
+    }
+    if ($Vtl2MmioAddressRangeSize -ne $null) {
+        $vssdProperties["Vtl2MmioAddressRangeSize"] = $Vtl2MmioAddressRangeSize
     }
 
     if ($SecureBootTemplateId) {

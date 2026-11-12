@@ -15,6 +15,7 @@ use anyhow::Context;
 use core::str;
 use guid::Guid;
 use jiff::Timestamp;
+use openvmm_defs::config::Vtl2BaseAddressType;
 use powershell_builder as ps;
 use powershell_builder::PowerShellBuilder;
 use serde::Deserialize;
@@ -269,6 +270,45 @@ impl ps::AsVal for HyperVManagementVtlFeatureFlags {
     }
 }
 
+/// Hyper-V VTL2 Address Space Configuration Mode
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum HyperVVtl2AddressSpaceConfigurationMode {
+    /// Configure VTL2 address space based on given IGVM configuration
+    /// Default is ConfigurableSizePlacement with platform-default values.
+    Default = 0,
+
+    /// Place VTL2 address space at the end of VM RAM.
+    /// Consider given VTL2 region size.
+    ConfigurableSizePlacement = 1,
+
+    /// Place VTL2 address space at given location.
+    /// Consider given VTL2 region size.
+    ExplicitPlacement = 2,
+
+    /// Host allocates guest(VTL0) memory for management purposes.
+    /// This allocation decreases the amount of guest memory visible to the
+    /// guest by the amount allocated for management by the host.
+    GuestDonateMemory = 3,
+
+    /// Host allocates guest(VTL0) memory for management purposes.
+    /// This allocation decreases the amount of guest memory visible to the
+    /// guest by the amount allocated for management by the host.
+    /// Additionally, an MMIO region is allocated for VTL2 of given size.
+    GuestDonateMemoryWithMmio = 4,
+}
+
+impl ps::AsVal for HyperVVtl2AddressSpaceConfigurationMode {
+    fn as_val(&self) -> impl '_ + AsRef<OsStr> {
+        match self {
+            HyperVVtl2AddressSpaceConfigurationMode::Default => "0",
+            HyperVVtl2AddressSpaceConfigurationMode::ConfigurableSizePlacement => "1",
+            HyperVVtl2AddressSpaceConfigurationMode::ExplicitPlacement => "2",
+            HyperVVtl2AddressSpaceConfigurationMode::GuestDonateMemory => "3",
+            HyperVVtl2AddressSpaceConfigurationMode::GuestDonateMemoryWithMmio => "4",
+        }
+    }
+}
+
 /// Arguments for the New-CustomVM powershell cmdlet
 pub struct HyperVNewCustomVMArgs {
     /// Name
@@ -291,8 +331,14 @@ pub struct HyperVNewCustomVMArgs {
     pub firmware_file: Option<PathBuf>,
     /// OpenHCL command line parameters
     pub firmware_parameters: Option<String>,
-    /// Whether to increase the memory available to VTL2
-    pub increase_vtl2_memory: Option<bool>,
+    /// VTL2 address space configuration mode
+    pub vtl2_address_space_configuration_mode: Option<HyperVVtl2AddressSpaceConfigurationMode>,
+    /// Where to place the VTL2 region
+    pub vtl2_address_range_base: Option<u64>,
+    /// How much VTL2 memory to allocate
+    pub vtl2_address_range_size: Option<u64>,
+    /// How much MMIO space to allocate
+    pub vtl2_mmio_address_range_size: Option<u64>,
     /// Whether to attempt a default boot even if existing entries fail
     pub default_boot_always_attempt: Option<bool>,
     /// Enable secure boot
@@ -506,12 +552,35 @@ impl HyperVNewCustomVMArgs {
             ..
         } = config;
 
-        if firmware
+        let (
+            vtl2_address_space_configuration_mode,
+            vtl2_address_range_base,
+            vtl2_address_range_size,
+            vtl2_mmio_address_range_size,
+        ) = match firmware
             .openhcl_config()
-            .is_some_and(|c| c.vtl2_base_address_type.is_some())
+            .and_then(|c| c.vtl2_base_address_type)
         {
-            todo!("custom VTL2 base address type not yet supported for Hyper-V")
-        }
+            None | Some(Vtl2BaseAddressType::File) => (None, None, None, None),
+            Some(Vtl2BaseAddressType::Absolute(base)) => (
+                Some(HyperVVtl2AddressSpaceConfigurationMode::ExplicitPlacement),
+                Some(base),
+                None,
+                None,
+            ),
+            Some(Vtl2BaseAddressType::MemoryLayout { size }) => (
+                Some(HyperVVtl2AddressSpaceConfigurationMode::ConfigurableSizePlacement),
+                None,
+                size,
+                None,
+            ),
+            Some(Vtl2BaseAddressType::Vtl2Allocate { size }) => (
+                Some(HyperVVtl2AddressSpaceConfigurationMode::GuestDonateMemory),
+                None,
+                size,
+                None,
+            ),
+        };
 
         Ok(HyperVNewCustomVMArgs {
             name: make_vm_safe_name(name),
@@ -550,7 +619,10 @@ impl HyperVNewCustomVMArgs {
                 PetriVmgsResource::Ephemeral => HyperVGuestStateLifetime::Ephemeral,
             }),
             vmbus_message_redirection: firmware.openhcl_config().map(|c| c.vmbus_redirect),
-            increase_vtl2_memory: properties.is_openhcl.then_some(!properties.is_isolated),
+            vtl2_address_space_configuration_mode,
+            vtl2_address_range_base,
+            vtl2_address_range_size,
+            vtl2_mmio_address_range_size,
             default_boot_always_attempt: firmware
                 .uefi_config()
                 .map(|c| c.default_boot_always_attempt),
@@ -864,9 +936,15 @@ pub async fn run_new_customvm(ps_mod: &Path, args: HyperVNewCustomVMArgs) -> any
             .arg("EnableOpenHCL", args.enable_openhcl)
             .arg_opt("FirmwareFile", args.firmware_file)
             .arg_opt("FirmwareParameters", args.firmware_parameters)
-            .flag_opt(
-                args.increase_vtl2_memory
-                    .and_then(|v| v.then_some("IncreaseVtl2Memory")),
+            .arg_opt(
+                "Vtl2AddressSpaceConfigurationMode",
+                args.vtl2_address_space_configuration_mode,
+            )
+            .arg_opt("Vtl2AddressRangeBase", args.vtl2_address_range_base)
+            .arg_opt("Vtl2AddressRangeSize", args.vtl2_address_range_size)
+            .arg_opt(
+                "Vtl2MmioAddressRangeSize",
+                args.vtl2_mmio_address_range_size,
             )
             .arg_opt("DefaultBootAlwaysAttempt", args.default_boot_always_attempt)
             .arg_opt("SecureBootEnabled", args.secure_boot_enabled)
