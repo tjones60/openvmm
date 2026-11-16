@@ -755,6 +755,7 @@ open_enum! {
         HvCallCheckForIoIntercept = 0x00ad,
         HvCallFlushGuestPhysicalAddressSpace = 0x00AF,
         HvCallFlushGuestPhysicalAddressList = 0x00B0,
+        HvCallCompleteIntercept             = 0x00BD,
         HvCallSignalEventDirect = 0x00C0,
         HvCallPostMessageDirect = 0x00C1,
         HvCallCheckSparseGpaPageVtlAccess = 0x00D4,
@@ -2531,6 +2532,15 @@ pub mod hypercall {
         pub reserved: u32,
         pub reference_time_in_100_ns: u64,
         pub tsc: u64,
+    }
+
+    #[repr(C)]
+    #[derive(Copy, Clone, Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
+    pub struct CompleteIntercept {
+        pub partition_id: u64,
+        pub vp_index: u32,
+        pub data_size: u32,
+        pub data: [u8; 8],
     }
 }
 

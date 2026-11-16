@@ -627,28 +627,27 @@ impl MshvProcessor<'_> {
     ) -> Result<(), VpHaltReason> {
         let info = message.as_message::<hvdef::HvArm64MmioInterceptMessage>();
         let gpa = info.guest_physical_address;
-        let len = info.access_size as usize;
+        let mut len = info.access_size;
+        let mut data = [0u8; 8];
 
         match info.header.intercept_access_type {
             hvdef::HvInterceptAccessType::WRITE => {
                 dev.write_mmio(
                     self.vpindex,
                     self.partition.mmio_address(gpa),
-                    &info.data[..len],
+                    &info.data[..len as usize],
                 )
                 .await;
+                len = 0;
             }
             hvdef::HvInterceptAccessType::READ => {
-                let mut data = [0u8; 8];
+                assert!(len <= 8);
                 dev.read_mmio(
                     self.vpindex,
                     self.partition.mmio_address(gpa),
-                    &mut data[..len],
+                    &mut data[..len as usize],
                 )
                 .await;
-                let value = u64::from_ne_bytes(data) & ((1u128 << (len * 8)) - 1) as u64;
-                tracing::error!("unhandled MMIO read: gpa: {gpa:#x} value: {value:#x}");
-                // TODO: What to do with value?
             }
             iat => {
                 return Err(
@@ -656,6 +655,23 @@ impl MshvProcessor<'_> {
                 );
             }
         }
+
+        let input = hvdef::hypercall::CompleteIntercept {
+            partition_id: hvdef::HV_PARTITION_ID_SELF,
+            vp_index: self.vpindex.index(),
+            data_size: len,
+            data,
+        };
+        let mut args = mshv_bindings::mshv_root_hvcall {
+            code: hvdef::HypercallCode::HvCallCompleteIntercept.0,
+            in_sz: size_of_val(&input) as u16,
+            in_ptr: std::ptr::addr_of!(input) as u64,
+            ..Default::default()
+        };
+        self.partition
+            .vmfd
+            .hvcall(&mut args)
+            .map_err(|e| dev.fatal_error(e.into()))?;
 
         Ok(())
     }
